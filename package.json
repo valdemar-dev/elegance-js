@@ -1,0 +1,51 @@
+{
+  "name": "elegance-js",
+  "version": "1.0.0",
+  "type": "module",
+  "types": "types/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "exports": {
+      "./build": {
+          "import": "./src/build.js",
+          "types": "./types/build.d.ts"
+      },
+      "./types/globals": {
+          "types": "./types/global.d.ts"
+      },
+      "./elements": {
+          "import": "./src/elements.js",
+          "types": "./types/elements.d.ts"
+      },
+      "./bindElements": {
+          "import": "./src/bindElements.js",
+          "types": "./types/bindElements.d.ts"
+      },
+
+      "./helpers": {
+          "import": "./src/helpers/getGlobals.js",
+          "types": "./types/helpers/getGlobals.d.ts"
+      },
+
+      "./Link": {
+          "import": "./src/components/Link.js",
+          "types": "./types/components/Link.d.ts"
+      },
+      "./Observer": {
+          "import": "./src/components/Observer.js",
+          "types": "./types/components/Observer.d.ts"
+      }
+  },
+  "files": [
+    "src/**/*",
+    "types/**/*"
+  ],
+  "devDependencies": {
+    "esbuild": "0.24.0"
+  }
+}
