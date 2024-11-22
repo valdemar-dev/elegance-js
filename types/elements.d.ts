@@ -5,13 +5,13 @@ declare const elements: {
     article: BuildableElement<"article">;
     aside: BuildableElement<"aside">;
     audio: BuildableElement<"audio">;
-    b: BuildableElement<"b">;
+    b: OptionlessBuildableElement<"b">;
     base: BuildableElement<"base">;
     bdi: BuildableElement<"bdi">;
     bdo: BuildableElement<"bdo">;
     blockquote: BuildableElement<"blockquote">;
     body: BuildableElement<"body">;
-    br: BuildableElement<"br">;
+    br: OptionlessBuildableElement<"br">;
     button: BuildableElement<"button">;
     canvas: BuildableElement<"canvas">;
     caption: BuildableElement<"caption">;
@@ -44,7 +44,7 @@ declare const elements: {
     header: BuildableElement<"header">;
     hr: BuildableElement<"hr">;
     html: BuildableElement<"html">;
-    i: BuildableElement<"i">;
+    i: OptionlessBuildableElement<"i">;
     iframe: BuildableElement<"iframe">;
     img: BuildableElement<"img">;
     input: BuildableElement<"input">;

@@ -1,11 +1,12 @@
 import "../bindElements";
+import { getRouter } from "../helpers/getGlobals.js";
 
 const Link = (options, ...children) => {
     const { href } = options;
 
-    if (!href) throw new Error("Links must specify an HREF that starts with a /");
+    if (!href) throw new Error("Links must specify an HREF, and that HREF much start with a /");
 
-    const router = globalThis.eleganceRouter;
+    const router = getRouter();
 
     router.prefetch(href);
 

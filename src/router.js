@@ -19,6 +19,12 @@ class Router {
             throw new Error("Elegance router can only navigate to local pages.");
         }
 
+        if (pathname === window.location.pathname) {
+            this.log("Skipping navigation, destination is same as current path.");
+
+            return;
+        }
+
         this.log("Calling onNavigateCallbacks..");
 
         for (const onNavigateCallback of this.onNavigateCallbacks) {

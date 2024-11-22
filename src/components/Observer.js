@@ -1,6 +1,6 @@
 import { createElementOptions } from "../elements";
 
-const Observer = (options, ...children) => {
+const Observer = async (options, ...children) => {
     const { ids = [], scope = "local", } = options;
     
     if (!Array.isArray(ids)) {

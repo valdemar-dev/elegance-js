@@ -63,6 +63,8 @@ const renderElement = (buildableElement, pageScriptSrc) => {
         if (builtElement.tag === "head") {
             returnHTML += `<script type="module" elegance-script="true" src="${pageScriptSrc}" defer=true></script>`
             returnHTML += `<script type="module" elegance-script="true" src="client.js" defer=true></script>`
+
+            returnHTML += `<meta name="viewport" content="width=device-width, initial-scale=1.0">`
         }
 
         for (const child of builtElement.children) {

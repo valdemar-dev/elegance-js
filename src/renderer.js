@@ -34,7 +34,7 @@ class Renderer {
         this.stateController.setCurrentPage(window.location.pathname);
         this.log("Starting render..");
 
-        this.log("Emptying onRenderFinishCallbacks..")
+        this.log("Emptying previous onRenderFinishCallbacks..")
         this.onRenderFinishCallbacks = [];
 
         const fragment = document.createDocumentFragment();
@@ -69,6 +69,8 @@ class Renderer {
     }
 
     buildElement(element) {
+        if (typeof element === "string") return element;
+
         if (typeof element !== "function") {
             throw new Error(`Cannot build a non-functional element.`);
         }
@@ -114,6 +116,10 @@ class Renderer {
         elementInDocument,
         skipObservables,
     ) {
+        if (!builtElement.getOptions) {
+            return;
+        }
+
         const options = builtElement.getOptions();
 
         if (!options) return;
@@ -136,6 +142,17 @@ class Renderer {
         doRenderAllChildren,
     ) {
         const builtElement = this.buildElement(element);
+        
+        if (typeof builtElement === "string") {
+            const elementInDocument = document.createTextNode(builtElement);
+
+            if (parentInDocument) {
+                parentInDocument.appendChild(elementInDocument);
+            }
+
+            return elementInDocument;
+        }
+
         const elementInDocument = document.createElement(builtElement.tag);
 
         this.processElementOptions(builtElement, elementInDocument);

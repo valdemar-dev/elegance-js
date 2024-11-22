@@ -8,13 +8,13 @@ declare global {
     var article: BuildableElement<"article">;
     var aside: BuildableElement<"aside">;
     var audio: BuildableElement<"audio">;
-    var b: BuildableElement<"b">;
+    var b: OptionlessBuildableElement<"b">;
     var base: BuildableElement<"base">;
     var bdi: BuildableElement<"bdi">;
     var bdo: BuildableElement<"bdo">;
     var blockquote: BuildableElement<"blockquote">;
     var body: BuildableElement<"body">;
-    var br: BuildableElement<"br">;
+    var br: OptionlessBuildableElement<"br">;
     var button: BuildableElement<"button">;
     var canvas: BuildableElement<"canvas">;
     var caption: BuildableElement<"caption">;
@@ -47,7 +47,7 @@ declare global {
     var header: BuildableElement<"header">;
     var hr: BuildableElement<"hr">;
     var html: BuildableElement<"html">;
-    var i: BuildableElement<"i">;
+    var i: OptionlessBuildableElement<"i">;
     var iframe: BuildableElement<"iframe">;
     var img: BuildableElement<"img">;
     var input: BuildableElement<"input">;
