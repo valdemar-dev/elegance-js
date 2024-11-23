@@ -1,6 +1,4 @@
-import { createElementOptions } from "../elements";
-
-const Observer = async (options, ...children) => {
+const Observer = (options, ...children) => {
     const { ids = [], scope = "local", } = options;
     
     if (!Array.isArray(ids)) {
@@ -12,12 +10,11 @@ const Observer = async (options, ...children) => {
     }
 
     const onMount = (builtElement, elementInDocument) => {
-        console.log("we mounted");
+        this.ids
     };
 
     return () => ({
         tag: "div",
-        getOptions: createElementOptions(options),
         children: children,
         onMount,
     });

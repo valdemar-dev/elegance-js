@@ -1,21 +1,19 @@
-class Router {
+declare class Router {
     private savedPages: Map<string, Page>;
-    private pageStates: Map<string, PageState>;
     private onNavigateCallbacks: Array<() => void>;
 
     constructor();
     private log(content: string): void;
-    private async performPageCleanup(pageState?: PageState): Promise<void>;
     private sleep(ms: number): Promise<void>;
-    public async navigate(pathname: string, pushState?: boolean): Promise<void>;
-    private async getPage(pathname: string): Promise<Page | void>;
+    public navigate(pathname: string, pushState?: boolean): Promise<void>;
+    private getPage(pathname: string): Promise<Page | void>;
     public addPage(pathname: string, page: Page): void;
     public prefetch(pathname: string): void;
     public onNavigate(callback: () => void): void;
     public setPopState(): void;
 }
 
-class Subject<T> {
+declare class Subject<T> {
     enforceRuntimeTypes: boolean;
     observers: Array<{ callback: (value: T) => void }>;
     value: T;
@@ -37,7 +35,7 @@ class Subject<T> {
     getInitialValue(): T;
 }
 
-class StateController {
+declare class StateController {
     currentPage: string;
     private globalSubjectCache: Array<Subject<any>>;
     private pageSubjectCaches: Map<string, Array<Subject<any>>>;
@@ -66,7 +64,7 @@ class StateController {
 }
 
 
-class Renderer {
+declare class Renderer {
     stateController: StateController;
     log: (content: string) => void;
     router: Router;

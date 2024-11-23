@@ -31,7 +31,6 @@ class Renderer {
     renderPage(page) {
         const start = performance.now();
 
-        this.stateController.setCurrentPage(window.location.pathname);
         this.log("Starting render..");
 
         this.log("Emptying previous onRenderFinishCallbacks..")
@@ -56,6 +55,8 @@ class Renderer {
         this.log(`Page fully rendered after: ${renderTime}ms`);
 
         fragment.appendChild(element);
+        console.log(document.body);
+
         document.documentElement.replaceChild(element, document.body);
 
         this.renderTime = renderTime;
@@ -71,8 +72,14 @@ class Renderer {
     buildElement(element) {
         if (typeof element === "string") return element;
 
+        if (element instanceof Promise) {
+            console.error(element);
+            throw `Asynchronous elements are not supported, consider using a suspense element.`;
+        }
+
         if (typeof element !== "function") {
-            throw new Error(`Cannot build a non-functional element.`);
+            console.error(element); 
+            throw `Cannot build a non-functional element, got ${element}`;
         }
 
         return element ();

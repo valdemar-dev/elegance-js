@@ -10,13 +10,14 @@ const debounce = (delay) => {
 };
 
 class Subject {
-    constructor(initialValue, id, enforceRuntimeTypes = true, debounceUpdateMs = null) {
+    constructor(initialValue, id, enforceRuntimeTypes = true, debounceUpdateMs = null, pathname) {
         this.enforceRuntimeTypes = enforceRuntimeTypes;
         this.observers = [];
         this.value = initialValue;
         this.initialValue = initialValue;
         this.id = id;
         this.signalId = 1;
+        this.pathname = pathname;
 
         if (debounceUpdateMs) {
             this.debounce = debounce(debounceUpdateMs);
@@ -76,30 +77,17 @@ class Subject {
 
 class StateController {
     constructor() {
-        this.currentPage = window.location.pathname;
-        this.globalSubjectCache = [];
-        this.pageSubjectCaches = new Map();
-    }
-
-    addSubjectPageCache(pathname) {
-        console.log(`%cCreating subject cache for page ${pathname}`, "font-size: 15px; color: #aaaaff");
-        this.pageSubjectCaches.set(pathname, []);
-    }
-
-    setCurrentPage(pathname) {
-        console.log(`%cSetting current page to: ${pathname}`, "font-size: 15px; color: #aaaaff");
-        this.currentPage = pathname;
-
-        if (!this.pageSubjectCaches.get(pathname)) this.addSubjectPageCache(pathname);
+        this.subjectStore = [];
     }
 
     create(
         initialValue,
         { id, enforceRuntimeTypes = true, debounceUpdateMs }
     ) {
-        const cache = this.pageSubjectCaches.get(this.currentPage);
+        const isLocal = (pathname) => pathname === window.location.pathname
+        const isCorrectId = (subId) => subId === id
 
-        const existingSubject = cache?.find(sub => sub.id === id);
+        const existingSubject = this.subjectStore.find(sub => isLocal(sub.pathname) && isCorrectId(sub.id));
 
         if (existingSubject) {
             console.info(
@@ -109,8 +97,8 @@ class StateController {
             return existingSubject;
         }
 
-        const subject = new Subject(initialValue, id, enforceRuntimeTypes, debounceUpdateMs);
-        cache?.push(subject);
+        const subject = new Subject(initialValue, id, enforceRuntimeTypes, debounceUpdateMs, pathname);
+        this.subjectStore.push(subject);
 
         return subject;
     }

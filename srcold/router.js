@@ -4,6 +4,7 @@ class Router {
     constructor() {
         this.savedPages = new Map();
         this.onNavigateCallbacks = [];
+        this.currentPage = string;
     }
 
     log(content) {
@@ -41,6 +42,8 @@ class Router {
         if (pushState) {
             history.pushState(null, "", pathname);
         }
+
+        this.currentPage = pathname;
 
         const renderer = getRenderer();
         renderer.renderPage(page);

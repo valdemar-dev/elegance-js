@@ -1,51 +1,38 @@
 {
   "name": "elegance-js",
   "version": "1.0.0",
+  "description": "Web-Framework",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
   "type": "module",
-  "types": "types/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rollup -c",
+    "prepare": "npm run build",
+    "test": "echo \"Write tests!\" && exit 0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "exports": {
-      "./build": {
-          "import": "./src/build.js",
-          "types": "./types/build.d.ts"
-      },
-      "./types/globals": {
-          "types": "./types/global.d.ts"
-      },
-      "./elements": {
-          "import": "./src/elements.js",
-          "types": "./types/elements.d.ts"
-      },
-      "./bindElements": {
-          "import": "./src/bindElements.js",
-          "types": "./types/bindElements.d.ts"
-      },
-
-      "./helpers": {
-          "import": "./src/helpers/getGlobals.js",
-          "types": "./types/helpers/getGlobals.d.ts"
-      },
-
-      "./Link": {
-          "import": "./src/components/Link.js",
-          "types": "./types/components/Link.d.ts"
-      },
-      "./Observer": {
-          "import": "./src/components/Observer.js",
-          "types": "./types/components/Observer.d.ts"
-      }
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.esm.mjs",
+      "require": "./dist/*.cjs.cjs"
+    }
   },
   "files": [
-    "src/**/*",
-    "types/**/*"
+    "dist"
   ],
-  "devDependencies": {
+  "author": "vqldemar",
+  "license": "MIT",
+  "dependencies": {
     "esbuild": "0.24.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-inject": "^5.0.5",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-replace": "^6.0.1",
+    "@types/node": "^22.9.1",
+    "rollup": "^4.27.3",
+    "rollup-plugin-typescript2": "^0.36.0"
   }
 }

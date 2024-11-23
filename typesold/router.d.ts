@@ -2,6 +2,7 @@ export class Router {
     private savedPages: Map<string, Page>;
     private pageStates: Map<string, PageState>;
     private onNavigateCallbacks: Array<() => void>;
+    private currentPgae:
 
     constructor();
     private log(content: string): void;

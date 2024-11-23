@@ -8,8 +8,9 @@ class Subject<T> {
     id: string;
     debounce?: (callback: () => void) => void;
     signalId: number;
+    pathname: string;
 
-    constructor(initialValue: T, id: string, enforceRuntimeTypes?: boolean, debounceUpdateMs?: number | null);
+    constructor(initialValue: T, id: string, enforceRuntimeTypes?: boolean, debounceUpdateMs?: number | null, pathname: string);
 
     observe(callback: (value: T) => void): void;
 
@@ -23,15 +24,9 @@ class Subject<T> {
 }
 
 class StateController {
-    currentPage: string;
-    private globalSubjectCache: Array<Subject<any>>;
-    private pageSubjectCaches: Map<string, Array<Subject<any>>>;
+    private subjectStore: Array<Subject<any>>
 
     constructor();
-
-    private addSubjectPageCache(pathname: string): void;
-
-    setCurrentPage(pathname: string): void;
 
     create<T>(
         initialValue: T,
