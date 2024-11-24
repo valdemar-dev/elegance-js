@@ -9,7 +9,7 @@ const observe = ({
 }: {
     ids: Array<string>,
     scope: "local" | "global",
-    update: (...arg: any) => void
+    update: (...arg: any) => string
 }) => {
     if (
         !ids || 

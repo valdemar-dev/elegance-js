@@ -4,10 +4,10 @@ declare const getRenderer: () => import("../renderer").Renderer;
 declare const observe: ({ ids, scope, update, }: {
     ids: Array<string>;
     scope: "local" | "global";
-    update: (...arg: any) => void;
+    update: (...arg: any) => string;
 }) => {
     ids: string[];
     scope: "local" | "global";
-    update: (...arg: any) => void;
+    update: (...arg: any) => string;
 };
 export { getRouter, getRenderer, getState, observe };

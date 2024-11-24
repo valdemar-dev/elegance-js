@@ -1,4 +1,10 @@
+import { getState } from "../helpers/getGlobals";
+import { getRenderer } from "../renderer";
+
 const Observer = (options: Record<string, any>, ...children: ElementChildren): BuildableElement<"div"> => {
+    const state = getState();
+    const renderer = getRenderer();
+
     const { ids = [], scope = "local", } = options;
     
     if (!Array.isArray(ids)) {
@@ -9,8 +15,24 @@ const Observer = (options: Record<string, any>, ...children: ElementChildren): B
         throw new Error("Scope must be one of local or global.");
     }
 
-    const onMount = (builtElement: AnyBuiltElement, elementInDocument: HTMLElement) => {
-        console.log(ids)
+    const onMount = ({ builtElement, elementInDocument, buildableElement}: OnMountOptions) => {
+        let currentElement: HTMLElement = elementInDocument;
+
+        const updateCallback = (value: any) => {
+            const newElement = renderer.updateElement(currentElement, buildableElement);
+
+            if (typeof newElement === "string") return;
+
+            currentElement = newElement as HTMLElement;
+
+            console.log("dupated");
+        };
+
+        for (const id of ids) {
+            const subject = state.get(id);
+
+            subject.observe(updateCallback);
+        }
     };
 
     return () => ({

@@ -18,20 +18,26 @@ declare global {
     type AnyBuiltElement = BuiltElement<ElementTags> | OptionlessBuiltElement<ElementTags>;
     type AnyBuildableElement = BuildableElement<ElementTags> | BuildableElement<ElementTags>;
 
+    type OnMountOptions = {
+        builtElement: AnyBuiltElement,
+        elementInDocument: HTMLElement,
+        buildableElement: AnyBuildableElement
+    };
+
     type BuiltElement<T> = {
-        tag: T;
-        children: ElementChildren;
-        getOptions: () => Record<string, any>;
-        onMount?: (builtElement: AnyBuiltElement, elementInDocument: HTMLElement) => void;
+        tag: T
+        children: ElementChildren
+        getOptions: () => Record<string, any>,
+        onMount?: (options: OnMountOptions) => void
     };
 
     type OptionlessBuiltElement<T> = {
-        tag: T;
-        children: ElementChildren,
-        onMount?: (builtElement: AnyBuiltElement, elementInDocument: HTMLElement) => void;
+        tag: T
+        children: ElementChildren
+        onMount?: (options: OnMountOptions) => void
     };
 
-    type Child = BuildableElement<ElementTags> | OptionlessBuildableElement<ElementTags> | string
+    type Child = BuildableElement<ElementTags> | OptionlessBuildableElement<ElementTags> | string | boolean;
     type ElementChildren = Array<Child>
 
     type BuildableElement<T> = () => BuiltElement<T>;

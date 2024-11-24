@@ -53,9 +53,30 @@ class Subject {
     }
     set(newValue) {
         if (this.enforceRuntimeTypes && typeof newValue !== typeof this.value) {
-            throw new Error(`Type of new value: ${newValue} (${typeof newValue}) does not match the type of this subject's value ${this.value} (${typeof this.value}).`);
+            throw `Type of new value: ${newValue} (${typeof newValue}) does not match the type of this subject's value ${this.value} (${typeof this.value}).`;
         }
         this.value = newValue;
+    }
+    // wtf lol 
+    // idk what infer U U never is????
+    // but it works. please dont be mad at me.
+    add(entry) {
+        if (!Array.isArray(this.value)) {
+            throw `The add method of a subject may only be used if the subject's value is an Array.`;
+        }
+        this.value.push(entry);
+    }
+    remove(entry) {
+        if (!Array.isArray(this.value)) {
+            throw `The remove method of a subject may only be used if the subject's value is an Array.`;
+        }
+        const index = this.value.indexOf(entry);
+        if (!index)
+            throw `Element ${entry} does not exist in this subject, therefore it cannot be removed.`;
+        this.value.splice(index, 1);
+    }
+    reset() {
+        this.value = this.initialValue;
     }
     get() {
         return this.value;
@@ -129,5 +150,5 @@ const getStateController = () => {
     return globalThis.eleganceStateController;
 };
 
-export { StateController, getStateController };
+export { StateController, Subject, getStateController };
 //# sourceMappingURL=state.esm.mjs.map
