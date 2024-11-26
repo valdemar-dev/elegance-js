@@ -34,7 +34,7 @@ const clientPath = path.resolve(packageDir, './src/client.js');
 const bindElementsPath = path.resolve(packageDir, "./src/bindElements.js");
 
 const renderElement = (
-    buildableElement: BuildableElement<ElementTags> | OptionlessBuildableElement<ElementTags> | string,
+    buildableElement: Child,
     pageScriptSrc: string
 ) => {
     if (typeof buildableElement !== "function") {
@@ -43,6 +43,7 @@ const renderElement = (
 
     const builtElement = buildableElement(); 
 
+    console.log(builtElement);
     let returnHTML = "";
     
     returnHTML += `<${builtElement.tag}`;
@@ -182,7 +183,7 @@ async function compile({ pageDirectory, minify, suppressConsole }: {
 
     const writeToTempDir = async (content: string, fileName: string) => {
         const tempDir = os.tmpdir();
-        const tmpFilePath = path.join(tempDir, `${fileName}.mjs`);
+        const tmpFilePath = path.join(tempDir, `${fileName}${(Math.random() * 4).toString(10)}.mjs`);
 
         await fs.promises.writeFile(tmpFilePath, content);
 

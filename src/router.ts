@@ -1,14 +1,17 @@
 import { getRenderer } from "./renderer";
+import { getStateController, StateController } from "./state";
 
 class Router {
     savedPages: Map<string, Page>;
     onNavigateCallbacks: Array<() => void>
     currentPage: string
+    stateController: StateController
     
     constructor() {
         this.savedPages = new Map();
         this.onNavigateCallbacks = [];
         this.currentPage = window.location.pathname;
+        this.stateController = getStateController();
     }
 
     log(content: any) {
@@ -24,19 +27,16 @@ class Router {
             throw new Error("Elegance router can only navigate to local pages.");
         }
 
-        if (pathname === window.location.pathname) {
-            this.log("Skipping navigation, destination is same as current path.");
-
-            return;
-        }
-
         this.log("Calling onNavigateCallbacks..");
-
         for (const onNavigateCallback of this.onNavigateCallbacks) {
             onNavigateCallback();
         }
-
         this.onNavigateCallbacks = [];
+
+        this.log("Performing state cleanup..")
+
+        this.stateController.resetEphemeralSubjects();
+        this.stateController.cleanSubjectObservers();
 
         this.log(`Navigating to page: ${pathname}`);
 
@@ -98,7 +98,6 @@ class Router {
 
     setPopState() {
         window.onpopstate = (event: Event) => {
-            console.log("POP THAT STATE YUHH");
             event.preventDefault();
 
             const currentOrigin = window.location.origin;
@@ -106,7 +105,8 @@ class Router {
 
             const newOrigin = target.origin;
 
-            if (newOrigin !== currentOrigin) return console.log("Incorrect origin.");
+            if (newOrigin !== currentOrigin) return;
+            if (this.currentPage === target.location.pathname) return;
 
             const relativeLocation = window.location.href.replace(window.location.origin, "");
             this.navigate(relativeLocation, false);

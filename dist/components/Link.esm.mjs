@@ -11,6 +11,8 @@ const Link = (options, ...children) => {
         href: href,
         onclick: async (ev) => {
             ev.preventDefault();
+            if (href === window.location.pathname)
+                return;
             router.navigate(href, true);
         },
     }, ...children);

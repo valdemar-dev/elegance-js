@@ -1,7 +1,9 @@
+import { StateController } from "./state";
 declare class Router {
     savedPages: Map<string, Page>;
     onNavigateCallbacks: Array<() => void>;
     currentPage: string;
+    stateController: StateController;
     constructor();
     log(content: any): void;
     sleep(ms: number): Promise<unknown>;

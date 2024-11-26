@@ -11,9 +11,9 @@ declare class Renderer {
     getPageRenderTime(): number;
     onRenderFinish(callback: () => void): void;
     renderPage(page: Page): void;
-    buildElement(element: Child): string | OptionlessBuiltElement<ElementTags>;
+    buildElement(element: Child): string | BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | BuiltElement<ChildrenlessOptionlessElementTags>;
     assignPropertyToHTMLElement(elementInDocument: HTMLElement, propertyName: string, propertyValue: any): void;
-    processElementOptions(builtElement: BuiltElement<ElementTags> | OptionlessBuiltElement<ElementTags>, elementInDocument: HTMLElement, skipObservables: boolean): void;
+    processElementOptions(builtElement: AnyBuiltElement, elementInDocument: HTMLElement, skipObservables: boolean): void;
     anyToString(value: any): string;
     createElement(element: Child, parentInDocument: HTMLElement | DocumentFragment, doRenderAllChildren: boolean): HTMLElement | Text | null;
     updateElement(elementInDocument: HTMLElement, buildableElement: Child): HTMLElement | Text;

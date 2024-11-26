@@ -3,20 +3,132 @@ import { Router } from "./router";
 import { StateController } from "./state";
 
 declare global {
-    type ElementTags = "abbr" | "a" | "article" | "aside" | "audio" | "base" | "bdi" | "bdo" | "blockquote" |
-      "body" | "button" | "canvas" | "caption" | "cite" | "code" | "col" | "colgroup" |
-      "data" | "datalist" | "dd" | "del" | "details" | "dfn" | "div" | "dl" | "dt" | "em" | 
-      "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | 
-      "h5" | "h6" | "head" | "header" | "hr" | "html" | "iframe" | "img" | "input" | "ins" | 
-      "kbd" | "label" | "legend" | "li" | "link" | "main" | "map" | "mark" | "meta" | "meter" | 
-      "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "param" |
-      "picture" | "pre" | "progress" | "q" | "rp" | "rt" | "ruby" | "s" | "samp" | "script" | 
-      "section" | "select" | "small" | "source" | "span" | "strong" | "style" | "sub" | "summary" | 
-      "sup" | "svg" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | 
-      "time" | "title" | "tr" | "track" | "u" | "ul" | "varEl" | "video" | "wbr" | "b" | "i" | "br";
+    type OptionlessElementTags = 
+        | "abbr"
+        | "b"
+        | "bdi"
+        | "bdo"
+        | "cite"
+        | "code"
+        | "dfn"
+        | "em"
+        | "i"
+        | "kbd"
+        | "mark"
+        | "rp"
+        | "rt"
+        | "ruby"
+        | "s"
+        | "samp"
+        | "small"
+        | "strong"
+        | "sub"
+        | "sup"
+        | "u"
+        | "var"
+        | "wbr";
 
-    type AnyBuiltElement = BuiltElement<ElementTags> | OptionlessBuiltElement<ElementTags>;
-    type AnyBuildableElement = BuildableElement<ElementTags> | BuildableElement<ElementTags>;
+    type ChildrenlessElementTags = 
+        | "area"
+        | "base"
+        | "br"
+        | "col"
+        | "embed"
+        | "hr"
+        | "img"
+        | "input"
+        | "link"
+        | "meta"
+        | "param"
+        | "source"
+        | "track";
+
+    type ChildrenlessOptionlessElementTags = 
+        | "basefont"
+        | "isindex"
+        | "keygen";
+
+    type ElementTags = 
+        | "a"
+        | "address"
+        | "article"
+        | "aside"
+        | "audio"
+        | "blockquote"
+        | "body"
+        | "button"
+        | "canvas"
+        | "caption"
+        | "colgroup"
+        | "data"
+        | "span"
+        | "datalist"
+        | "dd"
+        | "del"
+        | "details"
+        | "dialog"
+        | "div"
+        | "dl"
+        | "dt"
+        | "fieldset"
+        | "figcaption"
+        | "figure"
+        | "footer"
+        | "form"
+        | "h1"
+        | "h2"
+        | "h3"
+        | "h4"
+        | "h5"
+        | "h6"
+        | "head"
+        | "header"
+        | "hgroup"
+        | "html"
+        | "iframe"
+        | "ins"
+        | "label"
+        | "legend"
+        | "li"
+        | "main"
+        | "map"
+        | "meter"
+        | "nav"
+        | "noscript"
+        | "object"
+        | "ol"
+        | "optgroup"
+        | "option"
+        | "output"
+        | "p"
+        | "picture"
+        | "pre"
+        | "progress"
+        | "q"
+        | "section"
+        | "select"
+        | "summary"
+        | "table"
+        | "tbody"
+        | "td"
+        | "template"
+        | "textarea"
+        | "tfoot"
+        | "th"
+        | "thead"
+        | "time"
+        | "title"
+        | "tr"
+        | "ul"
+        | "video";
+
+    type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | BuiltElement<ChildrenlessOptionlessElementTags>
+
+    type AnyBuildableElement = 
+        | BuildableElement<ElementTags>
+        | OptionlessBuildableElement<OptionlessElementTags>
+        | ChildrenlessBuildableElement<ChildrenlessElementTags>
+        | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>;
 
     type OnMountOptions = {
         builtElement: AnyBuiltElement,
@@ -25,70 +137,72 @@ declare global {
     };
 
     type BuiltElement<T> = {
-        tag: T
-        children: ElementChildren
-        getOptions: () => Record<string, any>,
-        onMount?: (options: OnMountOptions) => void
+        tag: T;
+        children: ElementChildren;
+        getOptions: () => Record<string, any>;
+        onMount?: (options: OnMountOptions) => void;
     };
 
-    type OptionlessBuiltElement<T> = {
-        tag: T
-        children: ElementChildren
-        onMount?: (options: OnMountOptions) => void
-    };
-
-    type Child = BuildableElement<ElementTags> | OptionlessBuildableElement<ElementTags> | string | boolean;
-    type ElementChildren = Array<Child>
+    type Page = ({ router, state, renderer }: {
+        router: Router,
+        state: StateController,
+        renderer: Renderer
+    }) => Child
 
     type BuildableElement<T> = () => BuiltElement<T>;
-    type OptionlessBuildableElement<T> = () => OptionlessBuiltElement<T>;
+    type OptionlessBuildableElement<T> = () => BuiltElement<T>;
+    type ChildrenlessBuildableElement<T> = () => BuiltElement<T>;
+    type ChildrenlessOptionlessBuildableElement<T> = () => BuiltElement<T>;
 
     type EleganceElement<T> = (
-        options: { [key: string]: any }, 
-        ...children: ElementChildren 
+        options: { [key: string]: any },
+        ...children: ElementChildren
     ) => BuildableElement<T>;
 
     type EleganceOptionlessElement<T> = (
-        ...children: ElementChildren 
+        ...children: ElementChildren
     ) => OptionlessBuildableElement<T>;
 
-    type Page = (
-        args: { router: Router; state: StateController; renderer: Renderer }
-    ) => BuildableElement<ElementTags>;
+    type EleganceChildrenlessElement<T> = (
+        options: { [key: string]: any }
+    ) => ChildrenlessBuildableElement<T>;
+
+    type EleganceChildrenlessOptionlessElement<T> = () => ChildrenlessOptionlessBuildableElement<T>;
+
+    type Child = 
+        | BuildableElement<ElementTags>
+        | OptionlessBuildableElement<OptionlessElementTags>
+        | ChildrenlessBuildableElement<ChildrenlessElementTags>
+        | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>
+        | string
+        | boolean;
+
+    type ElementChildren = Array<Child>;
 
     var eleganceStateController: StateController;
     var eleganceRouter: Router;
     var eleganceRenderer: Renderer;
 
-    var abbr: EleganceElement<"abbr">;
     var a: EleganceElement<"a">;
+    var address: EleganceElement<"address">;
     var article: EleganceElement<"article">;
     var aside: EleganceElement<"aside">;
     var audio: EleganceElement<"audio">;
-    var b: EleganceOptionlessElement<"b">;
-    var base: EleganceElement<"base">;
-    var bdi: EleganceElement<"bdi">;
-    var bdo: EleganceElement<"bdo">;
     var blockquote: EleganceElement<"blockquote">;
     var body: EleganceElement<"body">;
-    var br: EleganceOptionlessElement<"br">;
     var button: EleganceElement<"button">;
     var canvas: EleganceElement<"canvas">;
     var caption: EleganceElement<"caption">;
-    var cite: EleganceElement<"cite">;
-    var code: EleganceElement<"code">;
-    var col: EleganceElement<"col">;
     var colgroup: EleganceElement<"colgroup">;
     var data: EleganceElement<"data">;
     var datalist: EleganceElement<"datalist">;
     var dd: EleganceElement<"dd">;
     var del: EleganceElement<"del">;
     var details: EleganceElement<"details">;
-    var dfn: EleganceElement<"dfn">;
+    var dialog: EleganceElement<"dialog">;
     var div: EleganceElement<"div">;
     var dl: EleganceElement<"dl">;
     var dt: EleganceElement<"dt">;
-    var em: EleganceElement<"em">;
     var fieldset: EleganceElement<"fieldset">;
     var figcaption: EleganceElement<"figcaption">;
     var figure: EleganceElement<"figure">;
@@ -102,22 +216,15 @@ declare global {
     var h6: EleganceElement<"h6">;
     var head: EleganceElement<"head">;
     var header: EleganceElement<"header">;
-    var hr: EleganceElement<"hr">;
+    var hgroup: EleganceElement<"hgroup">;
     var html: EleganceElement<"html">;
-    var i: EleganceOptionlessElement<"i">;
     var iframe: EleganceElement<"iframe">;
-    var img: EleganceElement<"img">;
-    var input: EleganceElement<"input">;
     var ins: EleganceElement<"ins">;
-    var kbd: EleganceElement<"kbd">;
     var label: EleganceElement<"label">;
     var legend: EleganceElement<"legend">;
     var li: EleganceElement<"li">;
-    var link: EleganceElement<"link">;
     var main: EleganceElement<"main">;
     var map: EleganceElement<"map">;
-    var mark: EleganceElement<"mark">;
-    var meta: EleganceElement<"meta">;
     var meter: EleganceElement<"meter">;
     var nav: EleganceElement<"nav">;
     var noscript: EleganceElement<"noscript">;
@@ -127,28 +234,13 @@ declare global {
     var option: EleganceElement<"option">;
     var output: EleganceElement<"output">;
     var p: EleganceElement<"p">;
-    var param: EleganceElement<"param">;
     var picture: EleganceElement<"picture">;
     var pre: EleganceElement<"pre">;
     var progress: EleganceElement<"progress">;
     var q: EleganceElement<"q">;
-    var rp: EleganceElement<"rp">;
-    var rt: EleganceElement<"rt">;
-    var ruby: EleganceElement<"ruby">;
-    var s: EleganceElement<"s">;
-    var samp: EleganceElement<"samp">;
-    var script: EleganceElement<"script">;
     var section: EleganceElement<"section">;
     var select: EleganceElement<"select">;
-    var small: EleganceElement<"small">;
-    var source: EleganceElement<"source">;
-    var span: EleganceElement<"span">;
-    var strong: EleganceElement<"strong">;
-    var style: EleganceElement<"style">;
-    var sub: EleganceElement<"sub">;
     var summary: EleganceElement<"summary">;
-    var sup: EleganceElement<"sup">;
-    var svg: EleganceElement<"svg">;
     var table: EleganceElement<"table">;
     var tbody: EleganceElement<"tbody">;
     var td: EleganceElement<"td">;
@@ -160,12 +252,50 @@ declare global {
     var time: EleganceElement<"time">;
     var title: EleganceElement<"title">;
     var tr: EleganceElement<"tr">;
-    var track: EleganceElement<"track">;
-    var u: EleganceElement<"u">;
     var ul: EleganceElement<"ul">;
-    var varEl: EleganceElement<"var">;
     var video: EleganceElement<"video">;
-    var wbr: EleganceElement<"wbr">;
+
+    var area: EleganceChildrenlessElement<"area">;
+    var base: EleganceChildrenlessElement<"base">;
+    var br: EleganceChildrenlessElement<"br">;
+    var col: EleganceChildrenlessElement<"col">;
+    var embed: EleganceChildrenlessElement<"embed">;
+    var hr: EleganceChildrenlessElement<"hr">;
+    var img: EleganceChildrenlessElement<"img">;
+    var input: EleganceChildrenlessElement<"input">;
+    var link: EleganceChildrenlessElement<"link">;
+    var meta: EleganceChildrenlessElement<"meta">;
+    var param: EleganceChildrenlessElement<"param">;
+    var source: EleganceChildrenlessElement<"source">;
+    var track: EleganceChildrenlessElement<"track">;
+
+    var basefont: EleganceOptionlessElement<"basefont">;
+    var isindex: EleganceOptionlessElement<"isindex">;
+    var keygen: EleganceOptionlessElement<"keygen">;
+
+    var abbr: EleganceOptionlessElement<"abbr">;
+    var b: EleganceOptionlessElement<"b">;
+    var bdi: EleganceOptionlessElement<"bdi">;
+    var bdo: EleganceOptionlessElement<"bdo">;
+    var cite: EleganceOptionlessElement<"cite">;
+    var code: EleganceOptionlessElement<"code">;
+    var dfn: EleganceOptionlessElement<"dfn">;
+    var em: EleganceOptionlessElement<"em">;
+    var i: EleganceOptionlessElement<"i">;
+    var kbd: EleganceOptionlessElement<"kbd">;
+    var mark: EleganceOptionlessElement<"mark">;
+    var rp: EleganceOptionlessElement<"rp">;
+    var rt: EleganceOptionlessElement<"rt">;
+    var ruby: EleganceOptionlessElement<"ruby">;
+    var s: EleganceOptionlessElement<"s">;
+    var samp: EleganceOptionlessElement<"samp">;
+    var small: EleganceOptionlessElement<"small">;
+    var span: EleganceElement<"span">;
+    var strong: EleganceOptionlessElement<"strong">;
+    var sub: EleganceOptionlessElement<"sub">;
+    var sup: EleganceOptionlessElement<"sup">;
+    var u: EleganceOptionlessElement<"u">;
+    var wbr: EleganceOptionlessElement<"wbr">;
 }
 
 export {};

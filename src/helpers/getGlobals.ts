@@ -8,7 +8,7 @@ const observe = ({
     update, 
 }: {
     ids: Array<string>,
-    scope: "local" | "global",
+    scope?: "local" | "global",
     update: (...arg: any) => string
 }) => {
     if (

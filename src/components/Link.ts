@@ -14,6 +14,8 @@ const Link = (options: Record<string, any>, ...children: ElementChildren) => {
         href: href,
         onclick: async (ev: MouseEvent) => {  
             ev.preventDefault();
+
+            if (href === window.location.pathname) return;
             
             router.navigate(href, true);
         },

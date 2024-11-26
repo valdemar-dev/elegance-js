@@ -1,10 +1,12 @@
 import { getRenderer } from './renderer.esm.mjs';
+import { getStateController } from './state.esm.mjs';
 
 class Router {
     constructor() {
         this.savedPages = new Map();
         this.onNavigateCallbacks = [];
         this.currentPage = window.location.pathname;
+        this.stateController = getStateController();
     }
     log(content) {
         console.log(`%c${content}`, "font-size: 15px; color: #aaffaa");
@@ -16,15 +18,14 @@ class Router {
         if (!pathname.startsWith("/")) {
             throw new Error("Elegance router can only navigate to local pages.");
         }
-        if (pathname === window.location.pathname) {
-            this.log("Skipping navigation, destination is same as current path.");
-            return;
-        }
         this.log("Calling onNavigateCallbacks..");
         for (const onNavigateCallback of this.onNavigateCallbacks) {
             onNavigateCallback();
         }
         this.onNavigateCallbacks = [];
+        this.log("Performing state cleanup..");
+        this.stateController.resetEphemeralSubjects();
+        this.stateController.cleanSubjectObservers();
         this.log(`Navigating to page: ${pathname}`);
         const page = this.savedPages.get(pathname) ?? await this.getPage(pathname);
         if (!page)
@@ -71,13 +72,14 @@ class Router {
     }
     setPopState() {
         window.onpopstate = (event) => {
-            console.log("POP THAT STATE YUHH");
             event.preventDefault();
             const currentOrigin = window.location.origin;
             const target = event.target;
             const newOrigin = target.origin;
             if (newOrigin !== currentOrigin)
-                return console.log("Incorrect origin.");
+                return;
+            if (this.currentPage === target.location.pathname)
+                return;
             const relativeLocation = window.location.href.replace(window.location.origin, "");
             this.navigate(relativeLocation, false);
         };

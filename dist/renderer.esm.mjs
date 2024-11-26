@@ -218,7 +218,6 @@ class Renderer {
             };
             subject.observe(callbackFunction);
         }
-        // Give initial update value
         this.assignPropertyToHTMLElement(elementInDocument, updateKey, update(...subjectValues));
     }
 }

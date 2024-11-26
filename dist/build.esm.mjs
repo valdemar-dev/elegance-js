@@ -29,6 +29,7 @@ const renderElement = (buildableElement, pageScriptSrc) => {
         return buildableElement;
     }
     const builtElement = buildableElement();
+    console.log(builtElement);
     let returnHTML = "";
     returnHTML += `<${builtElement.tag}`;
     if (Object.hasOwn(builtElement, "getOptions")) {
@@ -131,7 +132,7 @@ async function compile({ pageDirectory, minify, suppressConsole }) {
     });
     const writeToTempDir = async (content, fileName) => {
         const tempDir = os.tmpdir();
-        const tmpFilePath = path.join(tempDir, `${fileName}.mjs`);
+        const tmpFilePath = path.join(tempDir, `${fileName}${(Math.random() * 4).toString(10)}.mjs`);
         await fs.promises.writeFile(tmpFilePath, content);
         return tmpFilePath;
     };

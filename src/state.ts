@@ -23,6 +23,7 @@ class Subject<T> {
     pathname: string
     debounce?: (callback: () => void) => void
     scope: SubjectScope
+    resetOnPageLeave: boolean;
 
     constructor(
         initialValue: T, 
@@ -31,14 +32,16 @@ class Subject<T> {
         debounceUpdateMs: number | null = null,
         pathname: string = "",
         scope: SubjectScope = SubjectScope.LOCAL,
+        resetOnPageLeave: boolean = false,
     ) {
         this.enforceRuntimeTypes = enforceRuntimeTypes;
         this.observers = [];
         this.value = initialValue;
-        this.initialValue = initialValue;
+        this.initialValue = structuredClone(initialValue);
         this.id = id;
         this.pathname = pathname;
         this.scope = scope;
+        this.resetOnPageLeave = resetOnPageLeave;
 
         if (debounceUpdateMs) {
             this.debounce = debounce(debounceUpdateMs);
@@ -58,22 +61,18 @@ class Subject<T> {
     }
 
     signal() {
-        const observerLength = this.observers.length;
-
-        const callback = async () => {
+        const notifyObservers = async () => {
             const value = this.get();
 
-            for (let i = 0; i < observerLength; i++) {
-                const observer = this.observers[i];
+            for (const observer of this.observers) {
                 observer.callback(value);
             }
         };
 
-        if (!this.debounce) {
-            callback();
-            return;
+        if (this.debounce) {
+            this.debounce(notifyObservers);
         } else {
-            this.debounce(callback);
+            notifyObservers();
         }
     }
 
@@ -85,9 +84,6 @@ class Subject<T> {
         this.value = newValue;
     }
 
-    // wtf lol 
-    // idk what infer U U never is????
-    // but it works. please dont be mad at me.
     add(entry: T extends Array<infer U> ? U : never) {
         if (!Array.isArray(this.value)) {
             throw `The add method of a subject may only be used if the subject's value is an Array.`;
@@ -133,11 +129,13 @@ class StateController {
         {
             id, 
             enforceRuntimeTypes = true, 
-            debounceUpdateMs
+            debounceUpdateMs,
+            resetOnPageLeave = false,
         }: {
             id: string,
             enforceRuntimeTypes?: boolean,
             debounceUpdateMs?: number,
+            resetOnPageLeave?: boolean,
         }
     ) {
         const existingSubject = this.subjectStore.find(sub => {
@@ -152,7 +150,16 @@ class StateController {
             return existingSubject;
         }
 
-        const subject = new Subject<T>(initialValue, id, enforceRuntimeTypes, debounceUpdateMs, window.location.pathname);
+        const subject = new Subject<T>(
+            initialValue, 
+            id, 
+            enforceRuntimeTypes, 
+            debounceUpdateMs,
+            window.location.pathname, 
+            SubjectScope.LOCAL,
+            resetOnPageLeave
+        );
+
         this.subjectStore.push(subject);
 
         return subject;
@@ -163,11 +170,13 @@ class StateController {
         {
             id, 
             enforceRuntimeTypes = true, 
-            debounceUpdateMs
+            debounceUpdateMs,
+            resetOnPageLeave = false,
         }: {
             id: string,
             enforceRuntimeTypes?: boolean,
             debounceUpdateMs?: number,
+            resetOnPageLeave?: boolean,
         }
     ) {
         const existingSubject = this.subjectStore.find(sub => {
@@ -179,10 +188,19 @@ class StateController {
                 `%cGlobal Subject with ID ${id} already exists, therefore it will not be re-created.`,
                 "font-size: 12px; color: #aaaaff"
             );
+
             return existingSubject;
         }
 
-        const subject = new Subject<T>(initialValue, id, enforceRuntimeTypes, debounceUpdateMs, "", SubjectScope.GLOBAL);
+        const subject = new Subject<T>(
+            initialValue,
+            id,
+            enforceRuntimeTypes, 
+            debounceUpdateMs,
+            "",
+            SubjectScope.GLOBAL,
+            resetOnPageLeave
+        );
 
         this.subjectStore.push(subject);
 
@@ -220,6 +238,16 @@ class StateController {
         } else {
             const subject = this.getGlobal(id);
             subject.observe(callback);
+        }
+    }
+
+    resetEphemeralSubjects() {
+        this.subjectStore = this.subjectStore.filter(subj => subj.resetOnPageLeave === false);
+    }
+
+    cleanSubjectObservers() {
+        for (const subject of this.subjectStore) {
+            subject.observers = [];
         }
     }
 }

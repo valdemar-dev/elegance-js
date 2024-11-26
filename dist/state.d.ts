@@ -13,7 +13,8 @@ declare class Subject<T> {
     pathname: string;
     debounce?: (callback: () => void) => void;
     scope: SubjectScope;
-    constructor(initialValue: T, id: string, enforceRuntimeTypes?: boolean, debounceUpdateMs?: number | null, pathname?: string, scope?: SubjectScope);
+    resetOnPageLeave: boolean;
+    constructor(initialValue: T, id: string, enforceRuntimeTypes?: boolean, debounceUpdateMs?: number | null, pathname?: string, scope?: SubjectScope, resetOnPageLeave?: boolean);
     observe(callback: (subject: T) => void): void;
     signal(): void;
     set(newValue: T): void;
@@ -26,19 +27,23 @@ declare class Subject<T> {
 declare class StateController {
     subjectStore: Array<Subject<any>>;
     constructor();
-    create<T>(initialValue: T, { id, enforceRuntimeTypes, debounceUpdateMs }: {
+    create<T>(initialValue: T, { id, enforceRuntimeTypes, debounceUpdateMs, resetOnPageLeave, }: {
         id: string;
         enforceRuntimeTypes?: boolean;
         debounceUpdateMs?: number;
+        resetOnPageLeave?: boolean;
     }): Subject<any> | Subject<T>;
-    createGlobal<T>(initialValue: T, { id, enforceRuntimeTypes, debounceUpdateMs }: {
+    createGlobal<T>(initialValue: T, { id, enforceRuntimeTypes, debounceUpdateMs, resetOnPageLeave, }: {
         id: string;
         enforceRuntimeTypes?: boolean;
         debounceUpdateMs?: number;
+        resetOnPageLeave?: boolean;
     }): Subject<any> | Subject<T>;
     getGlobal(id: string): Subject<any>;
     get(id: string): Subject<any>;
     observe(id: string, callback: (value: any) => void, scope?: SubjectScope): void;
+    resetEphemeralSubjects(): void;
+    cleanSubjectObservers(): void;
 }
 declare const getStateController: () => StateController;
 export { getStateController, StateController, Subject };

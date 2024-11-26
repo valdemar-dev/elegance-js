@@ -10,11 +10,9 @@ class Renderer {
 
     constructor() {
         this.stateController = getStateController();
-
         this.router = getRouter();
         this.renderTime = 0;
-
-this.onRenderFinishCallbacks = []
+        this.onRenderFinishCallbacks = []
     }
 
     log(content: any) {
@@ -138,7 +136,7 @@ this.onRenderFinishCallbacks = []
     }
 
     processElementOptions(
-        builtElement: BuiltElement<ElementTags> | OptionlessBuiltElement<ElementTags>,
+        builtElement: AnyBuiltElement,
         elementInDocument: HTMLElement,
         skipObservables: boolean,
     ) {
@@ -314,7 +312,6 @@ this.onRenderFinishCallbacks = []
             subject.observe(callbackFunction);
         }
 
-        // Give initial update value
         this.assignPropertyToHTMLElement(elementInDocument, updateKey, update(...subjectValues));
     }
 }
