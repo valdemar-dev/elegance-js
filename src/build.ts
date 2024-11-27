@@ -31,7 +31,6 @@ const __dirname = path.dirname(__filename);
 const packageDir = path.resolve(__dirname, '..');
 
 const clientPath = path.resolve(packageDir, './src/client.js');
-const bindElementsPath = path.resolve(packageDir, "./src/bindElements.js");
 
 const renderElement = (
     buildableElement: Child,
@@ -151,7 +150,6 @@ async function compile({ pageDirectory, minify, suppressConsole }: {
         outdir: path.join(rootPath, "./.elegance/dist"),
         drop: suppressConsole ? ["console"] : undefined,
         format: "esm",
-        inject: [bindElementsPath],
         loader: {
             ".js": "js",
             ".ts": "ts",

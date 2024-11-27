@@ -64,6 +64,17 @@ class Router {
 
         const optionalSlash = pathname === "/" ? "" : "/";
 
+        const pageDataRaw = await fetch(pathname);
+
+        if (!pageDataRaw.ok) {
+            throw `Could not load page at ${pathname}, received HTTP response status ${pageDataRaw.status}. ${pageDataRaw.statusText}`;
+        }
+
+        const pageData = await pageDataRaw.text();
+        const parser = new DOMParser();
+
+        const parsedPageData = parser.parseFromString(pageData, "text/html");
+
         try {
             const { page } = await import(pathname + optionalSlash + "page.js");
 
@@ -87,8 +98,8 @@ class Router {
     }
 
     // Just a wrapper so it looks nicer syntactically in the Link component
-    prefetch(pathname: string) {
-        this.getPage(pathname);
+    async prefetch(pathname: string) {
+        await this.getPage(pathname);
     }
 
     onNavigate(callback: () => void) {

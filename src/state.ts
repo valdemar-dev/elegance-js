@@ -262,4 +262,5 @@ const getStateController = () => {
     return globalThis.eleganceStateController;
 };
 
-export { getStateController, StateController, Subject };
+export { getStateController, StateController };
+export type { Subject }

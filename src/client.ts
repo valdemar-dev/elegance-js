@@ -1,5 +1,6 @@
 import { getRouter } from "./router";
 import { getRenderer } from "./renderer";
+import "./bindElements";
 
 const scripts = document.querySelectorAll('script[type="module"]');
 

@@ -1,5 +1,6 @@
 import { getRouter } from './router.esm.mjs';
 import { getRenderer } from './renderer.esm.mjs';
+import './bindElements.esm.mjs';
 
 const scripts = document.querySelectorAll('script[type="module"]');
 const pageScript = Array.from(scripts).find((script) => {

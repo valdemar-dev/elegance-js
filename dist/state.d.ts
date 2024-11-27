@@ -46,4 +46,5 @@ declare class StateController {
     cleanSubjectObservers(): void;
 }
 declare const getStateController: () => StateController;
-export { getStateController, StateController, Subject };
+export { getStateController, StateController };
+export type { Subject };

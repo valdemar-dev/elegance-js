@@ -153,5 +153,5 @@ const getStateController = () => {
     return globalThis.eleganceStateController;
 };
 
-export { StateController, Subject, getStateController };
+export { StateController, getStateController };
 //# sourceMappingURL=state.esm.mjs.map

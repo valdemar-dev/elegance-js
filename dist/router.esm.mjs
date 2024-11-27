@@ -45,6 +45,13 @@ class Router {
         }
         this.log(`Fetching URL: ${pathname}`);
         const optionalSlash = pathname === "/" ? "" : "/";
+        const pageDataRaw = await fetch(pathname);
+        if (!pageDataRaw.ok) {
+            throw `Could not load page at ${pathname}, received HTTP response status ${pageDataRaw.status}. ${pageDataRaw.statusText}`;
+        }
+        const pageData = await pageDataRaw.text();
+        const parser = new DOMParser();
+        parser.parseFromString(pageData, "text/html");
         try {
             const { page } = await import(pathname + optionalSlash + "page.js");
             if (!page) {
@@ -63,8 +70,8 @@ class Router {
         this.savedPages.set(pathname, page);
     }
     // Just a wrapper so it looks nicer syntactically in the Link component
-    prefetch(pathname) {
-        this.getPage(pathname);
+    async prefetch(pathname) {
+        await this.getPage(pathname);
     }
     onNavigate(callback) {
         this.log("Adding onNavigateCallback.");

@@ -112,7 +112,6 @@ class Renderer {
         }
 
         if (propertyName in elementInDocument) {
-            // this language is so bad, why do we use typescript again?
             (elementInDocument as any)[propertyName] = propertyValue;
             return;
         }

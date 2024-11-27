@@ -73,7 +73,6 @@ class Renderer {
             throw new Error(`Provided elementInDocument is not a valid HTML element. Got: ${elementInDocument}.`);
         }
         if (propertyName in elementInDocument) {
-            // this language is so bad, why do we use typescript again?
             elementInDocument[propertyName] = propertyValue;
             return;
         }
