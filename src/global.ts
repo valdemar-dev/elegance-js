@@ -146,7 +146,8 @@ declare global {
     type Page = ({ router, state, renderer }: {
         router: Router,
         state: StateController,
-        renderer: Renderer
+        renderer: Renderer,
+        serverData: any
     }) => Child
 
     type BuildableElement<T> = () => BuiltElement<T>;
@@ -182,6 +183,7 @@ declare global {
     var eleganceStateController: StateController;
     var eleganceRouter: Router;
     var eleganceRenderer: Renderer;
+    var __ELEGANCE_SERVER_DATA__: any;
 
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;

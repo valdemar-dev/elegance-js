@@ -34,10 +34,12 @@ class Renderer {
         this.log("Emptying previous onRenderFinishCallbacks..");
         this.onRenderFinishCallbacks = [];
         const fragment = document.createDocumentFragment();
+        const serverData = globalThis.__ELEGANCE_SERVER_DATA__;
         const calledPage = page({
             router: this.router,
             state: this.stateController,
-            renderer: this
+            renderer: this,
+            serverData: serverData,
         });
         const element = this.createElement(calledPage, fragment, true);
         const renderTime = performance.now() - start;

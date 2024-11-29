@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import esbuild from 'esbuild';
-import os from 'os';
+import 'os';
 import { fileURLToPath } from 'url';
+import { GenerateTemplate } from './types/Metadata.esm.mjs';
 
 const getAllSubdirectories = (dir, baseDir = dir) => {
     let directories = [];
@@ -18,6 +19,12 @@ const getAllSubdirectories = (dir, baseDir = dir) => {
     }
     return directories;
 };
+const containsFile = (dir, fileName) => {
+    const dirent = dir.find(dirent => path.parse(dirent.name).name === fileName);
+    if (dirent)
+        return dirent;
+    return false;
+};
 const rootPath = process.cwd();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +35,6 @@ const renderElement = (buildableElement, pageScriptSrc) => {
         return buildableElement;
     }
     const builtElement = buildableElement();
-    console.log(builtElement);
     let returnHTML = "";
     returnHTML += `<${builtElement.tag}`;
     if (Object.hasOwn(builtElement, "getOptions")) {
@@ -67,8 +73,8 @@ async function compile({ pageDirectory, minify, suppressConsole }) {
     console.log("Starting build..");
     const startTime = performance.now();
     const subdirectories = [...getAllSubdirectories(pageDirectory), ""];
-    const filesToBundle = [];
-    const infoFilesToBuild = [];
+    const browserFilesToBuild = [];
+    const serverFilesToBuild = [];
     for (const subdirectory of subdirectories) {
         const fullPath = path.join(rootPath, pageDirectory, subdirectory);
         const allDirectoryFiles = fs.readdirSync(fullPath, { withFileTypes: true });
@@ -76,29 +82,23 @@ async function compile({ pageDirectory, minify, suppressConsole }) {
         const directoryFiles = allDirectoryFiles.filter(dirent => {
             return dirent.isFile() && isValidFileType(dirent);
         });
-        function containsFile(dir, fileName) {
-            const dirent = dir.find(dirent => path.parse(dirent.name).name === fileName);
-            if (dirent)
-                return dirent;
-            return false;
-        }
         const pageFile = containsFile(directoryFiles, "page");
         const infoFile = containsFile(directoryFiles, "info");
         if (!pageFile && !infoFile)
             continue;
         else if (!infoFile)
-            throw new Error("Each page.js/ts file must have an accompanying info.js/ts file.");
+            throw "Each page.js/ts file must have an accompanying info.js/ts file.";
         else if (!pageFile)
-            throw new Error("Each info.js/ts file must have an accompanying page.js/ts file.");
-        filesToBundle.push(`${pageFile.parentPath}/${pageFile.name}`);
-        infoFilesToBuild.push({
+            throw "Each info.js/ts file must have an accompanying page.js/ts file.";
+        browserFilesToBuild.push(`${pageFile.parentPath}/${pageFile.name}`);
+        serverFilesToBuild.push({
             root: `${infoFile.parentPath}/${infoFile.name}`,
             dir: subdirectory,
             name: infoFile.name,
         });
     }
-    const context = await esbuild.context({
-        entryPoints: filesToBundle,
+    const builtBrowserFiles = await esbuild.context({
+        entryPoints: browserFilesToBuild,
         bundle: true,
         minify: minify,
         platform: "browser",
@@ -110,50 +110,50 @@ async function compile({ pageDirectory, minify, suppressConsole }) {
             ".ts": "ts",
         },
     });
+    await builtBrowserFiles.watch();
     const pageBuildFinishTime = performance.now();
     console.log(`All pages built. Took ${Math.round(pageBuildFinishTime - startTime)}ms.`);
-    // watches for changes in any page.js file and auto re-builds it.
-    context.watch();
-    const builtInfoFiles = infoFilesToBuild.map(async (file) => {
-        const result = await esbuild.build({
-            entryPoints: [file.root],
-            bundle: true,
-            write: false,
-            platform: 'browser',
-            format: 'esm',
-        });
-        return {
-            name: file.name,
-            dir: file.dir,
-            resultText: result.outputFiles[0].text
-        };
+    const builtServerFiles = await esbuild.context({
+        entryPoints: serverFilesToBuild.map(file => file.root),
+        bundle: false,
+        outdir: path.join(rootPath, "./.elegance/server"),
+        drop: suppressConsole ? ["console"] : undefined,
+        platform: "node",
+        format: 'esm',
     });
-    const writeToTempDir = async (content, fileName) => {
-        const tempDir = os.tmpdir();
-        const tmpFilePath = path.join(tempDir, `${fileName}${(Math.random() * 4).toString(10)}.mjs`);
-        await fs.promises.writeFile(tmpFilePath, content);
-        return tmpFilePath;
+    const checkFileAvailability = (filePath) => {
+        return new Promise((resolve, reject) => {
+            const checkInterval = setInterval(() => {
+                if (fs.existsSync(filePath)) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 10);
+        });
     };
-    for (const builtInfoFilePromise of builtInfoFiles) {
-        const builtInfoFile = await builtInfoFilePromise;
-        const tmpFilePath = await writeToTempDir(builtInfoFile.resultText, builtInfoFile.name);
-        const { metadata } = await import(`file://${tmpFilePath}`);
+    await builtServerFiles.watch();
+    for (let i = 0; i < serverFilesToBuild.length; i++) {
+        const serverFileToBuild = serverFilesToBuild[i];
+        const pathname = path.join(rootPath, "./.elegance/dist");
+        const generatedFilePath = path.join(rootPath, "./.elegance/server", serverFileToBuild.dir, "info.js");
+        await checkFileAvailability(generatedFilePath);
+        const { metadata, generateTemplate = GenerateTemplate.BUILD } = await import(generatedFilePath);
         if (!metadata) {
-            throw new Error(`At: ${builtInfoFile.dir}. Page info files must export metadata.`);
+            throw new Error(`At: ${serverFileToBuild.dir}. Page info files must export metadata.`);
         }
         if (typeof metadata !== "function") {
-            throw new Error(`At: ${builtInfoFile.dir}. The metadata export of an info file must be a function that resolves into an element.`);
+            throw new Error(`At: ${serverFileToBuild.dir}. The metadata export of an info file must be a function that resolves into an element.`);
         }
-        const pageScriptSrc = builtInfoFile.dir + "/page.js";
+        if (generateTemplate !== GenerateTemplate.BUILD)
+            continue;
+        const pageScriptSrc = serverFileToBuild.dir + "/page.js";
         const htmlTemplate = generateHTMLTemplate(metadata, pageScriptSrc);
-        const pathname = path.join(rootPath, "./.elegance/dist");
-        fs.promises.mkdir(path.join(pathname, builtInfoFile.dir), { recursive: true });
-        fs.writeFileSync(path.join(pathname, builtInfoFile.dir, "index.html"), htmlTemplate);
-        await fs.promises.unlink(tmpFilePath);
+        await fs.promises.mkdir(path.join(pathname, serverFileToBuild.dir), { recursive: true });
+        fs.writeFileSync(path.join(pathname, serverFileToBuild.dir, "index.html"), htmlTemplate);
     }
     const templateBuildFinishTime = performance.now();
-    console.log(`Generated HTML templates in ${templateBuildFinishTime - pageBuildFinishTime}ms.`);
-    console.log(`Finished building in: ${templateBuildFinishTime - startTime}ms`);
+    console.log(`Generated HTML templates in ${Math.round(templateBuildFinishTime - pageBuildFinishTime)}ms.`);
+    console.log(`Finished building in: ${Math.round(templateBuildFinishTime - startTime)}ms`);
     await esbuild.build({
         entryPoints: [clientPath],
         bundle: true,
@@ -167,7 +167,15 @@ async function compile({ pageDirectory, minify, suppressConsole }) {
             ".ts": "ts",
         },
     });
+    const faviconPathname = path.join(pageDirectory, "favicon.ico");
+    if (fs.existsSync(faviconPathname)) {
+        fs.copyFileSync(faviconPathname, path.join(rootPath, ".elegance/dist/favicon.ico"));
+    }
+    return {
+        browserFiles: builtBrowserFiles,
+        serverFiles: builtServerFiles,
+    };
 }
 
-export { compile };
+export { compile, generateHTMLTemplate };
 //# sourceMappingURL=build.esm.mjs.map

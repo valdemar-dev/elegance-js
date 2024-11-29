@@ -23,6 +23,7 @@ declare global {
         router: Router;
         state: StateController;
         renderer: Renderer;
+        serverData: any;
     }) => Child;
     type BuildableElement<T> = () => BuiltElement<T>;
     type OptionlessBuildableElement<T> = () => BuiltElement<T>;
@@ -41,6 +42,7 @@ declare global {
     var eleganceStateController: StateController;
     var eleganceRouter: Router;
     var eleganceRenderer: Renderer;
+    var __ELEGANCE_SERVER_DATA__: any;
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;
     var article: EleganceElement<"article">;

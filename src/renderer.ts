@@ -51,10 +51,13 @@ class Renderer {
 
         const fragment = document.createDocumentFragment();
 
+        const serverData = globalThis.__ELEGANCE_SERVER_DATA__;
+
         const calledPage = page({
             router: this.router,
             state: this.stateController,
-            renderer: this
+            renderer: this,
+            serverData: serverData,
         });
 
         const element = this.createElement(

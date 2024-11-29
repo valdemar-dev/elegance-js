@@ -1,8 +1,9 @@
 import fs, { Dirent } from "fs";
 import path from "path";
 import esbuild from "esbuild";
-import os from "os";
+import os, { platform } from "os";
 import { fileURLToPath } from 'url';
+import { GenerateTemplate  } from "./types/Metadata";
 
 const getAllSubdirectories = (dir: string, baseDir = dir) => {
     let directories: Array<string> = [];
@@ -22,6 +23,21 @@ const getAllSubdirectories = (dir: string, baseDir = dir) => {
     return directories;
 };
 
+const containsFile = (dir: Array<Dirent>, fileName: string) => {
+    const dirent = dir.find(dirent => path.parse(dirent.name).name === fileName);
+
+    if (dirent) return dirent;
+    return false;
+}
+
+const writeToTempDir = async (content: string, fileName: string) => {
+    const tempDir = os.tmpdir();
+    const tmpFilePath = path.join(tempDir, `${fileName}${(Math.random() * 4).toString(10)}.mjs`);
+
+    await fs.promises.writeFile(tmpFilePath, content);
+
+    return tmpFilePath;
+}
 
 const rootPath = process.cwd();
 
@@ -42,7 +58,6 @@ const renderElement = (
 
     const builtElement = buildableElement(); 
 
-    console.log(builtElement);
     let returnHTML = "";
     
     returnHTML += `<${builtElement.tag}`;
@@ -101,49 +116,42 @@ async function compile({ pageDirectory, minify, suppressConsole }: {
 
     const subdirectories = [...getAllSubdirectories(pageDirectory), ""];
 
-    const filesToBundle = [];
-
-    const infoFilesToBuild = [];
+    const browserFilesToBuild = [];
+    const serverFilesToBuild: Array<{ root: string, dir: string, name: string, }> = [];
 
     for (const subdirectory of subdirectories) {
         const fullPath = path.join(rootPath, pageDirectory, subdirectory)
-        const allDirectoryFiles = fs.readdirSync(fullPath, { withFileTypes: true })
 
+        const allDirectoryFiles = fs.readdirSync(fullPath, { withFileTypes: true })
         const isValidFileType = (dirent: Dirent) => dirent.name.endsWith(".js") || dirent.name.endsWith(".ts");
 
         const directoryFiles = allDirectoryFiles.filter(dirent => {
             return dirent.isFile() && isValidFileType(dirent)
         });
 
-        function containsFile(dir: Array<Dirent>, fileName: string) {
-            const dirent = dir.find(dirent => path.parse(dirent.name).name === fileName);
-
-            if (dirent) return dirent;
-            return false;
-        }
-
         const pageFile = containsFile(directoryFiles, "page");
+
         const infoFile = containsFile(directoryFiles, "info");
 
         if (!pageFile && !infoFile) continue;
 
         else if (!infoFile) 
-            throw new Error("Each page.js/ts file must have an accompanying info.js/ts file.");
+            throw "Each page.js/ts file must have an accompanying info.js/ts file.";
 
         else if (!pageFile)
-            throw new Error("Each info.js/ts file must have an accompanying page.js/ts file.");
+            throw "Each info.js/ts file must have an accompanying page.js/ts file.";
 
-        filesToBundle.push(`${pageFile.parentPath}/${pageFile.name}`);
+        browserFilesToBuild.push(`${pageFile.parentPath}/${pageFile.name}`);
 
-        infoFilesToBuild.push({ 
+        serverFilesToBuild.push({ 
             root: `${infoFile.parentPath}/${infoFile.name}`,
             dir: subdirectory,
             name: infoFile.name,
         });
     }
 
-    const context = await esbuild.context({
-        entryPoints: filesToBundle,
+    const builtBrowserFiles = await esbuild.context({
+        entryPoints: browserFilesToBuild,
         bundle: true,
         minify: minify,
         platform: "browser",
@@ -154,75 +162,72 @@ async function compile({ pageDirectory, minify, suppressConsole }: {
             ".js": "js",
             ".ts": "ts",
         }, 
-    })
+    });
+
+    await builtBrowserFiles.watch();
 
     const pageBuildFinishTime = performance.now();
-
     console.log(`All pages built. Took ${Math.round(pageBuildFinishTime - startTime)}ms.`); 
 
-    // watches for changes in any page.js file and auto re-builds it.
-    context.watch();
+    const builtServerFiles = await esbuild.context({
+        entryPoints: serverFilesToBuild.map(file => file.root),
+        bundle: false,
+        outdir: path.join(rootPath, "./.elegance/server"),
+        drop: suppressConsole ? ["console"] : undefined,
+        platform: "node", 
+        format: 'esm',
+    });
 
-    const builtInfoFiles = infoFilesToBuild.map(async (file) => {
-        const result = await esbuild.build({
-            entryPoints: [file.root],
-            bundle: true,
-            write: false,
-            platform: 'browser', 
-            format: 'esm',
-        })
+    const checkFileAvailability = (filePath: string) => {
+        return new Promise<void>((resolve, reject) => {
+            const checkInterval = setInterval(() => {
+                if (fs.existsSync(filePath)) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 10);
+        });
+    };
 
-        return {
-            name: file.name,
-            dir: file.dir,
-            resultText: result.outputFiles[0].text
-        }
-    })
+    await builtServerFiles.watch();
 
-    const writeToTempDir = async (content: string, fileName: string) => {
-        const tempDir = os.tmpdir();
-        const tmpFilePath = path.join(tempDir, `${fileName}${(Math.random() * 4).toString(10)}.mjs`);
-
-        await fs.promises.writeFile(tmpFilePath, content);
-
-        return tmpFilePath;
-    }
-
-    for (const builtInfoFilePromise of builtInfoFiles) {
-        const builtInfoFile = await builtInfoFilePromise
-
-        const tmpFilePath = await writeToTempDir(builtInfoFile.resultText, builtInfoFile.name);
-
-        const { metadata } = await import(`file://${tmpFilePath}`);
-
-        if (!metadata) {
-            throw new Error(`At: ${builtInfoFile.dir}. Page info files must export metadata.`);
-        }
-
-        if (typeof metadata !== "function") {
-            throw new Error(`At: ${builtInfoFile.dir}. The metadata export of an info file must be a function that resolves into an element.`);
-        }
-
-        const pageScriptSrc = builtInfoFile.dir + "/page.js";
-
-        const htmlTemplate = generateHTMLTemplate(metadata, pageScriptSrc)
+    for (let i = 0; i < serverFilesToBuild.length; i++) {
+        const serverFileToBuild = serverFilesToBuild[i];
 
         const pathname = path.join(rootPath, "./.elegance/dist");
 
-        fs.promises.mkdir(path.join(pathname, builtInfoFile.dir), { recursive: true })
+        const generatedFilePath = path.join(rootPath, "./.elegance/server", serverFileToBuild.dir, "info.js");
+
+        await checkFileAvailability(generatedFilePath);
+
+        const { metadata, generateTemplate = GenerateTemplate.BUILD } = await import(generatedFilePath);
+
+        if (!metadata) {
+            throw new Error(`At: ${serverFileToBuild.dir}. Page info files must export metadata.`);
+        }
+
+        if (typeof metadata !== "function") {
+            throw new Error(`At: ${serverFileToBuild.dir}. The metadata export of an info file must be a function that resolves into an element.`);
+        }
+
+        if (generateTemplate !== GenerateTemplate.BUILD) continue;
+
+        const pageScriptSrc = serverFileToBuild.dir + "/page.js";
+
+        const htmlTemplate = generateHTMLTemplate(metadata, pageScriptSrc)
+
+        await fs.promises.mkdir(path.join(pathname, serverFileToBuild.dir), { recursive: true })
 
         fs.writeFileSync(
-            path.join(pathname, builtInfoFile.dir, "index.html"),
+            path.join(pathname, serverFileToBuild.dir, "index.html"),
             htmlTemplate,
         )
-
-        await fs.promises.unlink(tmpFilePath);
     }
 
     const templateBuildFinishTime = performance.now();
 
-    console.log(`Generated HTML templates in ${templateBuildFinishTime - pageBuildFinishTime}ms.`);
-    console.log(`Finished building in: ${templateBuildFinishTime - startTime}ms`);
+    console.log(`Generated HTML templates in ${Math.round(templateBuildFinishTime - pageBuildFinishTime)}ms.`);
+    console.log(`Finished building in: ${Math.round(templateBuildFinishTime - startTime)}ms`);
 
     await esbuild.build({
         entryPoints: [clientPath],
@@ -237,7 +242,18 @@ async function compile({ pageDirectory, minify, suppressConsole }: {
             ".ts": "ts",
         }, 
     })
+
+    const faviconPathname = path.join(pageDirectory, "favicon.ico");
+
+    if (fs.existsSync(faviconPathname)) {
+        fs.copyFileSync(faviconPathname, path.join(rootPath, ".elegance/dist/favicon.ico"));
+    }
+
+    return {
+        browserFiles: builtBrowserFiles,
+        serverFiles: builtServerFiles,
+    }
 }
 
-export { compile, }
+export { compile, generateHTMLTemplate }
 
