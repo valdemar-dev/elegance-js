@@ -41,7 +41,7 @@ class Renderer {
         this.onRenderFinishCallbacks.push(callback);
     }
 
-    renderPage(page: Page) {
+    renderPage(page: Page<any>) {
         const start = performance.now();
 
         this.log("Starting render..");
@@ -57,7 +57,7 @@ class Renderer {
             router: this.router,
             state: this.stateController,
             renderer: this,
-            serverData: serverData,
+            serverData: serverData.data,
         });
 
         const element = this.createElement(

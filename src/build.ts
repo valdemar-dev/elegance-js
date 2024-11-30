@@ -178,6 +178,8 @@ async function compile({ pageDirectory, minify, suppressConsole }: {
         format: 'esm',
     });
 
+    await builtServerFiles.watch();
+
     const checkFileAvailability = (filePath: string) => {
         return new Promise<void>((resolve, reject) => {
             const checkInterval = setInterval(() => {
@@ -188,8 +190,6 @@ async function compile({ pageDirectory, minify, suppressConsole }: {
             }, 10);
         });
     };
-
-    await builtServerFiles.watch();
 
     for (let i = 0; i < serverFilesToBuild.length; i++) {
         const serverFileToBuild = serverFilesToBuild[i];

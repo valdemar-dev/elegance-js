@@ -39,7 +39,7 @@ class Renderer {
             router: this.router,
             state: this.stateController,
             renderer: this,
-            serverData: serverData,
+            serverData: serverData.data,
         });
         const element = this.createElement(calledPage, fragment, true);
         const renderTime = performance.now() - start;

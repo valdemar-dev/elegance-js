@@ -19,11 +19,23 @@ declare global {
         getOptions: () => Record<string, any>;
         onMount?: (options: OnMountOptions) => void;
     };
-    type Page = ({ router, state, renderer }: {
+    type ServerData = {
+        data: any;
+    };
+    type ExecuteOnServer = (...args: any[]) => Promise<ServerData | void>;
+    type NonVoid<T> = T extends void ? never : T;
+    type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
+    type Page<T extends ExecuteOnServer = never> = [
+        T
+    ] extends [never] ? ({ router, state, renderer }: {
         router: Router;
         state: StateController;
         renderer: Renderer;
-        serverData: any;
+    }) => Child : ({ router, state, renderer, serverData }: {
+        router: Router;
+        state: StateController;
+        renderer: Renderer;
+        serverData: ReturnTypeStrict<T>["data"];
     }) => Child;
     type BuildableElement<T> = () => BuiltElement<T>;
     type OptionlessBuildableElement<T> = () => BuiltElement<T>;

@@ -10,7 +10,7 @@ declare class Renderer {
     getDomTree(element: HTMLElement): string;
     getPageRenderTime(): number;
     onRenderFinish(callback: () => void): void;
-    renderPage(page: Page): void;
+    renderPage(page: Page<any>): void;
     buildElement(element: Child): string | BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | BuiltElement<ChildrenlessOptionlessElementTags>;
     assignPropertyToHTMLElement(elementInDocument: HTMLElement, propertyName: string, propertyValue: any): void;
     processElementOptions(builtElement: AnyBuiltElement, elementInDocument: HTMLElement, skipObservables: boolean): void;
