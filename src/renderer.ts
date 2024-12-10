@@ -57,7 +57,7 @@ class Renderer {
             router: this.router,
             state: this.stateController,
             renderer: this,
-            serverData: serverData.data,
+            serverData: serverData ? serverData.data : undefined,
         });
 
         const element = this.createElement(

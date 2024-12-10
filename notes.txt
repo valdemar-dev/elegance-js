@@ -1,0 +1,25 @@
+
+
+csr:
+    empty with link to page.js & client.js,
+    stored in HTML file, served to client.
+    client generates <bod>
+
+    dynamic-metadata: <head> generated per-request
+    static-metadata: <head> generated on-build
+ssr:
+    no HTML file, just page.js and info.js 
+    <body> generated on server per request,
+    sent as HTML file.
+
+    dynamic-metadata: <head> generated per-request
+    static-metadata: <head> generated on-build
+
+ssg:
+    HTML file is generated at build and stored
+    file is served on every request.
+
+    <head> & <body> generated on server during build.
+
+For ALL PAGES
+store INFO.JS file.
