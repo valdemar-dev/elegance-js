@@ -1,26 +1,55 @@
 import { getRouter } from "./router";
 import { getRenderer } from "./renderer";
 import "./bindElements";
+import { RenderingMethod } from "./types/Metadata";
 
-const scripts = document.querySelectorAll('script[type="module"]');
+(async () => { 
+    const pageInfo: PageInfo | null = globalThis.__ELEGANCE_PAGE_INFO__;
 
-const pageScript = Array.from(scripts).find((script) => {
-    const htmlScript = script as HTMLScriptElement;
-    return htmlScript.src.includes("/page.js");
-});
+    if (!pageInfo) {
+        alert("Misconfigured Elegance.JS server, check console.");
 
-if (!pageScript) {
-    throw new Error("Failed to mount elegance. No page script found.");
-}
+        throw `globalThis.__ELEGANCE_PAGE_INFO__ is not set. Make sure your server configuration sets a <script> with this variable.`;
+    }
 
-import((pageScript as HTMLScriptElement).src).then(module => {
-    if (!module.page) throw new Error("Page script does not export page function.");
+    if (pageInfo.renderingMethod === RenderingMethod.CLIENT_SIDE_RENDERING) {
+        const scripts = document.querySelectorAll('script[type="module"]');
 
-    const renderer = getRenderer();
+        const pageScript = Array.from(scripts).find((script) => {
+            const htmlScript = script as HTMLScriptElement;
+            return htmlScript.src.includes("/page.js");
+        });
 
-    const router = getRouter();
+        if (!pageScript) {
+            throw new Error("Failed to mount elegance. No page script found.");
+        }
 
-    router.addPage(window.location.pathname, module.page);
+        const module = await import((pageScript as HTMLScriptElement).src);
 
-    renderer.renderPage(module.page);
-})
+        if (!module.page) throw new Error("Page script does not export page function.");
+
+        const renderer = getRenderer();
+
+        const router = getRouter();
+
+        router.addPage(window.location.pathname, module.page);
+
+        renderer.renderPage(module.page);
+
+        return;
+    }
+
+    else if (pageInfo.renderingMethod === RenderingMethod.SERVER_SIDE_RENDERING) {
+        const storedEventListeners = globalThis.__ELEGANCE_PAGE_INFO__.storedEventListeners ?? [];
+
+        for (const storedEL of storedEventListeners) {
+            storedEL.eventListeners.forEach(el => {el.eventListener()});
+        }
+
+        return;
+    }
+
+    else if (pageInfo.renderingMethod === RenderingMethod.STATIC_GENERATION) {
+        throw `SSG Not implemented.`;
+    }
+})()

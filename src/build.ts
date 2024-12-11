@@ -165,6 +165,23 @@ const processSSRPages = async (
     }>,
     environment: "production" | "development",
 ) => { 
+    for (const page of SSRPages) {
+        if (page.generateMetadata !== GenerateMetadata.ON_BUILD) {
+            continue;
+        }
+
+        const template = generateHTMLTemplate({
+            pageURL: page.pageLocation,
+            head: page.metadata,
+            addPageScriptTag: false,
+        });
+
+        fs.writeFileSync(
+            path.join(DIST_DIR, page.pageLocation, "metadata.html"),
+            template,
+            "utf-8",
+        );
+    }
 };
 
 const processSSGPages = async (
@@ -178,6 +195,7 @@ const processSSGPages = async (
     }>,
     environment: "production" | "development",
 ) => { 
+
 };
 
 const processCSRPages = async (
@@ -199,6 +217,7 @@ const processCSRPages = async (
         const template = generateHTMLTemplate({
             pageURL: page.pageLocation,
             head: page.metadata,
+            addPageScriptTag: true,
         });
 
         fs.writeFileSync(

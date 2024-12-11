@@ -115,6 +115,17 @@ const getPageCompilationDirections = async (pageFiles, pagesDirectory) => {
     return compilationDirections;
 };
 const processSSRPages = async (SSRPages, environment) => {
+    for (const page of SSRPages) {
+        if (page.generateMetadata !== GenerateMetadata.ON_BUILD) {
+            continue;
+        }
+        const template = generateHTMLTemplate({
+            pageURL: page.pageLocation,
+            head: page.metadata,
+            addPageScriptTag: false,
+        });
+        fs.writeFileSync(path.join(DIST_DIR, page.pageLocation, "metadata.html"), template, "utf-8");
+    }
 };
 const processSSGPages = async (SSGPages, environment) => {
 };
@@ -126,6 +137,7 @@ const processCSRPages = async (CSRPages, environment) => {
         const template = generateHTMLTemplate({
             pageURL: page.pageLocation,
             head: page.metadata,
+            addPageScriptTag: true,
         });
         fs.writeFileSync(path.join(DIST_DIR, page.pageLocation, "metadata.html"), template, "utf-8");
     }
@@ -156,7 +168,7 @@ const compile = async ({ pagesDirectory, buildOptions, environment }) => {
         format: "esm",
         platform: "node",
     });
-    await processSSRPages();
+    await processSSRPages(SSRPages);
     await processCSRPages(CSRPages);
     await processSSGPages();
     await buildClient(environment);

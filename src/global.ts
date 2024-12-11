@@ -1,8 +1,97 @@
 import { Renderer } from "./renderer";
 import { Router } from "./router";
 import { StateController } from "./state";
+import { RenderingMethod } from "./types/Metadata";
 
 declare global {
+    var eleganceStateController: StateController;
+    var eleganceRouter: Router;
+    var eleganceRenderer: Renderer;
+    var __ELEGANCE_SERVER_DATA__: any;
+    var __ELEGANCE_PAGE_INFO__: PageInfo;
+
+    type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | BuiltElement<ChildrenlessOptionlessElementTags>
+
+    type AnyBuildableElement = 
+        | BuildableElement<ElementTags>
+        | OptionlessBuildableElement<OptionlessElementTags>
+        | ChildrenlessBuildableElement<ChildrenlessElementTags>
+        | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>;
+
+    type OnMountOptions = {
+        builtElement: AnyBuiltElement,
+        elementInDocument: HTMLElement,
+        buildableElement: AnyBuildableElement
+    };
+
+    type BuiltElement<T> = {
+        tag: T;
+        children: ElementChildren;
+        getOptions: () => Record<string, any>;
+        onMount?: (options: OnMountOptions) => void;
+    };
+
+    type ServerData = { data: any };
+    type ExecuteOnServer = (...args: any[]) => Promise<ServerData | void>;
+
+    type NonVoid<T> = T extends void ? never : T;
+    type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
+
+    type Page<T extends ExecuteOnServer = never> = 
+        [T] extends [never]
+            ? ({ router, state, renderer }: {
+                  router: Router;
+                  state: StateController;
+                  renderer: Renderer;
+            }) => Child
+            : ({ router, state, renderer, serverData }: {
+                  router: Router;
+                  state: StateController;
+                  renderer: Renderer;
+                  serverData: ReturnTypeStrict<T>["data"]
+            }) => Child;
+
+    type BuildableElement<T> = () => BuiltElement<T>;
+    type OptionlessBuildableElement<T> = () => BuiltElement<T>;
+    type ChildrenlessBuildableElement<T> = () => BuiltElement<T>;
+    type ChildrenlessOptionlessBuildableElement<T> = () => BuiltElement<T>;
+
+    type EleganceElement<T> = (
+        options: { [key: string]: any },
+        ...children: ElementChildren
+    ) => BuildableElement<T>;
+
+    type EleganceOptionlessElement<T> = (
+        ...children: ElementChildren
+    ) => OptionlessBuildableElement<T>;
+
+    type EleganceChildrenlessElement<T> = (
+        options: { [key: string]: any }
+    ) => ChildrenlessBuildableElement<T>;
+
+    type EleganceChildrenlessOptionlessElement<T> = () => ChildrenlessOptionlessBuildableElement<T>;
+
+    type Child = 
+        | BuildableElement<ElementTags>
+        | OptionlessBuildableElement<OptionlessElementTags>
+        | ChildrenlessBuildableElement<ChildrenlessElementTags>
+        | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>
+        | string
+        | boolean;
+
+    type ElementChildren = Array<Child>;
+
+    type PageInfo = {
+        renderingMethod: RenderingMethod,
+        storedEventListeners?: Array<{
+            eleganceID: number,
+            eventListeners: Array<{
+                attributeName: string,
+                eventListener: (...args: any) => any,
+            }>
+        }>,
+    }
+
     type OptionlessElementTags = 
         | "abbr"
         | "b"
@@ -121,82 +210,6 @@ declare global {
         | "tr"
         | "ul"
         | "video";
-
-    type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | BuiltElement<ChildrenlessOptionlessElementTags>
-
-    type AnyBuildableElement = 
-        | BuildableElement<ElementTags>
-        | OptionlessBuildableElement<OptionlessElementTags>
-        | ChildrenlessBuildableElement<ChildrenlessElementTags>
-        | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>;
-
-    type OnMountOptions = {
-        builtElement: AnyBuiltElement,
-        elementInDocument: HTMLElement,
-        buildableElement: AnyBuildableElement
-    };
-
-    type BuiltElement<T> = {
-        tag: T;
-        children: ElementChildren;
-        getOptions: () => Record<string, any>;
-        onMount?: (options: OnMountOptions) => void;
-    };
-
-    type ServerData = { data: any };
-    type ExecuteOnServer = (...args: any[]) => Promise<ServerData | void>;
-
-    type NonVoid<T> = T extends void ? never : T;
-    type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
-
-    type Page<T extends ExecuteOnServer = never> = 
-        [T] extends [never]
-            ? ({ router, state, renderer }: {
-                  router: Router;
-                  state: StateController;
-                  renderer: Renderer;
-            }) => Child
-            : ({ router, state, renderer, serverData }: {
-                  router: Router;
-                  state: StateController;
-                  renderer: Renderer;
-                  serverData: ReturnTypeStrict<T>["data"]
-            }) => Child;
-
-    type BuildableElement<T> = () => BuiltElement<T>;
-    type OptionlessBuildableElement<T> = () => BuiltElement<T>;
-    type ChildrenlessBuildableElement<T> = () => BuiltElement<T>;
-    type ChildrenlessOptionlessBuildableElement<T> = () => BuiltElement<T>;
-
-    type EleganceElement<T> = (
-        options: { [key: string]: any },
-        ...children: ElementChildren
-    ) => BuildableElement<T>;
-
-    type EleganceOptionlessElement<T> = (
-        ...children: ElementChildren
-    ) => OptionlessBuildableElement<T>;
-
-    type EleganceChildrenlessElement<T> = (
-        options: { [key: string]: any }
-    ) => ChildrenlessBuildableElement<T>;
-
-    type EleganceChildrenlessOptionlessElement<T> = () => ChildrenlessOptionlessBuildableElement<T>;
-
-    type Child = 
-        | BuildableElement<ElementTags>
-        | OptionlessBuildableElement<OptionlessElementTags>
-        | ChildrenlessBuildableElement<ChildrenlessElementTags>
-        | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>
-        | string
-        | boolean;
-
-    type ElementChildren = Array<Child>;
-
-    var eleganceStateController: StateController;
-    var eleganceRouter: Router;
-    var eleganceRenderer: Renderer;
-    var __ELEGANCE_SERVER_DATA__: any;
 
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;

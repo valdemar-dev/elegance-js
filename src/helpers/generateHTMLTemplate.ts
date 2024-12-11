@@ -46,15 +46,20 @@ export const generateHTMLTemplate = ({
     pageURL,
     head,
     serverData = null,
+    addPageScriptTag = true,
 }: {
+    addPageScriptTag: boolean,
     pageURL: string,
     head: () => BuildableElement<"head">,
     serverData?: string | null,
 }) => {
-    let HTMLTemplate = 
-        `<script type="module" elegance-script="true" src="${pageURL}/page.js" defer=true></script>` +
+    let HTMLTemplate =  
         `<script type="module" elegance-script="true" src="client.js" defer=true></script>` +
         `<meta name="viewport" content="width=device-width, initial-scale=1.0">`
+
+    if (addPageScriptTag) {
+        HTMLTemplate += `<script type="module" elegance-script="true" src="${pageURL}/page.js" defer=true></script>`;
+    }
 
     const builtHead = head()();
 

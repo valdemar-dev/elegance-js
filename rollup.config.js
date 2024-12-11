@@ -27,6 +27,8 @@ export default {
         "./src/renderer.ts",
         "./src/router.ts",
         "./src/state.ts",
+        "./src/server/render.ts",
+        "./src/server/renderer.ts",
     ],
     output: [
         {

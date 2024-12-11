@@ -23,3 +23,10 @@ ssg:
 
 For ALL PAGES
 store INFO.JS file.
+
+
+
+
+
+in SSR, add "use-client" directive for components
+will add it to the js bundle, and client will during hydration add it to the page

@@ -1,7 +1,10 @@
 import { getState } from "../helpers/getGlobals";
 import { getRenderer } from "../renderer";
 
-const Observer = (options: Record<string, any>, ...children: ElementChildren): BuildableElement<"div"> => {
+const Observer = (options: {
+    ids: Array<string>,
+    scope: "local" | "global",
+}, ...children: ElementChildren): BuildableElement<"div"> => {
     const state = getState();
     const renderer = getRenderer();
 

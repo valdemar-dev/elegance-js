@@ -28,10 +28,12 @@ const renderElement = (element) => {
     returnHTML += `</${builtElement.tag}>`;
     return returnHTML;
 };
-const generateHTMLTemplate = ({ pageURL, head, serverData = null, }) => {
-    let HTMLTemplate = `<script type="module" elegance-script="true" src="${pageURL}/page.js" defer=true></script>` +
-        `<script type="module" elegance-script="true" src="client.js" defer=true></script>` +
+const generateHTMLTemplate = ({ pageURL, head, serverData = null, addPageScriptTag = true, }) => {
+    let HTMLTemplate = `<script type="module" elegance-script="true" src="client.js" defer=true></script>` +
         `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
+    if (addPageScriptTag) {
+        HTMLTemplate += `<script type="module" elegance-script="true" src="${pageURL}/page.js" defer=true></script>`;
+    }
     const builtHead = head()();
     for (const child of builtHead.children) {
         HTMLTemplate += renderElement(child);

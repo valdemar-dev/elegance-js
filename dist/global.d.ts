@@ -1,11 +1,13 @@
 import { Renderer } from "./renderer";
 import { Router } from "./router";
 import { StateController } from "./state";
+import { RenderingMethod } from "./types/Metadata";
 declare global {
-    type OptionlessElementTags = "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "u" | "var" | "wbr";
-    type ChildrenlessElementTags = "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "param" | "source" | "track";
-    type ChildrenlessOptionlessElementTags = "basefont" | "isindex" | "keygen";
-    type ElementTags = "a" | "address" | "article" | "aside" | "audio" | "blockquote" | "body" | "button" | "canvas" | "caption" | "colgroup" | "data" | "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" | "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" | "main" | "map" | "meter" | "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" | "progress" | "q" | "section" | "select" | "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | "time" | "title" | "tr" | "ul" | "video";
+    var eleganceStateController: StateController;
+    var eleganceRouter: Router;
+    var eleganceRenderer: Renderer;
+    var __ELEGANCE_SERVER_DATA__: any;
+    var __ELEGANCE_PAGE_INFO__: PageInfo;
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | BuiltElement<ChildrenlessOptionlessElementTags>;
     type AnyBuildableElement = BuildableElement<ElementTags> | OptionlessBuildableElement<OptionlessElementTags> | ChildrenlessBuildableElement<ChildrenlessElementTags> | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>;
     type OnMountOptions = {
@@ -51,10 +53,20 @@ declare global {
     type EleganceChildrenlessOptionlessElement<T> = () => ChildrenlessOptionlessBuildableElement<T>;
     type Child = BuildableElement<ElementTags> | OptionlessBuildableElement<OptionlessElementTags> | ChildrenlessBuildableElement<ChildrenlessElementTags> | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags> | string | boolean;
     type ElementChildren = Array<Child>;
-    var eleganceStateController: StateController;
-    var eleganceRouter: Router;
-    var eleganceRenderer: Renderer;
-    var __ELEGANCE_SERVER_DATA__: any;
+    type PageInfo = {
+        renderingMethod: RenderingMethod;
+        storedEventListeners?: Array<{
+            eleganceID: number;
+            eventListeners: Array<{
+                attributeName: string;
+                eventListener: (...args: any) => any;
+            }>;
+        }>;
+    };
+    type OptionlessElementTags = "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "u" | "var" | "wbr";
+    type ChildrenlessElementTags = "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "param" | "source" | "track";
+    type ChildrenlessOptionlessElementTags = "basefont" | "isindex" | "keygen";
+    type ElementTags = "a" | "address" | "article" | "aside" | "audio" | "blockquote" | "body" | "button" | "canvas" | "caption" | "colgroup" | "data" | "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" | "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" | "main" | "map" | "meter" | "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" | "progress" | "q" | "section" | "select" | "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | "time" | "title" | "tr" | "ul" | "video";
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;
     var article: EleganceElement<"article">;

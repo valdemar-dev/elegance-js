@@ -1,2 +1,5 @@
-declare const Observer: (options: Record<string, any>, ...children: ElementChildren) => BuildableElement<"div">;
+declare const Observer: (options: {
+    ids: Array<string>;
+    scope: "local" | "global";
+}, ...children: ElementChildren) => BuildableElement<"div">;
 export { Observer, };
