@@ -9,10 +9,7 @@ declare class ServerRenderer {
     HTMLString: string;
     eventListenerStore: Array<{
         eleganceID: number;
-        eventListeners: Array<{
-            attributeName: string;
-            eventListenerString: string;
-        }>;
+        eventListeners: string[];
     }>;
     constructor(router: ServerRouter, stateController: ServerStateController);
     log(content: any): void;

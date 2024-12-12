@@ -1,3 +1,5 @@
+import { RenderingMethod } from "../types/Metadata";
+
 const renderElement = (element: Child) => {
     if (typeof element === "string") {
         return element;
@@ -45,20 +47,34 @@ const renderElement = (element: Child) => {
 export const generateHTMLTemplate = ({
     pageURL,
     head,
+    renderingMethod, 
     serverData = null,
     addPageScriptTag = true,
 }: {
+    renderingMethod: RenderingMethod,
     addPageScriptTag: boolean,
     pageURL: string,
     head: () => BuildableElement<"head">,
     serverData?: string | null,
 }) => {
-    let HTMLTemplate =  
-        `<script type="module" elegance-script="true" src="client.js" defer=true></script>` +
-        `<meta name="viewport" content="width=device-width, initial-scale=1.0">`
+    let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`
+
+    switch (renderingMethod) {
+        case (RenderingMethod.SERVER_SIDE_RENDERING):
+            HTMLTemplate += `<script src="/SSRClient.js" defer="true"></script>`;
+            break;
+
+        case (RenderingMethod.STATIC_GENERATION):
+            HTMLTemplate += `<script src="/SSGClient.js" defer="true"></script>`;
+            break;
+
+        case (RenderingMethod.CLIENT_SIDE_RENDERING):
+            HTMLTemplate += `<script src="/CSRClient.js" defer="true"></script>`;
+            break;
+    }
 
     if (addPageScriptTag) {
-        HTMLTemplate += `<script type="module" elegance-script="true" src="${pageURL}/page.js" defer=true></script>`;
+        HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page.js" defer="true"></script>`;
     }
 
     const builtHead = head()();

@@ -7,7 +7,7 @@ declare global {
     var eleganceRouter: Router;
     var eleganceRenderer: Renderer;
     var __ELEGANCE_SERVER_DATA__: any;
-    var __ELEGANCE_PAGE_INFO__: PageInfo;
+    var __ELEGANCE_PAGE_INFO__: MinimizedPageInfo;
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | BuiltElement<ChildrenlessOptionlessElementTags>;
     type AnyBuildableElement = BuildableElement<ElementTags> | OptionlessBuildableElement<OptionlessElementTags> | ChildrenlessBuildableElement<ChildrenlessElementTags> | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags>;
     type OnMountOptions = {
@@ -53,6 +53,16 @@ declare global {
     type EleganceChildrenlessOptionlessElement<T> = () => ChildrenlessOptionlessBuildableElement<T>;
     type Child = BuildableElement<ElementTags> | OptionlessBuildableElement<OptionlessElementTags> | ChildrenlessBuildableElement<ChildrenlessElementTags> | ChildrenlessOptionlessBuildableElement<ChildrenlessOptionlessElementTags> | string | boolean;
     type ElementChildren = Array<Child>;
+    type MinimizedPageInfo = {
+        rm: RenderingMethod;
+        sels?: Array<{
+            id: number;
+            els: Array<{
+                an: string;
+                el: (...args: any) => any;
+            }>;
+        }>;
+    };
     type PageInfo = {
         renderingMethod: RenderingMethod;
         storedEventListeners?: Array<{

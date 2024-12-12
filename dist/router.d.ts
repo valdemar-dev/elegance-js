@@ -1,9 +1,9 @@
-import { StateController } from "./state";
 declare class Router {
     savedPages: Map<string, Page>;
     onNavigateCallbacks: Array<() => void>;
     currentPage: string;
-    stateController: StateController;
+    stateController: import("./state").StateController;
+    renderer: import("./renderer").Renderer;
     constructor();
     log(content: any): void;
     sleep(ms: number): Promise<unknown>;
@@ -14,5 +14,4 @@ declare class Router {
     onNavigate(callback: () => void): void;
     setPopState(): void;
 }
-declare const getRouter: () => Router;
-export { getRouter, Router, };
+export { Router, };

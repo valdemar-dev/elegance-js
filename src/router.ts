@@ -1,17 +1,16 @@
-import { getRenderer } from "./renderer";
-import { getStateController, StateController } from "./state";
-
 class Router {
     savedPages: Map<string, Page>;
     onNavigateCallbacks: Array<() => void>
     currentPage: string
-    stateController: StateController
+    stateController = globalThis.eleganceStateController; 
+    renderer = globalThis.eleganceRenderer;
     
     constructor() {
+        console.log("%cElegance router is loading..", "font-size: 30px; color: #aaffaa");
+
         this.savedPages = new Map();
         this.onNavigateCallbacks = [];
         this.currentPage = window.location.pathname;
-        this.stateController = getStateController();
     }
 
     log(content: any) {
@@ -49,8 +48,7 @@ class Router {
 
         this.currentPage = pathname;
 
-        const renderer = getRenderer();
-        renderer.renderPage(page);
+        this.renderer.renderPage(page);
     }
 
     async getPage(pathname: string) {
@@ -97,7 +95,6 @@ class Router {
         this.savedPages.set(pathname, page);
     }
 
-    // Just a wrapper so it looks nicer syntactically in the Link component
     async prefetch(pathname: string) {
         await this.getPage(pathname);
     }
@@ -125,17 +122,6 @@ class Router {
     }
 }
 
-const getRouter = () => {
-    if (globalThis.eleganceRouter) return globalThis.eleganceRouter;
-
-    console.log("%cElegance router is loading..", "font-size: 30px; color: #aaffaa");
-
-    globalThis.eleganceRouter = new Router();
-
-    return globalThis.eleganceRouter;
-};
-
 export {
-    getRouter,
     Router,
 };

@@ -1,5 +1,4 @@
-import { getRouter, Router } from "../router";
-import { getStateController, StateController } from "../state";
+import { camelToKebabCase } from "../helpers/camelToKebab";
 import { ServerRouter } from "./router";
 import { ServerStateController } from "./state";
 
@@ -17,10 +16,7 @@ class ServerRenderer {
     HTMLString: string = "";
     eventListenerStore: Array<{
         eleganceID: number,
-        eventListeners: Array<{
-            attributeName: string;
-            eventListenerString: string;
-        }>
+        eventListeners: string[]
     }> = [];
 
     constructor(router: ServerRouter, stateController: ServerStateController) {
@@ -35,7 +31,7 @@ class ServerRenderer {
     }
 
     getOption(key: string, elementOptions: [string, any][]) {
-        const value = elementOptions.find(([key]) => key === key);
+        const value = elementOptions.find(([k]) => k === key);
 
         if (!value) return null;
 
@@ -47,7 +43,7 @@ class ServerRenderer {
         el: (...args: any) => any,
         eleganceID: number,
     ) {
-        let elementInStore = this.eventListenerStore.find(el => el.eleganceID === eleganceID);
+        let elementInStore = this.eventListenerStore!.find(el => el.eleganceID === eleganceID);
 
         if (!elementInStore) {
             elementInStore = {
@@ -55,15 +51,14 @@ class ServerRenderer {
                 eventListeners: [],
             };
 
-            this.eventListenerStore.push(elementInStore);
+            this.eventListenerStore!.push(elementInStore);
         }
 
         const eventListenerString = el.toString();
 
-        elementInStore.eventListeners.push({
-            attributeName,
-            eventListenerString,
-        });
+        const elAsString = `{an:"${attributeName}",el:${eventListenerString.replace(/\s+/g, '')}}`;
+
+        elementInStore.eventListeners.push(elAsString);
 
         console.log(`Serialized attribute ${attributeName} for element with id: ${eleganceID}. Set to string ${eventListenerString}`);
     }
@@ -103,7 +98,7 @@ class ServerRenderer {
 
             // all eventlisteners start with "on(something)"
             if (!key.startsWith("on")) {
-                this.HTMLString += ` ${key}="${value}"`;
+                this.HTMLString += ` ${camelToKebabCase(value)}="${value}"`;
 
                 continue;
             }

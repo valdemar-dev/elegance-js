@@ -1,16 +1,12 @@
-import { getStateController, StateController } from "./state";
-import { getRouter, Router } from "./router";
-import { warn } from "console";
+import { camelToKebabCase } from "./helpers/camelToKebab";
 
 class Renderer {
-    stateController: StateController;
-    router: Router;
     renderTime: number;
     onRenderFinishCallbacks: Array<() => void>
 
     constructor() {
-        this.stateController = getStateController();
-        this.router = getRouter();
+        console.log("%cElegance renderer is loading..", "font-size: 30px; color: #ffffaa");
+
         this.renderTime = 0;
         this.onRenderFinishCallbacks = []
     }
@@ -53,9 +49,20 @@ class Renderer {
 
         const serverData = globalThis.__ELEGANCE_SERVER_DATA__;
 
+        const router = globalThis.eleganceRouter;
+        const stateController = globalThis.eleganceStateController;
+
+        if (!router) {
+            throw `Cannot render page without router.`;
+        }
+
+        if (!stateController) {
+            throw `Cannot render page without stateController.`;
+        }
+
         const calledPage = page({
-            router: this.router,
-            state: this.stateController,
+            router: router,
+            state: stateController,
             renderer: this,
             serverData: serverData ? serverData.data : undefined,
         });
@@ -84,7 +91,7 @@ class Renderer {
             onRenderFinishCallback()
         }
 
-        this.router.setPopState();
+        router.setPopState();
     }
 
     buildElement(element: Child) {
@@ -114,8 +121,18 @@ class Renderer {
             throw new Error(`Provided elementInDocument is not a valid HTML element. Got: ${elementInDocument}.`);
         }
 
+        if (
+            propertyName.toLowerCase() in elementInDocument &&
+            propertyName.startsWith("on")
+        ) {
+            (elementInDocument as any)[propertyName.toLowerCase()] = propertyValue;
+
+            return;
+        }
+
         if (propertyName in elementInDocument) {
             (elementInDocument as any)[propertyName] = propertyValue;
+
             return;
         }
 
@@ -130,11 +147,11 @@ class Renderer {
         }
 
         if (typeof propertyValue === "function") {
-            elementInDocument.setAttribute(propertyName, propertyValue());
+            elementInDocument.setAttribute(camelToKebabCase(propertyName), propertyValue());
             return;
         }
 
-        elementInDocument.setAttribute(propertyName, propertyValue);
+        elementInDocument.setAttribute(camelToKebabCase(propertyName), propertyValue);
     }
 
     processElementOptions(
@@ -298,11 +315,13 @@ class Renderer {
         const { ids, scope, update } = option;
         const subjectValues: Array<any> = [];
 
+        const stateController = globalThis.eleganceStateController;
+
         for (let i = 0; i < ids.length; i++) {
             const subjectId = ids[i];
             const subject = scope === "local" ?
-                this.stateController.get(subjectId) :
-                this.stateController.getGlobal(subjectId);
+                stateController.get(subjectId) :
+                stateController.getGlobal(subjectId);
 
             subjectValues.push(subject.get());
 
@@ -318,14 +337,4 @@ class Renderer {
     }
 }
 
-const getRenderer = () => {
-    if (globalThis.eleganceRenderer) return globalThis.eleganceRenderer;
-
-    console.log("%cElegance renderer is loading..", "font-size: 30px; color: #ffffaa");
-
-    globalThis.eleganceRenderer = new Renderer();
-
-    return globalThis.eleganceRenderer;
-};
-
-export { getRenderer, Renderer };
+export { Renderer };

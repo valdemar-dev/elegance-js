@@ -45,5 +45,4 @@ export enum RenderingMethod {
      *
      */
     CLIENT_SIDE_RENDERING = 3,
-
 }

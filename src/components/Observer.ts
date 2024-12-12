@@ -1,5 +1,4 @@
-import { getState } from "../helpers/getGlobals";
-import { getRenderer } from "../renderer";
+import { getState, getRenderer } from "../helpers/getGlobals";
 
 const Observer = (options: {
     ids: Array<string>,

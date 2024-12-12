@@ -1,8 +1,4 @@
-import { StateController } from "./state";
-import { Router } from "./router";
 declare class Renderer {
-    stateController: StateController;
-    router: Router;
     renderTime: number;
     onRenderFinishCallbacks: Array<() => void>;
     constructor();
@@ -19,5 +15,4 @@ declare class Renderer {
     updateElement(elementInDocument: HTMLElement, buildableElement: Child): HTMLElement | Text;
     processOptionAsObserver(option: Record<string, any>, elementInDocument: HTMLElement, builtElement: BuiltElement<ElementTags>, updateKey: string): void;
 }
-declare const getRenderer: () => Renderer;
-export { getRenderer, Renderer };
+export { Renderer };
