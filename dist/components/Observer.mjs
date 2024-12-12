@@ -1,5 +1,9 @@
-import { getState, getRenderer } from "../helpers/getGlobals";
-const Observer = (options, ...children) => {
+// src/helpers/getGlobals.ts
+var getState = () => globalThis.eleganceStateController;
+var getRenderer = () => globalThis.eleganceRenderer;
+
+// src/components/Observer.ts
+var Observer = (options, ...children) => {
   const state = getState();
   const renderer = getRenderer();
   const { ids = [], scope = "local" } = options;

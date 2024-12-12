@@ -1,4 +1,5 @@
-class Router {
+// src/router.ts
+var Router = class {
   constructor() {
     this.stateController = globalThis.eleganceStateController;
     this.renderer = globalThis.eleganceRenderer;
@@ -83,7 +84,7 @@ class Router {
       this.navigate(relativeLocation, false);
     };
   }
-}
+};
 export {
   Router
 };

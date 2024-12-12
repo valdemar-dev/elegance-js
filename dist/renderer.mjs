@@ -1,5 +1,10 @@
-import { camelToKebabCase } from "./helpers/camelToKebab";
-class Renderer {
+// src/helpers/camelToKebab.ts
+var camelToKebabCase = (input) => {
+  return input.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+};
+
+// src/renderer.ts
+var Renderer = class {
   constructor() {
     console.log("%cElegance renderer is loading..", "font-size: 30px; color: #ffffaa");
     this.renderTime = 0;
@@ -221,7 +226,7 @@ class Renderer {
     }
     this.assignPropertyToHTMLElement(elementInDocument, updateKey, update(...subjectValues));
   }
-}
+};
 export {
   Renderer
 };

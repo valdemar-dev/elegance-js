@@ -1,4 +1,5 @@
-const createElementOptions = (obj) => {
+// src/elements.ts
+var createElementOptions = (obj) => {
   return function() {
     const reevaluatedObj = {};
     for (const key of Object.keys(obj)) {
@@ -16,7 +17,7 @@ const createElementOptions = (obj) => {
     return reevaluatedObj;
   };
 };
-const createBuildableElement = (tag) => {
+var createBuildableElement = (tag) => {
   return (options, ...children) => {
     const getOptions = createElementOptions(options);
     return () => ({
@@ -26,7 +27,7 @@ const createBuildableElement = (tag) => {
     });
   };
 };
-const createOptionlessBuildableElement = (tag) => {
+var createOptionlessBuildableElement = (tag) => {
   return (...children) => {
     return () => ({
       tag,
@@ -35,7 +36,7 @@ const createOptionlessBuildableElement = (tag) => {
     });
   };
 };
-const createChildrenlessBuildableElement = (tag) => {
+var createChildrenlessBuildableElement = (tag) => {
   return (options) => {
     const getOptions = createElementOptions(options);
     return () => ({
@@ -45,7 +46,7 @@ const createChildrenlessBuildableElement = (tag) => {
     });
   };
 };
-const createChildrenlessOptionlessBuildableElement = (tag) => {
+var createChildrenlessOptionlessBuildableElement = (tag) => {
   return () => {
     return () => ({
       tag,
@@ -54,7 +55,7 @@ const createChildrenlessOptionlessBuildableElement = (tag) => {
     });
   };
 };
-const optionlessElementTags = [
+var optionlessElementTags = [
   "abbr",
   "b",
   "bdi",
@@ -79,7 +80,7 @@ const optionlessElementTags = [
   "var",
   "wbr"
 ];
-const childrenlessElementTags = [
+var childrenlessElementTags = [
   "area",
   "base",
   "br",
@@ -94,12 +95,12 @@ const childrenlessElementTags = [
   "source",
   "track"
 ];
-const childrenlessOptionlessElementTags = [
+var childrenlessOptionlessElementTags = [
   "basefont",
   "isindex",
   "keygen"
 ];
-const elementTags = [
+var elementTags = [
   "a",
   "address",
   "article",
@@ -173,10 +174,10 @@ const elementTags = [
   "video",
   "span"
 ];
-const elements = {};
-const optionlessElements = {};
-const childrenlessElements = {};
-const childrenlessOptionlessElements = {};
+var elements = {};
+var optionlessElements = {};
+var childrenlessElements = {};
+var childrenlessOptionlessElements = {};
 for (const element of elementTags) {
   elements[element] = createBuildableElement(element);
 }
@@ -189,7 +190,7 @@ for (const element of childrenlessElementTags) {
 for (const element of childrenlessOptionlessElementTags) {
   childrenlessOptionlessElements[element] = createChildrenlessOptionlessBuildableElement(element);
 }
-const allElements = {
+var allElements = {
   ...elements,
   ...optionlessElements,
   ...childrenlessElements,

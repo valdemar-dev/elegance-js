@@ -1,3 +1,4 @@
+// src/types/Metadata.ts
 var GenerateMetadata = /* @__PURE__ */ ((GenerateMetadata2) => {
   GenerateMetadata2[GenerateMetadata2["ON_BUILD"] = 1] = "ON_BUILD";
   GenerateMetadata2[GenerateMetadata2["PER_REQUEST"] = 2] = "PER_REQUEST";

@@ -1,10 +1,74 @@
+// src/build.ts
 import fs from "fs";
 import path from "path";
 import esbuild from "esbuild";
 import { fileURLToPath } from "url";
-import { GenerateMetadata, RenderingMethod } from "./types/Metadata";
-import { generateHTMLTemplate } from "./helpers/generateHTMLTemplate";
-const getAllSubdirectories = (dir, baseDir = dir) => {
+
+// src/helpers/generateHTMLTemplate.ts
+var renderElement = (element) => {
+  if (typeof element === "string") {
+    return element;
+  }
+  if (typeof element === "number") {
+    return element;
+  }
+  if (typeof element !== "function") {
+    throw "Cannot render non-functional elements.";
+  }
+  const builtElement = element();
+  let returnHTML = "";
+  returnHTML += `<${builtElement.tag}`;
+  if (Object.hasOwn(builtElement, "getOptions")) {
+    const options = builtElement.getOptions();
+    for (const [key, value] of Object.entries(options)) {
+      returnHTML += ` ${key}="${value}"`;
+    }
+  }
+  if (!builtElement.children) {
+    returnHTML += "/>";
+    return returnHTML;
+  }
+  returnHTML += ">";
+  for (const child of builtElement.children) {
+    returnHTML += renderElement(child);
+  }
+  returnHTML += `</${builtElement.tag}>`;
+  return returnHTML;
+};
+var generateHTMLTemplate = ({
+  pageURL,
+  head,
+  renderingMethod,
+  serverData = null,
+  addPageScriptTag = true
+}) => {
+  let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
+  switch (renderingMethod) {
+    case 1 /* SERVER_SIDE_RENDERING */:
+      HTMLTemplate += `<script src="/SSRClient.js" defer="true"></script>`;
+      break;
+    case 2 /* STATIC_GENERATION */:
+      HTMLTemplate += `<script src="/SSGClient.js" defer="true"></script>`;
+      break;
+    case 3 /* CLIENT_SIDE_RENDERING */:
+      HTMLTemplate += `<script src="/CSRClient.js" defer="true"></script>`;
+      break;
+  }
+  if (addPageScriptTag) {
+    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page.js" defer="true"></script>`;
+  }
+  const builtHead = head()();
+  for (const child of builtHead.children) {
+    HTMLTemplate += renderElement(child);
+  }
+  if (serverData) {
+    HTMLTemplate += serverData;
+  }
+  return HTMLTemplate;
+};
+
+// src/build.ts
+var getAllSubdirectories = (dir, baseDir = dir) => {
   let directories = [];
   const items = fs.readdirSync(dir, { withFileTypes: true });
   for (const item of items) {
@@ -17,22 +81,22 @@ const getAllSubdirectories = (dir, baseDir = dir) => {
   }
   return directories;
 };
-const getFile = (dir, fileName) => {
+var getFile = (dir, fileName) => {
   const dirent = dir.find((dirent2) => path.parse(dirent2.name).name === fileName);
   if (dirent) return dirent;
   return false;
 };
-const rootPath = process.cwd();
-const DIST_DIR = path.join(rootPath, "./.elegance/dist");
-const SERVER_DIR = path.join(rootPath, "./.elegance/server");
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const packageDir = path.resolve(__dirname, "..");
-const CSRClientPath = path.resolve(packageDir, "./src/client/CSRClient.ts");
-const SSGClientPath = path.resolve(packageDir, "./src/client/SSGClient.ts");
-const SSRClientPath = path.resolve(packageDir, "./src/client/SSRClient.ts");
-const bindElementsPath = path.resolve(packageDir, "./src/bindElements.ts");
-const getProjectFiles = (pagesDirectory) => {
+var rootPath = process.cwd();
+var DIST_DIR = path.join(rootPath, "./.elegance/dist");
+var SERVER_DIR = path.join(rootPath, "./.elegance/server");
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path.dirname(__filename);
+var packageDir = path.resolve(__dirname, "..");
+var CSRClientPath = path.resolve(packageDir, "./src/client/CSRClient.ts");
+var SSGClientPath = path.resolve(packageDir, "./src/client/SSGClient.ts");
+var SSRClientPath = path.resolve(packageDir, "./src/client/SSRClient.ts");
+var bindElementsPath = path.resolve(packageDir, "./src/bindElements.ts");
+var getProjectFiles = (pagesDirectory) => {
   const pageFiles = [];
   const infoFiles = [];
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
@@ -54,7 +118,7 @@ const getProjectFiles = (pagesDirectory) => {
     infoFiles
   };
 };
-const buildClient = async (environment) => {
+var buildClient = async (environment) => {
   await esbuild.build({
     bundle: true,
     minify: environment === "production",
@@ -65,24 +129,7 @@ const buildClient = async (environment) => {
     platform: "node"
   });
 };
-const buildInfoFiles = async (infoFiles, environment) => {
-  const mappedInfoFileNames = infoFiles.map((f) => `${f.parentPath}/${f.name}`);
-  await esbuild.build({
-    minify: environment === "production",
-    drop: environment === "production" ? ["console", "debugger"] : void 0,
-    entryPoints: mappedInfoFileNames,
-    bundle: true,
-    outdir: SERVER_DIR,
-    loader: {
-      ".js": "js",
-      ".ts": "ts"
-    },
-    inject: [bindElementsPath],
-    format: "esm",
-    platform: "node"
-  });
-};
-const getPageCompilationDirections = async (pageFiles, pagesDirectory) => {
+var getPageCompilationDirections = async (pageFiles, pagesDirectory) => {
   const builtInfoFilesDir = path.join(rootPath, "./.elegance/server");
   const builtInfoFiles = [...getAllSubdirectories(builtInfoFilesDir), ""];
   const compilationDirections = [];
@@ -95,10 +142,10 @@ const getPageCompilationDirections = async (pageFiles, pagesDirectory) => {
     }
     const infoFileExports = await import(absoluteFilePath);
     const {
-      renderingMethod = RenderingMethod.SERVER_SIDE_RENDERING,
+      renderingMethod = 1 /* SERVER_SIDE_RENDERING */,
       metadata,
       executeOnServer,
-      generateMetadata = GenerateMetadata.ON_BUILD
+      generateMetadata = 1 /* ON_BUILD */
     } = infoFileExports;
     if (!metadata) {
       throw `${builtInfoFile} does not export a function \`metadata\`. Info files must export a \`metadata\` function which resolves into a <head> element.`;
@@ -117,9 +164,9 @@ const getPageCompilationDirections = async (pageFiles, pagesDirectory) => {
   }
   return compilationDirections;
 };
-const processSSRPages = async (SSRPages, environment) => {
+var processSSRPages = async (SSRPages, environment) => {
   for (const page of SSRPages) {
-    if (page.generateMetadata !== GenerateMetadata.ON_BUILD) {
+    if (page.generateMetadata !== 1 /* ON_BUILD */) {
       continue;
     }
     const template = generateHTMLTemplate({
@@ -135,11 +182,11 @@ const processSSRPages = async (SSRPages, environment) => {
     );
   }
 };
-const processSSGPages = async (SSGPages, environment) => {
+var processSSGPages = async (SSGPages, environment) => {
 };
-const processCSRPages = async (CSRPages, environment) => {
+var processCSRPages = async (CSRPages, environment) => {
   for (const page of CSRPages) {
-    if (page.generateMetadata !== GenerateMetadata.ON_BUILD) {
+    if (page.generateMetadata !== 1 /* ON_BUILD */) {
       continue;
     }
     const template = generateHTMLTemplate({
@@ -155,7 +202,7 @@ const processCSRPages = async (CSRPages, environment) => {
     );
   }
 };
-const compile = async ({
+var compile = async ({
   pagesDirectory,
   buildOptions,
   environment
@@ -165,9 +212,9 @@ const compile = async ({
   console.log("Using Environment: ", environment);
   const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
   const pageCompilationDirections = await getPageCompilationDirections(pageFiles, pagesDirectory);
-  const CSRPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === RenderingMethod.CLIENT_SIDE_RENDERING);
-  const SSRPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === RenderingMethod.SERVER_SIDE_RENDERING);
-  const SSGPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === RenderingMethod.STATIC_GENERATION);
+  const CSRPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === 3 /* CLIENT_SIDE_RENDERING */);
+  const SSRPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === 1 /* SERVER_SIDE_RENDERING */);
+  const SSGPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === 2 /* STATIC_GENERATION */);
   await esbuild.build({
     entryPoints: [
       ...SSRPages.map((page) => page.pageFilepath),

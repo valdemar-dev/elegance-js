@@ -2,8 +2,8 @@ import fs, { Dirent } from "fs";
 import path from "path";
 import esbuild, { BuildOptions } from "esbuild";
 import { fileURLToPath } from 'url';
-import { GenerateMetadata, RenderingMethod } from "./types/Metadata";
 import { generateHTMLTemplate } from "./helpers/generateHTMLTemplate";
+import { GenerateMetadata, RenderingMethod } from "./types/Metadata";
 
 const getAllSubdirectories = (dir: string, baseDir = dir) => {
     let directories: Array<string> = [];

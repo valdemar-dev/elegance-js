@@ -1,5 +1,5 @@
-import { RenderingMethod } from "../types/Metadata";
-const renderElement = (element) => {
+// src/helpers/generateHTMLTemplate.ts
+var renderElement = (element) => {
   if (typeof element === "string") {
     return element;
   }
@@ -29,7 +29,7 @@ const renderElement = (element) => {
   returnHTML += `</${builtElement.tag}>`;
   return returnHTML;
 };
-const generateHTMLTemplate = ({
+var generateHTMLTemplate = ({
   pageURL,
   head,
   renderingMethod,
@@ -38,13 +38,13 @@ const generateHTMLTemplate = ({
 }) => {
   let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   switch (renderingMethod) {
-    case RenderingMethod.SERVER_SIDE_RENDERING:
+    case 1 /* SERVER_SIDE_RENDERING */:
       HTMLTemplate += `<script src="/SSRClient.js" defer="true"></script>`;
       break;
-    case RenderingMethod.STATIC_GENERATION:
+    case 2 /* STATIC_GENERATION */:
       HTMLTemplate += `<script src="/SSGClient.js" defer="true"></script>`;
       break;
-    case RenderingMethod.CLIENT_SIDE_RENDERING:
+    case 3 /* CLIENT_SIDE_RENDERING */:
       HTMLTemplate += `<script src="/CSRClient.js" defer="true"></script>`;
       break;
   }

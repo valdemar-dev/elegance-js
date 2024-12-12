@@ -1,8 +1,13 @@
-import { camelToKebabCase } from "../helpers/camelToKebab";
-const reservedAttributes = [
+// src/helpers/camelToKebab.ts
+var camelToKebabCase = (input) => {
+  return input.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+};
+
+// src/server/renderer.ts
+var reservedAttributes = [
   "clientOnly"
 ];
-class ServerRenderer {
+var ServerRenderer = class {
   constructor(router, stateController) {
     this.currentElementIndex = 0;
     this.HTMLString = "";
@@ -81,7 +86,41 @@ class ServerRenderer {
     });
     this.renderElement(builtPage);
   }
-}
+};
+
+// src/server/router.ts
+var ServerRouter = class {
+  constructor() {
+  }
+};
+
+// src/server/state.ts
+var ServerStateController = class {
+  constructor() {
+  }
+  create() {
+  }
+  createGlobal() {
+  }
+};
+
+// src/server/render.ts
+var serverSideRenderPage = async (page) => {
+  if (!page) {
+    throw `No Page Provided.`;
+  }
+  if (typeof page !== "function") {
+    throw `Page must be a function.`;
+  }
+  const state = new ServerStateController();
+  const router = new ServerRouter();
+  const renderer = new ServerRenderer(router, state);
+  await renderer.renderPage(page);
+  return {
+    bodyHTML: renderer.HTMLString,
+    storedEventListeners: renderer.eventListenerStore
+  };
+};
 export {
-  ServerRenderer
+  serverSideRenderPage
 };

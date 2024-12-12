@@ -1,4 +1,5 @@
-const createPageInfo = ({
+// src/server/createPageInfo.ts
+var createPageInfo = ({
   storedEventListeners,
   renderingMethod
 }) => {

@@ -1,4 +1,5 @@
-const debounce = (delay) => {
+// src/state.ts
+var debounce = (delay) => {
   let timer;
   return (callback) => {
     clearTimeout(timer);
@@ -7,12 +8,7 @@ const debounce = (delay) => {
     }, delay);
   };
 };
-var SubjectScope = /* @__PURE__ */ ((SubjectScope2) => {
-  SubjectScope2[SubjectScope2["LOCAL"] = 1] = "LOCAL";
-  SubjectScope2[SubjectScope2["GLOBAL"] = 2] = "GLOBAL";
-  return SubjectScope2;
-})(SubjectScope || {});
-class Subject {
+var Subject = class {
   constructor(initialValue, id, enforceRuntimeTypes = false, debounceUpdateMs = null, pathname = "", scope = 1 /* LOCAL */, resetOnPageLeave = false) {
     this.enforceRuntimeTypes = enforceRuntimeTypes;
     this.observers = [];
@@ -77,8 +73,8 @@ class Subject {
   getInitialValue() {
     return this.initialValue;
   }
-}
-class StateController {
+};
+var StateController = class {
   constructor() {
     this.subjectStore = [];
   }
@@ -173,8 +169,8 @@ class StateController {
       subject.observers = [];
     }
   }
-}
-const getStateController = () => {
+};
+var getStateController = () => {
   if (globalThis.eleganceStateController) return globalThis.eleganceStateController;
   console.log("%cElegance state is loading..", "font-size: 30px; color: #aaaaff");
   globalThis.eleganceStateController = new StateController();

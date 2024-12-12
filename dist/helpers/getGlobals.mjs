@@ -1,7 +1,8 @@
-const getRouter = () => globalThis.eleganceRouter;
-const getState = () => globalThis.eleganceStateController;
-const getRenderer = () => globalThis.eleganceRenderer;
-const observe = ({
+// src/helpers/getGlobals.ts
+var getRouter = () => globalThis.eleganceRouter;
+var getState = () => globalThis.eleganceStateController;
+var getRenderer = () => globalThis.eleganceRenderer;
+var observe = ({
   ids,
   scope = "local",
   update

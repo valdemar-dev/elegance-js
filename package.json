@@ -2,9 +2,6 @@
   "name": "elegance-js",
   "version": "1.0.0",
   "description": "Web-Framework",
-  "main": "dist/index.cjs.js",
-  "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
     "build": "node build.js && tsc",
@@ -13,8 +10,7 @@
   "exports": {
     "./*": {
       "types": "./dist/*.d.ts",
-      "import": "./dist/*.esm.mjs",
-      "require": "./dist/*.cjs.cjs"
+      "import": "./dist/*.mjs"
     }
   },
   "files": [
