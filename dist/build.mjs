@@ -417,17 +417,53 @@ var processCSRPages = async (CSRPages, environment) => {
     );
   }
 };
+var yellow = (text) => {
+  return `\x1B[38;2;238;184;68m${text}`;
+};
+var black = (text) => {
+  return `\x1B[38;2;0;0;0m${text}`;
+};
+var bgYellow = (text) => {
+  return `\x1B[48;2;238;184;68m${text}`;
+};
+var bold = (text) => {
+  return `\x1B[1m${text}`;
+};
+var underline = (text) => {
+  return `\x1B[4m${text}`;
+};
+var white = (text) => {
+  return `\x1B[38;2;255;247;229m${text}`;
+};
+var white_100 = (text) => {
+  return `\x1B[38;2;255;239;204m${text}`;
+};
+var green = (text) => {
+  return `\x1B[38;2;65;224;108m${text}`;
+};
+var log = (...text) => {
+  return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
+};
 var compile = async ({
   pagesDirectory,
   buildOptions,
   environment
 }) => {
-  const start = performance.now();
-  console.log("Elegance.JS: Beginning build.");
-  console.log("Using Environment: ", environment);
+  log(bold(yellow(" -- Elegance.JS -- ")));
+  log(white(`Beginning build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}..`));
+  log("");
   if (environment === "production") {
-    console.log("NOTE: In production mode, no console.log() statements will be shown on the client, and all code will be minified.");
+    log(
+      " - ",
+      bgYellow(bold(black(" NOTE "))),
+      " : ",
+      white("In production mode, no "),
+      underline("console.log() "),
+      white("statements will be shown on the client, and all code will be minified.")
+    );
+    log("");
   }
+  const start = performance.now();
   const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
   await buildInfoFiles(infoFiles, environment);
   const pageCompilationDirections = await getPageCompilationDirections(pageFiles, pagesDirectory);
@@ -456,19 +492,21 @@ var compile = async ({
   await processSSGPages(SSGPages, environment);
   await buildClient(environment);
   const end = performance.now();
-  console.log(`Elegance.JS: Finished building in ${Math.ceil(end - start)}ms.`);
-  console.log(`COMPILED PAGES:`);
-  console.log("  CSR:");
+  log(bold(yellow(" -- Elegance.JS -- ")));
+  log(white(`Finished build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}.`));
+  log(green(bold(`Created ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
+  log("");
+  log(white("  CSR:"));
   for (const page of CSRPages) {
-    console.log(`    - /${page.pageLocation}`);
+    log(white_100(`    - /${page.pageLocation}`));
   }
-  console.log("  SSR:");
+  log(white("  SSR:"));
   for (const page of SSRPages) {
-    console.log(`    - /${page.pageLocation}`);
+    log(white_100(`    - /${page.pageLocation}`));
   }
-  console.log("  SSG:");
+  log(white("  SSG:"));
   for (const page of SSGPages) {
-    console.log(`    - /${page.pageLocation}`);
+    log(white_100(`    - /${page.pageLocation}`));
   }
 };
 export {

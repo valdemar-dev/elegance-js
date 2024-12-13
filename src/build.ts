@@ -270,6 +270,46 @@ const processCSRPages = async (
     }
 };
 
+const yellow = (text: string) => {
+    return `\u001b[38;2;238;184;68m${text}`;
+};
+
+const black = (text: string) => {
+    return `\u001b[38;2;0;0;0m${text}`;
+};
+
+const bgYellow = (text: string) => {
+    return `\u001b[48;2;238;184;68m${text}`;
+};
+
+const bgBlack = (text: string) => {
+    return `\u001b[48;2;0;0;0m${text}`;
+};
+
+const bold = (text: string) => {
+    return `\u001b[1m${text}`;
+};
+
+const underline = (text: string) => {
+    return `\u001b[4m${text}`;
+};
+
+const white = (text: string) => {
+    return `\u001b[38;2;255;247;229m${text}`;
+};
+
+const white_100 = (text: string) => {
+    return `\u001b[38;2;255;239;204m${text}`;
+};
+
+const green = (text: string) => {
+    return `\u001b[38;2;65;224;108m${text}`;
+};
+
+const log = (...text: string[]) => {
+    return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
+};
+
 export const compile = async ({
     pagesDirectory,
     buildOptions,
@@ -279,13 +319,24 @@ export const compile = async ({
     pagesDirectory: string,
     buildOptions: BuildOptions
 }) => {
-    const start = performance.now();
-    console.log("Elegance.JS: Beginning build.");
-    console.log("Using Environment: ", environment);
+    log(bold(yellow(" -- Elegance.JS -- ")));
+    log(white(`Beginning build at ${new Date().toLocaleTimeString()}..`));
+
+    log("");
 
     if (environment === "production") {
-        console.log("NOTE: In production mode, no console.log() statements will be shown on the client, and all code will be minified.");
+        log(
+            " - ",
+            bgYellow(bold(black(" NOTE "))),
+            " : ", 
+            white("In production mode, no "), 
+            underline("console.log() "),
+            white("statements will be shown on the client, and all code will be minified."));
+
+        log("");
     }
+
+    const start = performance.now();
 
     const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
 
@@ -326,23 +377,25 @@ export const compile = async ({
     await buildClient(environment);
 
     const end = performance.now();
-    console.log(`Elegance.JS: Finished building in ${Math.ceil(end-start)}ms.`);
 
-    console.log(`COMPILED PAGES:`);
+    log(bold(yellow(" -- Elegance.JS -- ")));
+    log(white(`Finished build at ${new Date().toLocaleTimeString()}.`));
+    log(green(bold((`Created ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
+    log("");
 
-    console.log("  CSR:");
+    log(white("  CSR:"));
     for (const page of CSRPages) {
-        console.log(`    - /${page.pageLocation}`);
+        log(white_100(`    - /${page.pageLocation}`));
     }
 
-    console.log("  SSR:");
+    log(white("  SSR:"));
     for (const page of SSRPages) {
-        console.log(`    - /${page.pageLocation}`);
+        log(white_100(`    - /${page.pageLocation}`));
     }
 
-    console.log("  SSG:");
+    log(white("  SSG:"));
     for (const page of SSGPages) {
-        console.log(`    - /${page.pageLocation}`);
+        log(white_100(`    - /${page.pageLocation}`));
     }
 };
 
