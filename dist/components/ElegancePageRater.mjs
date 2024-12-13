@@ -1,0 +1,1 @@
+var t=()=>globalThis.eleganceStateController;var l=e=>{if(!e)throw new Error("Must provide a page to rate to ElegancePageRater");let o=t().createGlobal(100,{id:"elegancePageRaterCurrentPageScore"});return div({class:"flex w-screen h-screen overflow-y-scroll"},div({class:"w-full"},e),div({class:"min-w-[200px] "},"s"))};export{l as ElegancePageRater};

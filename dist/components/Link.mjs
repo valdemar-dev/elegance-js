@@ -1,0 +1,1 @@
+var o=()=>globalThis.eleganceRouter;var c=(e,...n)=>{let{href:t}=e;if(!t)throw new Error("Links must specify an HREF, and that HREF much start with a /");let r=o();return r.prefetch(t),a({...e,href:t,onclick:async s=>{s.preventDefault(),t!==window.location.pathname&&r.navigate(t,!0)}},...n)};export{c as Link};
