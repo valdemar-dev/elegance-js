@@ -45,13 +45,13 @@ var generateHTMLTemplate = ({
   let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   switch (renderingMethod) {
     case 1 /* SERVER_SIDE_RENDERING */:
-      HTMLTemplate += `<script src="/SSRClient.js" defer="true"></script>`;
+      HTMLTemplate += `<script src="/client_ssr.js" defer="true"></script>`;
       break;
     case 2 /* STATIC_GENERATION */:
-      HTMLTemplate += `<script src="/SSGClient.js" defer="true"></script>`;
+      HTMLTemplate += `<script src="/client_ssg.js" defer="true"></script>`;
       break;
     case 3 /* CLIENT_SIDE_RENDERING */:
-      HTMLTemplate += `<script src="/CSRClient.js" defer="true"></script>`;
+      HTMLTemplate += `<script src="/client_csr.js" defer="true"></script>`;
       break;
   }
   if (addPageScriptTag) {
@@ -92,10 +92,10 @@ var SERVER_DIR = path.join(rootPath, "./.elegance/server");
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var packageDir = path.resolve(__dirname, "..");
-var CSRClientPath = path.resolve(packageDir, "./src/client/CSRClient.ts");
-var SSGClientPath = path.resolve(packageDir, "./src/client/SSGClient.ts");
-var SSRClientPath = path.resolve(packageDir, "./src/client/SSRClient.ts");
-var bindElementsPath = path.resolve(packageDir, "./src/bindElements.ts");
+var CSRClientPath = path.resolve(packageDir, "./src/client/client_csr.ts");
+var SSGClientPath = path.resolve(packageDir, "./src/client/client_ssg.ts");
+var SSRClientPath = path.resolve(packageDir, "./src/client/client_ssr.ts");
+var bindElementsPath = path.resolve(packageDir, "./src/shared/bindServerElements.ts");
 var getProjectFiles = (pagesDirectory) => {
   const pageFiles = [];
   const infoFiles = [];
@@ -125,6 +125,23 @@ var buildClient = async (environment) => {
     drop: environment === "production" ? ["console", "debugger"] : void 0,
     entryPoints: [CSRClientPath, SSRClientPath, SSGClientPath],
     outdir: DIST_DIR,
+    format: "esm",
+    platform: "node"
+  });
+};
+var buildInfoFiles = async (infoFiles, environment) => {
+  const mappedInfoFileNames = infoFiles.map((f) => `${f.parentPath}/${f.name}`);
+  await esbuild.build({
+    minify: environment === "production",
+    drop: environment === "production" ? ["console", "debugger"] : void 0,
+    entryPoints: mappedInfoFileNames,
+    bundle: true,
+    outdir: SERVER_DIR,
+    loader: {
+      ".js": "js",
+      ".ts": "ts"
+    },
+    inject: [bindElementsPath],
     format: "esm",
     platform: "node"
   });
@@ -210,7 +227,11 @@ var compile = async ({
   const start = performance.now();
   console.log("Elegance.JS: Beginning build.");
   console.log("Using Environment: ", environment);
+  if (environment === "production") {
+    console.log("NOTE: In production mode, no console.log() statements will be shown on the client, and all code will be minified.");
+  }
   const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
+  await buildInfoFiles(infoFiles, environment);
   const pageCompilationDirections = await getPageCompilationDirections(pageFiles, pagesDirectory);
   const CSRPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === 3 /* CLIENT_SIDE_RENDERING */);
   const SSRPages = pageCompilationDirections.filter((cd) => cd.renderingMethod === 1 /* SERVER_SIDE_RENDERING */);

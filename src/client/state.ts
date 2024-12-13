@@ -252,15 +252,5 @@ class StateController {
     }
 }
 
-const getStateController = () => {
-    if (globalThis.eleganceStateController) return globalThis.eleganceStateController;
-
-    console.log("%cElegance state is loading..", "font-size: 30px; color: #aaaaff");
-
-    globalThis.eleganceStateController = new StateController();
-
-    return globalThis.eleganceStateController;
-};
-
-export { getStateController, StateController };
+export { StateController };
 export type { Subject }

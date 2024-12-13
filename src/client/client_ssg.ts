@@ -1,5 +1,6 @@
-import "../bindElements";
-import { Router } from "../router";
+import "../shared/bindBrowserElements";
+
+import { Router } from "../shared/router";
 import { RenderingMethod } from "../types/Metadata";
 
 (async () => { 

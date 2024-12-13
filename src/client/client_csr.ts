@@ -1,9 +1,9 @@
-import "../bindElements";
+import "../shared/bindBrowserElements";
 
-import { Router } from "../router";
-import { Renderer } from "../renderer";
+import { Router } from "../shared/router";
+import { Renderer } from "./renderer";
 import { RenderingMethod } from "../types/Metadata";
-import { StateController } from "../state";
+import { StateController } from "./state";
 
 (async () => { 
     const unminimizePageInfo = (minimized: MinimizedPageInfo): PageInfo => {

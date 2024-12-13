@@ -1,5 +1,3 @@
-import { get } from "http";
-
 const createElementOptions = (obj: Record<string, any>) => {
     return function () {
         const reevaluatedObj: Record<string, any> = {};
@@ -55,29 +53,15 @@ const createChildrenlessBuildableElement = (tag: ChildrenlessElementTags) => {
     };
 };
 
-const createChildrenlessOptionlessBuildableElement = (tag: ChildrenlessOptionlessElementTags) => {
-    return () => {
-        return () => ({
-            tag: tag,
-            getOptions: () => ({}),
-            children: [],
-        })
-    }
-};
-
 const optionlessElementTags: Array<OptionlessElementTags> = [
     "abbr", "b", "bdi", "bdo", "cite", "code", "dfn", "em", "i", "kbd", "mark", 
     "rp", "rt", "ruby", "s", "samp", "small", "strong", "sub", "sup", 
-    "u", "var", "wbr"
+    "u", "wbr"
 ];
 
 const childrenlessElementTags: Array<ChildrenlessElementTags> = [
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", 
-    "param", "source", "track"
-];
-
-const childrenlessOptionlessElementTags: Array<ChildrenlessOptionlessElementTags> = [
-    "basefont", "isindex", "keygen"
+    "source", "track"
 ];
 
 const elementTags: Array<ElementTags> = [
@@ -95,7 +79,6 @@ const elementTags: Array<ElementTags> = [
 const elements: { [key: string]: EleganceElement<ElementTags> } = {};
 const optionlessElements: { [key: string]: EleganceOptionlessElement<OptionlessElementTags> } = {};
 const childrenlessElements: { [key: string]: EleganceChildrenlessElement<ChildrenlessElementTags> } = {};
-const childrenlessOptionlessElements: { [key: string]: EleganceChildrenlessOptionlessElement<ChildrenlessOptionlessElementTags> } = {};
 
 for (const element of elementTags) {
     elements[element] = createBuildableElement(element);
@@ -109,22 +92,16 @@ for (const element of childrenlessElementTags) {
     childrenlessElements[element] = createChildrenlessBuildableElement(element);
 }
 
-for (const element of childrenlessOptionlessElementTags) {
-    childrenlessOptionlessElements[element] = createChildrenlessOptionlessBuildableElement(element);
-}
-
 const allElements = {
     ...elements,
     ...optionlessElements,
     ...childrenlessElements,
-    ...childrenlessOptionlessElements,
 }
 
 export { 
     elements,
     optionlessElements,
     childrenlessElements,
-    childrenlessOptionlessElements,
     createElementOptions,
     allElements
 };

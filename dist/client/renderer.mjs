@@ -3,7 +3,7 @@ var camelToKebabCase = (input) => {
   return input.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 };
 
-// src/renderer.ts
+// src/client/renderer.ts
 var Renderer = class {
   constructor() {
     console.log("%cElegance renderer is loading..", "font-size: 30px; color: #ffffaa");

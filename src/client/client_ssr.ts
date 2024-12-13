@@ -1,13 +1,14 @@
+import "../shared/bindBrowserElements";
 
-import "../bindElements";
-import { Router } from "../router";
+import { Router } from "../shared/router";
 import { RenderingMethod } from "../types/Metadata";
+import { Hydrator } from "./hydrator";
 
 (async () => { 
     const unminimizePageInfo = (minimized: MinimizedPageInfo): PageInfo => {
         return {
             renderingMethod: minimized.rm,
-            storedEventListeners: minimized.sels?.map(selection => ({
+            storedEventListeners: minimized.sels.map(selection => ({
                 eleganceID: selection.id,
                 eventListeners: selection.els.map(element => ({
                     attributeName: element.an,
@@ -32,8 +33,12 @@ import { RenderingMethod } from "../types/Metadata";
         throw `The SERVER_SIDE_RENDERING client may only be used if the page has been rendered via the SERVER_SIDE_RENDERING renderingMethod.`;
     }
 
-    //const hydrator = globalThis.eleganceHydrator();
+    const hydrator = new Hydrator();
     const router = new Router();
+
+    globalThis.eleganceHydrator = hydrator;
+
+    hydrator.hydratePage(pageInfo);
 
     // find out way to make this work
     //router.addPage(window.location.pathname, module.page);

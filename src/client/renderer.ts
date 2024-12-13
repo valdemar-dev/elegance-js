@@ -1,4 +1,4 @@
-import { camelToKebabCase } from "./helpers/camelToKebab";
+import { camelToKebabCase } from "../helpers/camelToKebab";
 
 class Renderer {
     renderTime: number;
@@ -121,7 +121,12 @@ class Renderer {
             throw new Error(`Provided elementInDocument is not a valid HTML element. Got: ${elementInDocument}.`);
         }
 
-        if (
+        if (propertyName === 'style' && typeof propertyValue === 'object') {
+            Object.assign(elementInDocument.style, propertyValue);
+            return;
+        }
+
+        else if (
             propertyName.toLowerCase() in elementInDocument &&
             propertyName.startsWith("on")
         ) {
@@ -130,23 +135,18 @@ class Renderer {
             return;
         }
 
-        if (propertyName in elementInDocument) {
+        else if (propertyName in elementInDocument) {
             (elementInDocument as any)[propertyName] = propertyValue;
 
             return;
         }
 
-        if (propertyName === 'class') {
+        else if (propertyName === 'class') {
             elementInDocument.className = propertyValue;
             return;
         }
 
-        if (propertyName === 'style' && typeof propertyValue === 'object') {
-            Object.assign(elementInDocument.style, propertyValue);
-            return;
-        }
-
-        if (typeof propertyValue === "function") {
+        else if (typeof propertyValue === "function") {
             elementInDocument.setAttribute(camelToKebabCase(propertyName), propertyValue());
             return;
         }
@@ -170,13 +170,23 @@ class Renderer {
         if (!options) return;
 
         for (const key in options) {
-            if (options.hasOwnProperty(key)) {
+            if (Object.hasOwn(options, key)) {
                 const value = options[key];
-                if (typeof value !== "object") {
-                    this.assignPropertyToHTMLElement(elementInDocument, key, value);
-                } else if (!skipObservables) {
+
+                // is an observe function call
+                // this is faster than checking for instanceof PropertyObserver
+                // and it bundles less code
+                if (
+                    Object.hasOwn(value, "ids") &&
+                    Object.hasOwn(value, "update") &&
+                    Object.hasOwn(value, "scope")
+                ) {
+                    if (skipObservables) continue;
+
                     this.processOptionAsObserver(value, elementInDocument, element, key);
                 }
+
+                this.assignPropertyToHTMLElement(elementInDocument, key, value);
             }
         }
     }

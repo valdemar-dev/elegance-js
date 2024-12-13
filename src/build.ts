@@ -39,11 +39,11 @@ const __dirname = path.dirname(__filename);
 
 const packageDir = path.resolve(__dirname, '..');
 
-const CSRClientPath = path.resolve(packageDir, './src/client/CSRClient.ts');
-const SSGClientPath = path.resolve(packageDir, './src/client/SSGClient.ts');
-const SSRClientPath = path.resolve(packageDir, './src/client/SSRClient.ts');
+const CSRClientPath = path.resolve(packageDir, './src/client/client_csr.ts');
+const SSGClientPath = path.resolve(packageDir, './src/client/client_ssg.ts');
+const SSRClientPath = path.resolve(packageDir, './src/client/client_ssr.ts');
 
-const bindElementsPath = path.resolve(packageDir, './src/bindElements.ts');
+const bindElementsPath = path.resolve(packageDir, './src/shared/bindServerElements.ts');
 
 const getProjectFiles = (pagesDirectory: string,) => {
     const pageFiles = [];
@@ -253,9 +253,13 @@ export const compile = async ({
     console.log("Elegance.JS: Beginning build.");
     console.log("Using Environment: ", environment);
 
+    if (environment === "production") {
+        console.log("NOTE: In production mode, no console.log() statements will be shown on the client, and all code will be minified.");
+    }
+
     const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
 
-    //await buildInfoFiles(infoFiles, environment);
+    await buildInfoFiles(infoFiles, environment);
 
     const pageCompilationDirections = await getPageCompilationDirections(pageFiles, pagesDirectory);
 
