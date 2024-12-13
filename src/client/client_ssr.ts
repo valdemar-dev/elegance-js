@@ -1,5 +1,3 @@
-import "../shared/bindBrowserElements";
-
 import { Router } from "../shared/router";
 import { RenderingMethod } from "../types/Metadata";
 import { Hydrator } from "./hydrator";

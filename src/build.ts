@@ -1,9 +1,11 @@
 import fs, { Dirent } from "fs";
 import path from "path";
-import esbuild, { BuildOptions } from "esbuild";
+import esbuild, { BuildOptions, Plugin, PluginBuild } from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./helpers/generateHTMLTemplate";
 import { GenerateMetadata, RenderingMethod } from "./types/Metadata";
+
+import { allElements } from "./shared/serverElements";
 
 const getAllSubdirectories = (dir: string, baseDir = dir) => {
     let directories: Array<string> = [];
@@ -76,15 +78,43 @@ const getProjectFiles = (pagesDirectory: string,) => {
     }
 };
 
-const buildClient = async (environment: "production" | "development") => {
+const esbuildPluginReplaceElementCalls = (
+    functionNames: string[],
+    environment: "production" | "development",
+) => ({
+    name: 'rename-function-calls',
+    setup(build: PluginBuild) {
+        build.onLoad({ filter: /\.(js|mjs|ts)$/ }, (args) => {
+            let code = fs.readFileSync(args.path, 'utf8');
+
+            environment === "development" && console.log(`BUILDING: ${args.path}`);
+
+            for (const functionName of functionNames) {
+                const regex = new RegExp(`(?<!\\.)\\b(${functionName})\\s*\\(`, 'g');
+                code = code.replaceAll(regex, `_e.${functionName}(`);
+            };
+
+            return {
+                contents: code,
+                loader: args.suffix in ["js", "mjs"] ? "js" : "ts",
+            };
+        });
+  },
+});
+
+const buildClient = async (
+    environment: "production" | "development"
+) => {
     await esbuild.build({
         bundle: true,
         minify: environment === "production",
         drop: environment === "production" ? ["console", "debugger"] : undefined,
+        keepNames: true,
         entryPoints: [CSRClientPath, SSRClientPath, SSGClientPath],
         outdir: DIST_DIR,
         format: "esm",
-        platform: "node",
+        platform: "node", 
+        plugins: [esbuildPluginReplaceElementCalls(Object.keys(allElements), environment)]
     });
 };
 
@@ -287,6 +317,7 @@ export const compile = async ({
         }, 
         format: "esm",
         platform: "node",
+        plugins: [esbuildPluginReplaceElementCalls(Object.keys(allElements), environment)],
     });
 
     await processSSRPages(SSRPages, environment);

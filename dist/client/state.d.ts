@@ -32,13 +32,13 @@ declare class StateController {
         enforceRuntimeTypes?: boolean;
         debounceUpdateMs?: number;
         resetOnPageLeave?: boolean;
-    }): Subject<any> | Subject<T>;
+    }): Subject<any>;
     createGlobal<T>(initialValue: T, { id, enforceRuntimeTypes, debounceUpdateMs, resetOnPageLeave, }: {
         id: string;
         enforceRuntimeTypes?: boolean;
         debounceUpdateMs?: number;
         resetOnPageLeave?: boolean;
-    }): Subject<any> | Subject<T>;
+    }): Subject<any>;
     getGlobal(id: string): Subject<any>;
     get(id: string): Subject<any>;
     observe(id: string, callback: (value: any) => void, scope?: SubjectScope): void;

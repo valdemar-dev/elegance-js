@@ -1,6 +1,7 @@
 import { ServerRenderer } from "./renderer";
 import { ServerRouter } from "./router";
 import { ServerStateController } from "./state";
+import "../shared/bindBrowserElements";
 
 type SSRPage = {
     returnHTML: string,

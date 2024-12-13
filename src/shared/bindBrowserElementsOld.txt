@@ -1,0 +1,133 @@
+const createElementOptions = (obj: Record<string, any>) => {
+    return function () {
+        const reevaluatedObj: Record<string, any> = {};
+
+        for (const key of Object.keys(obj)) {
+            const value = obj[key];
+
+            if (typeof value !== "function") {
+                reevaluatedObj[key] = value;
+                continue;
+            }
+
+            if (key.startsWith("on")) {
+                reevaluatedObj[key] = value;
+                continue;
+            }
+
+            reevaluatedObj[key] = value();
+        }
+
+        return reevaluatedObj;
+    };
+};
+
+const voidElements = [
+    "area", "base",
+    "br", "col", "embed", "hr", "input",
+    "link", "meta", "param", "img", "source", "track", "wbr"
+];
+
+const structureElements = [ "title", ];
+
+const mismatchConstructorElements: {
+    [key: string]: string[],
+} = { 
+    "paragraph": ["p"],
+    "tablerow": ["tr"],
+    "heading": ["h1", "h2", "h3", "h4", "h5", "h6"],
+    "quote": ["blockquote", "q"],
+    "tablesection": ["tbody", "thead", "tfoot"],
+    "tablecaption": ["caption"],
+    "olist": ["ol"],
+    "tablecell": ["td", "th"],
+    "tablecol": ["col"],
+    "ulist": ["ul"],
+    "dlistl": ["dl"],
+    "anchor": ["a"],
+}
+
+const elements: {
+    [key: string]:
+    ((...children: ElementChildren) => () => ({
+        tag: string,
+        getOptions: () => ({}),
+        children: ElementChildren,
+    })) | 
+    ((options: Record<string, any>) => () => ({
+        tag: string,
+        getOptions: ReturnType<typeof createElementOptions>,
+        children: [],
+    })) | 
+    ((options: Record<string, any>, ...children: ElementChildren) => () => ({
+        tag: string,
+        getOptions: ReturnType<typeof createElementOptions>,
+        children: ElementChildren,
+    }))
+} = {};
+
+const define = (tagName: string) => {
+    if (structureElements.includes(tagName)) {
+        elements[tagName] = ((...children: ElementChildren) => {
+            return () => ({
+                tag: tagName,
+                getOptions: () => ({}),
+                children: children,
+            });
+        })
+        return;
+    }
+
+    if (voidElements.includes(tagName)) {
+        elements[tagName] = ((options: Record<string, any>) => {
+            return () => ({
+                tag: tagName,
+                getOptions: createElementOptions(options),
+                children: [],
+            });
+        })
+        return;
+    }
+
+    elements[tagName] = ((options: Record<string, any>, ...children: ElementChildren) => {
+        return () => ({
+            tag: tagName,
+            getOptions: createElementOptions(options),
+            children: children,
+        });
+    })
+};
+
+const globalProperties: string[] = Object.getOwnPropertyNames(window);
+
+interface Window {
+    [key:string]: any;
+}
+for (const prop of globalProperties) {
+    if (!prop.startsWith("HTML")) continue;
+
+    const constructor = window[prop];
+
+    if (
+        typeof constructor !== "function" ||
+        !(constructor.prototype instanceof HTMLElement)
+    ) {
+        continue;
+    }
+
+    const tagName = prop.replace(/^HTML|Element$/g, "").toLowerCase();
+    if (!tagName) continue;
+
+    const mismatchCorrection = mismatchConstructorElements[tagName];
+    if (mismatchCorrection) {
+        console.log(mismatchCorrection);
+
+        for (const correction of mismatchCorrection) {
+            define(correction);
+        }
+    } else {
+        define(tagName);
+    }
+}
+
+globalThis._e = elements;
