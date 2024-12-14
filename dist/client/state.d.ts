@@ -9,7 +9,6 @@ declare class Subject<T> {
     }>;
     id: string;
     value: T;
-    initialValue: T;
     pathname: string;
     debounce?: (callback: () => void) => void;
     scope: SubjectScope;
@@ -20,9 +19,7 @@ declare class Subject<T> {
     set(newValue: T): void;
     add(entry: T extends Array<infer U> ? U : never): void;
     remove(entry: T extends Array<infer U> ? U : never): void;
-    reset(): void;
     get(): T;
-    getInitialValue(): T;
 }
 declare class StateController {
     subjectStore: Array<Subject<any>>;
@@ -40,7 +37,7 @@ declare class StateController {
         resetOnPageLeave?: boolean;
     }): Subject<any>;
     getGlobal(id: string): Subject<any>;
-    get(id: string): Subject<any>;
+    get(id: string): Subject<any> | undefined;
     observe(id: string, callback: (value: any) => void, scope?: SubjectScope): void;
     resetEphemeralSubjects(): void;
     cleanSubjectObservers(): void;

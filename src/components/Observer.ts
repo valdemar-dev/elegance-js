@@ -32,6 +32,7 @@ const Observer = (options: {
 
         for (const id of ids) {
             const subject = state.get(id);
+            if (!subject) return;
 
             subject.observe(updateCallback);
         }

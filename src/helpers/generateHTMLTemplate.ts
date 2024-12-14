@@ -61,15 +61,15 @@ export const generateHTMLTemplate = ({
 
     switch (renderingMethod) {
         case (RenderingMethod.SERVER_SIDE_RENDERING):
-            HTMLTemplate += `<script src="/client_ssr.js" defer="true"></script>`;
+            HTMLTemplate += `<script stype="module" rc="/client_ssr.js" defer="true"></script>`;
             break;
 
         case (RenderingMethod.STATIC_GENERATION):
-            HTMLTemplate += `<script src="/client_ssg.js" defer="true"></script>`;
+            HTMLTemplate += `<script stype="module" rc="/client_ssg.js" defer="true"></script>`;
             break;
 
         case (RenderingMethod.CLIENT_SIDE_RENDERING):
-            HTMLTemplate += `<script src="/client_csr.js" defer="true"></script>`;
+            HTMLTemplate += `<script type="module" src="/client_csr.js" defer="true"></script>`;
             break;
     }
 

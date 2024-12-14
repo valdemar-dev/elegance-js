@@ -16,10 +16,9 @@ enum SubjectScope {
 
 class Subject<T> {
     enforceRuntimeTypes: boolean;
-    observers: Array<{ callback: (value: T) => void }>
+    observers: Array<{ callback: (value: T) => void }> = [];
     id: string
     value: T
-    initialValue: T
     pathname: string
     debounce?: (callback: () => void) => void
     scope: SubjectScope
@@ -35,9 +34,7 @@ class Subject<T> {
         resetOnPageLeave: boolean = false,
     ) {
         this.enforceRuntimeTypes = enforceRuntimeTypes;
-        this.observers = [];
         this.value = initialValue;
-        this.initialValue = structuredClone(initialValue);
         this.id = id;
         this.pathname = pathname;
         this.scope = scope;
@@ -49,14 +46,6 @@ class Subject<T> {
     }
 
     observe(callback: (subject: T) => void) {
-        if (typeof callback !== "function") {
-            throw new Error("The provided callback function must be a function.");
-        }
-
-        if (callback.length !== 1) {
-            throw new Error("The callback function must take one parameter (new value of the subject).");
-        }
-
         this.observers.push({ callback });
     }
 
@@ -78,7 +67,8 @@ class Subject<T> {
 
     set(newValue: T) {
         if (this.enforceRuntimeTypes && typeof newValue !== typeof this.value) {
-            throw `Type of new value: ${newValue} (${typeof newValue}) does not match the type of this subject's value ${this.value} (${typeof this.value}).`;
+            console.error(`Type of new value: ${newValue} (${typeof newValue}) does not match the type of this subject's value ${this.value} (${typeof this.value}).`);
+            return;
         }
 
         this.value = newValue;
@@ -86,7 +76,8 @@ class Subject<T> {
 
     add(entry: T extends Array<infer U> ? U : never) {
         if (!Array.isArray(this.value)) {
-            throw `The add method of a subject may only be used if the subject's value is an Array.`;
+            console.error(`The add method of a subject may only be used if the subject's value is an Array.`);
+            return;
         }
 
         this.value.push(entry);
@@ -94,26 +85,19 @@ class Subject<T> {
 
     remove(entry: T extends Array<infer U> ? U : never) {
         if (!Array.isArray(this.value)) {
-            throw `The remove method of a subject may only be used if the subject's value is an Array.`;
+            console.error(`The remove method of a subject may only be used if the subject's value is an Array.`);
+            return;
         }
 
         const index = this.value.indexOf(entry);
 
-        if (!index) throw `Element ${entry} does not exist in this subject, therefore it cannot be removed.`;
+        if (!index) console.error(`Element ${entry} does not exist in this subject, therefore it cannot be removed.`);
 
         this.value.splice(index, 1);
     }
 
-    reset() {
-        this.value = this.initialValue;
-    }
-
     get() {
         return this.value;
-    }
-
-    getInitialValue() {
-        return this.initialValue;
     }
 }
 
@@ -225,7 +209,8 @@ class StateController {
         });
 
         if (!subject) {
-            throw new Error(`Could not find a subject with the ID of ${id} in the page ${window.location.pathname}`);
+            console.error(`Could not find a subject with the ID of ${id} in the page ${window.location.pathname}`);
+            return;
         }
 
         return subject;
@@ -234,6 +219,8 @@ class StateController {
     observe(id: string, callback: (value: any) => void, scope: SubjectScope = SubjectScope.LOCAL) {
         if (scope === SubjectScope.LOCAL) {
             const subject = this.get(id);
+            if (!subject) return;
+
             subject.observe(callback);
         } else {
             const subject = this.getGlobal(id);

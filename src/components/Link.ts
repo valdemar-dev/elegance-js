@@ -7,7 +7,7 @@ const Link = (options: Record<string, any>, ...children: ElementChildren) => {
 
     const router = getRouter();
 
-    router.prefetch(href);
+    router.getPage(href);
 
     return a ({
         ...options,

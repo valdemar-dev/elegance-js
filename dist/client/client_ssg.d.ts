@@ -1,1 +1,1 @@
-import "../shared/bindBrowserElements";
+export {};

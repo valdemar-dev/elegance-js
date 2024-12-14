@@ -10,7 +10,7 @@ declare global {
     var eleganceHydrator: Hydrator;
     var _e: any;
     var __ELEGANCE_SERVER_DATA__: any;
-    var __ELEGANCE_PAGE_INFO__: MinimizedPageInfo;
+    var __PAGE_INFOS__: MinimizedPageInfo[];
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
     type AnyBuildableElement = BuildableElement<ElementTags> | OptionlessBuildableElement<OptionlessElementTags> | ChildrenlessBuildableElement<ChildrenlessElementTags>;
     type OnMountOptions = {
@@ -55,6 +55,7 @@ declare global {
     type Child = BuildableElement<ElementTags> | OptionlessBuildableElement<OptionlessElementTags> | ChildrenlessBuildableElement<ChildrenlessElementTags> | string | boolean;
     type ElementChildren = Array<Child>;
     type MinimizedPageInfo = {
+        pn: string;
         rm: RenderingMethod;
         sels: Array<{
             id: number;
@@ -65,6 +66,7 @@ declare global {
         }>;
     };
     type PageInfo = {
+        pathname: string;
         renderingMethod: RenderingMethod;
         storedEventListeners: Array<{
             eleganceID: number;

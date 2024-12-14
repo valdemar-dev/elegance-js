@@ -333,6 +333,8 @@ class Renderer {
                 stateController.get(subjectId) :
                 stateController.getGlobal(subjectId);
 
+            if (!subject) continue;
+
             subjectValues.push(subject.get());
 
             const callbackFunction = async (newValue: typeof subject) => {

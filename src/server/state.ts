@@ -5,6 +5,7 @@ export class ServerStateController {
     }
 
     create() {
+
     }
 
     createGlobal() {

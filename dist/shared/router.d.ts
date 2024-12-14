@@ -10,7 +10,6 @@ declare class Router {
     navigate(pathname: string, pushState?: boolean): Promise<void>;
     getPage(pathname: string): Promise<any>;
     addPage(pathname: string, page: Page): void;
-    prefetch(pathname: string): Promise<void>;
     onNavigate(callback: () => void): void;
     setPopState(): void;
 }

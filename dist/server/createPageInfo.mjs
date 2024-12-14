@@ -1,1 +1,1 @@
-var i=({storedEventListeners:n,renderingMethod:r})=>{let t=n.map(e=>`{id:${e.eleganceID},els:[${e.eventListeners.map(s=>s)}]}`);return`{rm:${r},sels:[${t}]}`};export{i as createPageInfo};
+var a=({storedEventListeners:n,renderingMethod:r,pathname:t})=>{let s=n.map(e=>`{id:${e.eleganceID},els:[${e.eventListeners.map(i=>i)}]}`);return`<script e-pi>(globalThis.__PAGE_INFOS__ ||= []).push({pn:"${t}",rm:${r},sels:[${s}]})</script>`};export{a as createPageInfo};

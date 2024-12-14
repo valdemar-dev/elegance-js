@@ -71,7 +71,29 @@ class Router {
         const pageData = await pageDataRaw.text();
         const parser = new DOMParser();
 
-        const parsedPageData = parser.parseFromString(pageData, "text/html");
+        const parsedDocument = parser.parseFromString(pageData, "text/html");
+
+        const pageInfo = parsedDocument.querySelector(`script[e-pi]`);8
+
+        if (!pageInfo) {
+            this.log(`Failed to fatch page, page ${pathname} did not define a <script> in it's head with attribute e-ip (short for elegancePageInfo)`)
+            return;
+        }
+
+        // below is some seemingly questionable code.
+        // let me explain.
+        // because SSR puts things like el's info pageinfo,
+        // we cannot simply "serialize" it, and "deserialize" it in the client.
+        // we MUST treat it as js-code. therefore, we make a new script tag
+        // where we insert the page info of this page. that will then modify
+        // the global instance of __PAGE_INFOS__, which contains all pages, their els, etc.
+        // might come up with a more elegant solution for this that doesn't involve
+        // appending to global variables and whatnot. in the meantime, this works.
+        const newPageInfo = document.createElement("script");
+        newPageInfo.textContent = pageInfo.textContent;
+        document.head.appendChild(newPageInfo);
+
+        return;
 
         try {
             const { page } = await import(pathname + optionalSlash + "page.js");
@@ -93,10 +115,6 @@ class Router {
     addPage(pathname: string, page: Page) {
         this.log(`Saving page with pathname: ${pathname}`);
         this.savedPages.set(pathname, page);
-    }
-
-    async prefetch(pathname: string) {
-        await this.getPage(pathname);
     }
 
     onNavigate(callback: () => void) {
