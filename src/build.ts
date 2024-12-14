@@ -112,9 +112,9 @@ const buildClient = async (
         keepNames: true,
         entryPoints: [CSRClientPath, SSRClientPath, SSGClientPath],
         outdir: DIST_DIR,
-        format: "esm",
+        format: "iife",
         platform: "node", 
-        plugins: [esbuildPluginReplaceElementCalls(Object.keys(allElements), environment)]
+        //plugins: [esbuildPluginReplaceElementCalls(Object.keys(allElements), environment)]
     });
 };
 
@@ -361,6 +361,7 @@ export const compile = async ({
         minify: environment === "production",
         drop: environment === "production" ? ["console", "debugger"] : undefined,
         bundle: true,
+        globalName: "page",
         outdir: DIST_DIR,
         loader: {
             ".js": "js",
@@ -368,7 +369,7 @@ export const compile = async ({
         }, 
         format: "esm",
         platform: "node",
-        plugins: [esbuildPluginReplaceElementCalls(Object.keys(allElements), environment)],
+        //plugins: [esbuildPluginReplaceElementCalls(Object.keys(allElements), environment)],
     });
 
     await processSSRPages(SSRPages, environment);

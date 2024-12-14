@@ -58,7 +58,7 @@ const define = (tagName: string, hasAttr: boolean, hasChildren: boolean) => {
     };
 };
 
-globalThis._e = {
+Object.assign(globalThis, {
     ...elementsWithAttributesAndChildren.reduce((acc, el) => {
         acc[el] = define(el, true, true);
         return acc;
@@ -71,4 +71,4 @@ globalThis._e = {
         acc[el] = define(el, true, false);
         return acc;
     }, {} as { [key: string]: Function }),
-};
+})
