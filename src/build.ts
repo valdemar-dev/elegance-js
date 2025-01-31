@@ -184,7 +184,7 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
 	}
 
 	if (!attributeValue.type) {
-	    throw `ObjectAttributeType type is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
+	    throw `ObjectAttributeType is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
 	}
 
 	switch (attributeValue.type) {
@@ -203,7 +203,7 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
 		break;
 
 	    case ObjectAttributeType.OBSERVER:
-		const firstValue = attributeValue.update(attributeValue.initialValue);
+		const firstValue = attributeValue.update(...attributeValue.initialValues);
 
 		if (option.toLowerCase() === "innertext") {
 		    element.children = [firstValue, ...element.children];
@@ -285,12 +285,12 @@ const generateClientPageData = async (
 	for (const observerObjectAttribute of observerObjectAttributes) {
 	    const ooa = observerObjectAttribute as unknown as {
 		key: string,
-		id: number,
+		ids: number[],
 		attributeName: string,
-		update: (value: any) => any,
+		update: (...value: any) => any,
 	    };
 
-	    observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attributeName}",id:${ooa.id},update:${ooa.update.toString()}},`
+	    observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attributeName}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`
 	}
 
 	observerObjectAttributeString += "]}";

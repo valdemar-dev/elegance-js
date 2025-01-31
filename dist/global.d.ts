@@ -35,9 +35,9 @@ declare global {
         value: any;
     } : T extends ObjectAttributeType.OBSERVER ? {
         type: ObjectAttributeType;
-        id: number;
-        initialValue: any;
-        update: (value: any) => void;
+        ids: number[];
+        initialValues: any[];
+        update: (...value: any) => void;
     } : {
         type: ObjectAttributeType;
     };

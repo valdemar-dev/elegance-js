@@ -26,6 +26,8 @@ const state = {
 	if (!subject) throw `No subject with id ${id}`;
 
 	subject.value = value;
+
+	state.subjects[state.subjects.indexOf(subject)] = subject;
     },
 
     signal: (id: number) => {
@@ -49,23 +51,28 @@ const state = {
 
 state.populate();
 
+pd[window.location.pathname].sm = state;
+
 if (serverObservers) {
     for (const observer of serverObservers) {
 	const el = document.querySelector(`[key="${observer.key}"]`)
 
-	const subject = state.get(observer.id)!;
+	const values: Array<any> = [];
 
-	state.observe(subject.id, (value: any) => {
-	    // mm.. adult programming language.
-	    (el as any)[observer.attribute] = observer.update(value)
-	});
+	for (const id of observer.ids) {
+	    const subject = state.get(id);
+	    if (!subject) throw `No subject with id ${id}`
+
+	    values.push(subject.value);
+
+	    const updateFunction = (value: any) => {
+		values[id] = value;
+
+		(el as any)[observer.attribute] = observer.update(...values)
+	    };
+
+	    state.observe(subject.id, updateFunction);
+	}
     }
-
-    setInterval(() => {
-	const subject = state.get(0)!;
-
-	state.set(subject.id, subject.value + 1);
-	state.signal(subject.id);
-    }, 1000);
 }
 

@@ -1,3 +1,10 @@
 NOTES:
-
 - todo: run built page.js files through esbuild on compile
+- todo: global state
+- todo: modify observe() to take in multiple values
+
+- todo: add some shit so you can't just >>>> in content
+
+## global state
+just use a global variable, index using ids
+if id exists, then use that.

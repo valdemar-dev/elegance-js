@@ -21,6 +21,7 @@ var state = {
     const subject = state.get(id);
     if (!subject) throw `No subject with id ${id}`;
     subject.value = value;
+    state.subjects[state.subjects.indexOf(subject)] = subject;
   },
   signal: (id) => {
     const subject = state.get(id);
@@ -37,17 +38,25 @@ var state = {
   }
 };
 state.populate();
+pd[window.location.pathname].sm = state;
 if (serverObservers) {
   for (const observer of serverObservers) {
     const el = document.querySelector(`[key="${observer.key}"]`);
-    const subject = state.get(observer.id);
-    state.observe(subject.id, (value) => {
-      el[observer.attribute] = observer.update(value);
-    });
+    const values = [];
+    for (const id of observer.ids) {
+      const subject = state.get(id);
+      if (!subject) throw `No subject with id ${id}`;
+      values.push(subject.value);
+      const updateFunction = (value) => {
+        values[id] = value;
+        el[observer.attribute] = observer.update(...values);
+      };
+      state.observe(subject.id, updateFunction);
+    }
   }
   setInterval(() => {
     const subject = state.get(0);
     state.set(subject.id, subject.value + 1);
     state.signal(subject.id);
-  }, 1e3);
+  }, 100);
 }

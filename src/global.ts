@@ -43,7 +43,7 @@ declare global {
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
     ? { type: ObjectAttributeType, id: string | number, value: any, }
     : T extends ObjectAttributeType.OBSERVER
-    ? { type: ObjectAttributeType, id: number, initialValue: any, update: (value: any) => void }
+    ? { type: ObjectAttributeType, ids: number[], initialValues: any[], update: (...value: any) => void }
     : { type: ObjectAttributeType, };
 
     type ElementOptions = {
