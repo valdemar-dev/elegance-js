@@ -1,29 +1,23 @@
-import { ServerRenderer } from "./renderer";
-import { ServerRouter } from "./router";
 import { ServerStateController } from "./state";
+import { renderRecursively } from "./renderer";
 import "../shared/bindBrowserElements";
 
-type SSRPage = {
-    returnHTML: string,
-}
-
-export const serverSideRenderPage = async (page: Page) => {
+export const serverSideRenderPage = async (page: Page, pathname: string) => {
     if (!page) {
         throw `No Page Provided.`;
     }
 
-    if (typeof page !== "function") {
-        throw `Page must be a function.`;
-    }
+    const state = new ServerStateController(pathname);
 
-    const state = new ServerStateController();
-    const router = new ServerRouter();
-    const renderer = new ServerRenderer(router, state);
+    const bodyHTML = renderRecursively(page, 0);
 
-    await renderer.renderPage(page); 
+    console.log(bodyHTML)
 
     return {
-        bodyHTML: renderer.HTMLString,
-        storedEventListeners: renderer.eventListenerStore,
+        bodyHTML,
+        storedEventListeners: [],
+	storedState: state.subjectStore,
+	storedObservers: state.observerStore,
+	onHydrateFinish: undefined,
     };
 };

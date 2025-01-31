@@ -21,36 +21,28 @@ const createElementOptions = (obj: Record<string, any>) => {
 };
 
 const createBuildableElement = (tag: ElementTags) => {
-    return (options: Record<string, any>, ...children: ElementChildren) => {
-        const getOptions = createElementOptions(options);
-
-        return () => ({
-            tag: tag,
-            getOptions: getOptions,
-            children: children,
-        });
-    };
+    return (options: Record<string, any>, ...children: ElementChildren) => ({
+	tag: tag,
+	options: options,
+	children: children,
+    });
 };
 
 const createOptionlessBuildableElement = (tag: OptionlessElementTags) => {
-    return (...children: ElementChildren) => {
-        return () => ({
-            tag: tag,
-            getOptions: () => ({}),
-            children: children,
-        });
-    };
+    return (...children: ElementChildren) => ({
+	tag: tag,
+	options: {},
+	children: children,
+    });
 };
 
 const createChildrenlessBuildableElement = (tag: ChildrenlessElementTags) => {
-    return (options: Record<string, any>) => {
-        const getOptions = createElementOptions(options)
-        return () => ({
-            tag: tag,
-            getOptions: getOptions,
-            children: [],
-        });
-    };
+    return (options: Record<string, any>) => ({
+	tag: tag,
+	options: options,
+	children: [],
+    });
+
 };
 
 const optionlessElementTags: Array<OptionlessElementTags> = [

@@ -1,1 +1,141 @@
-var d=["a","abbr","address","article","aside","b","body","blockquote","button","canvas","cite","code","colgroup","data","del","details","dfn","div","dl","dt","em","fieldset","figcaption","figure","footer","form","h1","h2","h3","h4","h5","h6","header","hr","i","iframe","img","input","ins","kbd","label","legend","li","main","map","mark","menu","menuitem","meter","nav","object","ol","optgroup","option","output","p","pre","progress","q","section","select","small","span","strong","sub","summary","sup","table","tbody","td","textarea","tfoot","th","thead","time","tr","u","ul","var","video","details","datalist"],c=["audio","base","br","col","embed","link","meta","noscript","source","track","wbr","area","command","picture","progress","html","head"],b=["title","template"],a=(e,t,u)=>(...n)=>{let r={},l=[];return t&&n.length>0&&typeof n[0]=="object"?(r=n[0],u&&n.length>1&&(l=n.slice(1))):u&&n.length>0&&(l=n),()=>({tag:e,getOptions:r?()=>{let o={};for(let i of Object.keys(r)){let s=r[i];if(typeof s!="function"){o[i]=s;continue}if(i.startsWith("on")){o[i]=s;continue}o[i]=s()}return o}:()=>({}),children:l})};Object.assign(globalThis,{...d.reduce((e,t)=>(e[t]=a(t,!0,!0),e),{}),...b.reduce((e,t)=>(e[t]=a(t,!1,!0),e),{}),...c.reduce((e,t)=>(e[t]=a(t,!0,!1),e),{})});
+// src/shared/bindBrowserElements.ts
+var elementsWithAttributesAndChildren = [
+  "a",
+  "abbr",
+  "address",
+  "article",
+  "aside",
+  "b",
+  "body",
+  "blockquote",
+  "button",
+  "canvas",
+  "cite",
+  "code",
+  "colgroup",
+  "data",
+  "del",
+  "details",
+  "dfn",
+  "div",
+  "dl",
+  "dt",
+  "em",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "hr",
+  "i",
+  "iframe",
+  "img",
+  "input",
+  "ins",
+  "kbd",
+  "label",
+  "legend",
+  "li",
+  "main",
+  "map",
+  "mark",
+  "menu",
+  "menuitem",
+  "meter",
+  "nav",
+  "object",
+  "ol",
+  "optgroup",
+  "option",
+  "output",
+  "p",
+  "pre",
+  "progress",
+  "q",
+  "section",
+  "select",
+  "small",
+  "span",
+  "strong",
+  "sub",
+  "summary",
+  "sup",
+  "table",
+  "tbody",
+  "td",
+  "textarea",
+  "tfoot",
+  "th",
+  "thead",
+  "time",
+  "tr",
+  "u",
+  "ul",
+  "var",
+  "video",
+  "details",
+  "datalist"
+];
+var elementsWithAttributesOnly = [
+  "audio",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "link",
+  "meta",
+  "noscript",
+  "source",
+  "track",
+  "wbr",
+  "area",
+  "command",
+  "picture",
+  "progress",
+  "html",
+  "head"
+];
+var elementsWithChildrenOnly = [
+  "title",
+  "template"
+];
+var define = (tagName, hasAttr, hasChildren) => {
+  return (...args) => {
+    let options = {};
+    let children = [];
+    if (hasAttr && args.length > 0 && typeof args[0] === "object") {
+      options = args[0];
+      if (hasChildren && args.length > 1) {
+        children = args.slice(1);
+      }
+    } else if (hasChildren && args.length > 0) {
+      children = args;
+    }
+    return {
+      tag: tagName,
+      getOptions: options ?? {},
+      children
+    };
+  };
+};
+Object.assign(globalThis, {
+  ...elementsWithAttributesAndChildren.reduce((acc, el) => {
+    acc[el] = define(el, true, true);
+    return acc;
+  }, {}),
+  ...elementsWithChildrenOnly.reduce((acc, el) => {
+    acc[el] = define(el, false, true);
+    return acc;
+  }, {}),
+  ...elementsWithAttributesOnly.reduce((acc, el) => {
+    acc[el] = define(el, true, false);
+    return acc;
+  }, {})
+});

@@ -31,28 +31,9 @@ const define = (tagName: string, hasAttr: boolean, hasChildren: boolean) => {
             children = args;
         }
 
-        return () => ({
+        return ({
             tag: tagName,
-            getOptions: options ? () => {
-                const reevaluatedObj: Record<string, any> = {};
-
-                for (const key of Object.keys(options)) {
-                    const value = options[key];
-
-                    if (typeof value !== "function") {
-                        reevaluatedObj[key] = value;
-                        continue;
-                    }
-
-                    if (key.startsWith("on")) {
-                        reevaluatedObj[key] = value;
-                        continue;
-                    }
-
-                    reevaluatedObj[key] = value();
-                }
-                return reevaluatedObj;
-            }: () => ({}),
+            getOptions: options ?? {},
             children: children,
         });
     };

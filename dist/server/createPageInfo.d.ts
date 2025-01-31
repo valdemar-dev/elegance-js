@@ -1,9 +1,11 @@
-import { RenderingMethod } from "../types/Metadata";
-export declare const createPageInfo: ({ storedEventListeners, renderingMethod, pathname, }: {
+import { ServerStateController } from "./state";
+export declare const createPageInfo: ({ storedEventListeners, storedState, storedObservers, pathname, onHydrateFinish, }: {
     storedEventListeners: Array<{
         eleganceID: number;
         eventListeners: string[];
     }>;
-    renderingMethod: RenderingMethod;
+    onHydrateFinish?: () => void;
+    storedState: ServerStateController["subjectStore"];
+    storedObservers: ServerStateController["observerStore"];
     pathname: string;
 }) => string;

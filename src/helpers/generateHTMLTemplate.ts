@@ -1,5 +1,3 @@
-import { RenderingMethod } from "../types/Metadata";
-
 const renderElement = (element: Child) => {
     if (typeof element === "string") {
         return element;
@@ -9,25 +7,25 @@ const renderElement = (element: Child) => {
         return element;
     }
 
-    if (typeof element !== "function") {
-        throw "Cannot render non-functional elements.";
-    }
+    if (typeof element === "boolean") return null;
 
-    const builtElement = element();
+    if (Array.isArray(element)) {
+	return element.join(", ");
+    }
 
     let returnHTML = "";
     
-    returnHTML += `<${builtElement.tag}`;
+    returnHTML += `<${element.tag}`;
 
-    if (Object.hasOwn(builtElement, "getOptions")) {
-        const options = (builtElement as BuiltElement<string>).getOptions();
+    if (Object.hasOwn(element, "options")) {
+        const options = (element as BuiltElement<string>).options;
 
         for (const [key, value] of Object.entries(options)) {
             returnHTML += ` ${key}="${value}"`
         }
     }
 
-    if (!builtElement.children) {
+    if (!element.children) {
         returnHTML += "/>";
 
         return returnHTML;
@@ -35,11 +33,11 @@ const renderElement = (element: Child) => {
 
     returnHTML += ">";
 
-    for (const child of builtElement.children) {
+    for (const child of element.children) {
         returnHTML += renderElement(child);
     }
 
-    returnHTML += `</${builtElement.tag}>`
+    returnHTML += `</${element.tag}>`
 
     return returnHTML;
 };
@@ -47,37 +45,23 @@ const renderElement = (element: Child) => {
 export const generateHTMLTemplate = ({
     pageURL,
     head,
-    renderingMethod, 
     serverData = null,
     addPageScriptTag = true,
 }: {
-    renderingMethod: RenderingMethod,
     addPageScriptTag: boolean,
     pageURL: string,
-    head: () => BuildableElement<"head">,
+    head: () => BuiltElement<"head">,
     serverData?: string | null,
 }) => {
     let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`
 
-    switch (renderingMethod) {
-        case (RenderingMethod.SERVER_SIDE_RENDERING):
-            HTMLTemplate += `<script stype="module" rc="/client_ssr.js" defer="true"></script>`;
-            break;
-
-        case (RenderingMethod.STATIC_GENERATION):
-            HTMLTemplate += `<script stype="module" rc="/client_ssg.js" defer="true"></script>`;
-            break;
-
-        case (RenderingMethod.CLIENT_SIDE_RENDERING):
-            HTMLTemplate += `<script type="module" src="/client_csr.js" defer="true"></script>`;
-            break;
-    }
-
-    if (addPageScriptTag) {
+    if (addPageScriptTag === true) {
         HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page.js" defer="true"></script>`;
     }
 
-    const builtHead = head()();
+    HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
+
+    const builtHead = head();
 
     for (const child of builtHead.children) {
         HTMLTemplate += renderElement(child);

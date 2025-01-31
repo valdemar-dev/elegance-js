@@ -1,8 +1,10 @@
 import "../shared/bindBrowserElements";
-export declare const serverSideRenderPage: (page: Page) => Promise<{
+export declare const serverSideRenderPage: (page: Page, pathname: string) => Promise<{
     bodyHTML: string;
-    storedEventListeners: {
-        eleganceID: number;
-        eventListeners: string[];
+    storedEventListeners: never[];
+    storedState: import("./state").Subject<any>[];
+    storedObservers: {
+        [key: string]: "local" | "global";
     }[];
+    onHydrateFinish: undefined;
 }>;

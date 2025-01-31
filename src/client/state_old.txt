@@ -102,10 +102,34 @@ class Subject<T> {
 }
 
 class StateController {
-    subjectStore: Array<Subject<any>>
+    subjectStore: Array<Subject<any>> = [];
 
-    constructor() {
-        this.subjectStore = [];
+    constructor(
+	storedState: PageInfo["storedState"],
+	storedObservers: PageInfo["storedObservers"],
+    ) {
+	for (const state of storedState) {
+	    let createdState;
+	    if (state.scope === "local") {
+		createdState = this.create(state.value, {
+		    id: state.id,
+		    enforceRuntimeTypes: state.enforceRuntimeTypes,
+		    debounceUpdateMs: state.debounce,
+		    resetOnPageLeave: state.resetOnPageLeave,
+		});
+
+	    } else {
+		createdState = this.createGlobal(state.value, {
+		    id: state.id,
+		    enforceRuntimeTypes: state.enforceRuntimeTypes,
+		    debounceUpdateMs: state.debounce,
+		    resetOnPageLeave: state.resetOnPageLeave,
+		})
+	    }
+
+	    
+	    
+	}
     }
 
     create<T>(

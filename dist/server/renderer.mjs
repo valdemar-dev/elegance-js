@@ -1,1 +1,26 @@
-var a=l=>l.replace(/([a-z])([A-Z])/g,"$1-$2").toLowerCase();var g=["clientOnly"],c=class{constructor(e,t){this.currentElementIndex=0;this.HTMLString="";this.eventListenerStore=[];this.router=e,this.stateController=t,this.renderTime=0,this.onRenderFinishCallbacks=[]}log(e){console.log(`%c${e}`,"font-size: 15px; color: #aaffaa;")}getOption(e,t){let r=t.find(([n])=>n===e);return r?r[1]:null}serializeEventHandler(e,t,r){let n=this.eventListenerStore.find(o=>o.eleganceID===r);n||(n={eleganceID:r,eventListeners:[]},this.eventListenerStore.push(n));let s=t.toString(),i=`{an:"${e}",el:${s.replace(/\s+/g,"")}}`;n.eventListeners.push(i),console.log(`Serialized attribute ${e} for element with id: ${r}. Set to string ${s}`)}renderElement(e){if(typeof e=="string"||typeof e=="number"||typeof e=="boolean")return this.HTMLString+=`${e}`;if(typeof e!="function")throw"Elements must be either a string, number or function.";let t=e(),r=null,n=Object.entries(t.getOptions());this.getOption("clientOnly",n)===!0&&console.log("CLIENT ONLY"),this.HTMLString+=`<${t.tag}`;for(let[i,o]of n){if(g.includes(i)){console.log("reserved attr");continue}if(!i.startsWith("on")){this.HTMLString+=` ${a(o)}="${o}"`;continue}r||(r=this.currentElementIndex++,this.HTMLString+=` e-id=${r}`),this.serializeEventHandler(i,o,r)}if(!t.children){this.HTMLString+="/>";return}this.HTMLString+=">";for(let i of t.children)this.renderElement(i);this.HTMLString+=`</${t.tag}>`}async renderPage(e){let t=e({router:this.router,renderer:this,state:this.stateController});this.renderElement(t)}};export{c as ServerRenderer};
+// src/server/renderer.ts
+var renderRecursively = (element, index) => {
+  let returnString = "";
+  if (typeof element === "boolean") return returnString;
+  else if (typeof element === "number" || typeof element === "string") {
+    return returnString + element;
+  } else if (Array.isArray(element)) {
+    return returnString + element.join(", ");
+  }
+  returnString += `<${element.tag}`;
+  for (const [attrName, attrValue] of Object.entries(element.options)) {
+    if (typeof attrValue === "object") {
+      throw `Internal error, attr ${attrName} has obj type.`;
+    }
+    returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
+  }
+  returnString += ">";
+  for (const child of element.children) {
+    returnString += renderRecursively(child, index + 1);
+  }
+  returnString += `</${element.tag}>`;
+  return returnString;
+};
+export {
+  renderRecursively
+};

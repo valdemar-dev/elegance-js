@@ -1,0 +1,16 @@
+import { getPageInfo } from "../helpers/getPageInfo";
+import { Router } from "./router";
+import { StateController } from "./state";
+import { hydratePage } from "./hydrator";
+
+const pageInfo = getPageInfo(window.location.pathname);
+
+const router = new Router();
+const state = new StateController(pageInfo.storedState, pageInfo.storedObservers);
+
+globalThis.eleganceStateController = state;
+globalThis.eleganceRouter = router;
+
+globalThis.pageInfo = pageInfo;
+
+hydratePage(pageInfo);

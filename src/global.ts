@@ -1,37 +1,24 @@
-import { Renderer as ClientRenderer } from "./client/renderer";
-import { Router } from "./shared/router";
-import { StateController as ClientStateController } from "./client/state";
-import { RenderingMethod } from "./types/Metadata";
-import { Hydrator } from "./client/hydrator";
+import { ObjectAttributeType, } from "./helpers/ObjectAttributeType";
 
 declare global {
-    var eleganceStateController: ClientStateController;
-    var eleganceRouter: Router;
-    var eleganceRenderer: ClientRenderer;
-    var eleganceHydrator: Hydrator;
-    var _e: any;
-
     var __ELEGANCE_SERVER_DATA__: any;
+
     var __PAGE_INFOS__: MinimizedPageInfo[];
+
+    var pd: Record<string, any>;
 
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
 
-    type AnyBuildableElement = 
-        | BuildableElement<ElementTags>
-        | OptionlessBuildableElement<OptionlessElementTags>
-        | ChildrenlessBuildableElement<ChildrenlessElementTags>
-
-    type OnMountOptions = {
+    type OnHydrateOptions = {
         builtElement: AnyBuiltElement,
         elementInDocument: HTMLElement,
-        buildableElement: AnyBuildableElement
     };
 
     type BuiltElement<T> = {
         tag: T;
         children: ElementChildren;
-        getOptions: () => Record<string, any>;
-        onMount?: (options: OnMountOptions) => void;
+        options: Record<string, any>;
+        onHydrate?: (options: OnHydrateOptions) => void;
     };
 
     type ServerData = { data: any };
@@ -40,62 +27,75 @@ declare global {
     type NonVoid<T> = T extends void ? never : T;
     type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
 
-    type Page<T extends ExecuteOnServer = never> = 
+    type Page = AnyBuiltElement;
+
+    type PageOld<T extends ExecuteOnServer = never> = 
         [T] extends [never]
-            ? ({ router, state, renderer }: {
-                  router: Router;
-                  state: ClientStateController;
-                  renderer: ClientRenderer;
+            ? ({ }: {
+		    abort: () => void;  
             }) => Child
-            : ({ router, state, renderer, serverData }: {
-                  router: Router;
-                  state: ClientStateController;
-                  renderer: ClientRenderer;
-                  serverData: ReturnTypeStrict<T>["data"]
+            : ({ serverData }: {
+		    abort: () => void;
+		    serverData: ReturnTypeStrict<T>["data"]
             }) => Child;
 
-    type BuildableElement<T> = () => BuiltElement<T>;
-    type OptionlessBuildableElement<T> = () => BuiltElement<T>;
-    type ChildrenlessBuildableElement<T> = () => BuiltElement<T>;
+
+    type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
+    ? { type: ObjectAttributeType, id: string | number, value: any, }
+    : T extends ObjectAttributeType.OBSERVER
+    ? { type: ObjectAttributeType, id: number, initialValue: any, update: (value: any) => void }
+    : { type: ObjectAttributeType, };
+
+    type ElementOptions = {
+	[key: string]: string | number | ObjectAttribute<any>
+    }
 
     type EleganceElement<T> = (
-        options: { [key: string]: any },
+        options: ElementOptions,
         ...children: ElementChildren
-    ) => BuildableElement<T>;
+    ) => BuiltElement<T>;
 
     type EleganceOptionlessElement<T> = (
         ...children: ElementChildren
-    ) => OptionlessBuildableElement<T>;
+    ) => BuiltElement<T>;
 
     type EleganceChildrenlessElement<T> = (
-        options: { [key: string]: any }
-    ) => ChildrenlessBuildableElement<T>;
-
+        options: ElementOptions
+    ) => BuiltElement<T>;
 
     type Child = 
-        | BuildableElement<ElementTags>
-        | OptionlessBuildableElement<OptionlessElementTags>
-        | ChildrenlessBuildableElement<ChildrenlessElementTags>
+        | BuiltElement<ElementTags>
+        | BuiltElement<OptionlessElementTags>
+        | BuiltElement<ChildrenlessElementTags>
         | string
-        | boolean;
+        | boolean
+	| Array<number | string | boolean>;
 
     type ElementChildren = Array<Child>;
 
     type MinimizedPageInfo = {
-        pn: string,
-        rm: RenderingMethod,
-        sels: Array<{
+        a: string,
+        b: Array<{
             id: number,
             els: Array<{
                 an: string,
                 el: (...args: any) => any,
             }>,
-        }>,
+	}>,
+	c: Array<{
+	    id: any
+	    v: any
+	    ert: boolean
+	    s: string
+	    db?: number
+	    ropl: boolean
+	}>
+	d?: () => void,
+	e: [{ [key: string]: "local" | "global", }],
     };
 
     type PageInfo = {
         pathname: string,
-        renderingMethod: RenderingMethod,
         storedEventListeners: Array<{
             eleganceID: number,
             eventListeners: Array<{
@@ -103,6 +103,16 @@ declare global {
                 eventListener: (...args: any) => any,
             }>,
         }>,
+	storedState: Array<{
+	    id: any
+	    value: any
+	    enforceRuntimeTypes: boolean
+	    scope: string
+	    debounce: number
+	    resetOnPageLeave: boolean
+	}>,
+	onHydrateFinish?: () => void,
+	storedObservers: [{ [key: string]: "local" | "global", }],
     };
 
     type OmitSomething<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>

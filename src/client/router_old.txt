@@ -1,9 +1,9 @@
+
 class Router {
     savedPages: Map<string, Page>;
     onNavigateCallbacks: Array<() => void>
     currentPage: string
     stateController = globalThis.eleganceStateController; 
-    renderer = globalThis.eleganceRenderer;
     
     constructor() {
         console.log("%cElegance router is loading..", "font-size: 30px; color: #aaffaa");
@@ -47,8 +47,6 @@ class Router {
         }
 
         this.currentPage = pathname;
-
-        this.renderer.renderPage(page);
     }
 
     async getPage(pathname: string) {

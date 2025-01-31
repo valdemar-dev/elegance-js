@@ -4,13 +4,14 @@
   "description": "Web-Framework",
   "type": "module",
   "scripts": {
-    "build": "esbuild --format='esm' --platform='node' --bundle --outdir='./dist' --minify --platform='node' --external:esbuild --out-extension:.js=.mjs ./src/**/**/*.ts && tsc",
+    "build": "esbuild --format='esm' --platform='node' --bundle --outdir='./dist' --platform='node' --external:esbuild --out-extension:.js=.mjs ./src/**/**/*.ts && tsc",
     "prepare": "npm run build"
   },
   "exports": {
     "./*": {
       "types": "./dist/*.d.ts",
-      "import": "./dist/*.mjs"
+      "import": "./dist/*.mjs",
+      "require": "./dist/*.mjs"
     }
   },
   "files": [
