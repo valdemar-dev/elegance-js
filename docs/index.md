@@ -1,8 +1,10 @@
-# Elegance.JS
-
-Elegance.JS is an opinionated, server-rendered, compiled, type-safe web framework with minimal dependencies (esbuild), written entirely in vanilla TypeScript.
-
-
+# Elegance.JS  
+Elegance.JS is an opinionated, server-rendered, compiled, type-safe web framework with minimal dependencies (ESBuild), written entirely in vanilla TypeScript.  
+## Main Features  
+### Reactive  
+Elegance is reactive by design, but rather can complex state management and reactivity systems, we use a simple observer pattern.  
+### Independent  
+All code is written by me, by-hand, using just modern vanilla TypeScript. The main and only dependency is currently ESBuild  
 ## Getting Started
 **NOTE!** Elegance is in an *extremely* early beta, none of this documentation is finished, and literally everything is subject to change.  
 Elegance hasn't been published to NPM or any other registry yet, so it's only available locally.  
