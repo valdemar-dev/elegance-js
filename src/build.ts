@@ -160,70 +160,80 @@ const buildInfoFiles = async (infoFiles: Array<Dirent>, environment: "production
 
 const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>, key: number): Child => {
     if (
-	typeof element === "string" ||
-	typeof element === "boolean" ||
-	typeof element === "number" ||
-	Array.isArray(element)
+        typeof element === "string" ||
+        typeof element === "boolean" ||
+        typeof element === "number" ||
+        Array.isArray(element)
     ) return element;
 
     for (const [option, attributeValue] of Object.entries(element.options)) {
-	if (typeof attributeValue !== "object") {
-	    if (option.toLowerCase() === "innertext") {
-		element.children = [attributeValue, ...element.children];
-	    }
+        if (typeof attributeValue !== "object") {
+            if (option.toLowerCase() === "innertext") {
+                element.children = [attributeValue, ...element.children];
+            }
 
-	    else if (option.toLowerCase() === "innerhtml") {
-		element.children = [attributeValue];
-	    }
+            else if (option.toLowerCase() === "innerhtml") {
+                element.children = [attributeValue];
+            }
 
-	    continue;
-	};
+            continue;
+        };
 
-	if (!element.options.key) {
-	    element.options.key = key
-	}
+        if (!element.options.key) {
+            element.options.key = key
+        }
 
-	if (!attributeValue.type) {
-	    throw `ObjectAttributeType is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
-	}
+        if (!attributeValue.type) {
+            throw `ObjectAttributeType is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
+        }
 
-	switch (attributeValue.type) {
-	    case ObjectAttributeType.STATE:
-		if (option.toLowerCase() === "innertext") {
-		    element.children = [attributeValue.value, ...element.children];
-		    delete element.options[option];
+        switch (attributeValue.type) {
+            case ObjectAttributeType.STATE:
+                if (typeof attributeValue.value === "function") {
+                    if (!option.toLowerCase().startsWith("on")) { 
+                        throw `ObjectAttribute.STATE type object attributes may not have their value be a function, unless their attribute is an event handler.`
+                    }
 
-		} else if (option.toLowerCase() === "innerhtml") {
-		    element.children = [attributeValue.value];
-		    delete element.options[option];
-		} else {
-		    element.options[option] = attributeValue.value;
-		}
+                    delete element.options[option];
 
-		break;
+                    break;
+                }
 
-	    case ObjectAttributeType.OBSERVER:
-		const firstValue = attributeValue.update(...attributeValue.initialValues);
+                if (option.toLowerCase() === "innertext") {
+                    element.children = [attributeValue.value, ...element.children];
+                    delete element.options[option];
+                } else if (option.toLowerCase() === "innerhtml") {
+                    element.children = [attributeValue.value];
+                    delete element.options[option];
+                } else {
+                    element.options[option] = attributeValue.value;
+                }
 
-		if (option.toLowerCase() === "innertext") {
-		    element.children = [firstValue, ...element.children];
-		    delete element.options[option];
-		} else if (option.toLowerCase() === "innerhtml") {
-		    element.children = [firstValue];
-		    delete element.options[option];
-		} else {
-		    element.options[option] = firstValue;
-		}
-		break;
-	}
+                break;
 
-	objectAttributes.push({ ...attributeValue, key: key, attributeName: option, });
+            case ObjectAttributeType.OBSERVER:
+                const firstValue = attributeValue.update(...attributeValue.initialValues);
+
+                if (option.toLowerCase() === "innertext") {
+                    element.children = [firstValue, ...element.children];
+                    delete element.options[option];
+                } else if (option.toLowerCase() === "innerhtml") {
+                    element.children = [firstValue];
+                    delete element.options[option];
+                } else {
+                    element.options[option] = firstValue;
+                }
+
+                break;
+        }
+
+        objectAttributes.push({ ...attributeValue, key: key, attribute: option, });
     }
 
     for (let child of element.children) {
-	const processedChild = processPageElements(child, objectAttributes, key+1)
+        const processedChild = processPageElements(child, objectAttributes, key+1)
 
-	child = processedChild;	
+        child = processedChild;	
     }
 
     return element;
@@ -234,10 +244,10 @@ const generateSuitablePageElements = async (
     pageElements: Child,
 ) => {
     if (
-	typeof pageElements === "string" ||
-	typeof pageElements === "boolean" ||
-	typeof pageElements === "number" ||
-	Array.isArray(pageElements)
+        typeof pageElements === "string" ||
+        typeof pageElements === "boolean" ||
+        typeof pageElements === "number" ||
+        Array.isArray(pageElements)
     ) {	
 	return [];
     }
@@ -245,12 +255,10 @@ const generateSuitablePageElements = async (
     const objectAttributes: Array<ObjectAttribute<any>> = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes, 1);
 
-    console.log(objectAttributes);
-
     fs.writeFileSync(
-	path.join(DIST_DIR, pageLocation, "page.json"),
-	JSON.stringify(processedPageElements),
-	"utf-8",
+        path.join(DIST_DIR, pageLocation, "page.json"),
+        JSON.stringify(processedPageElements),
+        "utf-8",
     )
 
     return objectAttributes;
@@ -264,43 +272,48 @@ const generateClientPageData = async (
     let clientPageJSText = `let url="${pageLocation === "" ? "/" : pageLocation}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
 
     if (state) {
-	const formattedState: Record<string, any> = {};
+        let formattedStateString = "";
 
-	for (const [key, value] of Object.entries(state)) {
-	    formattedState[value.id] = value.value;
-	}
-
-	clientPageJSText += `pd[url]={...pd[url],state:${JSON.stringify(formattedState)}};`;
+        for (const [key, subject] of Object.entries(state)) {
+            if (typeof subject.value === "string") {
+                formattedStateString += `${key}:{id:${subject.id},value:"${subject.value}"},`;
+            } else {
+                formattedStateString += `${key}:{id:${subject.id},value:${subject.value}},`;
+            }
+        }
+     
+        clientPageJSText += `pd[url]={...pd[url],state:{${formattedStateString}}};`;
     }
 
     const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
+
     if (stateObjectAttributes.length > 0) {
-	clientPageJSText += `pd[url]={...pd[url],soa:${JSON.stringify(stateObjectAttributes)}};`
+        clientPageJSText += `pd[url]={...pd[url],soa:${JSON.stringify(stateObjectAttributes)}};`
     }
 
     const observerObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.OBSERVER);
     if (observerObjectAttributes.length > 0) {
-	let observerObjectAttributeString = "pd[url]={...pd[url],ooa:[";
+        let observerObjectAttributeString = "pd[url]={...pd[url],ooa:[";
 
-	for (const observerObjectAttribute of observerObjectAttributes) {
-	    const ooa = observerObjectAttribute as unknown as {
-		key: string,
-		ids: number[],
-		attributeName: string,
-		update: (...value: any) => any,
-	    };
+        for (const observerObjectAttribute of observerObjectAttributes) {
+            const ooa = observerObjectAttribute as unknown as {
+                key: string,
+                ids: number[],
+                attribute: string,
+                update: (...value: any) => any,
+            };
 
-	    observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attributeName}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`
-	}
+            observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`
+        }
 
-	observerObjectAttributeString += "]}";
-	clientPageJSText += observerObjectAttributeString;
+        observerObjectAttributeString += "]}";
+        clientPageJSText += observerObjectAttributeString;
     }
 
     fs.writeFileSync(
-	path.join(DIST_DIR, pageLocation, "page.js"),
-	clientPageJSText,
-	"utf-8",
+        path.join(DIST_DIR, pageLocation, "page.js"),
+        clientPageJSText,
+        "utf-8",
     )
 };
 
@@ -331,12 +344,12 @@ const buildPages = async (
             "utf-8",
         );
 
-	const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
+        const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
 
-	const { page: pageElements, state, } = await import(pagePath);
+        const { page: pageElements, state, } = await import(pagePath);
 
-	const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements);
-	await generateClientPageData(page.pageLocation, state, objectAttributes);
+        const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements);
+        await generateClientPageData(page.pageLocation, state, objectAttributes);
     }
 };
 
@@ -352,7 +365,7 @@ const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirec
         const pagePath = path.join(rootPath, pagesDirectory, builtInfoFile)
         const pageFile = pageFiles.find(page => page.parentPath === pagePath);
 
-	// skipping empty directories
+        // skipping empty directories
         if (!pageFile) continue;
 
         const infoFileExports = await import(absoluteFilePath);

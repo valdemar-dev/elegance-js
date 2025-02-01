@@ -3,6 +3,21 @@ declare global {
     var __ELEGANCE_SERVER_DATA__: any;
     var __PAGE_INFOS__: MinimizedPageInfo[];
     var pd: Record<string, any>;
+    type ClientSubject = {
+        id: number;
+        value: any;
+        observers: Array<(value: any) => any>;
+    };
+    var getState: <T>() => {
+        subjects: {
+            [K in keyof T]: ClientSubject;
+        };
+        populate: () => void;
+        get: (id: number) => ClientSubject | undefined;
+        set: (subject: ClientSubject, value: any) => void;
+        signal: (subject: ClientSubject) => void;
+        observe: (subject: ClientSubject, observer: (value: any) => any) => void;
+    };
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
     type OnHydrateOptions = {
         builtElement: AnyBuiltElement;

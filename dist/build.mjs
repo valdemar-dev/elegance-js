@@ -187,6 +187,13 @@ var processPageElements = (element, objectAttributes, key) => {
     }
     switch (attributeValue.type) {
       case 1 /* STATE */:
+        if (typeof attributeValue.value === "function") {
+          if (!option.toLowerCase().startsWith("on")) {
+            throw `ObjectAttribute.STATE type object attributes may not have their value be a function, unless their attribute is an event handler.`;
+          }
+          delete element.options[option];
+          break;
+        }
         if (option.toLowerCase() === "innertext") {
           element.children = [attributeValue.value, ...element.children];
           delete element.options[option];
@@ -210,7 +217,7 @@ var processPageElements = (element, objectAttributes, key) => {
         }
         break;
     }
-    objectAttributes.push({ ...attributeValue, key, attributeName: option });
+    objectAttributes.push({ ...attributeValue, key, attribute: option });
   }
   for (let child of element.children) {
     const processedChild = processPageElements(child, objectAttributes, key + 1);
@@ -224,7 +231,6 @@ var generateSuitablePageElements = async (pageLocation, pageElements) => {
   }
   const objectAttributes = [];
   const processedPageElements = processPageElements(pageElements, objectAttributes, 1);
-  console.log(objectAttributes);
   fs.writeFileSync(
     path.join(DIST_DIR, pageLocation, "page.json"),
     JSON.stringify(processedPageElements),
@@ -235,11 +241,15 @@ var generateSuitablePageElements = async (pageLocation, pageElements) => {
 var generateClientPageData = async (pageLocation, state, objectAttributes) => {
   let clientPageJSText = `let url="${pageLocation === "" ? "/" : pageLocation}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
   if (state) {
-    const formattedState = {};
-    for (const [key, value] of Object.entries(state)) {
-      formattedState[value.id] = value.value;
+    let formattedStateString = "";
+    for (const [key, subject] of Object.entries(state)) {
+      if (typeof subject.value === "string") {
+        formattedStateString += `${key}:{id:${subject.id},value:"${subject.value}"},`;
+      } else {
+        formattedStateString += `${key}:{id:${subject.id},value:${subject.value}},`;
+      }
     }
-    clientPageJSText += `pd[url]={...pd[url],state:${JSON.stringify(formattedState)}};`;
+    clientPageJSText += `pd[url]={...pd[url],state:{${formattedStateString}}};`;
   }
   const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
   if (stateObjectAttributes.length > 0) {
@@ -250,7 +260,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes) => {
     let observerObjectAttributeString = "pd[url]={...pd[url],ooa:[";
     for (const observerObjectAttribute of observerObjectAttributes) {
       const ooa = observerObjectAttribute;
-      observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attributeName}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
+      observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
     }
     observerObjectAttributeString += "]}";
     clientPageJSText += observerObjectAttributeString;

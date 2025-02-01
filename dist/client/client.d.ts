@@ -1,19 +1,12 @@
 declare const pageData: any;
 declare const serverState: any;
 declare const serverObservers: any;
+declare const stateObjectAttributes: any;
 declare const state: {
-    subjects: Array<{
-        id: any;
-        value: any;
-        observers: Array<(value: any) => any>;
-    }>;
+    subjects: Record<string, ClientSubject>;
     populate: () => void;
-    get: (id: number) => {
-        id: any;
-        value: any;
-        observers: Array<(value: any) => any>;
-    } | undefined;
-    set: (id: number, value: any) => void;
-    signal: (id: number) => void;
-    observe: (id: number, observer: (value: any) => any) => void;
+    get: (id: number) => ClientSubject | undefined;
+    set: (subject: ClientSubject, value: any) => void;
+    signal: (subject: ClientSubject) => void;
+    observe: (subject: ClientSubject, observer: (value: any) => any) => void;
 };

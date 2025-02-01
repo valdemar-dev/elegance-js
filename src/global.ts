@@ -7,6 +7,20 @@ declare global {
 
     var pd: Record<string, any>;
 
+    type ClientSubject = { id: number, value: any, observers: Array<(value: any) => any>};
+
+    var getState: <T>() => {
+        subjects: { 
+            [K in keyof T]: ClientSubject
+        };
+
+        populate: () => void;
+        get: (id: number) => ClientSubject | undefined;
+        set: (subject: ClientSubject, value: any) => void;
+        signal: (subject: ClientSubject) => void;
+        observe: (subject: ClientSubject, observer: (value: any) => any) => void;
+    };
+
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
 
     type OnHydrateOptions = {
@@ -38,7 +52,6 @@ declare global {
 		    abort: () => void;
 		    serverData: ReturnTypeStrict<T>["data"]
             }) => Child;
-
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
     ? { type: ObjectAttributeType, id: string | number, value: any, }

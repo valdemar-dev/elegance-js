@@ -5,38 +5,35 @@ if (!pageData) {
 }
 var serverState = pageData.state;
 var serverObservers = pageData.ooa;
+var stateObjectAttributes = pageData.soa;
 var state = {
-  subjects: [],
+  subjects: {},
   populate: () => {
-    for (const [key, value] of Object.entries(serverState)) {
-      state.subjects.push({
-        id: parseInt(key),
-        value,
+    for (const [subjectName, value] of Object.entries(serverState)) {
+      const subject = value;
+      state.subjects[subjectName] = {
+        id: subject.id,
+        value: subject.value,
         observers: []
-      });
+      };
     }
   },
-  get: (id) => state.subjects.find((s) => s.id === id),
-  set: (id, value) => {
-    const subject = state.get(id);
-    if (!subject) throw `No subject with id ${id}`;
+  get: (id) => Object.values(state.subjects).find((s) => s.id === id),
+  set: (subject, value) => {
     subject.value = value;
-    state.subjects[state.subjects.indexOf(subject)] = subject;
+    state.subjects[Object.keys(subject)[0]] = subject;
   },
-  signal: (id) => {
-    const subject = state.get(id);
-    if (!subject) throw `No subject with id ${id}`;
+  signal: (subject) => {
     const observers = subject.observers;
     for (const observer of observers) {
       observer(subject.value);
     }
   },
-  observe: (id, observer) => {
-    const subject = state.get(id);
-    if (!subject) throw `No subject with id ${id}`;
+  observe: (subject, observer) => {
     subject.observers.push(observer);
   }
 };
+globalThis.getState = () => state;
 state.populate();
 pd[window.location.pathname].sm = state;
 if (serverObservers) {
@@ -51,12 +48,15 @@ if (serverObservers) {
         values[id] = value;
         el[observer.attribute] = observer.update(...values);
       };
-      state.observe(subject.id, updateFunction);
+      state.observe(subject, updateFunction);
     }
   }
-  setInterval(() => {
-    const subject = state.get(0);
-    state.set(subject.id, subject.value + 1);
-    state.signal(subject.id);
-  }, 100);
+}
+if (stateObjectAttributes) {
+  for (const soa of stateObjectAttributes) {
+    const el = document.querySelector(`[key="${soa.key}"]`);
+    const subject = state.get(soa.id);
+    if (!subject) throw `SOA, no subject with ID: ${soa.id}`;
+    el[soa.attribute] = subject.value;
+  }
 }
