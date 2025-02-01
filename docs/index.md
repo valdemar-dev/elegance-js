@@ -10,7 +10,7 @@ Elegance hasn't been published to NPM or any other registry yet, so it's only av
 1. Clone this repo: `git clone https://github.com/valdemar-dev/elegance-js`  
 2. Make a project (in your programming folder preferably) `mkdir elegance-js-project && cd elegance-js-project && sudo npm link [where you cloned elegance-js to]`  
 3. Write a simple server configuration, example below:  
-```ts
+```ts  
 import fs from "fs"
 import path from "path";
 import express from "express";
@@ -164,7 +164,7 @@ compile({
 ```  
 4. Make a `/pages` directory in the root directory of your project.
 5. Create a `/pages/page.ts` file. Example:  
-```ts
+```ts  
 import { createState, } from "elegance-js/server/createState";  
 import { observe } from "elegance-js/server/observe";
 
