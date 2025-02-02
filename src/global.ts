@@ -9,7 +9,7 @@ declare global {
 
     type ClientSubject = { id: number, value: any, observers: Array<(value: any) => any>};
 
-    var getState: <T>() => {
+    type ClientState<T> = {
         subjects: { 
             [K in keyof T]: ClientSubject
         };

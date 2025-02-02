@@ -46,9 +46,6 @@ const state = {
     }
 }
 
-// helper used in page.ts
-globalThis.getState = <T>() => state as T;
-
 state.populate();
 
 pd[window.location.pathname].sm = state;
@@ -84,6 +81,6 @@ if (stateObjectAttributes) {
         const subject = state.get(soa.id);
         if (!subject) throw `SOA, no subject with ID: ${soa.id}`;
 
-        (el as any)[soa.attribute] = subject.value;
-    } 
+        (el as any)[soa.attribute] = (event: Event) => subject.value(state, event);
+    }
 }

@@ -33,7 +33,6 @@ var state = {
     subject.observers.push(observer);
   }
 };
-globalThis.getState = () => state;
 state.populate();
 pd[window.location.pathname].sm = state;
 if (serverObservers) {
@@ -57,6 +56,6 @@ if (stateObjectAttributes) {
     const el = document.querySelector(`[key="${soa.key}"]`);
     const subject = state.get(soa.id);
     if (!subject) throw `SOA, no subject with ID: ${soa.id}`;
-    el[soa.attribute] = subject.value;
+    el[soa.attribute] = (event) => subject.value(state, event);
   }
 }
