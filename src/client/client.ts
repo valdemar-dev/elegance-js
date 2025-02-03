@@ -6,6 +6,27 @@ if (!pageData) {
 const serverState = pageData.state;
 const serverObservers = pageData.ooa;
 const stateObjectAttributes = pageData.soa;
+const isInWatchMode = pageData.w;
+
+if (isInWatchMode) {
+    const evtSource = new EventSource("http://localhost:3001/events");
+
+    evtSource.onmessage = async (data: MessageEvent<any>) => { 
+        console.log(`Message: ${data}`);
+        const newHTML = await fetch(window.location.href);
+
+        document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
+
+        const link = document.querySelector('[rel=stylesheet]') as HTMLLinkElement;
+
+        if (!link) {
+            return;
+        }
+
+        const href = link.getAttribute('href')!;
+        link.setAttribute('href', href.split('?')[0] + '?' + new Date().getTime());
+    };
+}
 
 const state = {
     subjects: {} as Record<string, ClientSubject> ,

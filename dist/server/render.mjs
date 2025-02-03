@@ -307,7 +307,6 @@ var serverSideRenderPage = async (page, pathname) => {
   }
   const state = new ServerStateController(pathname);
   const bodyHTML = renderRecursively(page, 0);
-  console.log(bodyHTML);
   return {
     bodyHTML,
     storedEventListeners: [],

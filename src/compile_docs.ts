@@ -1,5 +1,7 @@
 import { fileURLToPath } from "url";
 import { compile } from "./build";
+import { exec } from "child_process";
+
 import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,6 +14,9 @@ compile({
     pagesDirectory: PAGES_DIR,
     outputDirectory: OUTPUT_DIR,
     environment: "development",
+    watch: true,
 }).then(() => {
+    exec (`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --watch`)
+
     console.log("Built Docs.");
 })

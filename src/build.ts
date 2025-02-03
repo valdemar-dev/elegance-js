@@ -4,9 +4,19 @@ import esbuild, { BuildOptions, Plugin, PluginBuild } from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./helpers/generateHTMLTemplate";
 import { GenerateMetadata, } from "./types/Metadata";
+import http, { IncomingMessage, ServerResponse } from "http";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const packageDir = path.resolve(__dirname, '..');
+
+const SSRClientPath = path.resolve(packageDir, './src/client/client.ts');
+
+const bindElementsPath = path.resolve(packageDir, './src/shared/bindServerElements.ts');
 
 const yellow = (text: string) => {
     return `\u001b[38;2;238;184;68m${text}`;
@@ -72,15 +82,6 @@ const getFile = (dir: Array<Dirent>, fileName: string) => {
     if (dirent) return dirent;
     return false;
 }
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const packageDir = path.resolve(__dirname, '..');
-
-const SSRClientPath = path.resolve(packageDir, './src/client/client.ts');
-
-const bindElementsPath = path.resolve(packageDir, './src/shared/bindServerElements.ts');
 
 const getProjectFiles = (pagesDirectory: string,) => {
     const pageFiles = [];
@@ -271,15 +272,22 @@ const generateSuitablePageElements = async (
 
     const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
 
+    const htmlLocation = path.join(DIST_DIR, pageLocation, "index.html");
+
     fs.writeFileSync(
-        path.join(DIST_DIR, pageLocation, "index.html"),
+        htmlLocation,
         resultHTML,
-        "utf-8",
+        {
+            encoding: "utf-8",
+            flag: "w",
+        }
     );
 
-    fs.unlinkSync(
-        path.join(DIST_DIR, pageLocation, "info.js")
-    )
+    const infoLocation = path.join(DIST_DIR, pageLocation, "info.js");
+
+    if (fs.existsSync(infoLocation)) {
+        fs.unlinkSync(infoLocation)
+    }
 
     return objectAttributes;
 };
@@ -289,8 +297,13 @@ const generateClientPageData = async (
     state: Record<string, any>,
     objectAttributes: Array<ObjectAttribute<any>>,
     DIST_DIR: string,
+    watch: boolean,
 ) => {
     let clientPageJSText = `let url="${pageLocation === "" ? "/" : pageLocation}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+
+    if (watch) {
+        clientPageJSText += "pd[url]={...pd[url],w:true};";
+    }
 
     if (state) {
         let formattedStateString = "";
@@ -327,7 +340,7 @@ const generateClientPageData = async (
             observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`
         }
 
-        observerObjectAttributeString += "]}";
+        observerObjectAttributeString += "]};";
         clientPageJSText += observerObjectAttributeString;
     }
 
@@ -349,6 +362,7 @@ const buildPages = async (
     environment: "production" | "development",
     DIST_DIR: string,
     writeToHTML: boolean,
+    watch: boolean
 ) => { 
     for (const page of pages) {
         if (!writeToHTML) {
@@ -369,10 +383,10 @@ const buildPages = async (
 
         const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
 
-        const { page: pageElements, state, } = await import(pagePath);
+        const { page: pageElements, state, } = await import(pagePath + `?${Date.now()}`);
 
         const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements, page.metadata, DIST_DIR, writeToHTML);
-        await generateClientPageData(page.pageLocation, state, objectAttributes, DIST_DIR);
+        await generateClientPageData(page.pageLocation, state, objectAttributes, DIST_DIR, watch);
     }
 };
 
@@ -422,19 +436,74 @@ const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirec
     return compilationDirections;
 };
 
+let isListening = false;
+let isTimedOut = false;
+const registerListener = async (props: any) => {
+    if (isListening) return;
+    isListening = true;
+
+    let stream: ServerResponse<IncomingMessage> | null;
+
+    const server = http.createServer((req, res) => {
+        if (req.url === '/events') {
+            log(white("Client listening for changes.."));
+
+            res.writeHead(200, {
+                "X-Accel-Buffering": "no",
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                "Content-Encoding": "none",
+                'Access-Control-Allow-Origin': '*',
+                "Access-Control-Allow-Methods":  "*",
+                "Access-Control-Allow-Headers": "*",
+            });
+
+            stream = res;
+
+            res.write("data: reload\n\n")
+
+        } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not Found');
+        }
+    });
+
+    server.listen(3001, () => {
+        log(white('Emitting changes on localhost:3001'));
+    });
+
+    fs.watch(props.pagesDirectory as string, async (event, filename) => {
+        if (isTimedOut) return;
+        isTimedOut = true;
+
+        process.stdout.write('\x1Bc');
+
+        setTimeout(async () => {
+            await compile({ ...props, });
+            
+            if (stream) {
+                stream.write(`data: reload\n\n`)
+            }
+
+            isTimedOut = false;
+        }, 100);
+    });
+};
+
 export const compile = async ({
     writeToHTML = false,
     pagesDirectory,
     outputDirectory,
-    environment
+    environment,
+    watch = true,
 }: {
     writeToHTML?: boolean,
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
+    watch?: boolean,
 }) => {
     const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
-
     const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server")
 
     if (!fs.existsSync(DIST_DIR)) {
@@ -447,19 +516,6 @@ export const compile = async ({
 
     log(bold(yellow(" -- Elegance.JS -- ")));
     log(white(`Beginning build at ${new Date().toLocaleTimeString()}..`));
-
-    log(white("Destroying previous build.."))
-
-    /*
-     *    for (const file of fs.readdirSync(DIST_DIR)) {
-      fs.unlinkSync(path.join(DIST_DIR, file));
-    }
-
-    for (const file of fs.readdirSync(SERVER_DIR)) {
-      fs.unlinkSync(path.join(SERVER_DIR, file));
-    }
-     * */
-
 
     log("");
 
@@ -499,7 +555,7 @@ export const compile = async ({
         platform: "node",
     });
 
-    await buildPages(pages, environment, DIST_DIR, writeToHTML);
+    await buildPages(pages, environment, DIST_DIR, writeToHTML, watch);
     await buildClient(environment, DIST_DIR);
 
     const end = performance.now();
@@ -512,6 +568,16 @@ export const compile = async ({
     log(white("  Pages:"));
     for (const page of pages) {
         log(white_100(`    - /${page.pageLocation}`));
+    }
+
+    if (watch) {
+        await registerListener({
+            writeToHTML,
+            pagesDirectory,
+            outputDirectory,
+            environment,
+            watch: false,
+        })
     }
 };
 

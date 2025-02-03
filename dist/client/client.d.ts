@@ -2,6 +2,7 @@ declare const pageData: any;
 declare const serverState: any;
 declare const serverObservers: any;
 declare const stateObjectAttributes: any;
+declare const isInWatchMode: any;
 declare const state: {
     subjects: Record<string, ClientSubject>;
     populate: () => void;

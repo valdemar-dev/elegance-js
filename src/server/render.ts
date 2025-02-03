@@ -11,8 +11,6 @@ export const serverSideRenderPage = async (page: Page, pathname: string) => {
 
     const bodyHTML = renderRecursively(page, 0);
 
-    console.log(bodyHTML)
-
     return {
         bodyHTML,
         storedEventListeners: [],

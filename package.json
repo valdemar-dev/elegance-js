@@ -4,7 +4,7 @@
   "description": "Web-Framework",
   "type": "module",
   "scripts": {
-    "build": "esbuild --format='esm' --platform='node' --bundle --outdir='./dist' --platform='node' --external:esbuild --out-extension:.js=.mjs ./src/**/**/*.ts && tsc",
+    "build": "esbuild --format='esm' --platform='node' --bundle --outdir='./dist' --platform='node' --external:esbuild --out-extension:.js=.mjs './src/**/*.ts' && tsc",
     "compile-docs": "node ./dist/compile_docs.mjs",
     "prepare": "npm run build"
   },
@@ -24,6 +24,8 @@
     "esbuild": "0.24.0"
   },
   "devDependencies": {
-    "@types/node": "^22.9.1"
+    "@tailwindcss/cli": "^4.0.3",
+    "@types/node": "^22.9.1",
+    "tailwindcss": "^4.0.3"
   }
 }

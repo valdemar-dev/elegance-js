@@ -53,7 +53,7 @@ const optionlessElementTags: Array<OptionlessElementTags> = [
 
 const childrenlessElementTags: Array<ChildrenlessElementTags> = [
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", 
-    "source", "track"
+    "source", "track",
 ];
 
 const elementTags: Array<ElementTags> = [
@@ -65,7 +65,7 @@ const elementTags: Array<ElementTags> = [
     "noscript", "object", "ol", "optgroup", "option", "output", "p", "picture", 
     "pre", "progress", "q", "section", "select", "summary", "table", "tbody", 
     "td", "template", "textarea", "tfoot", "th", "thead", "time", "tr", 
-    "ul", "video", "span"
+    "ul", "video", "span", "script",
 ];
 
 const elements: { [key: string]: EleganceElement<ElementTags> } = {};

@@ -11,6 +11,21 @@
   var serverState = pageData.state;
   var serverObservers = pageData.ooa;
   var stateObjectAttributes = pageData.soa;
+  var isInWatchMode = pageData.w;
+  if (isInWatchMode) {
+    const evtSource = new EventSource("http://localhost:3001/events");
+    evtSource.onmessage = async (data) => {
+      console.log(`Message: ${data}`);
+      const newHTML = await fetch(window.location.href);
+      document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
+      const link = document.querySelector("[rel=stylesheet]");
+      if (!link) {
+        return;
+      }
+      const href = link.getAttribute("href");
+      link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
+    };
+  }
   var state = {
     subjects: {},
     populate: /* @__PURE__ */ __name(() => {

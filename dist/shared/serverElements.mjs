@@ -148,7 +148,8 @@ var elementTags = [
   "tr",
   "ul",
   "video",
-  "span"
+  "span",
+  "script"
 ];
 var elements = {};
 var optionlessElements = {};
