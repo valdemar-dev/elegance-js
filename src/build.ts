@@ -6,6 +6,7 @@ import { generateHTMLTemplate } from "./helpers/generateHTMLTemplate";
 import { GenerateMetadata, } from "./types/Metadata";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
+import { serverSideRenderPage } from "./server/render";
 
 const yellow = (text: string) => {
     return `\u001b[38;2;238;184;68m${text}`;
@@ -72,18 +73,6 @@ const getFile = (dir: Array<Dirent>, fileName: string) => {
     return false;
 }
 
-const rootPath = process.cwd();
-const DIST_DIR = path.join(rootPath, "./.elegance/dist");
-const SERVER_DIR = path.join(rootPath, "./.elegance/server")
-
-for (const file of fs.readdirSync(DIST_DIR)) {
-  fs.unlinkSync(path.join(DIST_DIR, file));
-}
-
-for (const file of fs.readdirSync(SERVER_DIR)) {
-  fs.unlinkSync(path.join(SERVER_DIR, file));
-}
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -100,7 +89,7 @@ const getProjectFiles = (pagesDirectory: string,) => {
     const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
 
     for (const subdirectory of subdirectories) {
-        const absoluteDirectoryPath = path.join(rootPath, pagesDirectory, subdirectory);
+        const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
 
         const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
             .filter(f => f.name.endsWith(".js") || f.name.endsWith(".ts"));
@@ -125,7 +114,8 @@ const getProjectFiles = (pagesDirectory: string,) => {
 };
 
 const buildClient = async (
-    environment: "production" | "development"
+    environment: "production" | "development",
+    DIST_DIR: string,
 ) => {
     await esbuild.build({
         bundle: true,
@@ -139,7 +129,7 @@ const buildClient = async (
     });
 };
 
-const buildInfoFiles = async (infoFiles: Array<Dirent>, environment: "production" | "development") => {
+const buildInfoFiles = async (infoFiles: Array<Dirent>, environment: "production" | "development", SERVER_DIR: string) => {
     const mappedInfoFileNames = infoFiles.map(f => `${f.parentPath}/${f.name}`);
 
     await esbuild.build({
@@ -242,6 +232,9 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
 const generateSuitablePageElements = async (
     pageLocation: string,
     pageElements: Child,
+    metadata: () => BuiltElement<"head">,
+    DIST_DIR: string,
+    writeToHTML: boolean,
 ) => {
     if (
         typeof pageElements === "string" ||
@@ -255,10 +248,37 @@ const generateSuitablePageElements = async (
     const objectAttributes: Array<ObjectAttribute<any>> = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes, 1);
 
+    if (!writeToHTML) {
+        fs.writeFileSync(
+            path.join(DIST_DIR, pageLocation, "page.json"),
+            JSON.stringify(processedPageElements),
+            "utf-8",
+        )
+
+        return objectAttributes;
+    }
+
+    const renderedPage = await serverSideRenderPage(
+        processedPageElements as Page,
+        pageLocation,
+    );
+
+    const template = generateHTMLTemplate({
+        pageURL: pageLocation,
+        head: metadata,
+        addPageScriptTag: true,
+    });
+
+    const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
+
     fs.writeFileSync(
-        path.join(DIST_DIR, pageLocation, "page.json"),
-        JSON.stringify(processedPageElements),
+        path.join(DIST_DIR, pageLocation, "index.html"),
+        resultHTML,
         "utf-8",
+    );
+
+    fs.unlinkSync(
+        path.join(DIST_DIR, pageLocation, "info.js")
     )
 
     return objectAttributes;
@@ -268,6 +288,7 @@ const generateClientPageData = async (
     pageLocation: string,
     state: Record<string, any>,
     objectAttributes: Array<ObjectAttribute<any>>,
+    DIST_DIR: string,
 ) => {
     let clientPageJSText = `let url="${pageLocation === "" ? "/" : pageLocation}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
 
@@ -326,43 +347,44 @@ const buildPages = async (
         pageFilepath: string, 
     }>,
     environment: "production" | "development",
+    DIST_DIR: string,
+    writeToHTML: boolean,
 ) => { 
     for (const page of pages) {
-        if (page.generateMetadata !== GenerateMetadata.ON_BUILD) {
-            continue;
+        if (!writeToHTML) {
+            if (page.generateMetadata === GenerateMetadata.ON_BUILD) {
+                const template = generateHTMLTemplate({
+                    pageURL: page.pageLocation,
+                    head: page.metadata,
+                    addPageScriptTag: true,
+                });
+
+                fs.writeFileSync(
+                    path.join(DIST_DIR, page.pageLocation, "metadata.html"),
+                    template,
+                    "utf-8",
+                );
+            }
         }
-
-        const template = generateHTMLTemplate({
-            pageURL: page.pageLocation,
-            head: page.metadata,
-            addPageScriptTag: true,
-        });
-
-        fs.writeFileSync(
-            path.join(DIST_DIR, page.pageLocation, "metadata.html"),
-            template,
-            "utf-8",
-        );
 
         const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
 
         const { page: pageElements, state, } = await import(pagePath);
 
-        const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements);
-        await generateClientPageData(page.pageLocation, state, objectAttributes);
+        const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements, page.metadata, DIST_DIR, writeToHTML);
+        await generateClientPageData(page.pageLocation, state, objectAttributes, DIST_DIR);
     }
 };
 
-const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirectory: string) => {
-    const builtInfoFilesDir = path.join(rootPath, "./.elegance/server");
-    const builtInfoFiles = [...getAllSubdirectories(builtInfoFilesDir), ""];
+const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirectory: string, SERVER_DIR: string) => {
+    const builtInfoFiles = [...getAllSubdirectories(SERVER_DIR), ""];
 
     const compilationDirections = [];
 
     for (const builtInfoFile of builtInfoFiles) {
-        const absoluteFilePath = `${path.join(builtInfoFilesDir, builtInfoFile, "/info.js")}`;
+        const absoluteFilePath = `${path.join(SERVER_DIR, builtInfoFile, "/info.js")}`;
 
-        const pagePath = path.join(rootPath, pagesDirectory, builtInfoFile)
+        const pagePath = path.join(pagesDirectory, builtInfoFile)
         const pageFile = pageFiles.find(page => page.parentPath === pagePath);
 
         // skipping empty directories
@@ -401,16 +423,43 @@ const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirec
 };
 
 export const compile = async ({
+    writeToHTML = false,
     pagesDirectory,
-    buildOptions,
+    outputDirectory,
     environment
 }: {
+    writeToHTML?: boolean,
     environment: "production" | "development",
     pagesDirectory: string,
-    buildOptions?: BuildOptions
+    outputDirectory: string,
 }) => {
+    const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
+
+    const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server")
+
+    if (!fs.existsSync(DIST_DIR)) {
+        fs.mkdirSync(DIST_DIR);
+    }
+
+    if (!fs.existsSync(SERVER_DIR)) {
+        fs.mkdirSync(SERVER_DIR);
+    }
+
     log(bold(yellow(" -- Elegance.JS -- ")));
     log(white(`Beginning build at ${new Date().toLocaleTimeString()}..`));
+
+    log(white("Destroying previous build.."))
+
+    /*
+     *    for (const file of fs.readdirSync(DIST_DIR)) {
+      fs.unlinkSync(path.join(DIST_DIR, file));
+    }
+
+    for (const file of fs.readdirSync(SERVER_DIR)) {
+      fs.unlinkSync(path.join(SERVER_DIR, file));
+    }
+     * */
+
 
     log("");
 
@@ -430,9 +479,9 @@ export const compile = async ({
 
     const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
 
-    await buildInfoFiles(infoFiles, environment);
+    await buildInfoFiles(infoFiles, environment, SERVER_DIR);
 
-    const pages = await getPageCompilationDirections(pageFiles, pagesDirectory);
+    const pages = await getPageCompilationDirections(pageFiles, pagesDirectory, SERVER_DIR);
 
     await esbuild.build({
         entryPoints: [
@@ -450,8 +499,8 @@ export const compile = async ({
         platform: "node",
     });
 
-    await buildPages(pages, environment);
-    await buildClient(environment);
+    await buildPages(pages, environment, DIST_DIR, writeToHTML);
+    await buildClient(environment, DIST_DIR);
 
     const end = performance.now();
 

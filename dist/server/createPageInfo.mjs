@@ -17,7 +17,7 @@ var createPageInfo = ({
   const storedEventListenersString = storedEventListeners.map((storedEL) => `{id:${storedEL.eleganceID},els:[${storedEL.eventListeners.map((el) => el)}]}`);
   pageDataScriptText += `b:[${storedEventListenersString}],`;
   const storedStateString = storedState.map(
-    (state) => `{id:"${state.id}",	v:${formatNicer(state.value)},	ert:${state.enforceRuntimeTypes},	s:"${state.scope}",	db:${state.debounce ?? 0},	ropl:${state.resetOnPageLeave}},`
+    (state) => `{id:"${state.id}",        v:${formatNicer(state.value)},        ert:${state.enforceRuntimeTypes},        s:"${state.scope}",        db:${state.debounce ?? 0},        ropl:${state.resetOnPageLeave}},`
   );
   pageDataScriptText += `c:[${storedStateString}],`;
   if (onHydrateFinish) {

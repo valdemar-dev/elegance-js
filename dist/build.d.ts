@@ -1,6 +1,6 @@
-import { BuildOptions } from "esbuild";
-export declare const compile: ({ pagesDirectory, buildOptions, environment }: {
+export declare const compile: ({ writeToHTML, pagesDirectory, outputDirectory, environment }: {
+    writeToHTML?: boolean;
     environment: "production" | "development";
     pagesDirectory: string;
-    buildOptions?: BuildOptions;
+    outputDirectory: string;
 }) => Promise<void>;

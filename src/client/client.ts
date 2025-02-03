@@ -48,14 +48,15 @@ const state = {
 
 state.populate();
 
+globalThis.getSubjects = <T>() => state.subjects as T;
+
 pd[window.location.pathname].sm = state;
 
 if (serverObservers) {
-
     for (const observer of serverObservers) {
         const el = document.querySelector(`[key="${observer.key}"]`);
 
-        const values: Array<any> = [];
+        let values: Array<any> = [];
 
         for (const id of observer.ids) {
             const subject = state.get(id);
@@ -64,9 +65,12 @@ if (serverObservers) {
             values.push(subject.value);
 
             const updateFunction = (value: any) => {
-            values[id] = value;
+                values = values.sort()
 
-            (el as any)[observer.attribute] = observer.update(...values)};
+                values[id] = value;
+
+                (el as any)[observer.attribute] = observer.update(...values)
+            };
 
             state.observe(subject, updateFunction);
         }

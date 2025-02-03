@@ -8,7 +8,10 @@ declare global {
         value: any;
         observers: Array<(value: any) => any>;
     };
-    type ClientState<T> = {
+    var getSubjects: <T>() => {
+        [K in keyof T]: ClientSubject;
+    };
+    type State<T> = {
         subjects: {
             [K in keyof T]: ClientSubject;
         };
@@ -17,6 +20,10 @@ declare global {
         set: (subject: ClientSubject, value: any) => void;
         signal: (subject: ClientSubject) => void;
         observe: (subject: ClientSubject, observer: (value: any) => any) => void;
+    };
+    type Listener<S, E> = {
+        state: State<S>;
+        event: E;
     };
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
     type OnHydrateOptions = {
@@ -110,9 +117,9 @@ declare global {
     };
     type OmitSomething<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
     type AllowedHTMLElements = OmitSomething<HTMLElementTagNameMap, "var">;
-    type OptionlessElementTags = "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "u" | "wbr";
+    type OptionlessElementTags = "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "title" | "u" | "wbr";
     type ChildrenlessElementTags = "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "source" | "track";
-    type ElementTags = "a" | "address" | "article" | "aside" | "audio" | "blockquote" | "body" | "button" | "canvas" | "caption" | "colgroup" | "data" | "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" | "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" | "main" | "map" | "meter" | "menu" | "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" | "progress" | "q" | "script" | "search" | "section" | "select" | "slot" | "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | "time" | "title" | "tr" | "ul" | "video";
+    type ElementTags = "a" | "address" | "article" | "aside" | "audio" | "blockquote" | "body" | "button" | "canvas" | "caption" | "colgroup" | "data" | "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" | "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" | "main" | "map" | "meter" | "menu" | "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" | "progress" | "q" | "script" | "search" | "section" | "select" | "slot" | "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | "time" | "tr" | "ul" | "video";
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;
     var article: EleganceElement<"article">;

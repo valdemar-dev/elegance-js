@@ -9,10 +9,14 @@ declare global {
 
     type ClientSubject = { id: number, value: any, observers: Array<(value: any) => any>};
 
-    type ClientState<T> = {
-        subjects: { 
+    var getSubjects: <T>() => {
+        [K in keyof T]: ClientSubject
+    }
+
+    type State<T> = {
+        subjects: {
             [K in keyof T]: ClientSubject
-        };
+        }
 
         populate: () => void;
         get: (id: number) => ClientSubject | undefined;
@@ -20,6 +24,11 @@ declare global {
         signal: (subject: ClientSubject) => void;
         observe: (subject: ClientSubject, observer: (value: any) => any) => void;
     };
+
+    type Listener<S, E> = { 
+        state: State<S>,
+        event: E,
+    }
 
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
 
@@ -153,6 +162,7 @@ declare global {
         | "strong"
         | "sub"
         | "sup"
+        | "title"
         | "u"
         | "wbr";
 
@@ -243,7 +253,6 @@ declare global {
         | "th"
         | "thead"
         | "time"
-        | "title"
         | "tr"
         | "ul"
         | "video";

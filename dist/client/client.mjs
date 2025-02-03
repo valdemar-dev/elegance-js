@@ -34,16 +34,18 @@ var state = {
   }
 };
 state.populate();
+globalThis.getSubjects = () => state.subjects;
 pd[window.location.pathname].sm = state;
 if (serverObservers) {
   for (const observer of serverObservers) {
     const el = document.querySelector(`[key="${observer.key}"]`);
-    const values = [];
+    let values = [];
     for (const id of observer.ids) {
       const subject = state.get(id);
       if (!subject) throw `No subject with id ${id}`;
       values.push(subject.value);
       const updateFunction = (value) => {
+        values = values.sort();
         values[id] = value;
         el[observer.attribute] = observer.update(...values);
       };

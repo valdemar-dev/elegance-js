@@ -60,7 +60,8 @@ var optionlessElementTags = [
   "sub",
   "sup",
   "u",
-  "wbr"
+  "wbr",
+  "title"
 ];
 var childrenlessElementTags = [
   "area",
@@ -144,7 +145,6 @@ var elementTags = [
   "th",
   "thead",
   "time",
-  "title",
   "tr",
   "ul",
   "video",

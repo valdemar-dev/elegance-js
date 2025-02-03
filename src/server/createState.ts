@@ -1,9 +1,9 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 
+let currentId = 0;
+
 export const createState = <T extends Record<string, any>>(augment: T) => {
     const state: Record<string, any> = {};
-
-    let currentId = 0;
 
     for (const [key, value] of Object.entries(augment)) {
         state[key] = {

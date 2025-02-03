@@ -1,3 +1,6 @@
+// src/compile_docs.ts
+import { fileURLToPath as fileURLToPath2 } from "url";
+
 // src/build.ts
 import fs from "fs";
 import path from "path";
@@ -714,6 +717,17 @@ var compile = async ({
     log(white_100(`    - /${page.pageLocation}`));
   }
 };
-export {
-  compile
-};
+
+// src/compile_docs.ts
+import path2 from "path";
+var __dirname2 = path2.dirname(fileURLToPath2(import.meta.url));
+var PAGES_DIR = path2.join(__dirname2, "../src/docs");
+var OUTPUT_DIR = path2.join(__dirname2, "../docs");
+compile({
+  writeToHTML: true,
+  pagesDirectory: PAGES_DIR,
+  outputDirectory: OUTPUT_DIR,
+  environment: "development"
+}).then(() => {
+  console.log("Built Docs.");
+});

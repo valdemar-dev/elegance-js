@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "esbuild --format='esm' --platform='node' --bundle --outdir='./dist' --platform='node' --external:esbuild --out-extension:.js=.mjs ./src/**/**/*.ts && tsc",
+    "compile-docs": "node ./dist/compile_docs.mjs",
     "prepare": "npm run build"
   },
   "exports": {

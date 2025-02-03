@@ -1,16 +1,24 @@
 // src/server/createState.ts
 var currentId = 0;
 var createState = (augment) => {
-  const state = {};
+  const state2 = {};
   for (const [key, value] of Object.entries(augment)) {
-    state[key] = {
+    state2[key] = {
       id: currentId++,
       value,
       type: 1 /* STATE */
     };
   }
-  return state;
+  return state2;
 };
+
+// src/docs/page.ts
+var state = createState({});
+var page = body(
+  {},
+  "hi"
+);
 export {
-  createState
+  page,
+  state
 };

@@ -48,7 +48,7 @@ const createChildrenlessBuildableElement = (tag: ChildrenlessElementTags) => {
 const optionlessElementTags: Array<OptionlessElementTags> = [
     "abbr", "b", "bdi", "bdo", "cite", "code", "dfn", "em", "i", "kbd", "mark", 
     "rp", "rt", "ruby", "s", "samp", "small", "strong", "sub", "sup", 
-    "u", "wbr"
+    "u", "wbr", "title",
 ];
 
 const childrenlessElementTags: Array<ChildrenlessElementTags> = [
@@ -64,7 +64,7 @@ const elementTags: Array<ElementTags> = [
     "iframe", "ins", "label", "legend", "li", "main", "map", "meter", "nav", 
     "noscript", "object", "ol", "optgroup", "option", "output", "p", "picture", 
     "pre", "progress", "q", "section", "select", "summary", "table", "tbody", 
-    "td", "template", "textarea", "tfoot", "th", "thead", "time", "title", "tr", 
+    "td", "template", "textarea", "tfoot", "th", "thead", "time", "tr", 
     "ul", "video", "span"
 ];
 
