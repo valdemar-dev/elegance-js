@@ -1,7 +1,7 @@
 
 export const Sidebar = () => { 
     return nav ({
-        class: "flex flex-col bg-background-50 px-4 py-2 min-w-[300px]",
+        class: "flex flex-col bg-background-50 px-4 py-2 min-w-[300px] pt-4",
     },
         div ({
             class: "flex items-center gap-1",
@@ -15,10 +15,39 @@ export const Sidebar = () => {
             }, "JS"),
         ), 
 
-        ul ({},
-            li ({
-            }, "Getting Started"),
-        ),
+        hr({
+            class: "my-3 border-background-200",
+        }),
 
+        ul ({
+            class: "mt-4"
+        },
+            li ({
+            }, 
+                span ({
+                    class: "font-fancy text-text-900"
+                }, 
+                    "Getting Started"
+                ),
+
+                ul ({
+                    class: "ml-2 pl-3 flex flex-col border-l-[1px] mt-1"
+                },
+                    li ({
+                        class: "text-sm text-text-950",
+                    },
+                        a ({
+                            href: "/getting-started#cloning",
+                        },
+                            span ({
+                                class: "opacity-80"
+                            },
+                                "Cloning This Repository"
+                            )
+                        ),
+                    )
+                ),
+            ),
+        ),
     )
 };

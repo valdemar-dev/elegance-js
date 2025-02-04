@@ -407,6 +407,9 @@ var white_100 = (text) => {
 var green = (text) => {
   return `\x1B[38;2;65;224;108m${text}`;
 };
+var red = (text) => {
+  return `\x1B[38;2;255;100;103m${text}`;
+};
 var log = (...text) => {
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
@@ -642,14 +645,14 @@ var getPageCompilationDirections = async (pageFiles, pagesDirectory, SERVER_DIR)
     const pagePath = path.join(pagesDirectory, builtInfoFile);
     const pageFile = pageFiles.find((page) => page.parentPath === pagePath);
     if (!pageFile) continue;
-    const infoFileExports = await import(absoluteFilePath);
+    const infoFileExports = await import(absoluteFilePath + `?${Date.now()}`);
     const {
       metadata,
       executeOnServer,
       generateMetadata = 1 /* ON_BUILD */
     } = infoFileExports;
     if (!metadata) {
-      throw `${builtInfoFile} does not export a function \`metadata\`. Info files must export a \`metadata\` function which resolves into a <head> element.`;
+      throw `File ${builtInfoFile}/info.js does not export a function \`metadata\`. Info files must export a \`metadata\` function which resolves into a <head> element.`;
     }
     if (typeof metadata !== "function") {
       throw `${builtInfoFile} The function \`metadata\` is not a function which resolves into a <head> element.`;
@@ -664,48 +667,67 @@ var getPageCompilationDirections = async (pageFiles, pagesDirectory, SERVER_DIR)
   }
   return compilationDirections;
 };
-var isListening = false;
+var doesHTTPWatchServerExist = false;
 var isTimedOut = false;
-var registerListener = async (props) => {
-  if (isListening) return;
-  isListening = true;
-  let stream;
-  const server = http.createServer((req, res) => {
-    if (req.url === "/events") {
-      log(white("Client listening for changes.."));
-      res.writeHead(200, {
-        "X-Accel-Buffering": "no",
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Content-Encoding": "none",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*"
-      });
-      stream = res;
-      res.write("data: reload\n\n");
-    } else {
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("Not Found");
-    }
-  });
-  server.listen(3001, () => {
-    log(white("Emitting changes on localhost:3001"));
-  });
-  fs.watch(props.pagesDirectory, async (event, filename) => {
-    if (isTimedOut) return;
-    isTimedOut = true;
-    process.stdout.write("\x1Bc");
-    setTimeout(async () => {
-      await compile({ ...props });
-      if (stream) {
-        stream.write(`data: reload
+var httpStream;
+var currentWatchers = [];
+var rebuild = async (props) => {
+  try {
+    await compile({ ...props });
+  } catch (e) {
+    log(red(bold(`Build Failed at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}`)));
+    console.error(e);
+  }
+  httpStream?.write(`data: reload
 
 `);
+  isTimedOut = false;
+};
+var registerListener = async (props) => {
+  if (!doesHTTPWatchServerExist) {
+    doesHTTPWatchServerExist = true;
+    const server = http.createServer((req, res) => {
+      if (req.url === "/events") {
+        log(white("Client listening for changes.."));
+        res.writeHead(200, {
+          "X-Accel-Buffering": "no",
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Content-Encoding": "none",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "*",
+          "Access-Control-Allow-Headers": "*"
+        });
+        httpStream = res;
+        res.write("data: reload\n\n");
+      } else {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Not Found");
       }
-      isTimedOut = false;
-    }, 100);
-  });
+    });
+    server.listen(3001, () => {
+      log(white("Emitting changes on localhost:3001"));
+    });
+  }
+  for (const watcher of currentWatchers) {
+    watcher.close();
+  }
+  const subdirectories = [...getAllSubdirectories(props.pagesDirectory), ""];
+  for (const directory of subdirectories) {
+    const fullPath = path.join(props.pagesDirectory, directory);
+    const watcher = fs.watch(
+      fullPath,
+      async () => {
+        if (isTimedOut) return;
+        isTimedOut = true;
+        process.stdout.write("\x1Bc");
+        setTimeout(async () => {
+          await rebuild(props);
+        }, 100);
+      }
+    );
+    currentWatchers.push(watcher);
+  }
 };
 var compile = async ({
   writeToHTML = false,
@@ -772,7 +794,7 @@ var compile = async ({
       pagesDirectory,
       outputDirectory,
       environment,
-      watch: false
+      watch
     });
   }
 };

@@ -1,4 +1,7 @@
 /*! tailwindcss v4.0.3 | MIT License | https://tailwindcss.com */
+*::selection {
+  background-color: var(--color-accent-200);
+}
 @layer theme, base, components, utilities;
 @layer theme {
   :root, :host {
@@ -583,6 +586,18 @@
   .static {
     position: static;
   }
+  .my-3 {
+    margin-block: calc(var(--spacing) * 3);
+  }
+  .mt-1 {
+    margin-top: calc(var(--spacing) * 1);
+  }
+  .mt-4 {
+    margin-top: calc(var(--spacing) * 4);
+  }
+  .ml-2 {
+    margin-left: calc(var(--spacing) * 2);
+  }
   .contents {
     display: contents;
   }
@@ -616,6 +631,13 @@
   .overflow-hidden {
     overflow: hidden;
   }
+  .border-l-\[1px\] {
+    border-left-style: var(--tw-border-style);
+    border-left-width: 1px;
+  }
+  .border-background-200 {
+    border-color: var(--color-background-200);
+  }
   .bg-background-50 {
     background-color: var(--color-background-50);
   }
@@ -628,6 +650,12 @@
   .py-2 {
     padding-block: calc(var(--spacing) * 2);
   }
+  .pt-4 {
+    padding-top: calc(var(--spacing) * 4);
+  }
+  .pl-3 {
+    padding-left: calc(var(--spacing) * 3);
+  }
   .font-fancy {
     font-family: var(--font-fancy);
   }
@@ -639,6 +667,10 @@
     font-size: var(--text-3xl);
     line-height: var(--tw-leading, var(--text-3xl--line-height));
   }
+  .text-sm {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+  }
   .font-bold {
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
@@ -646,14 +678,17 @@
   .text-text-600 {
     color: var(--color-text-600);
   }
-  .text-text-800 {
-    color: var(--color-text-800);
-  }
   .text-text-900 {
     color: var(--color-text-900);
   }
+  .text-text-950 {
+    color: var(--color-text-950);
+  }
   .underline {
     text-decoration-line: underline;
+  }
+  .opacity-80 {
+    opacity: 80%;
   }
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
@@ -685,6 +720,11 @@
     transform: none;
     animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
 }
 @property --tw-font-weight {
   syntax: "*";

@@ -70,12 +70,10 @@ var Sidebar = () => {
   );
 };
 
-// src/docs/page.ts
+// src/docs/info/page.ts
 var state = createState({});
 var page = body(
-  {
-    class: "bg-background-100 text-text-900 flex flex-row h-screen w-screen overflow-hidden"
-  },
+  {},
   Sidebar()
 );
 export {

@@ -1,4 +1,4 @@
-import fs, { Dirent } from "fs";
+import fs, { Dirent, FSWatcher } from "fs";
 import path from "path";
 import esbuild, { BuildOptions, Plugin, PluginBuild } from "esbuild";
 import { fileURLToPath } from 'url';
@@ -52,6 +52,10 @@ const white_100 = (text: string) => {
 
 const green = (text: string) => {
     return `\u001b[38;2;65;224;108m${text}`;
+};
+
+const red = (text: string) => {
+    return `\u001b[38;2;255;100;103m${text}`
 };
 
 const log = (...text: string[]) => {
@@ -404,7 +408,8 @@ const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirec
         // skipping empty directories
         if (!pageFile) continue;
 
-        const infoFileExports = await import(absoluteFilePath);
+        // hacky, skips cache
+        const infoFileExports = await import(absoluteFilePath + `?${Date.now()}`);
 
         const {
             metadata,
@@ -417,7 +422,7 @@ const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirec
         } = infoFileExports;
 
         if (!metadata) {
-            throw `${builtInfoFile} does not export a function \`metadata\`. Info files must export a \`metadata\` function which resolves into a <head> element.`;
+            throw `File ${builtInfoFile}/info.js does not export a function \`metadata\`. Info files must export a \`metadata\` function which resolves into a <head> element.`;
         }
 
         if (typeof metadata !== "function") {
@@ -436,58 +441,84 @@ const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirec
     return compilationDirections;
 };
 
-let isListening = false;
+let doesHTTPWatchServerExist = false;
 let isTimedOut = false;
+let httpStream: ServerResponse<IncomingMessage> | null;
+
+const currentWatchers: FSWatcher[] = [];
+
+const rebuild = async (props: any) => {
+    try {
+        await compile({ ...props, });
+    } catch(e) {
+        log(red(bold(`Build Failed at ${new Date().toLocaleTimeString()}`)))
+        console.error(e);
+    }
+
+    httpStream?.write(`data: reload\n\n`)
+
+    isTimedOut = false;
+};
+
 const registerListener = async (props: any) => {
-    if (isListening) return;
-    isListening = true;
+    if (!doesHTTPWatchServerExist) {
+        doesHTTPWatchServerExist = true;
 
-    let stream: ServerResponse<IncomingMessage> | null;
+        const server = http.createServer((req, res) => {
+            if (req.url === '/events') {
+                log(white("Client listening for changes.."));
 
-    const server = http.createServer((req, res) => {
-        if (req.url === '/events') {
-            log(white("Client listening for changes.."));
+                res.writeHead(200, {
+                    "X-Accel-Buffering": "no",
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    "Content-Encoding": "none",
+                    'Access-Control-Allow-Origin': '*',
+                    "Access-Control-Allow-Methods":  "*",
+                    "Access-Control-Allow-Headers": "*",
+                });
 
-            res.writeHead(200, {
-                "X-Accel-Buffering": "no",
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                "Content-Encoding": "none",
-                'Access-Control-Allow-Origin': '*',
-                "Access-Control-Allow-Methods":  "*",
-                "Access-Control-Allow-Headers": "*",
-            });
+                httpStream = res;
 
-            stream = res;
+                res.write("data: reload\n\n")
 
-            res.write("data: reload\n\n")
-
-        } else {
-            res.writeHead(404, { 'Content-Type': 'text/plain' });
-            res.end('Not Found');
-        }
-    });
-
-    server.listen(3001, () => {
-        log(white('Emitting changes on localhost:3001'));
-    });
-
-    fs.watch(props.pagesDirectory as string, async (event, filename) => {
-        if (isTimedOut) return;
-        isTimedOut = true;
-
-        process.stdout.write('\x1Bc');
-
-        setTimeout(async () => {
-            await compile({ ...props, });
-            
-            if (stream) {
-                stream.write(`data: reload\n\n`)
+            } else {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Not Found');
             }
+        });
 
-            isTimedOut = false;
-        }, 100);
-    });
+        server.listen(3001, () => {
+            log(white('Emitting changes on localhost:3001'));
+        });
+    } 
+    
+    for (const watcher of currentWatchers) {
+        watcher.close();
+    }
+
+    const subdirectories = [...getAllSubdirectories(props.pagesDirectory), ""];
+
+    for (const directory of subdirectories) {
+        const fullPath = path.join(props.pagesDirectory, directory)
+
+        const watcher = fs.watch(
+            fullPath, 
+            async () => {
+                if (isTimedOut) return;
+                isTimedOut = true;
+
+                // clears term
+                process.stdout.write('\x1Bc');
+
+                setTimeout(async () => {
+                    await rebuild(props)
+                }, 100);
+            },
+        );
+
+        currentWatchers.push(watcher);
+    }
 };
 
 export const compile = async ({
@@ -576,7 +607,7 @@ export const compile = async ({
             pagesDirectory,
             outputDirectory,
             environment,
-            watch: false,
+            watch,
         })
     }
 };
