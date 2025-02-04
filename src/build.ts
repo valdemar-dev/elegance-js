@@ -103,10 +103,13 @@ const getProjectFiles = (pagesDirectory: string,) => {
         const infoFileInSubdirectory  = getFile(subdirectoryFiles, "info");
 
         if (!pageFileInSubdirectory && !infoFileInSubdirectory) continue;
-        else if (!infoFileInSubdirectory) 
-            throw "Each page.js/ts file must have an accompanying info.js/ts file.";
-        else if (!pageFileInSubdirectory)
-            throw "Each info.js/ts file must have an accompanying page.js/ts file.";
+        else if (!infoFileInSubdirectory) {
+            const name = (pageFileInSubdirectory as Dirent).name 
+            throw `At file: /${subdirectory}/${name}, ${name} is missing it's accompanying info.js/ts file.`;
+        } else if (!pageFileInSubdirectory) {
+            const name = (infoFileInSubdirectory as Dirent).name 
+            throw `At file: /${subdirectory}/${name}, is missing it's accompanying page.js/ts file.`;
+        }
 
         pageFiles.push(pageFileInSubdirectory);
         infoFiles.push(infoFileInSubdirectory);

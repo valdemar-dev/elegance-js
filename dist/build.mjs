@@ -442,9 +442,9 @@ var getProjectFiles = (pagesDirectory) => {
     const infoFileInSubdirectory = getFile(subdirectoryFiles, "info");
     if (!pageFileInSubdirectory && !infoFileInSubdirectory) continue;
     else if (!infoFileInSubdirectory)
-      throw "Each page.js/ts file must have an accompanying info.js/ts file.";
+      throw `At file: /${subdirectory}/${pageFileInSubdirectory.name}, Each page.js/ts file must have an accompanying info.js/ts file.`;
     else if (!pageFileInSubdirectory)
-      throw "Each info.js/ts file must have an accompanying page.js/ts file.";
+      throw `At file: /${subdirectory}/${infoFileInSubdirectory.name}, Each info.js/ts file must have an accompanying page.js/ts file.`;
     pageFiles.push(pageFileInSubdirectory);
     infoFiles.push(infoFileInSubdirectory);
   }
