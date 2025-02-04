@@ -105,10 +105,10 @@ const getProjectFiles = (pagesDirectory: string,) => {
         if (!pageFileInSubdirectory && !infoFileInSubdirectory) continue;
         else if (!infoFileInSubdirectory) {
             const name = (pageFileInSubdirectory as Dirent).name 
-            throw `At file: /${subdirectory}/${name}, ${name} is missing it's accompanying info.js/ts file.`;
+            throw `/${subdirectory}/${name} is missing it's accompanying info.js/ts file.`;
         } else if (!pageFileInSubdirectory) {
             const name = (infoFileInSubdirectory as Dirent).name 
-            throw `At file: /${subdirectory}/${name}, is missing it's accompanying page.js/ts file.`;
+            throw `/${subdirectory}/${name} is missing it's accompanying page.js/ts file.`;
         }
 
         pageFiles.push(pageFileInSubdirectory);
