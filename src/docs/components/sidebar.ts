@@ -37,12 +37,12 @@ export const Sidebar = () => {
                         class: "text-sm text-text-950",
                     },
                         a ({
-                            href: "/getting-started#cloning",
+                            href: "/getting-started/#install",
                         },
                             span ({
                                 class: "opacity-80"
                             },
-                                "Cloning This Repository"
+                                "Installing Elegance.JS"
                             )
                         ),
                     )

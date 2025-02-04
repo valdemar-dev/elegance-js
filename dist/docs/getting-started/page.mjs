@@ -54,13 +54,13 @@ var Sidebar = () => {
             },
             a(
               {
-                href: "/getting-started#cloning"
+                href: "/getting-started/#install"
               },
               span(
                 {
                   class: "opacity-80"
                 },
-                "Cloning This Repository"
+                "Installing Elegance.JS"
               )
             )
           )
@@ -73,8 +73,36 @@ var Sidebar = () => {
 // src/docs/getting-started/page.ts
 var state = createState({});
 var page = body(
-  {},
-  Sidebar()
+  {
+    class: "max-w-[1200px] w-full mx-auto bg-background-50 text-text-950 flex flex-row h-screen w-screen overflow-hidden"
+  },
+  Sidebar(),
+  div(
+    {
+      class: "p-8 w-full"
+    },
+    h1({
+      class: "text-3xl font-fancy font-semibold mb-6 text-text-900",
+      innerText: "Getting Started"
+    }),
+    h2({
+      id: "install",
+      class: "text-xl font-fancy mb-4",
+      innerText: "1. Install Elegance.JS"
+    }),
+    p(
+      {
+        class: "max-w-[60ch]"
+      },
+      "As Elegance.JS is still in early development, installing is done via our ",
+      a({
+        href: "https://github.com/valdemar-dev/elegance-js",
+        class: "border-b-2"
+      }, "GitHub. "),
+      "Simply navigate there, and download or git clone it. Take note of where you place Elegance.JS. ",
+      br({})
+    )
+  )
 );
 export {
   page,

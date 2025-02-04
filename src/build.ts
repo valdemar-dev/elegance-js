@@ -306,7 +306,7 @@ const generateClientPageData = async (
     DIST_DIR: string,
     watch: boolean,
 ) => {
-    let clientPageJSText = `let url="${pageLocation === "" ? "/" : pageLocation}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+    let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}/`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
 
     if (watch) {
         clientPageJSText += "pd[url]={...pd[url],w:true};";
@@ -392,8 +392,12 @@ const buildPages = async (
 
         const { page: pageElements, state, } = await import(pagePath + `?${Date.now()}`);
 
+        if (!pageElements) {
+            throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`
+        }
+
         const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements, page.metadata, DIST_DIR, writeToHTML);
-        await generateClientPageData(page.pageLocation, state, objectAttributes, DIST_DIR, watch);
+        await generateClientPageData(page.pageLocation, state || {}, objectAttributes, DIST_DIR, watch);
     }
 };
 
@@ -492,7 +496,7 @@ const registerListener = async (props: any) => {
         });
 
         server.listen(3001, () => {
-            log(white('Emitting changes on localhost:3001'));
+            log(bold(green('Hot-Reload server online!')));
         });
     } 
     

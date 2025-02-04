@@ -4,7 +4,7 @@ var metadata = () => {
     {},
     link({
       rel: "stylesheet",
-      href: "index.css"
+      href: "/index.css"
     }),
     title("Hi There!")
   );

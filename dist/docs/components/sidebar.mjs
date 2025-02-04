@@ -40,13 +40,13 @@ var Sidebar = () => {
             },
             a(
               {
-                href: "/getting-started#cloning"
+                href: "/getting-started/#install"
               },
               span(
                 {
                   class: "opacity-80"
                 },
-                "Cloning This Repository"
+                "Installing Elegance.JS"
               )
             )
           )

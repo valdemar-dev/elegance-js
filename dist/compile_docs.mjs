@@ -586,7 +586,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   return objectAttributes;
 };
 var generateClientPageData = async (pageLocation, state, objectAttributes, DIST_DIR, watch) => {
-  let clientPageJSText = `let url="${pageLocation === "" ? "/" : pageLocation}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+  let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}/`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
   if (watch) {
     clientPageJSText += "pd[url]={...pd[url],w:true};";
   }
@@ -639,8 +639,11 @@ var buildPages = async (pages, environment, DIST_DIR, writeToHTML, watch) => {
     }
     const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js");
     const { page: pageElements, state } = await import(pagePath + `?${Date.now()}`);
+    if (!pageElements) {
+      throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`;
+    }
     const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements, page.metadata, DIST_DIR, writeToHTML);
-    await generateClientPageData(page.pageLocation, state, objectAttributes, DIST_DIR, watch);
+    await generateClientPageData(page.pageLocation, state || {}, objectAttributes, DIST_DIR, watch);
   }
 };
 var getPageCompilationDirections = async (pageFiles, pagesDirectory, SERVER_DIR) => {
@@ -712,7 +715,7 @@ var registerListener = async (props) => {
       }
     });
     server.listen(3001, () => {
-      log(white("Emitting changes on localhost:3001"));
+      log(bold(green("Hot-Reload server online!")));
     });
   }
   for (const watcher of currentWatchers) {
