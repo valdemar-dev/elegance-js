@@ -7,37 +7,36 @@ const pageTemplateString =
 `
 import { getState, observe } from "elegance-js/helpers";
 
-export const CounterPage = () => {
-    const state = getState();
+export const serverState = createState({
+    counter: 0,
+})
 
-    const counter = state.create(0, { id: "counter", })
-
-    return body ({
-        // Set any attribute you want.
-        class: "bg-black text-white",
-        staticProperty: "I am never re-evaluated!",
-        dynamicProperty: () => "My value changes on every render.",
-    },
-        p ({ 
-            // No black-boxes, just the observer pattern.
-            innerText: observe({
-                ids: [counter.id],
-                // Whenever a value in the above id list changes, 
-                // this function gets called with the new values. 
-                update: (counterValue) => \`\${counterValue}\`,
-            })
-        }),
-
-        button ({
-            onclick: () => {
-                counter.set(counter.get() + 1);
-
-                // Explicit state signalling!
-                counter.signal()
-            }
+export const page = body ({
+    // Set any attribute you want.
+    class: "bg-black text-white",
+},
+    p ({ 
+        // No black-boxes, just the observer pattern.
+        innerText: observe({
+            // Types and values inferred!
+            [serverState.counter],
+            // Whenever a value in the above id list changes, 
+            // this function gets called with the new values. (fully type-safe!) 
+            (counterValue) => \`\${counterValue}\`,
         })
-    )
-};
+    }),
+
+    button ({
+        onClick: eventListener((state: State<typeof serverState>) => {
+            const counter = state.subjects.counter;
+
+            state.set(counter, counter.value + 1);
+
+            // Explicit state signalling!
+            state.signal(counter)
+        })
+    })
+)
 `
 
 // idk if this is right, but yk
@@ -103,7 +102,7 @@ const convertToSpans = (inputString: string) => {
 
 
 export const page = body ({
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50 cursor-none"
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
 },
     Header(),
 

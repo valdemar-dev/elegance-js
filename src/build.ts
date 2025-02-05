@@ -156,21 +156,38 @@ const buildInfoFiles = async (infoFiles: Array<Dirent>, environment: "production
     });
 };
 
+const escapeHtml = (str: string): string => {
+    const replaced = str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;")
+        .replace(/\r?\n|\r/g, "");
+
+    return replaced;
+};
+
 const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>, key: number): Child => {
     if (
-        typeof element === "string" ||
         typeof element === "boolean" ||
         typeof element === "number" ||
         Array.isArray(element)
     ) return element;
 
+    if (typeof element === "string") {
+        return escapeHtml(element);
+    }
+
     for (const [option, attributeValue] of Object.entries(element.options)) {
         if (typeof attributeValue !== "object") {
             if (option.toLowerCase() === "innertext") {
+                delete element.options[option];
                 element.children = [attributeValue, ...element.children];
             }
 
             else if (option.toLowerCase() === "innerhtml") {
+                delete element.options[option];
                 element.children = [attributeValue];
             }
 

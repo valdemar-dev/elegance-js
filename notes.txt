@@ -1,9 +1,13 @@
 NOTES:
 - run built page.js files through esbuild on compile
 - global state
-x modify observe() to take in multiple values
+- mount hooks
 - remove type from soa's for browser
-- add some shit so you can't just >>>> in content
+- code cleanup
+
+x modify observe() to take in multiple values
+x add some shit so you can't just >>>> in content
+x renderer fuckery??? i think issues with ",>'. !!!escape all these
 
 ## global state
 just use a global variable, index using ids
