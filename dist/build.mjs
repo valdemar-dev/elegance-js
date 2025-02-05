@@ -211,6 +211,10 @@ var renderRecursively = (element, index) => {
     }
     returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
   }
+  if (element.children.length < 1) {
+    returnString += "/>";
+    return returnString;
+  }
   returnString += ">";
   for (const child of element.children) {
     returnString += renderRecursively(child, index + 1);

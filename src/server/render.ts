@@ -14,8 +14,8 @@ export const serverSideRenderPage = async (page: Page, pathname: string) => {
     return {
         bodyHTML,
         storedEventListeners: [],
-	storedState: state.subjectStore,
-	storedObservers: state.observerStore,
-	onHydrateFinish: undefined,
+        storedState: state.subjectStore,
+        storedObservers: state.observerStore,
+        onHydrateFinish: undefined,
     };
 };

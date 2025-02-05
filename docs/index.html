@@ -1,1 +1,69 @@
-<!DOCTYPE html><html><meta name="viewport" content="width=device-width, initial-scale=1.0"><script type="module" src="/page.js" defer="true"></script><script stype="module" src="/client.js" defer="true"></script><link rel="stylesheet" href="/index.css"></link><title>Hi There!</title><body class="bg-background-100 text-text-900 flex flex-row h-screen w-screen overflow-hidden"><nav class="flex flex-col bg-background-50 px-4 py-2 min-w-[300px] pt-4"><div class="flex items-center gap-1"><span class="text-2xl font-fancy">Elegance</span><span class="text-3xl font-bold text-text-600 relative">JS</span></div><hr class="my-3 border-background-200"></hr><ul class="mt-4"><li><span class="font-fancy text-text-900">Getting Started</span><ul class="ml-2 pl-3 flex flex-col border-l-[1px] mt-1"><li class="text-sm text-text-950"><a href="/getting-started/#install"><span class="opacity-80">Installing Elegance.JS</span></a></li></ul></li></ul></nav></body></html>
+<!DOCTYPE html><html><meta name="viewport" content="width=device-width, initial-scale=1.0"><script type="module" src="/page.js" defer="true"></script><script stype="module" src="/client.js" defer="true"></script><link rel="stylesheet" href="/index.css"></link><title>Hi There!</title><body class="bg-background-900 text-text-50 font-inter select-none text-text-50 cursor-none"><header class="sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"><div class="group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 bg-background-900 border-b-transparent" key="3"><div class="w-full mx-auto flex"><div class="px-3 sm:px-5 flex pr-4 gap-6 flex min-w-max items-center z-10"><div class="flex flex-col h-full"><a href="/" class="flex items-center gap-1 hover:cursor-none h-full"><p class="font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none" innertext="Elegance">Elegance</p><p innertext="JS" class="font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none">JS</p></a></div><div class="h-full flex font-inter text-sm font-semibold text-text-100 pt-[2px]"><a class="h-full flex items-center px-4 pointer-fine:group-hover:text-background-950 duration-200 hover:cursor-none group/link" href="/demo" innertext=""><span class="border-transparent border-b-2 group-hover/link:border-background-950 duration-200">Demo</span></a><a class="h-full flex items-center px-4 pointer-fine:group-hover:text-background-950 duration-200 hover:cursor-none group/link" href="/page-rater-demo" innertext=""><span class="border-transparent border-b-2 group-hover/link:border-background-950 duration-200">Page Rater</span></a></div></div><div class="px-2 sm:px-5 flex py-2 sm:py-4 gap-8 flex relative items-center justify-end w-full"><a class="z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950 hover:cursor-none" href="/install" innertext="Install">Install</a></div></div></div></header><div class="max-w-[900px] w-full mx-auto pt-4 px-2"><div class="text-center px-4 pt-8 mb-12 sm:mb-20"><div class="text-3xl md:text-4xl lg:text-5xl font-bold font-inter mb-4"><span innertext="Your site doesn't">Your site doesn't</span><span innertext=" need "> need </span><span innertext="to be slow.">to be slow.</span></div><p class="text-xs sm:text-sm text-text-100" innerhtml="Nor should you depend on <b class="hover:text-red-400">1314</b> packages to display <b>"Hello World"</b>.">Nor should you depend on <b class="hover:text-red-400">1314</b> packages to display <b>"Hello World"</b>.</p></div><p class="text-base sm:text-xl text-center"><span innertext="Elegance gives you">Elegance gives you</span><span class="bg-gradient-to-r font-bold from-red-400 to-orange-400 bg-clip-text text-transparent" innertext=" performance, "> performance, </span><span class="bg-gradient-to-r font-bold from-blue-400 to-green-400 bg-clip-text text-transparent" innertext="state-of-the-art features">state-of-the-art features</span><span innertext=" and "> and </span><span class="font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent" innertext="syntaxical sugar, ">syntaxical sugar, </span><span class="" innerhtml="whilst leaving <b>you</b> in full control of how your site works.">whilst leaving <b>you</b> in full control of how your site works.</span></p><div class="mt-4 bg-background-950 p-4 rounded-md mb-8 sm:mb-20"><div><h2 class="text-sm sm:text-base text-text-200" innertext="/pages/page.js">/pages/page.js</h2></div><pre class="text-xs sm:text-sm font-mono select-text overflow-x-scroll w-full" innerhtml="
+<span class="text-red-400">import</span> { <span class="text-orange-400">getState</span>, <span class="text-orange-400">observe</span> } <span class="text-red-400">from</span> <span class="text-green-400">"elegance-js/helpers"</span>;
+
+<span class="text-red-400">export</span> <span class="text-orange-400">const</span> CounterPage = () => {
+    <span class="text-orange-400">const</span> <span class="text-purple-400">state</span> = <span class="text-orange-400">getState</span>();
+
+    <span class="text-orange-400">const</span> counter = <span class="text-purple-400">state</span>.<span class="text-red-400">create</span>(0, { id: <span class="text-green-400">"counter"</span>, })
+
+    <span class="text-orange-400">return</span> <span class="text-orange-400">body</span> ({
+        <span class="text-neutral-500">// Set any attribute you want.</span>
+        <span class="text-orange-200">class</span>: <span class="text-green-400">"bg-black text-white"</span>,
+        <span class="text-orange-200">staticProperty</span>: <span class="text-green-400">"I am never re-evaluated!"</span>,
+        <span class="text-orange-200">dynamicProperty</span>: () => <span class="text-green-400">"My value changes on every render."</span>,
+    },
+        <span class="text-orange-400">p</span> ({ 
+            <span class="text-neutral-500">// No black-boxes, just the observer pattern.</span>
+            <span class="text-orange-200">innerText</span>: <span class="text-orange-400">observe</span>({
+                <span class="text-purple-400">ids</span>: [counter.id],
+                <span class="text-neutral-500">// Whenever a value in the above id list changes, </span>
+                <span class="text-neutral-500">// this function gets called with the new values. </span>
+                <span class="text-red-400">update</span>: (counterValue) => <span class="text-green-400">`${counterValue}`</span>,
+            })
+        }),
+
+        <span class="text-orange-400">button</span> ({
+            <span class="text-orange-200">onclick</span>: () => {
+                counter.<span class="text-red-400">set</span>(counter.<span class="text-red-400">get</span>() + 1);
+
+                <span class="text-neutral-500">// Explicit state signalling!</span>
+                counter.<span class="text-red-400">signal</span>()
+            }
+        })
+    )
+};
+">
+<span class="text-red-400">import</span> { <span class="text-orange-400">getState</span>, <span class="text-orange-400">observe</span> } <span class="text-red-400">from</span> <span class="text-green-400">"elegance-js/helpers"</span>;
+
+<span class="text-red-400">export</span> <span class="text-orange-400">const</span> CounterPage = () => {
+    <span class="text-orange-400">const</span> <span class="text-purple-400">state</span> = <span class="text-orange-400">getState</span>();
+
+    <span class="text-orange-400">const</span> counter = <span class="text-purple-400">state</span>.<span class="text-red-400">create</span>(0, { id: <span class="text-green-400">"counter"</span>, })
+
+    <span class="text-orange-400">return</span> <span class="text-orange-400">body</span> ({
+        <span class="text-neutral-500">// Set any attribute you want.</span>
+        <span class="text-orange-200">class</span>: <span class="text-green-400">"bg-black text-white"</span>,
+        <span class="text-orange-200">staticProperty</span>: <span class="text-green-400">"I am never re-evaluated!"</span>,
+        <span class="text-orange-200">dynamicProperty</span>: () => <span class="text-green-400">"My value changes on every render."</span>,
+    },
+        <span class="text-orange-400">p</span> ({ 
+            <span class="text-neutral-500">// No black-boxes, just the observer pattern.</span>
+            <span class="text-orange-200">innerText</span>: <span class="text-orange-400">observe</span>({
+                <span class="text-purple-400">ids</span>: [counter.id],
+                <span class="text-neutral-500">// Whenever a value in the above id list changes, </span>
+                <span class="text-neutral-500">// this function gets called with the new values. </span>
+                <span class="text-red-400">update</span>: (counterValue) => <span class="text-green-400">`${counterValue}`</span>,
+            })
+        }),
+
+        <span class="text-orange-400">button</span> ({
+            <span class="text-orange-200">onclick</span>: () => {
+                counter.<span class="text-red-400">set</span>(counter.<span class="text-red-400">get</span>() + 1);
+
+                <span class="text-neutral-500">// Explicit state signalling!</span>
+                counter.<span class="text-red-400">signal</span>()
+            }
+        })
+    )
+};
+</pre></div></div><div class="max-w-[900px] w-full mx-auto px-4"><h2 class="text-xl sm:text-3xl font-bold mb-4" innertext="Key Features">Key Features</h2><section class="mb-10 pb-4 border-b-[1px] border-background-800"><h3 class="text-base sm:text-lg font-semibold mb-2" innertext="Simple by Design">Simple by Design</h3><p class="text-xs sm:text-sm text-text-100 leading-5">Elegance is not a <b>black box </b>with thousands of moving parts, nor does it have 10 years of tech-debt.<br/>Everything is made in-house using as few depencencies as possible (1), with <b>modern vanilla javascript. </b><br/><br/>By learning Elegance, you know <b>exactly </b>how it works, and what it does.<br/>This <b>in-depth knowledge </b>allows you to utilize Elegance to it's fullest, allowing you to create the best user experience.</p></section><section class="mb-10 pb-4 border-b-[1px] border-background-800"><h3 class="text-base sm:text-lg font-semibold mb-2" innertext="Fully Reactive">Fully Reactive</h3><p class="text-xs sm:text-sm text-text-100 leading-5">Things you've come to learn, or even love from React like <b>functional components, </b><b>conditional rendering, </b><b>client-side navigation, </b>etc. Are all fully available in Elegance; no extra packages needed.</p></section><section class="mb-10 pb-4 border-b-[1px] border-background-800"><h3 class="text-base sm:text-lg font-semibold mb-2" innertext="Strict & Opinionated">Strict & Opinionated</h3><p class="text-xs sm:text-sm text-text-100 leading-5">Developers are<b> lazy</b>. Which is not as bad as it sounds. However, it does mean that if you give them<b> 10 </b>ways of doing something, they will choose the way that is<b> quickest, </b><b> easiest </b>and<b> most </b><b> comfortable </b>to them.<br/><br/>This often results in sub-optimal code. It's impacts may not always be apparent, and sometimes may not show at all for a while, however when put to scale, small issues become big issues. <br/><br/>By forcing developers to code correctly, you can prevent these issues from ever become ones in the first place.<br/><b>Elegance Page Rater </b>can be mounted on any page to address things like contrast, alt descriptors, component render time, etc.</p></section></div></body></html>
