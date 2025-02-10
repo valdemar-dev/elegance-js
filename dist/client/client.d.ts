@@ -12,3 +12,4 @@ declare const state: {
     signal: (subject: ClientSubject) => void;
     observe: (subject: ClientSubject, observer: (value: any) => any) => void;
 };
+declare const load: () => void;
