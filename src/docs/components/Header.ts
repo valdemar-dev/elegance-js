@@ -3,32 +3,36 @@ import { observe } from "../../server/observe";
 
 const eventListener = (fn: (...params: any) => any) => fn;
 
-const serverState = createState({
+export const serverState = createState({
     hasUserScrolled: false,
     interval: 0,
     globalTicker: 0,
+});
 
-    handleScroll: eventListener((state: State<typeof serverState>, ev: Event) => {
-        const pos = {
-            x: window.scrollX,
-            y: window.scrollY,
-        };
-
+export const pageLoadHooks = [
+    (state: State<typeof serverState>) => {
         const hasScrolled = state.subjects.hasUserScrolled;
 
-        if (pos.y > 20) {
-            if (hasScrolled.value === true) return;
+        window.addEventListener("scroll", () => {
+            const pos = {
+                x: window.scrollX,
+                y: window.scrollY,
+            };
 
-            state.set(hasScrolled, true);
-        } else {
-            if (hasScrolled.value === false) return;
+            if (pos.y > 20) {
+                if (hasScrolled.value === true) return;
 
-            state.set(hasScrolled.value, false);
-        }
+                state.set(hasScrolled, true);
+            } else {
+                if (hasScrolled.value === false) return;
 
-        state.signal(hasScrolled);
-    })
-});
+                state.set(hasScrolled, false);
+            }
+
+            state.signal(hasScrolled);
+        })
+    },
+]
 
 export const Header = () => header ({
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"

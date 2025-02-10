@@ -1,6 +1,10 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 
-let currentId = 0;
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+    globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+
+let currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 
 export const createState = <T extends Record<string, any>>(augment: T) => {
     const state: Record<string, any> = {};

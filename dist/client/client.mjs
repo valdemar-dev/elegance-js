@@ -7,18 +7,23 @@ var serverState = pageData.state;
 var serverObservers = pageData.ooa;
 var stateObjectAttributes = pageData.soa;
 var isInWatchMode = pageData.w;
+var pageLoadHooks = pageData.plh;
 if (isInWatchMode) {
   const evtSource = new EventSource("http://localhost:3001/events");
-  evtSource.onmessage = async (data) => {
-    console.log(`Message: ${data}`);
-    const newHTML = await fetch(window.location.href);
-    document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
-    const link = document.querySelector("[rel=stylesheet]");
-    if (!link) {
-      return;
+  evtSource.onmessage = async (event) => {
+    console.log(`Message: ${event.data}`);
+    if (event.data === "reload") {
+      const newHTML = await fetch(window.location.href);
+      document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
+      const link = document.querySelector("[rel=stylesheet]");
+      if (!link) {
+        return;
+      }
+      const href = link.getAttribute("href");
+      link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
+    } else if (event.data === "hard-reload") {
+      window.location.reload();
     }
-    const href = link.getAttribute("href");
-    link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
   };
 }
 var state = {
@@ -74,5 +79,10 @@ if (stateObjectAttributes) {
     const subject = state.get(soa.id);
     if (!subject) throw `SOA, no subject with ID: ${soa.id}`;
     el[soa.attribute] = (event) => subject.value(state, event);
+  }
+}
+if (pageLoadHooks) {
+  for (const pageLoadHook of pageLoadHooks) {
+    pageLoadHook(state);
   }
 }

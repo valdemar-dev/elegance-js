@@ -1,11 +1,26 @@
 import { createState } from "../server/createState"
-import { Header } from "./components/Header";
+import { 
+    Header,
+    serverState as headerState,
+    pageLoadHooks as headerHooks,
+} from "./components/Header";
 
-export const state = createState({});
+const pageState = createState({
+});
+
+export const state = {
+    ...pageState,
+    ...headerState,
+}
+
+export const pageLoadHooks = [
+    ...headerHooks,
+]
 
 const pageTemplateString = 
 `
-import { getState, observe } from "elegance-js/helpers";
+import { createState } from "elegance-js/helpers/createState";
+import { observe } from "elegance-js/helpers/observe"; 
 
 export const serverState = createState({
     counter: 0,
@@ -48,6 +63,7 @@ const convertToSpans = (inputString: string) => {
         "return": "text-orange-400",
         "body": "text-orange-400",
         "observe": "text-orange-400",
+        "createState": "text-orange-400",
         "p": "text-orange-400",
         "button": "text-orange-400",
         "initializePage": "text-orange-400",
@@ -66,14 +82,14 @@ const convertToSpans = (inputString: string) => {
         "import": "text-red-400",
         "from": "text-red-400",
 
-        "onclick": "text-orange-200",
+        "onClick": "text-orange-200",
         "staticProperty": "text-orange-200",
         "innerText": "text-orange-200",
         "class": "text-orange-200",
         "dynamicProperty": "text-orange-200",
     };
 
-    const regex = /(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|observe|getState|export|import|from|staticProperty|dynamicProperty|return|body|p|button|onclick|ids|update|innerText|class|signal|state|create|set|get|initializePage)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;
+    const regex = /(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|observe|createState|export|import|from|staticProperty|dynamicProperty|return|body|p|button|onClick|ids|update|innerText|class|signal|state|create|set|get|initializePage)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;
 
     const result = inputString.replace(regex, (match) => {
         if (match.startsWith("//")) {
@@ -178,8 +194,8 @@ export const page = body ({
 
             pre ({
                 class: "text-xs sm:text-sm font-mono select-text overflow-x-scroll w-full",
-                innerHTML: convertToSpans(pageTemplateString)
-            })
+                innerHTML: convertToSpans(pageTemplateString),
+            }),
         )
     ), 
 
@@ -204,7 +220,7 @@ export const page = body ({
             },
                 "Elegance is not a ", b("black box "), "with thousands of moving parts, nor does it have 10 years of tech-debt.",
                 br({}),
-                "Everything is made in-house using as few depencencies as possible (1), with ", b("modern vanilla javascript. "),
+                "Everything is made in-house using as few depencencies as possible (1), with ", b("modern vanilla typescript. "),
                 br({}),
                 br({}),
                 "By learning Elegance, you know ", b("exactly "), "how it works, and what it does.",

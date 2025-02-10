@@ -673,9 +673,6 @@
   .min-w-max {
     min-width: max-content;
   }
-  .cursor-none {
-    cursor: none;
-  }
   .flex-col {
     flex-direction: column;
   }

@@ -7,24 +7,30 @@ const serverState = pageData.state;
 const serverObservers = pageData.ooa;
 const stateObjectAttributes = pageData.soa;
 const isInWatchMode = pageData.w;
+const pageLoadHooks = pageData.plh
 
 if (isInWatchMode) {
     const evtSource = new EventSource("http://localhost:3001/events");
 
-    evtSource.onmessage = async (data: MessageEvent<any>) => { 
-        console.log(`Message: ${data}`);
-        const newHTML = await fetch(window.location.href);
+    evtSource.onmessage = async (event: MessageEvent<any>) => { 
+        console.log(`Message: ${event.data}`);
 
-        document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
+        if (event.data === "reload") {
+            const newHTML = await fetch(window.location.href);
 
-        const link = document.querySelector('[rel=stylesheet]') as HTMLLinkElement;
+            document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
 
-        if (!link) {
-            return;
+            const link = document.querySelector('[rel=stylesheet]') as HTMLLinkElement;
+
+            if (!link) {
+                return;
+            }
+
+            const href = link.getAttribute('href')!;
+            link.setAttribute('href', href.split('?')[0] + '?' + new Date().getTime());
+        } else if (event.data === "hard-reload") {
+            window.location.reload();
         }
-
-        const href = link.getAttribute('href')!;
-        link.setAttribute('href', href.split('?')[0] + '?' + new Date().getTime());
     };
 }
 
@@ -107,5 +113,11 @@ if (stateObjectAttributes) {
         if (!subject) throw `SOA, no subject with ID: ${soa.id}`;
 
         (el as any)[soa.attribute] = (event: Event) => subject.value(state, event);
+    }
+}
+
+if (pageLoadHooks) {
+    for (const pageLoadHook of pageLoadHooks) {
+        pageLoadHook(state);
     }
 }

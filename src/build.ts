@@ -320,6 +320,7 @@ const generateClientPageData = async (
     pageLocation: string,
     state: Record<string, any>,
     objectAttributes: Array<ObjectAttribute<any>>,
+    pageLoadHooks: Array<(...params: any) => any>,
     DIST_DIR: string,
     watch: boolean,
 ) => {
@@ -332,7 +333,11 @@ const generateClientPageData = async (
     if (state) {
         let formattedStateString = "";
 
-        for (const [key, subject] of Object.entries(state)) {
+        // sorting state cause uh
+        // the client ooa's rely on state being sorted by ID. - val feb 9 2025
+        const sortedState = Object.entries(state).sort(([,av], [,bv]) => av.id - bv.id)
+
+        for (const [key, subject] of sortedState) {
             if (typeof subject.value === "string") {
                 formattedStateString += `${key}:{id:${subject.id},value:"${subject.value}"},`;
             } else {
@@ -368,11 +373,32 @@ const generateClientPageData = async (
         clientPageJSText += observerObjectAttributeString;
     }
 
-    fs.writeFileSync(
-        path.join(DIST_DIR, pageLocation, "page.js"),
-        clientPageJSText,
-        "utf-8",
-    )
+    if (pageLoadHooks.length > 0) {
+        clientPageJSText += "pd[url]={...pd[url],plh:[";
+
+        for (const pageLoadHook of pageLoadHooks) {
+            clientPageJSText += `${pageLoadHook.toString()},`;
+        }
+
+        clientPageJSText += "]};";
+    }
+
+    const pageDataPath = path.join(DIST_DIR, pageLocation, "page_data.js");
+
+    let sendHardReloadInstruction = false;
+
+    // makes pages hard-reload when import things are changed - val feb 10 2025
+    if (fs.existsSync(pageDataPath)) {
+        const existingPageData = fs.readFileSync(pageDataPath, "utf-8")
+
+        if (existingPageData.toString() !== clientPageJSText) {
+            sendHardReloadInstruction = true;
+        }
+    }
+
+    fs.writeFileSync(pageDataPath, clientPageJSText, "utf-8",)
+
+    return { sendHardReloadInstruction, }
 };
 
 const buildPages = async (
@@ -388,6 +414,8 @@ const buildPages = async (
     writeToHTML: boolean,
     watch: boolean
 ) => { 
+    let shouldClientHardReload = false;
+
     for (const page of pages) {
         if (!writeToHTML) {
             if (page.generateMetadata === GenerateMetadata.ON_BUILD) {
@@ -407,15 +435,37 @@ const buildPages = async (
 
         const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
 
-        const { page: pageElements, state, } = await import(pagePath + `?${Date.now()}`);
+        const { page: pageElements, state, pageLoadHooks, } = await import(pagePath + `?${Date.now()}`);
 
         if (!pageElements) {
             throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`
         }
 
-        const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements, page.metadata, DIST_DIR, writeToHTML);
-        await generateClientPageData(page.pageLocation, state || {}, objectAttributes, DIST_DIR, watch);
+        const objectAttributes = await generateSuitablePageElements(
+            page.pageLocation,
+            pageElements,
+            page.metadata,
+            DIST_DIR,
+            writeToHTML
+        );
+
+        const {
+            sendHardReloadInstruction,
+        } = await generateClientPageData(
+            page.pageLocation,
+            state || {},
+            objectAttributes,
+            pageLoadHooks || [],
+            DIST_DIR,
+            watch
+        );
+
+        if (sendHardReloadInstruction === true) shouldClientHardReload = true;
     }
+
+    return {
+        shouldClientHardReload,
+    };
 };
 
 const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirectory: string, SERVER_DIR: string) => {
@@ -473,13 +523,21 @@ const currentWatchers: FSWatcher[] = [];
 
 const rebuild = async (props: any) => {
     try {
-        await compile({ ...props, });
+        const {
+            shouldClientHardReload,
+        } = await compile({ ...props, });
+
+        if (shouldClientHardReload) {
+            console.log("Sending hard reload..");
+            httpStream?.write(`data: hard-reload\n\n`)
+        } else {
+            console.log("Sending soft reload..");
+            httpStream?.write(`data: reload\n\n`)
+        }
     } catch(e) {
         log(red(bold(`Build Failed at ${new Date().toLocaleTimeString()}`)))
         console.error(e);
     }
-
-    httpStream?.write(`data: reload\n\n`)
 
     isTimedOut = false;
 };
@@ -610,7 +668,9 @@ export const compile = async ({
         platform: "node",
     });
 
-    await buildPages(pages, environment, DIST_DIR, writeToHTML, watch);
+    const {
+        shouldClientHardReload
+    } = await buildPages(pages, environment, DIST_DIR, writeToHTML, watch);
     await buildClient(environment, DIST_DIR);
 
     const end = performance.now();
@@ -633,6 +693,10 @@ export const compile = async ({
             environment,
             watch,
         })
+    }
+
+    return {
+        shouldClientHardReload
     }
 };
 

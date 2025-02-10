@@ -1,5 +1,8 @@
 // src/server/createState.ts
-var currentId = 0;
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (augment) => {
   const state = {};
   for (const [key, value] of Object.entries(augment)) {
@@ -24,27 +27,30 @@ var observe = (refs, update) => {
 };
 
 // src/docs/components/Header.ts
-var eventListener = (fn) => fn;
 var serverState = createState({
   hasUserScrolled: false,
   interval: 0,
-  globalTicker: 0,
-  handleScroll: eventListener((state, ev) => {
-    const pos = {
-      x: window.scrollX,
-      y: window.scrollY
-    };
-    const hasScrolled = state.subjects.hasUserScrolled;
-    if (pos.y > 20) {
-      if (hasScrolled.value === true) return;
-      state.set(hasScrolled, true);
-    } else {
-      if (hasScrolled.value === false) return;
-      state.set(hasScrolled.value, false);
-    }
-    state.signal(hasScrolled);
-  })
+  globalTicker: 0
 });
+var pageLoadHooks = [
+  (state) => {
+    const hasScrolled = state.subjects.hasUserScrolled;
+    window.addEventListener("scroll", () => {
+      const pos = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+      if (pos.y > 20) {
+        if (hasScrolled.value === true) return;
+        state.set(hasScrolled, true);
+      } else {
+        if (hasScrolled.value === false) return;
+        state.set(hasScrolled, false);
+      }
+      state.signal(hasScrolled);
+    });
+  }
+];
 var Header = () => header(
   {
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
@@ -127,5 +133,7 @@ var Header = () => header(
   )
 );
 export {
-  Header
+  Header,
+  pageLoadHooks,
+  serverState
 };

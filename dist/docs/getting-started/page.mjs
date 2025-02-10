@@ -1,5 +1,8 @@
 // src/server/createState.ts
-var currentId = 0;
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (augment) => {
   const state2 = {};
   for (const [key, value] of Object.entries(augment)) {

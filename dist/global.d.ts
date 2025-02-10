@@ -1,6 +1,7 @@
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 declare global {
     var __ELEGANCE_SERVER_DATA__: any;
+    var __SERVER_CURRENT_STATE_ID__: number;
     var __PAGE_INFOS__: MinimizedPageInfo[];
     var pd: Record<string, any>;
     type ClientSubject = {

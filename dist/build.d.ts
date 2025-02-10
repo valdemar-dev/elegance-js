@@ -4,4 +4,6 @@ export declare const compile: ({ writeToHTML, pagesDirectory, outputDirectory, e
     pagesDirectory: string;
     outputDirectory: string;
     watch?: boolean;
-}) => Promise<void>;
+}) => Promise<{
+    shouldClientHardReload: boolean;
+}>;

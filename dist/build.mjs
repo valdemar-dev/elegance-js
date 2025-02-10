@@ -43,7 +43,7 @@ var generateHTMLTemplate = ({
 }) => {
   let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   if (addPageScriptTag === true) {
-    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page.js" defer="true"></script>`;
+    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
   }
   HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
   const builtHead = head();
@@ -595,14 +595,15 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   }
   return objectAttributes;
 };
-var generateClientPageData = async (pageLocation, state, objectAttributes, DIST_DIR, watch) => {
+var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR, watch) => {
   let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}/`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
   if (watch) {
     clientPageJSText += "pd[url]={...pd[url],w:true};";
   }
   if (state) {
     let formattedStateString = "";
-    for (const [key, subject] of Object.entries(state)) {
+    const sortedState = Object.entries(state).sort(([, av], [, bv]) => av.id - bv.id);
+    for (const [key, subject] of sortedState) {
       if (typeof subject.value === "string") {
         formattedStateString += `${key}:{id:${subject.id},value:"${subject.value}"},`;
       } else {
@@ -625,13 +626,26 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, DIST_
     observerObjectAttributeString += "]};";
     clientPageJSText += observerObjectAttributeString;
   }
-  fs.writeFileSync(
-    path.join(DIST_DIR, pageLocation, "page.js"),
-    clientPageJSText,
-    "utf-8"
-  );
+  if (pageLoadHooks.length > 0) {
+    clientPageJSText += "pd[url]={...pd[url],plh:[";
+    for (const pageLoadHook of pageLoadHooks) {
+      clientPageJSText += `${pageLoadHook.toString()},`;
+    }
+    clientPageJSText += "]};";
+  }
+  const pageDataPath = path.join(DIST_DIR, pageLocation, "page_data.js");
+  let sendHardReloadInstruction = false;
+  if (fs.existsSync(pageDataPath)) {
+    const existingPageData = fs.readFileSync(pageDataPath, "utf-8");
+    if (existingPageData.toString() !== clientPageJSText) {
+      sendHardReloadInstruction = true;
+    }
+  }
+  fs.writeFileSync(pageDataPath, clientPageJSText, "utf-8");
+  return { sendHardReloadInstruction };
 };
 var buildPages = async (pages, environment, DIST_DIR, writeToHTML, watch) => {
+  let shouldClientHardReload = false;
   for (const page of pages) {
     if (!writeToHTML) {
       if (page.generateMetadata === 1 /* ON_BUILD */) {
@@ -648,13 +662,32 @@ var buildPages = async (pages, environment, DIST_DIR, writeToHTML, watch) => {
       }
     }
     const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js");
-    const { page: pageElements, state } = await import(pagePath + `?${Date.now()}`);
+    const { page: pageElements, state, pageLoadHooks } = await import(pagePath + `?${Date.now()}`);
     if (!pageElements) {
       throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`;
     }
-    const objectAttributes = await generateSuitablePageElements(page.pageLocation, pageElements, page.metadata, DIST_DIR, writeToHTML);
-    await generateClientPageData(page.pageLocation, state || {}, objectAttributes, DIST_DIR, watch);
+    const objectAttributes = await generateSuitablePageElements(
+      page.pageLocation,
+      pageElements,
+      page.metadata,
+      DIST_DIR,
+      writeToHTML
+    );
+    const {
+      sendHardReloadInstruction
+    } = await generateClientPageData(
+      page.pageLocation,
+      state || {},
+      objectAttributes,
+      pageLoadHooks || [],
+      DIST_DIR,
+      watch
+    );
+    if (sendHardReloadInstruction === true) shouldClientHardReload = true;
   }
+  return {
+    shouldClientHardReload
+  };
 };
 var getPageCompilationDirections = async (pageFiles, pagesDirectory, SERVER_DIR) => {
   const builtInfoFiles = [...getAllSubdirectories(SERVER_DIR), ""];
@@ -692,14 +725,24 @@ var httpStream;
 var currentWatchers = [];
 var rebuild = async (props) => {
   try {
-    await compile({ ...props });
+    const {
+      shouldClientHardReload
+    } = await compile({ ...props });
+    if (shouldClientHardReload) {
+      console.log("Sending hard reload..");
+      httpStream?.write(`data: hard-reload
+
+`);
+    } else {
+      console.log("Sending soft reload..");
+      httpStream?.write(`data: reload
+
+`);
+    }
   } catch (e) {
     log(red(bold(`Build Failed at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}`)));
     console.error(e);
   }
-  httpStream?.write(`data: reload
-
-`);
   isTimedOut = false;
 };
 var registerListener = async (props) => {
@@ -796,7 +839,9 @@ var compile = async ({
     format: "esm",
     platform: "node"
   });
-  await buildPages(pages, environment, DIST_DIR, writeToHTML, watch);
+  const {
+    shouldClientHardReload
+  } = await buildPages(pages, environment, DIST_DIR, writeToHTML, watch);
   await buildClient(environment, DIST_DIR);
   const end = performance.now();
   log(bold(yellow(" -- Elegance.JS -- ")));
@@ -816,6 +861,9 @@ var compile = async ({
       watch
     });
   }
+  return {
+    shouldClientHardReload
+  };
 };
 export {
   compile

@@ -56,7 +56,7 @@ export const generateHTMLTemplate = ({
     let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`
 
     if (addPageScriptTag === true) {
-        HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page.js" defer="true"></script>`;
+        HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
     }
 
     HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;

@@ -1,5 +1,8 @@
 // src/server/createState.ts
-var currentId = 0;
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (augment) => {
   const state2 = {};
   for (const [key, value] of Object.entries(augment)) {
@@ -24,27 +27,30 @@ var observe = (refs, update) => {
 };
 
 // src/docs/components/Header.ts
-var eventListener = (fn) => fn;
 var serverState = createState({
   hasUserScrolled: false,
   interval: 0,
-  globalTicker: 0,
-  handleScroll: eventListener((state2, ev) => {
-    const pos = {
-      x: window.scrollX,
-      y: window.scrollY
-    };
-    const hasScrolled = state2.subjects.hasUserScrolled;
-    if (pos.y > 20) {
-      if (hasScrolled.value === true) return;
-      state2.set(hasScrolled, true);
-    } else {
-      if (hasScrolled.value === false) return;
-      state2.set(hasScrolled.value, false);
-    }
-    state2.signal(hasScrolled);
-  })
+  globalTicker: 0
 });
+var pageLoadHooks = [
+  (state2) => {
+    const hasScrolled = state2.subjects.hasUserScrolled;
+    window.addEventListener("scroll", () => {
+      const pos = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+      if (pos.y > 20) {
+        if (hasScrolled.value === true) return;
+        state2.set(hasScrolled, true);
+      } else {
+        if (hasScrolled.value === false) return;
+        state2.set(hasScrolled, false);
+      }
+      state2.signal(hasScrolled);
+    });
+  }
+];
 var Header = () => header(
   {
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
@@ -128,9 +134,19 @@ var Header = () => header(
 );
 
 // src/docs/page.ts
-var state = createState({});
+var pageState = createState({
+  cum: "hi"
+});
+var state = {
+  ...pageState,
+  ...serverState
+};
+var pageLoadHooks2 = [
+  ...pageLoadHooks
+];
 var pageTemplateString = `
-import { getState, observe } from "elegance-js/helpers";
+import { createState } from "elegance-js/helpers/createState";
+import { observe } from "elegance-js/helpers/observe"; 
 
 export const serverState = createState({
     counter: 0,
@@ -169,6 +185,7 @@ var convertToSpans = (inputString) => {
     "return": "text-orange-400",
     "body": "text-orange-400",
     "observe": "text-orange-400",
+    "createState": "text-orange-400",
     "p": "text-orange-400",
     "button": "text-orange-400",
     "initializePage": "text-orange-400",
@@ -183,13 +200,13 @@ var convertToSpans = (inputString) => {
     "update": "text-red-400",
     "import": "text-red-400",
     "from": "text-red-400",
-    "onclick": "text-orange-200",
+    "onClick": "text-orange-200",
     "staticProperty": "text-orange-200",
     "innerText": "text-orange-200",
     "class": "text-orange-200",
     "dynamicProperty": "text-orange-200"
   };
-  const regex = /(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|observe|getState|export|import|from|staticProperty|dynamicProperty|return|body|p|button|onclick|ids|update|innerText|class|signal|state|create|set|get|initializePage)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;
+  const regex = /(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|observe|createState|export|import|from|staticProperty|dynamicProperty|return|body|p|button|onClick|ids|update|innerText|class|signal|state|create|set|get|initializePage)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;
   const result = inputString.replace(regex, (match) => {
     if (match.startsWith("//")) {
       return `<span class="text-neutral-500">${match}</span>`;
@@ -306,7 +323,7 @@ var page = body(
         "with thousands of moving parts, nor does it have 10 years of tech-debt.",
         br({}),
         "Everything is made in-house using as few depencencies as possible (1), with ",
-        b("modern vanilla javascript. "),
+        b("modern vanilla typescript. "),
         br({}),
         br({}),
         "By learning Elegance, you know ",
@@ -379,5 +396,6 @@ var page = body(
 );
 export {
   page,
+  pageLoadHooks2 as pageLoadHooks,
   state
 };
