@@ -1,1 +1,8 @@
-var o=body({},"hi!");export{o as page};
+// src/docs/test-page/page.ts
+var page = body(
+  {},
+  "hi!"
+);
+export {
+  page
+};

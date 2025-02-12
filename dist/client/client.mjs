@@ -1,42 +1,50 @@
 // src/client/client.ts
+console.log("Elegance.JS is loading..");
 var parser = new DOMParser();
 var serializer = new XMLSerializer();
 var pageStringCache = /* @__PURE__ */ new Map();
+var cleanupFunctions = [];
 var evtSource = null;
+var currentPage = window.location.pathname;
 var fetchLocalPage = async (targetURL) => {
+  const pathname = targetURL.pathname;
   if (targetURL.hostname !== window.location.hostname) {
-    throw `Client-side navigation may only occur on local URL's`;
+    console.error(`Client-side navigation may only occur on local URL's`);
+    return;
   }
   const res = await fetch(targetURL);
   const resText = await res.text();
   if (!res.ok) {
-    throw resText;
+    console.error(`Received an error whilst trying to navigate: ${resText}`);
+    return;
   }
   const newDOM = parser.parseFromString(resText, "text/html");
-  const pageDataScriptSrc = `${targetURL.pathname}/page_data.js`;
-  if (!pd[targetURL.pathname]) {
-    console.log("adding, cause doesnt exist");
+  const pageDataScriptSrc = `${pathname}/page_data.js`;
+  if (!pd[pathname]) {
     await import(pageDataScriptSrc);
   }
-  pageStringCache.set(targetURL.pathname, serializer.serializeToString(newDOM));
+  pageStringCache.set(pathname, serializer.serializeToString(newDOM));
   return newDOM;
 };
-var oldPathname = window.location.pathname;
 globalThis.navigateLocally = async (target, pushState = true) => {
-  console.log(`Naving to: ${target} from ${oldPathname}`);
-  pageStringCache.set(oldPathname, serializer.serializeToString(document));
-  const url = new URL(target);
-  const newDocument = pageStringCache.get(url.pathname) ?? await fetchLocalPage(url);
-  if (pushState) history.pushState(null, "", target);
-  if (newDocument instanceof Document) {
-    console.log("Fetched new page.");
-    document.body = newDocument.body;
+  console.log(`Naving to: ${target} from ${currentPage}`);
+  pageStringCache.set(currentPage, serializer.serializeToString(document));
+  const targetURL = new URL(target);
+  const isPageCached = pageStringCache.has(targetURL.pathname);
+  if (isPageCached) {
+    const cachedDOM = pageStringCache.get(targetURL.pathname);
+    const parsedDOM = parser.parseFromString(cachedDOM, "text/html");
+    document.head.replaceChildren(...Array.from(parsedDOM.head.children));
+    document.body = parsedDOM.body;
   } else {
-    console.log("Got from page cache.");
-    document.body = parser.parseFromString(newDocument, "text/html").body;
+    const fetchedDOM = await fetchLocalPage(targetURL);
+    if (!fetchedDOM) return;
+    document.head.replaceChildren(...Array.from(fetchedDOM.head.children));
+    document.body = fetchedDOM.body;
   }
+  if (pushState) history.pushState(null, "", target);
   load();
-  oldPathname = window.location.pathname;
+  currentPage = window.location.pathname;
 };
 window.onpopstate = async (event) => {
   event.preventDefault();
@@ -44,14 +52,22 @@ window.onpopstate = async (event) => {
   await navigateLocally(target.location.href, false);
   history.replaceState(null, "", target.location.pathname);
 };
+var unload = () => {
+  for (const func of cleanupFunctions) {
+    func();
+  }
+  cleanupFunctions = [];
+};
 var load = () => {
+  unload();
   let pathname = window.location.pathname;
   if (pathname.endsWith("/") && pathname !== "/") {
     pathname = pathname.slice(0, -1);
   }
   let pageData = pd[pathname];
   if (!pageData) {
-    throw `Invalid Elegance Configuration. Page.JS is not properly sent to the Client. Pathname: ${window.location.pathname}`;
+    console.error(`Invalid Elegance Configuration. Page.JS is not properly sent to the client. Pathname: ${window.location.pathname}`);
+    return;
   }
   ;
   console.log(`Loading ${window.location.pathname}:`, pageData);
@@ -62,16 +78,6 @@ var load = () => {
   const pageLoadHooks = pageData.plh;
   const state = {
     subjects: {},
-    populate: (serverState2) => {
-      for (const [subjectName, value] of Object.entries(serverState2)) {
-        const subject = value;
-        state.subjects[subjectName] = {
-          id: subject.id,
-          value: subject.value,
-          observers: []
-        };
-      }
-    },
     get: (id) => Object.values(state.subjects).find((s) => s.id === id),
     set: (subject, value) => {
       subject.value = value;
@@ -87,14 +93,24 @@ var load = () => {
       subject.observers.push(observer);
     }
   };
-  state.populate(serverState);
+  for (const [subjectName, value] of Object.entries(serverState)) {
+    const subject = value;
+    state.subjects[subjectName] = {
+      id: subject.id,
+      value: subject.value,
+      observers: []
+    };
+  }
   pageData.sm = state;
   for (const observer of serverObservers || []) {
     const el = document.querySelector(`[key="${observer.key}"]`);
     let values = {};
     for (const id of observer.ids) {
       const subject = state.get(id);
-      if (!subject) throw `No subject with id ${id}`;
+      if (!subject) {
+        console.error(`OOA watching an illegal ID: ${id}`);
+        return;
+      }
       values[subject.id] = subject.value;
       const updateFunction = (value) => {
         values[id] = value;
@@ -113,11 +129,16 @@ var load = () => {
   for (const soa of stateObjectAttributes || []) {
     const el = document.querySelector(`[key="${soa.key}"]`);
     const subject = state.get(soa.id);
-    if (!subject) throw `SOA, no subject with ID: ${soa.id}`;
+    if (!subject) {
+      console.error(`An SOA is watching an illegal ID: ${soa.id}.`);
+      return;
+    }
     el[soa.attribute] = (event) => subject.value(state, event);
   }
   for (const pageLoadHook of pageLoadHooks || []) {
-    pageLoadHook(state);
+    const cleanupFunction = pageLoadHook(state);
+    if (!cleanupFunction) continue;
+    cleanupFunctions.push(cleanupFunction);
   }
   if (isInWatchMode && !evtSource) {
     evtSource = new EventSource("http://localhost:3001/events");
@@ -127,9 +148,7 @@ var load = () => {
         const newHTML = await fetch(window.location.href);
         document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
         const link = document.querySelector("[rel=stylesheet]");
-        if (!link) {
-          return;
-        }
+        if (!link) return;
         const href = link.getAttribute("href");
         link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
         load();

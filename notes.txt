@@ -1,10 +1,11 @@
 NOTES:
-- run built page.js files through esbuild on compile
 - global state
-- mount hooks
-- remove type from soa's for browser
 - code cleanup
+-rewrite client
 
+x run built page.js files through esbuild on compile
+x mount hooks
+x remove type from soa's for browser
 x modify observe() to take in multiple values
 x add some shit so you can't just >>>> in content
 x renderer fuckery??? i think issues with ",>'. !!!escape all these

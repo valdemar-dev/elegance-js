@@ -15,7 +15,9 @@ addPageLoadHooks([
     (state: State<typeof serverState>) => {
         const hasScrolled = state.subjects.hasUserScrolled;
 
-        window.addEventListener("scroll", () => {
+        console.log("adding event listener:");
+
+        const handleScroll = () => {
             const pos = {
                 x: window.scrollX,
                 y: window.scrollY,
@@ -25,14 +27,17 @@ addPageLoadHooks([
                 if (hasScrolled.value === true) return;
 
                 state.set(hasScrolled, true);
+                state.signal(hasScrolled);
             } else {
                 if (hasScrolled.value === false) return;
 
                 state.set(hasScrolled, false);
+                state.signal(hasScrolled);
             }
+        }
 
-            state.signal(hasScrolled);
-        })
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
     },
 ])
 
@@ -43,6 +48,7 @@ export const Header = () => header ({
         class: observe(
             [serverState.hasUserScrolled],
             (hasUserScrolled) => {
+                console.log("change");
                 const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 "
 
                 if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950"

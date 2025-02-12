@@ -1,1 +1,167 @@
-"use strict";(()=>{var D=Object.defineProperty;var i=(t,o)=>D(t,"name",{value:o,configurable:!0});var b=new DOMParser,f=new XMLSerializer,w=new Map,p=null,M=i(async t=>{if(t.hostname!==window.location.hostname)throw"Client-side navigation may only occur on local URL's";let o=await fetch(t),l=await o.text();if(!o.ok)throw l;let r=b.parseFromString(l,"text/html"),d=`${t.pathname}/page_data.js`;return pd[t.pathname]||await import(d),w.set(t.pathname,f.serializeToString(r)),r},"fetchLocalPage"),m=window.location.pathname;globalThis.navigateLocally=async(t,o=!0)=>{w.set(m,f.serializeToString(document));let l=new URL(t),r=w.get(l.pathname)??await M(l);o&&history.pushState(null,"",t),r instanceof Document?document.body=r.body:document.body=b.parseFromString(r,"text/html").body,g(),m=window.location.pathname};window.onpopstate=async t=>{t.preventDefault();let o=t.target;await navigateLocally(o.location.href,!1),history.replaceState(null,"",o.location.pathname)};var g=i(()=>{let t=window.location.pathname;t.endsWith("/")&&t!=="/"&&(t=t.slice(0,-1));let o=pd[t];if(!o)throw`Invalid Elegance Configuration. Page.JS is not properly sent to the Client. Pathname: ${window.location.pathname}`;let l=o.state,r=o.ooa,d=o.soa,y=o.w,v=o.plh,s={subjects:{},populate:i(e=>{for(let[a,n]of Object.entries(e)){let c=n;s.subjects[a]={id:c.id,value:c.value,observers:[]}}},"populate"),get:i(e=>Object.values(s.subjects).find(a=>a.id===e),"get"),set:i((e,a)=>{e.value=a,s.subjects[Object.keys(e)[0]]=e},"set"),signal:i(e=>{let a=e.observers;for(let n of a)n(e.value)},"signal"),observe:i((e,a)=>{e.observers.push(a)},"observe")};s.populate(l),o.sm=s;for(let e of r||[]){let a=document.querySelector(`[key="${e.key}"]`),n={};for(let c of e.ids){let u=s.get(c);if(!u)throw`No subject with id ${c}`;n[u.id]=u.value;let S=i(j=>{n[c]=j;let k=e.update(...Object.values(n)),h=e.attribute;switch(h){case"class":h="className";break}a[h]=k},"updateFunction");s.observe(u,S)}}for(let e of d||[]){let a=document.querySelector(`[key="${e.key}"]`),n=s.get(e.id);if(!n)throw`SOA, no subject with ID: ${e.id}`;a[e.attribute]=c=>n.value(s,c)}for(let e of v||[])e(s);y&&!p&&(p=new EventSource("http://localhost:3001/events"),p.onmessage=async e=>{if(e.data==="reload"){let a=await fetch(window.location.href);document.body=new DOMParser().parseFromString(await a.text(),"text/html").body;let n=document.querySelector("[rel=stylesheet]");if(!n)return;let c=n.getAttribute("href");n.setAttribute("href",c.split("?")[0]+"?"+new Date().getTime()),g()}else e.data==="hard-reload"&&window.location.reload()})},"load");g();})();
+"use strict";
+(() => {
+  var __defProp = Object.defineProperty;
+  var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+
+  // src/client/client.ts
+  console.log("Elegance.JS is loading..");
+  var parser = new DOMParser();
+  var serializer = new XMLSerializer();
+  var pageStringCache = /* @__PURE__ */ new Map();
+  var cleanupFunctions = [];
+  var evtSource = null;
+  var currentPage = window.location.pathname;
+  var fetchLocalPage = /* @__PURE__ */ __name(async (targetURL) => {
+    const pathname = targetURL.pathname;
+    if (targetURL.hostname !== window.location.hostname) {
+      console.error(`Client-side navigation may only occur on local URL's`);
+      return;
+    }
+    const res = await fetch(targetURL);
+    const resText = await res.text();
+    if (!res.ok) {
+      console.error(`Received an error whilst trying to navigate: ${resText}`);
+      return;
+    }
+    const newDOM = parser.parseFromString(resText, "text/html");
+    const pageDataScriptSrc = `${pathname}/page_data.js`;
+    if (!pd[pathname]) {
+      await import(pageDataScriptSrc);
+    }
+    pageStringCache.set(pathname, serializer.serializeToString(newDOM));
+    return newDOM;
+  }, "fetchLocalPage");
+  globalThis.navigateLocally = async (target, pushState = true) => {
+    console.log(`Naving to: ${target} from ${currentPage}`);
+    pageStringCache.set(currentPage, serializer.serializeToString(document));
+    const targetURL = new URL(target);
+    const isPageCached = pageStringCache.has(targetURL.pathname);
+    if (isPageCached) {
+      const cachedDOM = pageStringCache.get(targetURL.pathname);
+      const parsedDOM = parser.parseFromString(cachedDOM, "text/html");
+      document.head.replaceChildren(...Array.from(parsedDOM.head.children));
+      document.body = parsedDOM.body;
+    } else {
+      const fetchedDOM = await fetchLocalPage(targetURL);
+      if (!fetchedDOM) return;
+      document.head.replaceChildren(...Array.from(fetchedDOM.head.children));
+      document.body = fetchedDOM.body;
+    }
+    if (pushState) history.pushState(null, "", target);
+    load();
+    currentPage = window.location.pathname;
+  };
+  window.onpopstate = async (event) => {
+    event.preventDefault();
+    const target = event.target;
+    await navigateLocally(target.location.href, false);
+    history.replaceState(null, "", target.location.pathname);
+  };
+  var unload = /* @__PURE__ */ __name(() => {
+    for (const func of cleanupFunctions) {
+      func();
+    }
+    cleanupFunctions = [];
+  }, "unload");
+  var load = /* @__PURE__ */ __name(() => {
+    unload();
+    let pathname = window.location.pathname;
+    if (pathname.endsWith("/") && pathname !== "/") {
+      pathname = pathname.slice(0, -1);
+    }
+    let pageData = pd[pathname];
+    if (!pageData) {
+      console.error(`Invalid Elegance Configuration. Page.JS is not properly sent to the client. Pathname: ${window.location.pathname}`);
+      return;
+    }
+    ;
+    console.log(`Loading ${window.location.pathname}:`, pageData);
+    const serverState = pageData.state;
+    const serverObservers = pageData.ooa;
+    const stateObjectAttributes = pageData.soa;
+    const isInWatchMode = pageData.w;
+    const pageLoadHooks = pageData.plh;
+    const state = {
+      subjects: {},
+      get: /* @__PURE__ */ __name((id) => Object.values(state.subjects).find((s) => s.id === id), "get"),
+      set: /* @__PURE__ */ __name((subject, value) => {
+        subject.value = value;
+        state.subjects[Object.keys(subject)[0]] = subject;
+      }, "set"),
+      signal: /* @__PURE__ */ __name((subject) => {
+        const observers = subject.observers;
+        for (const observer of observers) {
+          observer(subject.value);
+        }
+      }, "signal"),
+      observe: /* @__PURE__ */ __name((subject, observer) => {
+        subject.observers.push(observer);
+      }, "observe")
+    };
+    for (const [subjectName, value] of Object.entries(serverState)) {
+      const subject = value;
+      state.subjects[subjectName] = {
+        id: subject.id,
+        value: subject.value,
+        observers: []
+      };
+    }
+    pageData.sm = state;
+    for (const observer of serverObservers || []) {
+      const el = document.querySelector(`[key="${observer.key}"]`);
+      let values = {};
+      for (const id of observer.ids) {
+        const subject = state.get(id);
+        if (!subject) {
+          console.error(`OOA watching an illegal ID: ${id}`);
+          return;
+        }
+        values[subject.id] = subject.value;
+        const updateFunction = /* @__PURE__ */ __name((value) => {
+          values[id] = value;
+          const newValue = observer.update(...Object.values(values));
+          let attribute = observer.attribute;
+          switch (attribute) {
+            case "class":
+              attribute = "className";
+              break;
+          }
+          el[attribute] = newValue;
+        }, "updateFunction");
+        state.observe(subject, updateFunction);
+      }
+    }
+    for (const soa of stateObjectAttributes || []) {
+      const el = document.querySelector(`[key="${soa.key}"]`);
+      const subject = state.get(soa.id);
+      if (!subject) {
+        console.error(`An SOA is watching an illegal ID: ${soa.id}.`);
+        return;
+      }
+      el[soa.attribute] = (event) => subject.value(state, event);
+    }
+    for (const pageLoadHook of pageLoadHooks || []) {
+      const cleanupFunction = pageLoadHook(state);
+      if (!cleanupFunction) continue;
+      cleanupFunctions.push(cleanupFunction);
+    }
+    if (isInWatchMode && !evtSource) {
+      evtSource = new EventSource("http://localhost:3001/events");
+      evtSource.onmessage = async (event) => {
+        console.log(`Message: ${event.data}`);
+        if (event.data === "reload") {
+          const newHTML = await fetch(window.location.href);
+          document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
+          const link = document.querySelector("[rel=stylesheet]");
+          if (!link) return;
+          const href = link.getAttribute("href");
+          link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
+          load();
+        } else if (event.data === "hard-reload") {
+          window.location.reload();
+        }
+      };
+    }
+  }, "load");
+  load();
+})();
