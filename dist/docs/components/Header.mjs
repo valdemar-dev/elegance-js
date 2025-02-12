@@ -4,15 +4,14 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (augment) => {
-  const state = {};
   for (const [key, value] of Object.entries(augment)) {
-    state[key] = {
+    globalThis.__SERVER_CURRENT_STATE__[key] = {
       id: currentId++,
       value,
       type: 1 /* STATE */
     };
   }
-  return state;
+  return globalThis.__SERVER_CURRENT_STATE__;
 };
 
 // src/server/observe.ts
@@ -26,13 +25,41 @@ var observe = (refs, update) => {
   return returnValue;
 };
 
-// src/docs/components/Header.ts
+// src/helpers/createEventListener.ts
+var createEventListener = (fn) => fn;
+
+// src/components/Link.ts
+var Link = ({
+  href
+}, ...children) => {
+  return a(
+    {
+      href,
+      onClick: serverState.navigate
+    },
+    ...children
+  );
+};
 var serverState = createState({
+  navigate: createEventListener((state, event) => {
+    event.preventDefault();
+    navigateLocally(event.target.href);
+  })
+});
+
+// src/server/addPageLoadHooks.ts
+var addPageLoadHooks = (hooks) => {
+  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
+};
+
+// src/docs/components/Header.ts
+var serverState2 = createState({
   hasUserScrolled: false,
   interval: 0,
-  globalTicker: 0
+  globalTicker: 0,
+  urmom: "hi"
 });
-var pageLoadHooks = [
+addPageLoadHooks([
   (state) => {
     const hasScrolled = state.subjects.hasUserScrolled;
     window.addEventListener("scroll", () => {
@@ -50,7 +77,7 @@ var pageLoadHooks = [
       state.signal(hasScrolled);
     });
   }
-];
+]);
 var Header = () => header(
   {
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
@@ -58,7 +85,7 @@ var Header = () => header(
   div(
     {
       class: observe(
-        [serverState.hasUserScrolled],
+        [serverState2.hasUserScrolled],
         (hasUserScrolled) => {
           const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 ";
           if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950";
@@ -93,6 +120,12 @@ var Header = () => header(
         {
           class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
         },
+        Link(
+          {
+            href: "/test-page"
+          },
+          "hi"
+        ),
         a(
           {
             class: "font-inter text-sm font-semibold text-text-100 pt-[2px] h-full flex items-center px-4 pointer-fine:group-hover:text-background-950 duration-200 hover:cursor-none group/link",
@@ -113,7 +146,5 @@ var Header = () => header(
   )
 );
 export {
-  Header,
-  pageLoadHooks,
-  serverState
+  Header
 };

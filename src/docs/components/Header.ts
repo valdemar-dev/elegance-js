@@ -1,16 +1,17 @@
 import { hasSubscribers } from "diagnostics_channel";
 import { createState } from "../../server/createState"
 import { observe } from "../../server/observe";
+import { Link } from "../../components/Link";
+import { addPageLoadHooks } from "../../server/addPageLoadHooks";
 
-const eventListener = (fn: (...params: any) => any) => fn;
-
-export const serverState = createState({
+const serverState = createState({
     hasUserScrolled: false,
     interval: 0,
     globalTicker: 0,
+    urmom: "hi"
 });
 
-export const pageLoadHooks = [
+addPageLoadHooks([
     (state: State<typeof serverState>) => {
         const hasScrolled = state.subjects.hasUserScrolled;
 
@@ -33,7 +34,7 @@ export const pageLoadHooks = [
             state.signal(hasScrolled);
         })
     },
-]
+])
 
 export const Header = () => header ({
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
@@ -75,6 +76,12 @@ export const Header = () => header ({
             div ({
                 class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full",
             },
+                Link ({
+                    href: "/test-page"
+                },
+                    "hi",
+                ),
+
                 a ({ 
                     class: "font-inter text-sm font-semibold text-text-100 pt-[2px] h-full flex items-center px-4 pointer-fine:group-hover:text-background-950 duration-200 hover:cursor-none group/link",
                     href: "/demo",

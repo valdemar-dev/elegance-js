@@ -4,15 +4,14 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (augment) => {
-  const state2 = {};
   for (const [key, value] of Object.entries(augment)) {
-    state2[key] = {
+    globalThis.__SERVER_CURRENT_STATE__[key] = {
       id: currentId++,
       value,
       type: 1 /* STATE */
     };
   }
-  return state2;
+  return globalThis.__SERVER_CURRENT_STATE__;
 };
 
 // src/docs/components/sidebar.ts

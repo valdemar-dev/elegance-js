@@ -381,6 +381,20 @@ var serverSideRenderPage = async (page, pathname) => {
   };
 };
 
+// src/server/createState.ts
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
+var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = {};
+var getState = () => {
+  return globalThis.__SERVER_CURRENT_STATE__;
+};
+
+// src/server/addPageLoadHooks.ts
+var initializePageLoadHooks = () => globalThis.__SERVER_CURRENT_PAGELOADHOOKS__ = [];
+var getPageLoadHooks = () => globalThis.__SERVER_CURRENT_PAGELOADHOOKS__;
+
 // src/build.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
@@ -516,39 +530,42 @@ var processPageElements = (element, objectAttributes, key) => {
     if (!attributeValue.type) {
       throw `ObjectAttributeType is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
     }
+    const lowerCaseOption = option.toLowerCase();
     switch (attributeValue.type) {
       case 1 /* STATE */:
         if (typeof attributeValue.value === "function") {
-          if (!option.toLowerCase().startsWith("on")) {
+          if (!lowerCaseOption.startsWith("on")) {
             throw `ObjectAttribute.STATE type object attributes may not have their value be a function, unless their attribute is an event handler.`;
           }
           delete element.options[option];
           break;
         }
-        if (option.toLowerCase() === "innertext") {
+        if (lowerCaseOption === "innertext") {
           element.children = [attributeValue.value, ...element.children];
           delete element.options[option];
-        } else if (option.toLowerCase() === "innerhtml") {
+        } else if (lowerCaseOption === "innerhtml") {
           element.children = [attributeValue.value];
           delete element.options[option];
         } else {
-          element.options[option] = attributeValue.value;
+          delete element.options[option];
+          element.options[lowerCaseOption] = attributeValue.value;
         }
         break;
       case 3 /* OBSERVER */:
         const firstValue = attributeValue.update(...attributeValue.initialValues);
-        if (option.toLowerCase() === "innertext") {
+        if (lowerCaseOption === "innertext") {
           element.children = [firstValue, ...element.children];
           delete element.options[option];
-        } else if (option.toLowerCase() === "innerhtml") {
+        } else if (lowerCaseOption === "innerhtml") {
           element.children = [firstValue];
           delete element.options[option];
         } else {
-          element.options[option] = firstValue;
+          delete element.options[option];
+          element.options[lowerCaseOption] = firstValue;
         }
         break;
     }
-    objectAttributes.push({ ...attributeValue, key, attribute: option });
+    objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
   }
   for (let child of element.children) {
     const processedChild = processPageElements(child, objectAttributes, key + 1);
@@ -596,9 +613,10 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   return objectAttributes;
 };
 var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR, watch) => {
-  let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}/`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+  let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+  clientPageJSText += `pd[url]={`;
   if (watch) {
-    clientPageJSText += "pd[url]={...pd[url],w:true};";
+    clientPageJSText += "w:true,";
   }
   if (state) {
     let formattedStateString = "";
@@ -610,38 +628,40 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
         formattedStateString += `${key}:{id:${subject.id},value:${subject.value}},`;
       }
     }
-    clientPageJSText += `pd[url]={...pd[url],state:{${formattedStateString}}};`;
+    clientPageJSText += `state:{${formattedStateString}},`;
   }
   const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
   if (stateObjectAttributes.length > 0) {
-    clientPageJSText += `pd[url]={...pd[url],soa:${JSON.stringify(stateObjectAttributes)}};`;
+    clientPageJSText += `soa:${JSON.stringify(stateObjectAttributes)},`;
   }
   const observerObjectAttributes = objectAttributes.filter((oa) => oa.type === 3 /* OBSERVER */);
   if (observerObjectAttributes.length > 0) {
-    let observerObjectAttributeString = "pd[url]={...pd[url],ooa:[";
+    let observerObjectAttributeString = "ooa:[";
     for (const observerObjectAttribute of observerObjectAttributes) {
       const ooa = observerObjectAttribute;
       observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
     }
-    observerObjectAttributeString += "]};";
+    observerObjectAttributeString += "],";
     clientPageJSText += observerObjectAttributeString;
   }
   if (pageLoadHooks.length > 0) {
-    clientPageJSText += "pd[url]={...pd[url],plh:[";
+    clientPageJSText += "plh:[";
     for (const pageLoadHook of pageLoadHooks) {
       clientPageJSText += `${pageLoadHook.toString()},`;
     }
-    clientPageJSText += "]};";
+    clientPageJSText += "],";
   }
+  clientPageJSText += `}`;
   const pageDataPath = path.join(DIST_DIR, pageLocation, "page_data.js");
   let sendHardReloadInstruction = false;
+  const transformedResult = await esbuild.transform(clientPageJSText, { minify: true });
   if (fs.existsSync(pageDataPath)) {
     const existingPageData = fs.readFileSync(pageDataPath, "utf-8");
-    if (existingPageData.toString() !== clientPageJSText) {
+    if (existingPageData.toString() !== transformedResult.code) {
       sendHardReloadInstruction = true;
     }
   }
-  fs.writeFileSync(pageDataPath, clientPageJSText, "utf-8");
+  fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
 var buildPages = async (pages, environment, DIST_DIR, writeToHTML, watch) => {
@@ -662,7 +682,11 @@ var buildPages = async (pages, environment, DIST_DIR, writeToHTML, watch) => {
       }
     }
     const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js");
-    const { page: pageElements, state, pageLoadHooks } = await import(pagePath + `?${Date.now()}`);
+    initializeState();
+    initializePageLoadHooks();
+    const { page: pageElements } = await import(pagePath + `?${Date.now()}`);
+    const state = getState();
+    const pageLoadHooks = getPageLoadHooks();
     if (!pageElements) {
       throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`;
     }

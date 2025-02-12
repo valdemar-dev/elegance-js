@@ -5,6 +5,10 @@ declare global {
 
     // server stuff
     var __SERVER_CURRENT_STATE_ID__: number;
+    var __SERVER_CURRENT_STATE__: Record<string, any>
+    var __SERVER_CURRENT_PAGELOADHOOKS__: Array<any>
+
+    var navigateLocally: (target: string, pushState?: boolean) => any;
 
     var __PAGE_INFOS__: MinimizedPageInfo[];
 

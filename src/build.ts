@@ -8,6 +8,8 @@ import http, { IncomingMessage, ServerResponse } from "http";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
+import { getState, initializeState } from "./server/createState";
+import { getPageLoadHooks, initializePageLoadHooks } from "./server/addPageLoadHooks";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -202,10 +204,12 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
             throw `ObjectAttributeType is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
         }
 
+        const lowerCaseOption = option.toLowerCase();
+        
         switch (attributeValue.type) {
             case ObjectAttributeType.STATE:
                 if (typeof attributeValue.value === "function") {
-                    if (!option.toLowerCase().startsWith("on")) { 
+                    if (!lowerCaseOption.startsWith("on")) { 
                         throw `ObjectAttribute.STATE type object attributes may not have their value be a function, unless their attribute is an event handler.`
                     }
 
@@ -214,14 +218,15 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                     break;
                 }
 
-                if (option.toLowerCase() === "innertext") {
+                if (lowerCaseOption === "innertext") {
                     element.children = [attributeValue.value, ...element.children];
                     delete element.options[option];
-                } else if (option.toLowerCase() === "innerhtml") {
+                } else if (lowerCaseOption === "innerhtml") {
                     element.children = [attributeValue.value];
                     delete element.options[option];
                 } else {
-                    element.options[option] = attributeValue.value;
+                    delete element.options[option];
+                    element.options[lowerCaseOption] = attributeValue.value;
                 }
 
                 break;
@@ -229,20 +234,21 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
             case ObjectAttributeType.OBSERVER:
                 const firstValue = attributeValue.update(...attributeValue.initialValues);
 
-                if (option.toLowerCase() === "innertext") {
+                if (lowerCaseOption === "innertext") {
                     element.children = [firstValue, ...element.children];
                     delete element.options[option];
-                } else if (option.toLowerCase() === "innerhtml") {
+                } else if (lowerCaseOption === "innerhtml") {
                     element.children = [firstValue];
                     delete element.options[option];
                 } else {
-                    element.options[option] = firstValue;
+                    delete element.options[option];
+                    element.options[lowerCaseOption] = firstValue;
                 }
 
                 break;
         }
 
-        objectAttributes.push({ ...attributeValue, key: key, attribute: option, });
+        objectAttributes.push({ ...attributeValue, key: key, attribute: lowerCaseOption, });
     }
 
     for (let child of element.children) {
@@ -267,7 +273,7 @@ const generateSuitablePageElements = async (
         typeof pageElements === "number" ||
         Array.isArray(pageElements)
     ) {	
-	return [];
+        return [];
     }
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
@@ -324,10 +330,11 @@ const generateClientPageData = async (
     DIST_DIR: string,
     watch: boolean,
 ) => {
-    let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}/`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+    let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+    clientPageJSText += `pd[url]={`;
 
     if (watch) {
-        clientPageJSText += "pd[url]={...pd[url],w:true};";
+        clientPageJSText += "w:true,";
     }
 
     if (state) {
@@ -345,18 +352,18 @@ const generateClientPageData = async (
             }
         }
      
-        clientPageJSText += `pd[url]={...pd[url],state:{${formattedStateString}}};`;
+        clientPageJSText += `state:{${formattedStateString}},`;
     }
 
     const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
 
     if (stateObjectAttributes.length > 0) {
-        clientPageJSText += `pd[url]={...pd[url],soa:${JSON.stringify(stateObjectAttributes)}};`
+        clientPageJSText += `soa:${JSON.stringify(stateObjectAttributes)},`
     }
 
     const observerObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.OBSERVER);
     if (observerObjectAttributes.length > 0) {
-        let observerObjectAttributeString = "pd[url]={...pd[url],ooa:[";
+        let observerObjectAttributeString = "ooa:[";
 
         for (const observerObjectAttribute of observerObjectAttributes) {
             const ooa = observerObjectAttribute as unknown as {
@@ -369,34 +376,39 @@ const generateClientPageData = async (
             observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`
         }
 
-        observerObjectAttributeString += "]};";
+        observerObjectAttributeString += "],";
         clientPageJSText += observerObjectAttributeString;
     }
 
     if (pageLoadHooks.length > 0) {
-        clientPageJSText += "pd[url]={...pd[url],plh:[";
+        clientPageJSText += "plh:[";
 
         for (const pageLoadHook of pageLoadHooks) {
             clientPageJSText += `${pageLoadHook.toString()},`;
         }
 
-        clientPageJSText += "]};";
+        clientPageJSText += "],";
     }
+
+    // close fully, NEVER REMOVE!!
+    clientPageJSText += `}`;
 
     const pageDataPath = path.join(DIST_DIR, pageLocation, "page_data.js");
 
     let sendHardReloadInstruction = false;
 
+    const transformedResult = await esbuild.transform(clientPageJSText, { minify: true, })
+
     // makes pages hard-reload when import things are changed - val feb 10 2025
     if (fs.existsSync(pageDataPath)) {
         const existingPageData = fs.readFileSync(pageDataPath, "utf-8")
 
-        if (existingPageData.toString() !== clientPageJSText) {
+        if (existingPageData.toString() !== transformedResult.code) {
             sendHardReloadInstruction = true;
         }
     }
 
-    fs.writeFileSync(pageDataPath, clientPageJSText, "utf-8",)
+    fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8",)
 
     return { sendHardReloadInstruction, }
 };
@@ -435,7 +447,14 @@ const buildPages = async (
 
         const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
 
-        const { page: pageElements, state, pageLoadHooks, } = await import(pagePath + `?${Date.now()}`);
+        // reset server-state if it existed 
+        initializeState();
+        initializePageLoadHooks();
+
+        const { page: pageElements, } = await import(pagePath + `?${Date.now()}`);
+
+        const state = getState();
+        const pageLoadHooks = getPageLoadHooks();
 
         if (!pageElements) {
             throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`

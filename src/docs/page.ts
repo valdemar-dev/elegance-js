@@ -1,21 +1,6 @@
-import { createState } from "../server/createState"
 import { 
     Header,
-    serverState as headerState,
-    pageLoadHooks as headerHooks,
 } from "./components/Header";
-
-const pageState = createState({
-});
-
-export const state = {
-    ...pageState,
-    ...headerState,
-}
-
-export const pageLoadHooks = [
-    ...headerHooks,
-]
 
 const pageTemplateString = 
 `

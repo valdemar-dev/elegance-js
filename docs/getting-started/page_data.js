@@ -1,1 +1,1 @@
-let url="/getting-started/";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;pd[url]={...pd[url],w:true};pd[url]={...pd[url],state:{}};
+let url="/getting-started";globalThis.pd||(globalThis.pd={});let pd=globalThis.pd;pd[url]={w:!0,state:{}};

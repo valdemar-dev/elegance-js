@@ -1,3 +1,6 @@
+// src/helpers/createEventListener.ts
+var createEventListener = (fn) => fn;
+
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -13,12 +16,25 @@ var createState = (augment) => {
   }
   return globalThis.__SERVER_CURRENT_STATE__;
 };
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = {};
-var getState = () => {
-  return globalThis.__SERVER_CURRENT_STATE__;
+
+// src/components/Link.ts
+var Link = ({
+  href
+}, ...children) => {
+  return a(
+    {
+      href,
+      onClick: serverState.navigate
+    },
+    ...children
+  );
 };
+var serverState = createState({
+  navigate: createEventListener((state, event) => {
+    event.preventDefault();
+    navigateLocally(event.target.href);
+  })
+});
 export {
-  createState,
-  getState,
-  initializeState
+  Link
 };
