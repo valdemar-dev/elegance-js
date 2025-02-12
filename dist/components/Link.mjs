@@ -1,5 +1,10 @@
-// src/helpers/createEventListener.ts
+// src/server/createEventListener.ts
 var createEventListener = (fn) => fn;
+
+// src/server/addPageLoadHooks.ts
+var addPageLoadHooks = (hooks) => {
+  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
+};
 
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
@@ -18,23 +23,38 @@ var createState = (augment) => {
 };
 
 // src/components/Link.ts
-var Link = ({
-  href
-}, ...children) => {
+addPageLoadHooks([
+  () => {
+    const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
+    for (const anchor of anchors) {
+      const prefetch = anchor.getAttribute("prefetch");
+      const href = new URL(anchor.href);
+      switch (prefetch) {
+        case "load":
+          __ELEGANCE_CLIENT__.fetchPage(href);
+          break;
+      }
+    }
+  }
+]);
+var serverState = createState({
+  navigate: createEventListener((state, event) => {
+    event.preventDefault();
+    __ELEGANCE_CLIENT__.navigateLocally(event.target.href);
+  })
+});
+var Link = (options, ...children) => {
+  if (!options.href) {
+    throw `Link elements must have a HREF attribute set.`;
+  }
   return a(
     {
-      href,
+      ...options,
       onClick: serverState.navigate
     },
     ...children
   );
 };
-var serverState = createState({
-  navigate: createEventListener((state, event) => {
-    event.preventDefault();
-    navigateLocally(event.target.href);
-  })
-});
 export {
   Link
 };

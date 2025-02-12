@@ -10,8 +10,18 @@ let cleanupFunctions: Array<() => void> = [];
 let evtSource: EventSource | null = null;
 let currentPage: string = window.location.pathname;
 
-const fetchLocalPage = async (targetURL: URL) => {
-    const pathname = targetURL.pathname;
+const sanitizePathname = (pn: string) => {
+    if (pn === "/") return pn
+    else if (!pn.endsWith("/")) return pn;
+    return pn.slice(0, -1);
+};
+
+const fetchPage = async (targetURL: URL) => {
+    const pathname = sanitizePathname(targetURL.pathname);
+
+    if (pageStringCache.has(pathname))
+
+    console.log(`Fetching ${pathname}`);
 
     if (targetURL.hostname !== window.location.hostname) {
         console.error(`Client-side navigation may only occur on local URL's`);
@@ -21,8 +31,8 @@ const fetchLocalPage = async (targetURL: URL) => {
     const res = await fetch(targetURL);
     const resText = await res.text();
 
-    if (!res.ok) {
-        console.error(`Received an error whilst trying to navigate: ${resText}`);
+    if (!res.ok && res.status >= 500) {
+        console.error(`Server error whilst navigating to ${pathname}: ${resText}`);
         return;
     }
 
@@ -39,22 +49,30 @@ const fetchLocalPage = async (targetURL: URL) => {
     return newDOM;
 };
 
-globalThis.navigateLocally = async (target: string, pushState: boolean = true) => {
+const navigateLocally = async (target: string, pushState: boolean = true) => {
     console.log(`Naving to: ${target} from ${currentPage}`);
+
+    for (const func of cleanupFunctions) {
+        func();
+    }
+
+    cleanupFunctions = [];
 
     pageStringCache.set(currentPage, serializer.serializeToString(document));
 
     const targetURL = new URL(target);
-    const isPageCached = pageStringCache.has(targetURL.pathname);
+    const pathname = sanitizePathname(targetURL.pathname);
+
+    const isPageCached = pageStringCache.has(pathname);
 
     if (isPageCached) {
-        const cachedDOM = pageStringCache.get(targetURL.pathname);
+        const cachedDOM = pageStringCache.get(pathname);
         const parsedDOM = parser.parseFromString(cachedDOM, "text/html")
 
         document.head.replaceChildren(...Array.from(parsedDOM.head.children));
         document.body = parsedDOM.body;
     } else {
-        const fetchedDOM = await fetchLocalPage(targetURL);
+        const fetchedDOM = await fetchPage(targetURL);
         if (!fetchedDOM) return;
 
         document.head.replaceChildren(...Array.from(fetchedDOM.head.children));
@@ -65,7 +83,7 @@ globalThis.navigateLocally = async (target: string, pushState: boolean = true) =
 
     load();
 
-    currentPage = window.location.pathname;
+    currentPage = pathname;
 };
 
 window.onpopstate = async (event: PopStateEvent) => {
@@ -74,22 +92,11 @@ window.onpopstate = async (event: PopStateEvent) => {
     const target = event.target as Window;
     await navigateLocally(target.location.href, false);
 
-    history.replaceState(null, "", target.location.pathname)
+    history.replaceState(null, "", sanitizePathname(target.location.pathname));
 };
 
 const load = () => {
-    for (const func of cleanupFunctions) {
-        func();
-    }
-
-    cleanupFunctions = [];
-
-    let pathname = window.location.pathname;
-
-    // fixes weird auto-formatting in browser urls
-    if (pathname.endsWith("/") && pathname !== "/") {
-        pathname = pathname.slice(0,-1);
-    }
+    let pathname = sanitizePathname(window.location.pathname);
 
     let pageData = pd[pathname];
     if (!pageData) {
@@ -175,6 +182,8 @@ const load = () => {
 
             state.observe(subject, updateFunction);
         }
+
+        console.info(`Registered observer for key ${observer.key}`)
     }
 
     for (const soa of stateObjectAttributes || []) {
@@ -187,6 +196,8 @@ const load = () => {
         }
 
         (el as any)[soa.attribute] = (event: Event) => subject.value(state, event);
+
+        console.info(`Registered SOA ${soa.attribute} for key ${soa.key}`, subject.value);
     }
 
     for (const pageLoadHook of pageLoadHooks || []) {
@@ -205,6 +216,12 @@ const load = () => {
             if (event.data === "reload") {
                 const newHTML = await fetch(window.location.href);
 
+                for (const func of cleanupFunctions) {
+                    func();
+                }
+
+                cleanupFunctions = [];
+
                 document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
 
                 const link = document.querySelector('[rel=stylesheet]') as HTMLLinkElement;
@@ -220,6 +237,12 @@ const load = () => {
             }
         };
     }
+};
+
+
+globalThis.__ELEGANCE_CLIENT__ = {
+    navigateLocally,
+    fetchPage,
 };
 
 load();

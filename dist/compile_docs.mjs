@@ -7,225 +7,6 @@ import path from "path";
 import esbuild from "esbuild";
 import { fileURLToPath } from "url";
 
-// src/helpers/generateHTMLTemplate.ts
-var renderElement = (element) => {
-  if (typeof element === "string") {
-    return element;
-  }
-  if (typeof element === "number") {
-    return element;
-  }
-  if (typeof element === "boolean") return null;
-  if (Array.isArray(element)) {
-    return element.join(", ");
-  }
-  let returnHTML = "";
-  returnHTML += `<${element.tag}`;
-  if (Object.hasOwn(element, "options")) {
-    const options = element.options;
-    for (const [key, value] of Object.entries(options)) {
-      returnHTML += ` ${key}="${value}"`;
-    }
-  }
-  if (!element.children) {
-    returnHTML += "/>";
-    return returnHTML;
-  }
-  returnHTML += ">";
-  for (const child of element.children) {
-    returnHTML += renderElement(child);
-  }
-  returnHTML += `</${element.tag}>`;
-  return returnHTML;
-};
-var generateHTMLTemplate = ({
-  pageURL,
-  head,
-  serverData = null,
-  addPageScriptTag = true
-}) => {
-  let HTMLTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
-  if (addPageScriptTag === true) {
-    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
-  }
-  HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
-  const builtHead = head();
-  for (const child of builtHead.children) {
-    HTMLTemplate += renderElement(child);
-  }
-  if (serverData) {
-    HTMLTemplate += serverData;
-  }
-  return HTMLTemplate;
-};
-
-// src/build.ts
-import http from "http";
-
-// src/server/state.ts
-var debounce = (delay) => {
-  let timer;
-  return (callback) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      callback();
-    }, delay);
-  };
-};
-var Subject = class {
-  constructor(initialValue, id, enforceRuntimeTypes = false, debounceUpdateMs = null, pathname = "", scope = 1 /* LOCAL */, resetOnPageLeave = false) {
-    this.observers = [];
-    this.enforceRuntimeTypes = enforceRuntimeTypes;
-    this.value = initialValue;
-    this.id = id;
-    this.pathname = pathname;
-    this.scope = scope;
-    this.resetOnPageLeave = resetOnPageLeave;
-    if (debounceUpdateMs) {
-      this.debounce = debounce(debounceUpdateMs);
-    }
-  }
-  set(newValue) {
-    if (this.enforceRuntimeTypes && typeof newValue !== typeof this.value) {
-      console.error(`Type of new value: ${newValue} (${typeof newValue}) does not match the type of this subject's value ${this.value} (${typeof this.value}).`);
-      return;
-    }
-    this.value = newValue;
-  }
-  add(entry) {
-    if (!Array.isArray(this.value)) {
-      console.error(`The add method of a subject may only be used if the subject's value is an Array.`);
-      return;
-    }
-    this.value.push(entry);
-  }
-  remove(entry) {
-    if (!Array.isArray(this.value)) {
-      console.error(`The remove method of a subject may only be used if the subject's value is an Array.`);
-      return;
-    }
-    const index = this.value.indexOf(entry);
-    if (!index) console.error(`Element ${entry} does not exist in this subject, therefore it cannot be removed.`);
-    this.value.splice(index, 1);
-  }
-  get() {
-    return this.value;
-  }
-};
-var ServerStateController = class {
-  constructor(pathname) {
-    this.subjectStore = [];
-    this.observerStore = [];
-    this.pathname = pathname;
-  }
-  create(initialValue, {
-    id,
-    enforceRuntimeTypes = true,
-    debounceUpdateMs,
-    resetOnPageLeave = false
-  }) {
-    const existingSubject = this.subjectStore.find((sub) => {
-      return sub.pathname === this.pathname && sub.id === id;
-    });
-    if (existingSubject) {
-      console.info(
-        `%cSubject with ID ${id} already exists, therefore it will not be re-created.`,
-        "font-size: 12px; color: #aaaaff"
-      );
-      return existingSubject;
-    }
-    const subject = new Subject(
-      initialValue,
-      id,
-      enforceRuntimeTypes,
-      debounceUpdateMs,
-      this.pathname,
-      1 /* LOCAL */,
-      resetOnPageLeave
-    );
-    this.subjectStore.push(subject);
-    return subject;
-  }
-  createGlobal(initialValue, {
-    id,
-    enforceRuntimeTypes = true,
-    debounceUpdateMs,
-    resetOnPageLeave = false
-  }) {
-    const existingSubject = this.subjectStore.find((sub) => {
-      return sub.scope === 2 /* GLOBAL */ && sub.id === id;
-    });
-    if (existingSubject) {
-      console.info(
-        `%cGlobal Subject with ID ${id} already exists, therefore it will not be re-created.`,
-        "font-size: 12px; color: #aaaaff"
-      );
-      return existingSubject;
-    }
-    const subject = new Subject(
-      initialValue,
-      id,
-      enforceRuntimeTypes,
-      debounceUpdateMs,
-      "",
-      2 /* GLOBAL */,
-      resetOnPageLeave
-    );
-    this.subjectStore.push(subject);
-    return subject;
-  }
-  getGlobal(id) {
-    const subject = this.subjectStore.find((sub) => {
-      return sub.scope === 2 /* GLOBAL */ && sub.id === id;
-    });
-    if (!subject) {
-      throw new Error(`Could not find a global subject with the ID of ${id}.`);
-    }
-    return subject;
-  }
-  get(id) {
-    const subject = this.subjectStore.find((sub) => {
-      return sub.pathname === this.pathname && sub.id === id;
-    });
-    if (!subject) {
-      console.error(`Could not find a subject with the ID of ${id} in the page ${this.pathname}`);
-      return;
-    }
-    return subject;
-  }
-  storeObserver(id, scope) {
-    this.observerStore.push({ [id]: scope });
-  }
-};
-
-// src/server/renderer.ts
-var renderRecursively = (element, index) => {
-  let returnString = "";
-  if (typeof element === "boolean") return returnString;
-  else if (typeof element === "number" || typeof element === "string") {
-    return returnString + element;
-  } else if (Array.isArray(element)) {
-    return returnString + element.join(", ");
-  }
-  returnString += `<${element.tag}`;
-  for (const [attrName, attrValue] of Object.entries(element.options)) {
-    if (typeof attrValue === "object") {
-      throw `Internal error, attr ${attrName} has obj type.`;
-    }
-    returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
-  }
-  if (element.children.length < 1) {
-    returnString += "/>";
-    return returnString;
-  }
-  returnString += ">";
-  for (const child of element.children) {
-    returnString += renderRecursively(child, index + 1);
-  }
-  returnString += `</${element.tag}>`;
-  return returnString;
-};
-
 // src/shared/bindBrowserElements.ts
 var elementsWithAttributesAndChildren = [
   "a",
@@ -369,20 +150,67 @@ Object.assign(globalThis, {
 });
 
 // src/server/render.ts
+var renderRecursively = (element) => {
+  let returnString = "";
+  if (typeof element === "boolean") return returnString;
+  else if (typeof element === "number" || typeof element === "string") {
+    return returnString + element;
+  } else if (Array.isArray(element)) {
+    return returnString + element.join(", ");
+  }
+  returnString += `<${element.tag}`;
+  for (const [attrName, attrValue] of Object.entries(element.options)) {
+    if (typeof attrValue === "object") {
+      throw `Internal error, attr ${attrName} has obj type.`;
+    }
+    returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
+  }
+  if (element.children.length < 1) {
+    returnString += "/>";
+    return returnString;
+  }
+  returnString += ">";
+  for (const child of element.children) {
+    returnString += renderRecursively(child);
+  }
+  returnString += `</${element.tag}>`;
+  return returnString;
+};
 var serverSideRenderPage = async (page, pathname) => {
   if (!page) {
     throw `No Page Provided.`;
   }
-  const state = new ServerStateController(pathname);
-  const bodyHTML = renderRecursively(page, 0);
+  const bodyHTML = renderRecursively(page);
   return {
-    bodyHTML,
-    storedEventListeners: [],
-    storedState: state.subjectStore,
-    storedObservers: state.observerStore,
-    onHydrateFinish: void 0
+    bodyHTML
   };
 };
+
+// src/server/generateHTMLTemplate.ts
+var generateHTMLTemplate = ({
+  pageURL,
+  head,
+  serverData = null,
+  addPageScriptTag = true
+}) => {
+  let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
+  if (addPageScriptTag === true) {
+    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
+  }
+  HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
+  const builtHead = head();
+  for (const child of builtHead.children) {
+    HTMLTemplate += renderRecursively(child);
+  }
+  if (serverData) {
+    HTMLTemplate += serverData;
+  }
+  HTMLTemplate += "</head>";
+  return HTMLTemplate;
+};
+
+// src/build.ts
+import http from "http";
 
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
@@ -510,7 +338,8 @@ var escapeHtml = (str) => {
   const replaced = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/\r?\n|\r/g, "");
   return replaced;
 };
-var processPageElements = (element, objectAttributes, key) => {
+var elementKey = 0;
+var processPageElements = (element, objectAttributes) => {
   if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
   if (typeof element === "string") {
     return escapeHtml(element);
@@ -527,7 +356,9 @@ var processPageElements = (element, objectAttributes, key) => {
       continue;
     }
     ;
+    let key = element.options.key;
     if (!element.options.key) {
+      key = elementKey++;
       element.options.key = key;
     }
     if (!attributeValue.type) {
@@ -571,7 +402,7 @@ var processPageElements = (element, objectAttributes, key) => {
     objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
   }
   for (let child of element.children) {
-    const processedChild = processPageElements(child, objectAttributes, key + 1);
+    const processedChild = processPageElements(child, objectAttributes);
     child = processedChild;
   }
   return element;
@@ -581,7 +412,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     return [];
   }
   const objectAttributes = [];
-  const processedPageElements = processPageElements(pageElements, objectAttributes, 1);
+  const processedPageElements = processPageElements(pageElements, objectAttributes);
   if (!writeToHTML) {
     fs.writeFileSync(
       path.join(DIST_DIR, pageLocation, "page.json"),
@@ -788,7 +619,6 @@ var registerListener = async (props) => {
           "Access-Control-Allow-Headers": "*"
         });
         httpStream = res;
-        res.write("data: reload\n\n");
       } else {
         res.writeHead(404, { "Content-Type": "text/plain" });
         res.end("Not Found");

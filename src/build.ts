@@ -2,7 +2,7 @@ import fs, { Dirent, FSWatcher } from "fs";
 import path from "path";
 import esbuild, { BuildOptions, Plugin, PluginBuild } from "esbuild";
 import { fileURLToPath } from 'url';
-import { generateHTMLTemplate } from "./helpers/generateHTMLTemplate";
+import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
 import { GenerateMetadata, } from "./types/Metadata";
 import http, { IncomingMessage, ServerResponse } from "http";
 
@@ -170,7 +170,8 @@ const escapeHtml = (str: string): string => {
     return replaced;
 };
 
-const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>, key: number): Child => {
+let elementKey = 0;
+const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>): Child => {
     if (
         typeof element === "boolean" ||
         typeof element === "number" ||
@@ -196,8 +197,10 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
             continue;
         };
 
+        let key = element.options.key;
         if (!element.options.key) {
-            element.options.key = key
+            key = elementKey++;
+            element.options.key = key;
         }
 
         if (!attributeValue.type) {
@@ -252,7 +255,7 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
     }
 
     for (let child of element.children) {
-        const processedChild = processPageElements(child, objectAttributes, key+1)
+        const processedChild = processPageElements(child, objectAttributes)
 
         child = processedChild;	
     }
@@ -277,7 +280,7 @@ const generateSuitablePageElements = async (
     }
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
-    const processedPageElements = processPageElements(pageElements, objectAttributes, 1);
+    const processedPageElements = processPageElements(pageElements, objectAttributes);
 
     if (!writeToHTML) {
         fs.writeFileSync(
@@ -580,9 +583,6 @@ const registerListener = async (props: any) => {
                 });
 
                 httpStream = res;
-
-                res.write("data: reload\n\n")
-
             } else {
                 res.writeHead(404, { 'Content-Type': 'text/plain' });
                 res.end('Not Found');

@@ -721,9 +721,6 @@
   .border-background-800 {
     border-color: var(--color-background-800);
   }
-  .border-transparent {
-    border-color: transparent;
-  }
   .border-b-background-800 {
     border-bottom-color: var(--color-background-800);
   }
@@ -799,9 +796,6 @@
   }
   .pt-8 {
     padding-top: calc(var(--spacing) * 8);
-  }
-  .pt-\[2px\] {
-    padding-top: 2px;
   }
   .pr-2 {
     padding-right: calc(var(--spacing) * 2);
@@ -917,10 +911,6 @@
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
-  .duration-200 {
-    --tw-duration: 200ms;
-    transition-duration: 200ms;
-  }
   .duration-300 {
     --tw-duration: 300ms;
     transition-duration: 300ms;
@@ -932,13 +922,6 @@
   .select-text {
     -webkit-user-select: text;
     user-select: text;
-  }
-  .group-hover\/link\:border-background-950 {
-    &:is(:where(.group\/link):hover *) {
-      @media (hover: hover) {
-        border-color: var(--color-background-950);
-      }
-    }
   }
   .hover\:cursor-none {
     &:hover {

@@ -167,16 +167,29 @@ var renderRecursively = (element) => {
   returnString += `</${element.tag}>`;
   return returnString;
 };
-var serverSideRenderPage = async (page, pathname) => {
-  if (!page) {
-    throw `No Page Provided.`;
+
+// src/server/generateHTMLTemplate.ts
+var generateHTMLTemplate = ({
+  pageURL,
+  head,
+  serverData = null,
+  addPageScriptTag = true
+}) => {
+  let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
+  if (addPageScriptTag === true) {
+    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
   }
-  const bodyHTML = renderRecursively(page);
-  return {
-    bodyHTML
-  };
+  HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
+  const builtHead = head();
+  for (const child of builtHead.children) {
+    HTMLTemplate += renderRecursively(child);
+  }
+  if (serverData) {
+    HTMLTemplate += serverData;
+  }
+  HTMLTemplate += "</head>";
+  return HTMLTemplate;
 };
 export {
-  renderRecursively,
-  serverSideRenderPage
+  generateHTMLTemplate
 };

@@ -6,16 +6,23 @@ var pageStringCache = /* @__PURE__ */ new Map();
 var cleanupFunctions = [];
 var evtSource = null;
 var currentPage = window.location.pathname;
-var fetchLocalPage = async (targetURL) => {
-  const pathname = targetURL.pathname;
+var sanitizePathname = (pn) => {
+  if (pn === "/") return pn;
+  else if (!pn.endsWith("/")) return pn;
+  return pn.slice(0, -1);
+};
+var fetchPage = async (targetURL) => {
+  const pathname = sanitizePathname(targetURL.pathname);
+  if (pageStringCache.has(pathname))
+    console.log(`Fetching ${pathname}`);
   if (targetURL.hostname !== window.location.hostname) {
     console.error(`Client-side navigation may only occur on local URL's`);
     return;
   }
   const res = await fetch(targetURL);
   const resText = await res.text();
-  if (!res.ok) {
-    console.error(`Received an error whilst trying to navigate: ${resText}`);
+  if (!res.ok && res.status >= 500) {
+    console.error(`Server error whilst navigating to ${pathname}: ${resText}`);
     return;
   }
   const newDOM = parser.parseFromString(resText, "text/html");
@@ -26,44 +33,39 @@ var fetchLocalPage = async (targetURL) => {
   pageStringCache.set(pathname, serializer.serializeToString(newDOM));
   return newDOM;
 };
-globalThis.navigateLocally = async (target, pushState = true) => {
+var navigateLocally = async (target, pushState = true) => {
   console.log(`Naving to: ${target} from ${currentPage}`);
+  for (const func of cleanupFunctions) {
+    func();
+  }
+  cleanupFunctions = [];
   pageStringCache.set(currentPage, serializer.serializeToString(document));
   const targetURL = new URL(target);
-  const isPageCached = pageStringCache.has(targetURL.pathname);
+  const pathname = sanitizePathname(targetURL.pathname);
+  const isPageCached = pageStringCache.has(pathname);
   if (isPageCached) {
-    const cachedDOM = pageStringCache.get(targetURL.pathname);
+    const cachedDOM = pageStringCache.get(pathname);
     const parsedDOM = parser.parseFromString(cachedDOM, "text/html");
     document.head.replaceChildren(...Array.from(parsedDOM.head.children));
     document.body = parsedDOM.body;
   } else {
-    const fetchedDOM = await fetchLocalPage(targetURL);
+    const fetchedDOM = await fetchPage(targetURL);
     if (!fetchedDOM) return;
     document.head.replaceChildren(...Array.from(fetchedDOM.head.children));
     document.body = fetchedDOM.body;
   }
   if (pushState) history.pushState(null, "", target);
   load();
-  currentPage = window.location.pathname;
+  currentPage = pathname;
 };
 window.onpopstate = async (event) => {
   event.preventDefault();
   const target = event.target;
   await navigateLocally(target.location.href, false);
-  history.replaceState(null, "", target.location.pathname);
-};
-var unload = () => {
-  for (const func of cleanupFunctions) {
-    func();
-  }
-  cleanupFunctions = [];
+  history.replaceState(null, "", sanitizePathname(target.location.pathname));
 };
 var load = () => {
-  unload();
-  let pathname = window.location.pathname;
-  if (pathname.endsWith("/") && pathname !== "/") {
-    pathname = pathname.slice(0, -1);
-  }
+  let pathname = sanitizePathname(window.location.pathname);
   let pageData = pd[pathname];
   if (!pageData) {
     console.error(`Invalid Elegance Configuration. Page.JS is not properly sent to the client. Pathname: ${window.location.pathname}`);
@@ -125,6 +127,7 @@ var load = () => {
       };
       state.observe(subject, updateFunction);
     }
+    console.info(`Registered observer for key ${observer.key}`);
   }
   for (const soa of stateObjectAttributes || []) {
     const el = document.querySelector(`[key="${soa.key}"]`);
@@ -134,6 +137,7 @@ var load = () => {
       return;
     }
     el[soa.attribute] = (event) => subject.value(state, event);
+    console.info(`Registered SOA ${soa.attribute} for key ${soa.key}`, subject.value);
   }
   for (const pageLoadHook of pageLoadHooks || []) {
     const cleanupFunction = pageLoadHook(state);
@@ -146,6 +150,10 @@ var load = () => {
       console.log(`Message: ${event.data}`);
       if (event.data === "reload") {
         const newHTML = await fetch(window.location.href);
+        for (const func of cleanupFunctions) {
+          func();
+        }
+        cleanupFunctions = [];
         document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
         const link = document.querySelector("[rel=stylesheet]");
         if (!link) return;
@@ -157,5 +165,9 @@ var load = () => {
       }
     };
   }
+};
+globalThis.__ELEGANCE_CLIENT__ = {
+  navigateLocally,
+  fetchPage
 };
 load();

@@ -8,17 +8,14 @@ declare global {
     var __SERVER_CURRENT_STATE__: Record<string, any>
     var __SERVER_CURRENT_PAGELOADHOOKS__: Array<any>
 
-    var navigateLocally: (target: string, pushState?: boolean) => any;
-
-    var __PAGE_INFOS__: MinimizedPageInfo[];
+    var __ELEGANCE_CLIENT__: {
+        navigateLocally: (target: string, pushState?: boolean) => any;
+        fetchPage: (targetURL: URL) => Promise<Document | undefined>;
+    }
 
     var pd: Record<string, any>;
 
     type ClientSubject = { id: number, value: any, observers: Array<(value: any) => any>};
-
-    var getSubjects: <T>() => {
-        [K in keyof T]: ClientSubject
-    }
 
     type State<T> = {
         subjects: {
@@ -39,16 +36,10 @@ declare global {
 
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
 
-    type OnHydrateOptions = {
-        builtElement: AnyBuiltElement,
-        elementInDocument: HTMLElement,
-    };
-
     type BuiltElement<T> = {
         tag: T;
         children: ElementChildren;
         options: Record<string, any>;
-        onHydrate?: (options: OnHydrateOptions) => void;
     };
 
     type ServerData = { data: any };
@@ -70,13 +61,13 @@ declare global {
             }) => Child;
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
-    ? { type: ObjectAttributeType, id: string | number, value: any, }
-    : T extends ObjectAttributeType.OBSERVER
-    ? { type: ObjectAttributeType, ids: number[], initialValues: any[], update: (...value: any) => void }
-    : { type: ObjectAttributeType, };
+        ? { type: ObjectAttributeType, id: string | number, value: any, }
+        : T extends ObjectAttributeType.OBSERVER
+        ? { type: ObjectAttributeType, ids: number[], initialValues: any[], update: (...value: any) => void }
+        : { type: ObjectAttributeType, };
 
     type ElementOptions = {
-	[key: string]: string | number | ObjectAttribute<any>
+        [key: string]: string | number | ObjectAttribute<any>
     }
 
     type EleganceElement<T> = (
@@ -101,48 +92,6 @@ declare global {
 	| Array<number | string | boolean>;
 
     type ElementChildren = Array<Child>;
-
-    type MinimizedPageInfo = {
-        a: string,
-        b: Array<{
-            id: number,
-            els: Array<{
-                an: string,
-                el: (...args: any) => any,
-            }>,
-	}>,
-	c: Array<{
-	    id: any
-	    v: any
-	    ert: boolean
-	    s: string
-	    db?: number
-	    ropl: boolean
-	}>
-	d?: () => void,
-	e: [{ [key: string]: "local" | "global", }],
-    };
-
-    type PageInfo = {
-        pathname: string,
-        storedEventListeners: Array<{
-            eleganceID: number,
-            eventListeners: Array<{
-                attributeName: string,
-                eventListener: (...args: any) => any,
-            }>,
-        }>,
-	storedState: Array<{
-	    id: any
-	    value: any
-	    enforceRuntimeTypes: boolean
-	    scope: string
-	    debounce: number
-	    resetOnPageLeave: boolean
-	}>,
-	onHydrateFinish?: () => void,
-	storedObservers: [{ [key: string]: "local" | "global", }],
-    };
 
     type OmitSomething<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
 

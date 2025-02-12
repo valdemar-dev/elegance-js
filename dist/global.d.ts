@@ -4,16 +4,15 @@ declare global {
     var __SERVER_CURRENT_STATE_ID__: number;
     var __SERVER_CURRENT_STATE__: Record<string, any>;
     var __SERVER_CURRENT_PAGELOADHOOKS__: Array<any>;
-    var navigateLocally: (target: string, pushState?: boolean) => any;
-    var __PAGE_INFOS__: MinimizedPageInfo[];
+    var __ELEGANCE_CLIENT__: {
+        navigateLocally: (target: string, pushState?: boolean) => any;
+        fetchPage: (targetURL: URL) => Promise<Document | undefined>;
+    };
     var pd: Record<string, any>;
     type ClientSubject = {
         id: number;
         value: any;
         observers: Array<(value: any) => any>;
-    };
-    var getSubjects: <T>() => {
-        [K in keyof T]: ClientSubject;
     };
     type State<T> = {
         subjects: {
@@ -30,15 +29,10 @@ declare global {
         event: E;
     };
     type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
-    type OnHydrateOptions = {
-        builtElement: AnyBuiltElement;
-        elementInDocument: HTMLElement;
-    };
     type BuiltElement<T> = {
         tag: T;
         children: ElementChildren;
         options: Record<string, any>;
-        onHydrate?: (options: OnHydrateOptions) => void;
     };
     type ServerData = {
         data: any;
@@ -75,50 +69,6 @@ declare global {
     type EleganceChildrenlessElement<T> = (options: ElementOptions) => BuiltElement<T>;
     type Child = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags> | string | boolean | Array<number | string | boolean>;
     type ElementChildren = Array<Child>;
-    type MinimizedPageInfo = {
-        a: string;
-        b: Array<{
-            id: number;
-            els: Array<{
-                an: string;
-                el: (...args: any) => any;
-            }>;
-        }>;
-        c: Array<{
-            id: any;
-            v: any;
-            ert: boolean;
-            s: string;
-            db?: number;
-            ropl: boolean;
-        }>;
-        d?: () => void;
-        e: [{
-            [key: string]: "local" | "global";
-        }];
-    };
-    type PageInfo = {
-        pathname: string;
-        storedEventListeners: Array<{
-            eleganceID: number;
-            eventListeners: Array<{
-                attributeName: string;
-                eventListener: (...args: any) => any;
-            }>;
-        }>;
-        storedState: Array<{
-            id: any;
-            value: any;
-            enforceRuntimeTypes: boolean;
-            scope: string;
-            debounce: number;
-            resetOnPageLeave: boolean;
-        }>;
-        onHydrateFinish?: () => void;
-        storedObservers: [{
-            [key: string]: "local" | "global";
-        }];
-    };
     type OmitSomething<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
     type AllowedHTMLElements = OmitSomething<HTMLElementTagNameMap, "var">;
     type OptionlessElementTags = "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "title" | "u" | "wbr";
