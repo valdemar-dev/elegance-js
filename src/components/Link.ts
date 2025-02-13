@@ -7,9 +7,9 @@ addPageLoadHooks([
         const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
 
         for (const anchor of anchors) {
-            const prefetch = anchor.getAttribute("prefetch")
+            const prefetch = anchor.getAttribute("prefetch");
 
-            const href = new URL((anchor as HTMLLinkElement).href)
+            const href = new URL((anchor as HTMLLinkElement).href);
 
             switch (prefetch) {
                 case "load":
@@ -24,7 +24,7 @@ const serverState = createState({
     navigate: createEventListener((state: State<typeof serverState>, event: MouseEvent) => {
         event.preventDefault();
 
-        __ELEGANCE_CLIENT__.navigateLocally((event.target as HTMLLinkElement).href);
+        __ELEGANCE_CLIENT__.navigateLocally((event.currentTarget as HTMLLinkElement).href);
     })
 });
 

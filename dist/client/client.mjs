@@ -7,14 +7,14 @@ var cleanupFunctions = [];
 var evtSource = null;
 var currentPage = window.location.pathname;
 var sanitizePathname = (pn) => {
+  if (!pn.endsWith("/")) return pn;
   if (pn === "/") return pn;
-  else if (!pn.endsWith("/")) return pn;
   return pn.slice(0, -1);
 };
 var fetchPage = async (targetURL) => {
   const pathname = sanitizePathname(targetURL.pathname);
-  if (pageStringCache.has(pathname))
-    console.log(`Fetching ${pathname}`);
+  if (pageStringCache.has(pathname)) return pageStringCache.get(pathname);
+  console.log(`Fetching ${pathname}`);
   if (targetURL.hostname !== window.location.hostname) {
     console.error(`Client-side navigation may only occur on local URL's`);
     return;
@@ -26,7 +26,8 @@ var fetchPage = async (targetURL) => {
     return;
   }
   const newDOM = parser.parseFromString(resText, "text/html");
-  const pageDataScriptSrc = `${pathname}/page_data.js`;
+  const pageDataScriptSrc = pathname === "/" ? pathname + "page_data.js" : pathname + "/page_data.js";
+  console.log(pageDataScriptSrc);
   if (!pd[pathname]) {
     await import(pageDataScriptSrc);
   }
@@ -42,8 +43,10 @@ var navigateLocally = async (target, pushState = true) => {
   pageStringCache.set(currentPage, serializer.serializeToString(document));
   const targetURL = new URL(target);
   const pathname = sanitizePathname(targetURL.pathname);
+  console.log("san: ", targetURL);
   const isPageCached = pageStringCache.has(pathname);
   if (isPageCached) {
+    console.log(`Found cached page for ${pathname}.`);
     const cachedDOM = pageStringCache.get(pathname);
     const parsedDOM = parser.parseFromString(cachedDOM, "text/html");
     document.head.replaceChildren(...Array.from(parsedDOM.head.children));
@@ -72,7 +75,7 @@ var load = () => {
     return;
   }
   ;
-  console.log(`Loading ${window.location.pathname}:`, pageData);
+  console.log(`Loading ${pathname}:`, pageData);
   const serverState = pageData.state;
   const serverObservers = pageData.ooa;
   const stateObjectAttributes = pageData.soa;

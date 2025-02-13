@@ -11,15 +11,17 @@ let evtSource: EventSource | null = null;
 let currentPage: string = window.location.pathname;
 
 const sanitizePathname = (pn: string) => {
-    if (pn === "/") return pn
-    else if (!pn.endsWith("/")) return pn;
+    if (!pn.endsWith("/")) return pn;
+
+    if (pn === "/") return pn;
+
     return pn.slice(0, -1);
 };
 
-const fetchPage = async (targetURL: URL) => {
+const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     const pathname = sanitizePathname(targetURL.pathname);
 
-    if (pageStringCache.has(pathname))
+    if (pageStringCache.has(pathname)) return pageStringCache.get(pathname);
 
     console.log(`Fetching ${pathname}`);
 
@@ -38,7 +40,11 @@ const fetchPage = async (targetURL: URL) => {
 
     const newDOM = parser.parseFromString(resText, "text/html");
 
-    const pageDataScriptSrc = `${pathname}/page_data.js`;
+    const pageDataScriptSrc = pathname === "/" ?
+        pathname + "page_data.js" :
+        pathname + "/page_data.js";
+
+    console.log(pageDataScriptSrc);
 
     if (!pd[pathname]) {
         await import(pageDataScriptSrc);
@@ -62,10 +68,12 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
+    console.log("san: ", targetURL);
 
     const isPageCached = pageStringCache.has(pathname);
 
     if (isPageCached) {
+        console.log(`Found cached page for ${pathname}.`);
         const cachedDOM = pageStringCache.get(pathname);
         const parsedDOM = parser.parseFromString(cachedDOM, "text/html")
 
@@ -104,7 +112,7 @@ const load = () => {
         return;
     };
 
-    console.log(`Loading ${window.location.pathname}:`, pageData);
+    console.log(`Loading ${pathname}:`, pageData);
     
     const serverState = pageData.state;
     const serverObservers = pageData.ooa;

@@ -51,7 +51,7 @@ addPageLoadHooks([
 var serverState = createState({
   navigate: createEventListener((state, event) => {
     event.preventDefault();
-    __ELEGANCE_CLIENT__.navigateLocally(event.target.href);
+    __ELEGANCE_CLIENT__.navigateLocally(event.currentTarget.href);
   })
 });
 var Link = (options, ...children) => {
@@ -123,7 +123,7 @@ var Header = () => header(
         Link(
           {
             href: "/",
-            class: "flex items-center gap-1 hover:cursor-none h-full"
+            class: "flex items-center gap-1 h-full"
           },
           p({
             class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
@@ -141,7 +141,7 @@ var Header = () => header(
         },
         Link({
           prefetch: "load",
-          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950 hover:cursor-none",
+          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
           href: "/docs",
           innerText: "Docs"
         })

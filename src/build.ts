@@ -170,7 +170,7 @@ const escapeHtml = (str: string): string => {
     return replaced;
 };
 
-let elementKey = 0;
+let elementKey = 1;
 const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>): Child => {
     if (
         typeof element === "boolean" ||
@@ -281,6 +281,9 @@ const generateSuitablePageElements = async (
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes);
+
+    // reset key so it doesnt go till infinity
+    elementKey = 1;
 
     if (!writeToHTML) {
         fs.writeFileSync(

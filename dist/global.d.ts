@@ -6,7 +6,7 @@ declare global {
     var __SERVER_CURRENT_PAGELOADHOOKS__: Array<any>;
     var __ELEGANCE_CLIENT__: {
         navigateLocally: (target: string, pushState?: boolean) => any;
-        fetchPage: (targetURL: URL) => Promise<Document | undefined>;
+        fetchPage: (targetURL: URL) => Promise<Document | void>;
     };
     var pd: Record<string, any>;
     type ClientSubject = {

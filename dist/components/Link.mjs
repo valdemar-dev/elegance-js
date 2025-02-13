@@ -40,7 +40,7 @@ addPageLoadHooks([
 var serverState = createState({
   navigate: createEventListener((state, event) => {
     event.preventDefault();
-    __ELEGANCE_CLIENT__.navigateLocally(event.target.href);
+    __ELEGANCE_CLIENT__.navigateLocally(event.currentTarget.href);
   })
 });
 var Link = (options, ...children) => {

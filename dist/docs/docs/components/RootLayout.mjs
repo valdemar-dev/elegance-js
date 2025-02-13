@@ -1,3 +1,11 @@
+// src/server/createEventListener.ts
+var createEventListener = (fn) => fn;
+
+// src/server/addPageLoadHooks.ts
+var addPageLoadHooks = (hooks) => {
+  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
+};
+
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -12,25 +20,6 @@ var createState = (augment) => {
     };
   }
   return globalThis.__SERVER_CURRENT_STATE__;
-};
-
-// src/server/observe.ts
-var observe = (refs, update) => {
-  const returnValue = {
-    type: 3 /* OBSERVER */,
-    ids: refs.map((ref) => ref.id),
-    initialValues: refs.map((ref) => ref.value),
-    update
-  };
-  return returnValue;
-};
-
-// src/server/createEventListener.ts
-var createEventListener = (fn) => fn;
-
-// src/server/addPageLoadHooks.ts
-var addPageLoadHooks = (hooks) => {
-  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
 };
 
 // src/components/Link.ts
@@ -67,54 +56,18 @@ var Link = (options, ...children) => {
   );
 };
 
-// src/docs/components/Header.ts
-var serverState2 = createState({
-  hasUserScrolled: false,
-  interval: 0,
-  globalTicker: 0,
-  urmom: "hi"
-});
-addPageLoadHooks([
-  (state) => {
-    const hasScrolled = state.subjects.hasUserScrolled;
-    const handleScroll = () => {
-      const pos = {
-        x: window.scrollX,
-        y: window.scrollY
-      };
-      if (pos.y > 20) {
-        if (hasScrolled.value === true) return;
-        state.set(hasScrolled, true);
-        state.signal(hasScrolled);
-      } else {
-        if (hasScrolled.value === false) return;
-        state.set(hasScrolled, false);
-        state.signal(hasScrolled);
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }
-]);
+// src/docs/docs/components/Header.ts
 var Header = () => header(
   {
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
   },
   div(
     {
-      class: observe(
-        [serverState2.hasUserScrolled],
-        (hasUserScrolled) => {
-          console.log("change");
-          const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 ";
-          if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950";
-          return defaultClass + "bg-background-900 border-b-transparent";
-        }
-      )
+      class: "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"
     },
     div(
       {
-        class: "max-w-[900px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(900px+1rem)]:px-0"
+        class: "max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
       },
       div(
         {
@@ -149,6 +102,52 @@ var Header = () => header(
     )
   )
 );
+
+// src/docs/docs/components/RootLayout.ts
+var Sidebar = () => nav(
+  {
+    class: "w-1/4 pr-6 mr-6"
+  },
+  ul(
+    {
+      class: "flex flex-col gap-4"
+    },
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "The Basics"
+      }),
+      Link(
+        {
+          href: "/docs/basics#installation"
+        },
+        ol({
+          class: "text-sm font-normal flex flex-col gap-2",
+          innerText: "Installation"
+        })
+      )
+    )
+  )
+);
+var RootLayout = (...children) => div(
+  {},
+  Header(),
+  div(
+    {
+      class: "max-w-[1200px] w-full mx-auto flex mt-8"
+    },
+    Sidebar(),
+    main(
+      {
+        class: "w-3/4"
+      },
+      ...children
+    )
+  )
+);
 export {
-  Header
+  RootLayout
 };

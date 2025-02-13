@@ -1,7 +1,9 @@
 NOTES:
 - global state
 - code cleanup
--rewrite client
+- rewrite client
+- multi-page components that maintain state.
+- optimize page-data
 
 x run built page.js files through esbuild on compile
 x mount hooks
@@ -12,4 +14,7 @@ x renderer fuckery??? i think issues with ",>'. !!!escape all these
 
 ## global state
 just use a global variable, index using ids
+
 if id exists, then use that.
+
+global state exists in globalThis.__ELEGANCE_CLIENT__.globalState = {};

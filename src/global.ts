@@ -10,7 +10,7 @@ declare global {
 
     var __ELEGANCE_CLIENT__: {
         navigateLocally: (target: string, pushState?: boolean) => any;
-        fetchPage: (targetURL: URL) => Promise<Document | undefined>;
+        fetchPage: (targetURL: URL) => Promise<Document | void>;
     }
 
     var pd: Record<string, any>;
