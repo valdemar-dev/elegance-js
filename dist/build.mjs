@@ -335,7 +335,8 @@ var escapeHtml = (str) => {
   const replaced = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/\r?\n|\r/g, "");
   return replaced;
 };
-var elementKey = 1;
+var elementKey = 0;
+var layoutKey = 0;
 var processPageElements = (element, objectAttributes) => {
   if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
   if (typeof element === "string") {
@@ -395,6 +396,9 @@ var processPageElements = (element, objectAttributes) => {
           element.options[lowerCaseOption] = firstValue;
         }
         break;
+      case 4 /* BREAKPOINT */:
+        element.options["bp"] = layoutKey++;
+        break;
     }
     objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
   }
@@ -411,6 +415,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   const objectAttributes = [];
   const processedPageElements = processPageElements(pageElements, objectAttributes);
   elementKey = 1;
+  layoutKey = 1;
   if (!writeToHTML) {
     fs.writeFileSync(
       path.join(DIST_DIR, pageLocation, "page.json"),

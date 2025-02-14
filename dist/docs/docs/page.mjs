@@ -4,6 +4,17 @@ var PageHeading = (title) => h1({
   innerText: title
 });
 
+// src/components/Breakpoint.ts
+var Breakpoint = (...children) => div(
+  {
+    bp: {
+      type: 4 /* BREAKPOINT */,
+      value: "true"
+    }
+  },
+  ...children
+);
+
 // src/server/createEventListener.ts
 var createEventListener = (fn) => fn;
 
@@ -141,16 +152,18 @@ var Sidebar = () => nav(
 var RootLayout = (...children) => div(
   {},
   Header(),
-  div(
-    {
-      class: "max-w-[1200px] w-full mx-auto flex mt-8"
-    },
-    Sidebar(),
-    main(
+  Breakpoint(
+    div(
       {
-        class: "w-3/4"
+        class: "max-w-[1200px] w-full mx-auto flex mt-8"
       },
-      ...children
+      Sidebar(),
+      main(
+        {
+          class: "w-3/4"
+        },
+        ...children
+      )
     )
   )
 );

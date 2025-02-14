@@ -170,7 +170,8 @@ const escapeHtml = (str: string): string => {
     return replaced;
 };
 
-let elementKey = 1;
+let elementKey = 0;
+let layoutKey = 0;
 const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>): Child => {
     if (
         typeof element === "boolean" ||
@@ -249,6 +250,10 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                 }
 
                 break;
+
+            case ObjectAttributeType.BREAKPOINT:
+                element.options["bp"] = layoutKey++;
+                break;
         }
 
         objectAttributes.push({ ...attributeValue, key: key, attribute: lowerCaseOption, });
@@ -284,6 +289,7 @@ const generateSuitablePageElements = async (
 
     // reset key so it doesnt go till infinity
     elementKey = 1;
+    layoutKey = 1;
 
     if (!writeToHTML) {
         fs.writeFileSync(

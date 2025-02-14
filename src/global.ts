@@ -15,7 +15,12 @@ declare global {
 
     var pd: Record<string, any>;
 
-    type ClientSubject = { id: number, value: any, observers: Array<(value: any) => any>};
+    type ClientSubject = {
+        id: number,
+        value: any,
+        observers: Array<(value: any) => any>
+        pathname: string,
+    };
 
     type State<T> = {
         subjects: {
@@ -67,7 +72,7 @@ declare global {
         : { type: ObjectAttributeType, };
 
     type ElementOptions = {
-        [key: string]: string | number | ObjectAttribute<any>
+        [key: string]: string | number | boolean | ObjectAttribute<any>
     }
 
     type EleganceElement<T> = (

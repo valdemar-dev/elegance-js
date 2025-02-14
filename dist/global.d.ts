@@ -13,6 +13,7 @@ declare global {
         id: number;
         value: any;
         observers: Array<(value: any) => any>;
+        pathname: string;
     };
     type State<T> = {
         subjects: {
@@ -62,7 +63,7 @@ declare global {
         type: ObjectAttributeType;
     };
     type ElementOptions = {
-        [key: string]: string | number | ObjectAttribute<any>;
+        [key: string]: string | number | boolean | ObjectAttribute<any>;
     };
     type EleganceElement<T> = (options: ElementOptions, ...children: ElementChildren) => BuiltElement<T>;
     type EleganceOptionlessElement<T> = (...children: ElementChildren) => BuiltElement<T>;

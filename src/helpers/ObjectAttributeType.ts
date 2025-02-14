@@ -3,4 +3,5 @@ export enum ObjectAttributeType {
     STATE = 1,
     FUNCTION = 2,
     OBSERVER = 3,
+    BREAKPOINT = 4,
 }

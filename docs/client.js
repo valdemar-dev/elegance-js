@@ -18,7 +18,9 @@
   }, "sanitizePathname");
   var fetchPage = /* @__PURE__ */ __name(async (targetURL) => {
     const pathname = sanitizePathname(targetURL.pathname);
-    if (pageStringCache.has(pathname)) return pageStringCache.get(pathname);
+    if (pageStringCache.has(pathname)) {
+      return parser.parseFromString(pageStringCache.get(pathname), "text/html");
+    }
     console.log(`Fetching ${pathname}`);
     if (targetURL.hostname !== window.location.hostname) {
       console.error(`Client-side navigation may only occur on local URL's`);
@@ -32,7 +34,6 @@
     }
     const newDOM = parser.parseFromString(resText, "text/html");
     const pageDataScriptSrc = pathname === "/" ? pathname + "page_data.js" : pathname + "/page_data.js";
-    console.log(pageDataScriptSrc);
     if (!pd[pathname]) {
       await import(pageDataScriptSrc);
     }
@@ -48,20 +49,25 @@
     pageStringCache.set(currentPage, serializer.serializeToString(document));
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
-    console.log("san: ", targetURL);
-    const isPageCached = pageStringCache.has(pathname);
-    if (isPageCached) {
-      console.log(`Found cached page for ${pathname}.`);
-      const cachedDOM = pageStringCache.get(pathname);
-      const parsedDOM = parser.parseFromString(cachedDOM, "text/html");
-      document.head.replaceChildren(...Array.from(parsedDOM.head.children));
-      document.body = parsedDOM.body;
-    } else {
-      const fetchedDOM = await fetchPage(targetURL);
-      if (!fetchedDOM) return;
-      document.head.replaceChildren(...Array.from(fetchedDOM.head.children));
-      document.body = fetchedDOM.body;
+    let newPage = pageStringCache.get(pathname) ?? await fetchPage(targetURL);
+    if (!newPage) return;
+    if (typeof newPage === "string") {
+      newPage = parser.parseFromString(newPage, "text/html");
     }
+    const breakpoints = Array.from(document.querySelectorAll("div[bp]"));
+    let lastKnownBreakpoint = document.body;
+    let lastKnownMatchingBreakpoint = newPage.body;
+    for (const bp of breakpoints) {
+      const breakPointInNewDOM = newPage.querySelector(`div[bp="${bp.getAttribute("bp")}"]`);
+      if (breakPointInNewDOM) {
+        lastKnownBreakpoint = bp;
+        lastKnownMatchingBreakpoint = breakPointInNewDOM;
+      }
+    }
+    console.log(`Replacing ${lastKnownBreakpoint} with ${lastKnownMatchingBreakpoint}`);
+    const parent = lastKnownBreakpoint.parentElement;
+    parent?.replaceChild(lastKnownMatchingBreakpoint, lastKnownBreakpoint);
+    document.head.replaceChildren(...Array.from(newPage.head.children));
     if (pushState) history.pushState(null, "", target);
     load();
     currentPage = pathname;
@@ -91,7 +97,7 @@
       get: /* @__PURE__ */ __name((id) => Object.values(state.subjects).find((s) => s.id === id), "get"),
       set: /* @__PURE__ */ __name((subject, value) => {
         subject.value = value;
-        state.subjects[Object.keys(subject)[0]] = subject;
+        pd[subject.pathname].sm.subjects[Object.keys(subject)[0]] = subject;
       }, "set"),
       signal: /* @__PURE__ */ __name((subject) => {
         const observers = subject.observers;
@@ -108,7 +114,8 @@
       state.subjects[subjectName] = {
         id: subject.id,
         value: subject.value,
-        observers: []
+        observers: [],
+        pathname
       };
     }
     pageData.sm = state;

@@ -1,4 +1,9 @@
 
 export const metadata = () => head ({
-    title: "Basics,",
-})
+},
+    link ({
+        rel: "stylesheet",
+        href: "/index.css"
+    }),
+    title ("Hi There!")
+)

@@ -1,1 +1,1 @@
-export declare const page: BuiltElement<"body">;
+export declare const page: BuiltElement<"div">;

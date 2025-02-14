@@ -1,5 +1,5 @@
+import { RootLayout } from "../components/RootLayout";
 
-export const page = body({
-},
-    "ur mom",
+export const page = RootLayout(
+    "hi!",
 )
