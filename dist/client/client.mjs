@@ -35,6 +35,27 @@ var fetchPage = async (targetURL) => {
   pageStringCache.set(pathname, serializer.serializeToString(newDOM));
   return newDOM;
 };
+var getDeprecatedKeys = ({
+  breakpointKey
+}) => {
+  const deprecatedKeys = [];
+  const getRecursively = (element) => {
+    const key = element.getAttribute("key");
+    if (key) {
+      deprecatedKeys.push(key);
+    }
+    if (element.children) {
+      if (key === breakpointKey) {
+        return;
+      }
+      for (const child of Array.from(element.children)) {
+        getRecursively(child);
+      }
+    }
+  };
+  getRecursively(document.body);
+  return deprecatedKeys;
+};
 var navigateLocally = async (target, pushState = true) => {
   console.log(`Naving to: ${target} from ${currentPage}`);
   for (const func of cleanupFunctions) {
@@ -65,12 +86,15 @@ var navigateLocally = async (target, pushState = true) => {
     lastMatchingBreakpoint = currentPageBreakpoint;
     lastMatchingNewPageBreakpoint = newPageBreakpoint;
   }
-  console.log(`Replacing ${lastMatchingBreakpoint} width ${lastMatchingNewPageBreakpoint}`);
+  console.log(`Replacing ${lastMatchingBreakpoint} with ${lastMatchingNewPageBreakpoint}`);
+  const deprecatedKeys = getDeprecatedKeys({
+    breakpointKey: lastMatchingBreakpoint.getAttribute("key")
+  });
   const parent = lastMatchingBreakpoint.parentElement;
   parent?.replaceChild(lastMatchingNewPageBreakpoint, lastMatchingBreakpoint);
   document.head.replaceChildren(...Array.from(newPage.head.children));
   if (pushState) history.pushState(null, "", target);
-  load();
+  load(deprecatedKeys);
   currentPage = pathname;
 };
 window.onpopstate = async (event) => {
@@ -79,7 +103,7 @@ window.onpopstate = async (event) => {
   await navigateLocally(target.location.href, false);
   history.replaceState(null, "", sanitizePathname(target.location.pathname));
 };
-var load = () => {
+var load = (deprecatedKeys = []) => {
   let pathname = sanitizePathname(window.location.pathname);
   let pageData = pd[pathname];
   if (!pageData) {
@@ -121,6 +145,9 @@ var load = () => {
   }
   pageData.sm = state;
   for (const observer of serverObservers || []) {
+    if (observer.key in deprecatedKeys) {
+      continue;
+    }
     const el = document.querySelector(`[key="${observer.key}"]`);
     let values = {};
     for (const id of observer.ids) {
@@ -146,6 +173,9 @@ var load = () => {
     console.info(`Registered observer for key ${observer.key}`);
   }
   for (const soa of stateObjectAttributes || []) {
+    if (soa.key in deprecatedKeys) {
+      continue;
+    }
     const el = document.querySelector(`[key="${soa.key}"]`);
     if (!el) {
       console.warn(`Couldn't find el for key=${soa.key}. Page: ${pathname}. Ref:`, pageData);
@@ -175,7 +205,7 @@ var load = () => {
           func();
         }
         cleanupFunctions = [];
-        const newDOM = new DOMParser().parseFromString(
+        const newDOM = parser.parseFromString(
           await newHTML.text(),
           "text/html"
         );

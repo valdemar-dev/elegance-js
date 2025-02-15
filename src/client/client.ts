@@ -55,9 +55,42 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     return newDOM;
 };
 
+const getDeprecatedKeys = ({
+    breakpointKey,
+}: {
+    breakpointKey: string,
+}) => {
+    const deprecatedKeys: string[] = [];
+
+    const getRecursively = (element: HTMLElement) => {
+        const key = element.getAttribute("key");
+
+        if (key) {
+            deprecatedKeys.push(key)
+        }
+
+        if (element.children) {
+            // don't want to remove the actually useful keys!
+            if (key === breakpointKey) {
+                return;
+            }
+
+            for (const child of Array.from(element.children)) {
+                getRecursively(child as HTMLElement);
+            }
+        }
+    };
+
+    getRecursively(document.body);
+
+    return deprecatedKeys;
+}
+
 const navigateLocally = async (target: string, pushState: boolean = true) => {
     console.log(`Naving to: ${target} from ${currentPage}`);
 
+    // Cleanup of prev page, very important!
+    // If these aren't there, window ev's will run forever or stack up.
     for (const func of cleanupFunctions) {
         func();
     }
@@ -75,7 +108,11 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     if (typeof newPage === "string") {
         newPage = parser.parseFromString(newPage, "text/html");
     }
-
+    
+    // Find matching pairs of Breakpoint() elements in the current and new dom.
+    // This essentially re-creates the layout.tsx files you may know from Next.JS.
+    // Except way more efficient, and they're opt-in.
+    // Ref: [https://nextjs.org/docs/pages/building-your-application/routing/pages-and-layouts].
     const currentPageBreakpoints= Array.from(document.querySelectorAll("div[bp]"));
     const newPageBreakpoints = Array.from(newPage.querySelectorAll("div[bp]"));
 
@@ -99,7 +136,13 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         lastMatchingNewPageBreakpoint = newPageBreakpoint as HTMLElement;
     }
 
-    console.log(`Replacing ${lastMatchingBreakpoint} width ${lastMatchingNewPageBreakpoint}`);
+    console.log(`Replacing ${lastMatchingBreakpoint} with ${lastMatchingNewPageBreakpoint}`);
+
+    // Thanks to layouts, some state object attributes may be referencing invalid keys,
+    // due to no fault of the user.
+    const deprecatedKeys = getDeprecatedKeys({
+        breakpointKey: lastMatchingBreakpoint.getAttribute("key")!,
+    });
 
     const parent = lastMatchingBreakpoint.parentElement;
 
@@ -108,11 +151,12 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     if (pushState) history.pushState(null, "", target); 
 
-    load();
+    load(deprecatedKeys);
 
     currentPage = pathname;
 };
 
+// Popstate is back-forward navigation.
 window.onpopstate = async (event: PopStateEvent) => {
     event.preventDefault();
 
@@ -122,7 +166,7 @@ window.onpopstate = async (event: PopStateEvent) => {
     history.replaceState(null, "", sanitizePathname(target.location.pathname));
 };
 
-const load = () => {
+const load = (deprecatedKeys: string[] = []) => {
     let pathname = sanitizePathname(window.location.pathname);
 
     let pageData = pd[pathname];
@@ -180,6 +224,10 @@ const load = () => {
     pageData.sm = state;
 
     for (const observer of serverObservers || []) {
+        if (observer.key in deprecatedKeys) {
+            continue; 
+        }
+
         const el = document.querySelector(`[key="${observer.key}"]`);
 
         let values: Record<string, any> = {};
@@ -215,6 +263,10 @@ const load = () => {
     }
 
     for (const soa of stateObjectAttributes || []) {
+        if (soa.key in deprecatedKeys) {
+            continue; 
+        }
+
         const el = document.querySelector(`[key="${soa.key}"]`);
 
         if (!el) {
@@ -256,7 +308,7 @@ const load = () => {
 
                 cleanupFunctions = [];
 
-                const newDOM = new DOMParser().parseFromString(
+                const newDOM = parser.parseFromString(
                     await newHTML.text(),
                     "text/html"
                 );

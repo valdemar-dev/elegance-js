@@ -3,6 +3,7 @@ POTENTIAL:
 TODO:
     - code cleanup
     - rewrite client
+    - write documentation (OMEGALUL)
 
 DONE: 
     - optimize page-data
