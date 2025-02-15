@@ -340,6 +340,7 @@ var escapeHtml = (str) => {
 };
 var elementKey = 0;
 var layoutKey = 0;
+var layoutKeyMap = {};
 var processPageElements = (element, objectAttributes) => {
   if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
   if (typeof element === "string") {
@@ -400,7 +401,10 @@ var processPageElements = (element, objectAttributes) => {
         }
         break;
       case 4 /* BREAKPOINT */:
-        element.options["bp"] = layoutKey++;
+        let value = layoutKeyMap[`${attributeValue}`];
+        if (!value) value = layoutKey++;
+        layoutKeyMap[`${attributeValue}`] = value;
+        element.options["bp"] = value;
         break;
     }
     objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
@@ -418,7 +422,6 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   const objectAttributes = [];
   const processedPageElements = processPageElements(pageElements, objectAttributes);
   elementKey = 1;
-  layoutKey = 1;
   if (!writeToHTML) {
     fs.writeFileSync(
       path.join(DIST_DIR, pageLocation, "page.json"),
@@ -684,6 +687,8 @@ var compile = async ({
     log("");
   }
   const start = performance.now();
+  layoutKeyMap = {};
+  layoutKey = 1;
   const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
   await buildInfoFiles(infoFiles, environment, SERVER_DIR);
   const pages = await getPageCompilationDirections(pageFiles, pagesDirectory, SERVER_DIR);

@@ -1,9 +1,9 @@
 // src/components/Breakpoint.ts
-var Breakpoint = (...children) => div(
+var Breakpoint = ({ name }, ...children) => div(
   {
     bp: {
       type: 4 /* BREAKPOINT */,
-      value: "true"
+      value: name
     }
   },
   ...children
@@ -147,6 +147,9 @@ var RootLayout = (...children) => div(
   {},
   Header(),
   Breakpoint(
+    {
+      name: "docs-navigation"
+    },
     div(
       {
         class: "max-w-[1200px] w-full mx-auto flex mt-8"

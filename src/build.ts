@@ -172,6 +172,8 @@ const escapeHtml = (str: string): string => {
 
 let elementKey = 0;
 let layoutKey = 0;
+let layoutKeyMap: Record<string, number> = {};
+
 const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>): Child => {
     if (
         typeof element === "boolean" ||
@@ -252,7 +254,12 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                 break;
 
             case ObjectAttributeType.BREAKPOINT:
-                element.options["bp"] = layoutKey++;
+                let value = layoutKeyMap[`${attributeValue}`]
+                if (!value) value = layoutKey++;
+
+                layoutKeyMap[`${attributeValue}`] = value;
+                element.options["bp"] = value;
+
                 break;
         }
 
@@ -287,9 +294,7 @@ const generateSuitablePageElements = async (
     const objectAttributes: Array<ObjectAttribute<any>> = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes);
 
-    // reset key so it doesnt go till infinity
     elementKey = 1;
-    layoutKey = 1;
 
     if (!writeToHTML) {
         fs.writeFileSync(
@@ -673,6 +678,11 @@ export const compile = async ({
     }
 
     const start = performance.now();
+
+    // reset layout keys between builds
+    // DO NOT REMOVE!
+    layoutKeyMap = {};
+    layoutKey = 1;
 
     const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
 

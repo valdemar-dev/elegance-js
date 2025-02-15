@@ -76,24 +76,34 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         newPage = parser.parseFromString(newPage, "text/html");
     }
 
-    const breakpoints = Array.from(document.querySelectorAll("div[bp]"));
+    const currentPageBreakpoints= Array.from(document.querySelectorAll("div[bp]"));
+    const newPageBreakpoints = Array.from(newPage.querySelectorAll("div[bp]"));
 
-    let lastKnownBreakpoint = document.body;
-    let lastKnownMatchingBreakpoint = newPage.body;
-    for (const bp of breakpoints) {
-        const breakPointInNewDOM = newPage.querySelector(`div[bp="${bp.getAttribute("bp")}"]`);
+    let lastMatchingBreakpoint: HTMLElement = document.body;
+    let lastMatchingNewPageBreakpoint: HTMLElement = newPage.body;
 
-        if (breakPointInNewDOM) {
-            lastKnownBreakpoint = bp as HTMLDivElement;
-            lastKnownMatchingBreakpoint = breakPointInNewDOM as HTMLDivElement;
+    for (let i = 0; i < currentPageBreakpoints.length; i++) {
+        if (i > newPageBreakpoints.length -1) break;
+
+        const currentPageBreakpoint = currentPageBreakpoints[i]; 
+        const newPageBreakpoint = newPageBreakpoints[i];
+
+        const currentPageBreakpointName = currentPageBreakpoint.getAttribute("bp")
+        const newPageBreakpointName = newPageBreakpoint.getAttribute("bp")
+
+        if (currentPageBreakpointName !== newPageBreakpointName) {
+            break;
         }
+
+        lastMatchingBreakpoint = currentPageBreakpoint as HTMLElement; 
+        lastMatchingNewPageBreakpoint = newPageBreakpoint as HTMLElement;
     }
 
-    console.log(`Replacing ${lastKnownBreakpoint} with ${lastKnownMatchingBreakpoint}`);
+    console.log(`Replacing ${lastMatchingBreakpoint} width ${lastMatchingNewPageBreakpoint}`);
 
-    const parent = lastKnownBreakpoint.parentElement;
+    const parent = lastMatchingBreakpoint.parentElement;
 
-    parent?.replaceChild(lastKnownMatchingBreakpoint, lastKnownBreakpoint);
+    parent?.replaceChild(lastMatchingNewPageBreakpoint, lastMatchingBreakpoint);
     document.head.replaceChildren(...Array.from(newPage.head.children));
 
     if (pushState) history.pushState(null, "", target); 
@@ -207,6 +217,12 @@ const load = () => {
     for (const soa of stateObjectAttributes || []) {
         const el = document.querySelector(`[key="${soa.key}"]`);
 
+        if (!el) {
+            console.warn(`Couldn't find el for key=${soa.key}. Page: ${pathname}. Ref:`, pageData);
+            console.log(soa);
+            return;
+        }
+
         const subject = state.get(soa.id);
         if (!subject) {
             console.error(`An SOA is watching an illegal ID: ${soa.id}.`);
@@ -215,7 +231,7 @@ const load = () => {
 
         (el as any)[soa.attribute] = (event: Event) => subject.value(state, event);
 
-        console.info(`Registered SOA ${soa.attribute} for key ${soa.key}`, subject.value);
+        console.info(`Registered SOA ${soa.attribute} for key ${soa.key}, with id ${soa.id}, to the element:`, el);
     }
 
     for (const pageLoadHook of pageLoadHooks || []) {
@@ -240,7 +256,13 @@ const load = () => {
 
                 cleanupFunctions = [];
 
-                document.body = new DOMParser().parseFromString(await newHTML.text(), "text/html").body;
+                const newDOM = new DOMParser().parseFromString(
+                    await newHTML.text(),
+                    "text/html"
+                );
+
+                document.body = newDOM.body;
+                document.head.replaceWith(newDOM.head);
 
                 const link = document.querySelector('[rel=stylesheet]') as HTMLLinkElement;
 

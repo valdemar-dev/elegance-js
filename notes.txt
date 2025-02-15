@@ -1,67 +1,18 @@
-NOTES:
-- global state
-- code cleanup
-- rewrite client
-- multi-page components that maintain state.
-- optimize page-data
-- layouts with <root="something"> breakpoint tags
-
 POTENTIAL:
-- give each OA a ref to the pd[] that they belong to
- 
-x run built page.js files through esbuild on compile
-x mount hooks
-x remove type from soa's for browser
-x modify observe() to take in multiple values
-x add some shit so you can't just >>>> in content
-x renderer fuckery??? i think issues with ",>'. !!!escape all these
 
-## global state
-just use a global variable, index using ids
+TODO:
+    - code cleanup
+    - rewrite client
 
-if id exists, then use that.
+DONE: 
+    - optimize page-data
+    - multi-page components that maintain state.
+    - give each OA a ref to the pd[] that they belong to
+    - run built page.js files through esbuild on compile
+    - mount hooks
+    - remove type from soa's for browser
+    - modify observe() to take in multiple values
+    - add some shit so you can't just >>>> in content
+    - renderer fuckery??? i think issues with ",>'. !!!escape all these
+    - layouts with <bp="key"> tags
 
-global state exists in globalThis.__ELEGANCE_CLIENT__.globalState = {};
-
-## multipage components
-when client-side navigating to a new page
-take all current doms data-preserve attrs, find corresponding ones in the new dom
-if they exist, replace them. if not, discard.
-
-example:
-    page 1:
-        <div>
-            <nav>
-                navigation
-            </nav>
-
-            <div data-preserve key="4">
-                {i'm gonna be maintained!} Math.random()
-            </div>
-
-            <p>
-                some thing!
-            </p>
-        </div>
-
-    page 2:
-        <div>            
-            <div data-preserve key="4">
-                {i'm gonna be maintained!} Math.random()
-            </div>
-
-            <p>
-                some other thing!
-            </p>
-
-            <ul>
-                <li>
-                    some list item!
-                </li>
-            </ul>
-        </div>
-
-when navigating
-
-## layouts
-when client-side navigating, find layout attr, latest ancestor, replace children

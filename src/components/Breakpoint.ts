@@ -1,9 +1,12 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 
-export const Breakpoint = (...children: Child[]) => div ({
+export const Breakpoint = (
+    { name, }: { name: string, },
+    ...children: Child[]
+) => div ({
     bp: {
         type: ObjectAttributeType.BREAKPOINT,
-        value: "true",
+        value: name,
     },
 },
     ...children,

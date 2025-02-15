@@ -28,12 +28,14 @@ const Sidebar = () => nav ({
         ),
     ),
 )
-
-export const RootLayout = (...children: Child[]) => div({
+ 
+export const RootLayout = (...children: Child[]) => div ({
 },
     Header(),
 
-    Breakpoint(
+    Breakpoint ({
+        name: "docs-navigation",
+    },
         div ({
             class: "max-w-[1200px] w-full mx-auto flex mt-8",
         },
