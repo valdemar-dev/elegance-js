@@ -227,7 +227,8 @@ var getPageLoadHooks = () => globalThis.__SERVER_CURRENT_PAGELOADHOOKS__;
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var packageDir = path.resolve(__dirname, "..");
-var SSRClientPath = path.resolve(packageDir, "./src/client/client.ts");
+var clientPath = path.resolve(packageDir, "./src/client/client.ts");
+var watcherPath = path.resolve(packageDir, "./src/client/watcher.ts");
 var bindElementsPath = path.resolve(packageDir, "./src/shared/bindServerElements.ts");
 var yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
@@ -302,17 +303,23 @@ var getProjectFiles = (pagesDirectory) => {
     infoFiles
   };
 };
-var buildClient = async (environment, DIST_DIR) => {
-  await esbuild.build({
-    bundle: true,
+var buildClient = async (environment, DIST_DIR, isInWatchMode) => {
+  let clientString = fs.readFileSync(clientPath, "utf-8");
+  if (isInWatchMode) {
+    clientString += fs.readFileSync(watcherPath, "utf-8");
+  }
+  const transformedClient = await esbuild.transform(clientString, {
     minify: environment === "production",
     drop: environment === "production" ? ["console", "debugger"] : void 0,
     keepNames: true,
-    entryPoints: [SSRClientPath],
-    outdir: DIST_DIR,
     format: "iife",
-    platform: "node"
+    platform: "node",
+    loader: "ts"
   });
+  fs.writeFileSync(
+    path.join(DIST_DIR, "/client.js"),
+    transformedClient.code
+  );
 };
 var buildInfoFiles = async (infoFiles, environment, SERVER_DIR) => {
   const mappedInfoFileNames = infoFiles.map((f) => `${f.parentPath}/${f.name}`);
@@ -361,14 +368,15 @@ var processPageElements = (element, objectAttributes) => {
       element.options.key = key;
     }
     if (!attributeValue.type) {
-      throw `ObjectAttributeType is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
+      const valueAsString = JSON.stringify(attributeValue);
+      throw `ObjectAttributeType is missing from object attribute. Got: ${valueAsString}. For attribute: ${option}`;
     }
     const lowerCaseOption = option.toLowerCase();
     switch (attributeValue.type) {
       case 1 /* STATE */:
         if (typeof attributeValue.value === "function") {
           if (!lowerCaseOption.startsWith("on")) {
-            throw `ObjectAttribute.STATE type object attributes may not have their value be a function, unless their attribute is an event handler.`;
+            throw `SAO's may only be a function, if they are an event listener.`;
           }
           delete element.options[option];
           break;
@@ -453,7 +461,8 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   return objectAttributes;
 };
 var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR, watch) => {
-  let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+  let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
+  clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
   clientPageJSText += `pd[url]={`;
   if (watch) {
     clientPageJSText += "w:true,";
@@ -479,7 +488,8 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     let observerObjectAttributeString = "ooa:[";
     for (const observerObjectAttribute of observerObjectAttributes) {
       const ooa = observerObjectAttribute;
-      observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
+      observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",`;
+      observerObjectAttributeString += `ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
     }
     observerObjectAttributeString += "],";
     clientPageJSText += observerObjectAttributeString;
@@ -504,7 +514,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
-var buildPages = async (pages, environment, DIST_DIR, writeToHTML, watch) => {
+var buildPages = async (pages, DIST_DIR, writeToHTML, watch) => {
   let shouldClientHardReload = false;
   for (const page of pages) {
     if (!writeToHTML) {
@@ -706,8 +716,8 @@ var compile = async ({
   });
   const {
     shouldClientHardReload
-  } = await buildPages(pages, environment, DIST_DIR, writeToHTML, watch);
-  await buildClient(environment, DIST_DIR);
+  } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
+  await buildClient(environment, DIST_DIR, watch);
   const end = performance.now();
   log(bold(yellow(" -- Elegance.JS -- ")));
   log(white(`Finished build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}.`));

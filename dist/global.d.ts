@@ -19,7 +19,6 @@ declare global {
         subjects: {
             [K in keyof T]: ClientSubject;
         };
-        populate: () => void;
         get: (id: number) => ClientSubject | undefined;
         set: (subject: ClientSubject, value: any) => void;
         signal: (subject: ClientSubject) => void;

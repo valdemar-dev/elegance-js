@@ -32,7 +32,7 @@ export const Header = () => header ({
                 class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full",
             },
                 Link ({
-                    prefetch: "load",
+                    prefetch: "hover",
                     class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
                     href: "/docs",
                     innerText: "Docs",

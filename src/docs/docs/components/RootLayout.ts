@@ -17,7 +17,8 @@ const Sidebar = () => nav ({
             }),
 
             Link ({
-                href: "/docs/basics#installation"
+                href: "/docs/basics#installation",
+                prefetch: "hover",
             },
                 ol ({
                     class: "text-sm font-normal flex flex-col gap-2",

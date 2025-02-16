@@ -16,7 +16,8 @@ const __dirname = path.dirname(__filename);
 
 const packageDir = path.resolve(__dirname, '..');
 
-const SSRClientPath = path.resolve(packageDir, './src/client/client.ts');
+const clientPath = path.resolve(packageDir, './src/client/client.ts');
+const watcherPath = path.resolve(packageDir, './src/client/watcher.ts');
 
 const bindElementsPath = path.resolve(packageDir, './src/shared/bindServerElements.ts');
 
@@ -126,17 +127,27 @@ const getProjectFiles = (pagesDirectory: string,) => {
 const buildClient = async (
     environment: "production" | "development",
     DIST_DIR: string,
+    isInWatchMode: boolean,
 ) => {
-    await esbuild.build({
-        bundle: true,
+    let clientString = fs.readFileSync(clientPath, "utf-8");
+
+    if (isInWatchMode) {
+        clientString += fs.readFileSync(watcherPath, "utf-8");
+    }
+
+    const transformedClient = await esbuild.transform(clientString, {
         minify: environment === "production",
         drop: environment === "production" ? ["console", "debugger"] : undefined,
         keepNames: true,
-        entryPoints: [SSRClientPath],
-        outdir: DIST_DIR,
         format: "iife",
         platform: "node", 
+        loader: "ts",
     });
+    
+    fs.writeFileSync(
+        path.join(DIST_DIR, "/client.js"),
+        transformedClient.code,
+    );
 };
 
 const buildInfoFiles = async (infoFiles: Array<Dirent>, environment: "production" | "development", SERVER_DIR: string) => {
@@ -207,7 +218,8 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
         }
 
         if (!attributeValue.type) {
-            throw `ObjectAttributeType is missing from object attribute. Got: ${JSON.stringify(attributeValue)}. For attribute: ${option}`;
+            const valueAsString = JSON.stringify(attributeValue);
+            throw `ObjectAttributeType is missing from object attribute. Got: ${valueAsString}. For attribute: ${option}`;
         }
 
         const lowerCaseOption = option.toLowerCase();
@@ -216,7 +228,7 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
             case ObjectAttributeType.STATE:
                 if (typeof attributeValue.value === "function") {
                     if (!lowerCaseOption.startsWith("on")) { 
-                        throw `ObjectAttribute.STATE type object attributes may not have their value be a function, unless their attribute is an event handler.`
+                        throw `SAO's may only be a function, if they are an event listener.`
                     }
 
                     delete element.options[option];
@@ -347,7 +359,8 @@ const generateClientPageData = async (
     DIST_DIR: string,
     watch: boolean,
 ) => {
-    let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
+    let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
+    clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`
     clientPageJSText += `pd[url]={`;
 
     if (watch) {
@@ -390,7 +403,8 @@ const generateClientPageData = async (
                 update: (...value: any) => any,
             };
 
-            observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",ids:[${ooa.ids}],update:${ooa.update.toString()}},`
+            observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",`;
+            observerObjectAttributeString += `ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
         }
 
         observerObjectAttributeString += "],";
@@ -438,7 +452,6 @@ const buildPages = async (
         pageLocation: string,
         pageFilepath: string, 
     }>,
-    environment: "production" | "development",
     DIST_DIR: string,
     writeToHTML: boolean,
     watch: boolean
@@ -708,8 +721,9 @@ export const compile = async ({
 
     const {
         shouldClientHardReload
-    } = await buildPages(pages, environment, DIST_DIR, writeToHTML, watch);
-    await buildClient(environment, DIST_DIR);
+    } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
+
+    await buildClient(environment, DIST_DIR, watch);
 
     const end = performance.now();
 

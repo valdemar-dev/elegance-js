@@ -6,6 +6,11 @@ addPageLoadHooks([
     () => {
         const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
 
+        const elsToClear: Array<{
+            el: HTMLLinkElement,
+            fn: () => any,
+        }> = [];
+
         for (const anchor of anchors) {
             const prefetch = anchor.getAttribute("prefetch");
 
@@ -15,6 +20,25 @@ addPageLoadHooks([
                 case "load":
                     __ELEGANCE_CLIENT__.fetchPage(href);
                     break;
+                case "hover":
+                    const fn = () => {
+                        __ELEGANCE_CLIENT__.fetchPage(href);
+                    };
+
+                    anchor.addEventListener("mouseenter", fn);
+
+                    elsToClear.push({
+                        el: anchor as HTMLLinkElement,
+                        fn: fn,
+                    });
+
+                    break;
+            }
+        }
+
+        return () => {
+            for (const listener of elsToClear) {
+                listener.el.removeEventListener("onmouseenter", listener.fn);
             }
         }
     }

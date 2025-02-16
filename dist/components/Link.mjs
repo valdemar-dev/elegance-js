@@ -26,6 +26,7 @@ var createState = (augment) => {
 addPageLoadHooks([
   () => {
     const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
+    const elsToClear = [];
     for (const anchor of anchors) {
       const prefetch = anchor.getAttribute("prefetch");
       const href = new URL(anchor.href);
@@ -33,8 +34,23 @@ addPageLoadHooks([
         case "load":
           __ELEGANCE_CLIENT__.fetchPage(href);
           break;
+        case "hover":
+          const fn = () => {
+            __ELEGANCE_CLIENT__.fetchPage(href);
+          };
+          anchor.addEventListener("mouseenter", fn);
+          elsToClear.push({
+            el: anchor,
+            fn
+          });
+          break;
       }
     }
+    return () => {
+      for (const listener of elsToClear) {
+        listener.el.removeEventListener("onmouseenter", listener.fn);
+      }
+    };
   }
 ]);
 var serverState = createState({
