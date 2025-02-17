@@ -6,12 +6,6 @@ if (Object.values(pd)[0]?.w) {
         if (event.data === "reload") {
             const newHTML = await fetch(window.location.href);
 
-            for (const func of cleanupFunctions) {
-                func();
-            }
-
-            cleanupFunctions = [];
-
             const newDOM = domParser.parseFromString(
                 await newHTML.text(),
                 "text/html"
