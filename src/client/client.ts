@@ -83,7 +83,6 @@ const loadPage = (deprecatedKeys: string[] = []) => {
 
             values[subject.id] = subject.value;
 
-
             const updateFunction = (value: any) => {
                 values[id] = value;
 
@@ -94,7 +93,13 @@ const loadPage = (deprecatedKeys: string[] = []) => {
             };
 
             state.observe(subject, updateFunction);
+
         }
+
+        const newValue = observer.update(...Object.values(values));
+        let attribute = observer.attribute === "class" ? "className" : observer.attribute;
+
+        (el as any)[attribute] = newValue;
 
         console.info(`Registered Observer.`, observer);
     }
@@ -166,7 +171,9 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
-    if (pathname === currentPage) return;
+
+    // fixes weird bug, never touch.
+    if (pathname === currentPage) return history.pushState(null, "", targetURL.href);
 
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
@@ -225,7 +232,7 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage)
     document.head.replaceChildren(...makeArray(newPage.head.children));
 
-    if (pushState) history.pushState(null, "", target); 
+    if (pushState) history.pushState(null, "", targetURL.href); 
     currentPage = pathname;
 
     loadPage(deprecatedKeys);
@@ -237,12 +244,14 @@ window.onpopstate = async (event: PopStateEvent) => {
     const target = event.target as Window;
     await navigateLocally(target.location.href, false);
 
-    history.replaceState(null, "", sanitizePathname(target.location.pathname));
+    history.replaceState(null, "", sanitizePathname(target.location.href));
 };
 
 globalThis.__ELEGANCE_CLIENT__ = {
     navigateLocally,
     fetchPage,
+    currentPage,
+    sanitizePathname,
 };
 
 loadPage();

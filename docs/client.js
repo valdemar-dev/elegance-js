@@ -61,12 +61,15 @@
         values[subject.id] = subject.value;
         const updateFunction = /* @__PURE__ */ __name((value) => {
           values[id] = value;
-          const newValue = observer.update(...Object.values(values));
-          let attribute = observer.attribute === "class" ? "className" : observer.attribute;
-          el[attribute] = newValue;
+          const newValue2 = observer.update(...Object.values(values));
+          let attribute2 = observer.attribute === "class" ? "className" : observer.attribute;
+          el[attribute2] = newValue2;
         }, "updateFunction");
         state.observe(subject, updateFunction);
       }
+      const newValue = observer.update(...Object.values(values));
+      let attribute = observer.attribute === "class" ? "className" : observer.attribute;
+      el[attribute] = newValue;
       console.info(`Registered Observer.`, observer);
     }
     for (const soa of pageData.soa || []) {
@@ -116,7 +119,7 @@
     console.log(`Naving to: ${target} from ${currentPage}`);
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
-    if (pathname === currentPage) return;
+    if (pathname === currentPage) return history.pushState(null, "", targetURL.href);
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
     for (const func of cleanupFunctions) {
@@ -156,7 +159,7 @@
     getDeprecatedKeysRecursively(document.body);
     lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage);
     document.head.replaceChildren(...makeArray(newPage.head.children));
-    if (pushState) history.pushState(null, "", target);
+    if (pushState) history.pushState(null, "", targetURL.href);
     currentPage = pathname;
     loadPage(deprecatedKeys);
   }, "navigateLocally");
@@ -164,11 +167,13 @@
     event.preventDefault();
     const target = event.target;
     await navigateLocally(target.location.href, false);
-    history.replaceState(null, "", sanitizePathname(target.location.pathname));
+    history.replaceState(null, "", sanitizePathname(target.location.href));
   };
   globalThis.__ELEGANCE_CLIENT__ = {
     navigateLocally,
-    fetchPage
+    fetchPage,
+    currentPage,
+    sanitizePathname
   };
   loadPage();
   if (Object.values(pd)[0]?.w) {

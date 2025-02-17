@@ -5,12 +5,23 @@ import { DocsLayout } from "../components/DocsLayout";
 export const page = RootLayout (
     DocsLayout (
         PageHeading (
-            "hii",
+            "Preamble",
             "preamble",
         ), 
 
         div ({
             class: "h-[3000px]"
-        })
+        }, []),
+
+        PageHeading (
+            "Install",
+            "installation",
+        ), 
+
+        div ({
+            class: "h-[3000px]"
+        }, []),
+
+
     ),
 );

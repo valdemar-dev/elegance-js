@@ -7,6 +7,8 @@ declare global {
     var __ELEGANCE_CLIENT__: {
         navigateLocally: (target: string, pushState?: boolean) => any;
         fetchPage: (targetURL: URL) => Promise<Document | void>;
+        currentPage: string;
+        sanitizePathname: (target: string) => string;
     };
     var pd: Record<string, any>;
     type ClientSubject = {

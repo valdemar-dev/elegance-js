@@ -66,10 +66,17 @@ addPageLoadHooks([
 ]);
 var serverState = createState({
   navigate: createEventListener((state, event) => {
-    const target = event.currentTarget;
-    if (target.href === window.location.href) return;
+    const target = new URL(event.currentTarget.href);
+    const client = globalThis.__ELEGANCE_CLIENT__;
+    const sanitizedTarget = client.sanitizePathname(target.pathname);
+    const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
+    if (sanitizedTarget === sanitizedCurrent) {
+      if (target.hash === window.location.hash)
+        return event.preventDefault();
+      return;
+    }
     event.preventDefault();
-    __ELEGANCE_CLIENT__.navigateLocally(target.href);
+    client.navigateLocally(target.href);
   })
 });
 var Link = (options, ...children) => {
