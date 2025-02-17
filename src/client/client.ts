@@ -240,8 +240,6 @@ window.onpopstate = async (event: PopStateEvent) => {
 
     const target = event.target as Window;
 
-    if (sanitizePathname(target.location.pathname) === loc.pathname) return;
-
     await navigateLocally(target.location.href, false);
 
     history.replaceState(null, "", target.location.href);

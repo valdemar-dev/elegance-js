@@ -164,7 +164,6 @@ var navigateLocally = async (target, pushState = true) => {
 window.onpopstate = async (event) => {
   event.preventDefault();
   const target = event.target;
-  if (sanitizePathname(target.location.pathname) === loc.pathname) return;
   await navigateLocally(target.location.href, false);
   history.replaceState(null, "", target.location.href);
 };
