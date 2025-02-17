@@ -336,17 +336,29 @@ var page = RootLayout(
       },
       "Elegance is a highly opinionated, compiled, fully-typescript, ",
       br({}),
-      "web-framework designed for building fast and efficient web pages.",
+      "web-framework designed for building feature-rich, yet, fast and efficient web pages.",
       br({}),
       br({}),
-      "All code used in Elegance is written by hand, and dependencies are used ",
+      "Elegance is written fully by hand, and dependencies are used ",
       b("very "),
       "sparsely.",
       br({}),
       br({}),
+      "A simple fully-working elegance page transfers only ",
+      b("4kB "),
+      "of data!",
       img({
+        class: "border-[1px] border-background-600 my-4",
         src: "/assets/nullpage_size.png"
-      })
+      }),
+      'For context, an "empty" react app on average transfers roughly ',
+      b("200-300kB "),
+      "of data.",
+      br({}),
+      br({}),
+      "This lack of JS sent to the browser is achieved through not ",
+      "creating unnecessary, wildly complex rude goldberg machines; ",
+      "and compilation instead of interpretation."
     ),
     div({
       class: "my-20"

@@ -12,6 +12,7 @@ export const generateHTMLTemplate = ({
     serverData?: string | null,
 }) => {
     let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`
+    HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">';
 
     if (addPageScriptTag === true) {
         HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
