@@ -130,7 +130,34 @@ var Header = () => header(
   )
 );
 
+// src/server/observe.ts
+var observe = (refs, update) => {
+  const returnValue = {
+    type: 3 /* OBSERVER */,
+    ids: refs.map((ref) => ref.id),
+    initialValues: refs.map((ref) => ref.value),
+    update
+  };
+  return returnValue;
+};
+
 // src/docs/docs/components/DocsLayout.ts
+var serverState2 = createState({
+  secondsSpentOnPage: 0
+});
+addPageLoadHooks([
+  ({
+    subjects,
+    signal
+  }) => {
+    const secondsSpentOnPage = subjects.secondsSpentOnPage;
+    const intervalId = setInterval(() => {
+      secondsSpentOnPage.value++;
+      signal(secondsSpentOnPage);
+    }, 1e3);
+    return () => clearInterval(intervalId);
+  }
+]);
 var Sidebar = () => nav(
   {
     class: "w-1/4 pr-6 mr-6"
@@ -139,6 +166,15 @@ var Sidebar = () => nav(
     {
       class: "flex flex-col gap-4"
     },
+    li(
+      {},
+      span({
+        innerText: observe(
+          [serverState2.secondsSpentOnPage],
+          (secondsSpentOnPage) => `${secondsSpentOnPage}`
+        )
+      })
+    ),
     li(
       {
         class: "flex flex-col gap-1"
@@ -161,7 +197,9 @@ var Sidebar = () => nav(
   )
 );
 var DocsLayout = (...children) => div(
-  {},
+  {
+    class: ""
+  },
   Header(),
   Breakpoint(
     {
@@ -169,7 +207,7 @@ var DocsLayout = (...children) => div(
     },
     div(
       {
-        class: "max-w-[1200px] w-full mx-auto flex mt-8"
+        class: "max-w-[1200px] w-full mx-auto flex mt-8 pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
       },
       Sidebar(),
       main(

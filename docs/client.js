@@ -26,10 +26,7 @@
     const state = {
       subjects: {},
       get: /* @__PURE__ */ __name((id) => Object.values(state.subjects).find((s) => s.id === id), "get"),
-      set: /* @__PURE__ */ __name((subject, value) => {
-        subject.value = value;
-        state.subjects[Object.keys(subject)[0]] = subject;
-      }, "set"),
+      getKey: /* @__PURE__ */ __name((value) => Object.keys(state.subjects).find((k) => state.subjects[k] === value), "getKey"),
       signal: /* @__PURE__ */ __name((subject) => {
         const observers = subject.observers;
         for (const observer of observers) {

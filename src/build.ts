@@ -247,6 +247,8 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                     element.options[lowerCaseOption] = attributeValue.value;
                 }
 
+                objectAttributes.push({ ...attributeValue, key: key, attribute: lowerCaseOption, });
+
                 break;
 
             case ObjectAttributeType.OBSERVER:
@@ -263,6 +265,8 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                     element.options[lowerCaseOption] = firstValue;
                 }
 
+                objectAttributes.push({ ...attributeValue, key: key, attribute: option, });
+
                 break;
 
             case ObjectAttributeType.BREAKPOINT:
@@ -272,10 +276,10 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                 layoutKeyMap[`${attributeValue}`] = value;
                 element.options["bp"] = value;
 
+                objectAttributes.push({ ...attributeValue, key: key, attribute: lowerCaseOption, });
+
                 break;
         }
-
-        objectAttributes.push({ ...attributeValue, key: key, attribute: lowerCaseOption, });
     }
 
     for (let child of element.children) {

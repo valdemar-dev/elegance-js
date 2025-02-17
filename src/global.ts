@@ -28,7 +28,6 @@ declare global {
         }
 
         get: (id: number) => ClientSubject | undefined;
-        set: (subject: ClientSubject, value: any) => void;
         signal: (subject: ClientSubject) => void;
         observe: (subject: ClientSubject, observer: (value: any) => any) => void;
     };

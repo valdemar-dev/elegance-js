@@ -100,11 +100,11 @@ addPageLoadHooks([
       };
       if (pos.y > 20) {
         if (hasScrolled.value === true) return;
-        state.set(hasScrolled, true);
+        hasScrolled.value = true;
         state.signal(hasScrolled);
       } else {
         if (hasScrolled.value === false) return;
-        state.set(hasScrolled, false);
+        hasScrolled.value = false;
         state.signal(hasScrolled);
       }
     };

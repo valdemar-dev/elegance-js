@@ -32,12 +32,7 @@ const loadPage = (deprecatedKeys: string[] = []) => {
         subjects: {} as Record<string, any>,
 
         get: (id: number) => Object.values(state.subjects).find((s) => s.id === id),
-
-        set: (subject: ClientSubject, value: any) => {
-            subject.value = value;
-
-            state.subjects[Object.keys(subject)[0]] = subject;
-        },
+        getKey: (value: any) => Object.keys(state.subjects).find(k => state.subjects[k] === value),
 
         signal: (subject: ClientSubject) => {
             const observers = subject.observers;
@@ -79,6 +74,7 @@ const loadPage = (deprecatedKeys: string[] = []) => {
             const subject = state.get(id);
 
             values[subject.id] = subject.value;
+
 
             const updateFunction = (value: any) => {
                 values[id] = value;

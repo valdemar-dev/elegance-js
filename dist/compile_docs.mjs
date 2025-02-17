@@ -394,6 +394,7 @@ var processPageElements = (element, objectAttributes) => {
           delete element.options[option];
           element.options[lowerCaseOption] = attributeValue.value;
         }
+        objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
         break;
       case 3 /* OBSERVER */:
         const firstValue = attributeValue.update(...attributeValue.initialValues);
@@ -407,15 +408,16 @@ var processPageElements = (element, objectAttributes) => {
           delete element.options[option];
           element.options[lowerCaseOption] = firstValue;
         }
+        objectAttributes.push({ ...attributeValue, key, attribute: option });
         break;
       case 4 /* BREAKPOINT */:
         let value = layoutKeyMap[`${attributeValue}`];
         if (!value) value = layoutKey++;
         layoutKeyMap[`${attributeValue}`] = value;
         element.options["bp"] = value;
+        objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
         break;
     }
-    objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
   }
   for (let child of element.children) {
     const processedChild = processPageElements(child, objectAttributes);

@@ -24,10 +24,7 @@ var loadPage = (deprecatedKeys = []) => {
   const state = {
     subjects: {},
     get: (id) => Object.values(state.subjects).find((s) => s.id === id),
-    set: (subject, value) => {
-      subject.value = value;
-      state.subjects[Object.keys(subject)[0]] = subject;
-    },
+    getKey: (value) => Object.keys(state.subjects).find((k) => state.subjects[k] === value),
     signal: (subject) => {
       const observers = subject.observers;
       for (const observer of observers) {
