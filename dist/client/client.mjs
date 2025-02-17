@@ -5,65 +5,10 @@ var xmlSerializer = new XMLSerializer();
 var pageStringCache = /* @__PURE__ */ new Map();
 var currentPage = window.location.pathname;
 var cleanupFunctions = [];
+var makeArray = Array.from;
 var sanitizePathname = (pn) => {
-  if (!pn.endsWith("/")) return pn;
-  if (pn === "/") return pn;
+  if (!pn.endsWith("/") || pn === "/") return pn;
   return pn.slice(0, -1);
-};
-var loadObserverObjectAttributes = (pageData, deprecatedKeys, state) => {
-  const observerObjectAttributes = pageData.ooa;
-  for (const observer of observerObjectAttributes || []) {
-    if (observer.key in deprecatedKeys) {
-      continue;
-    }
-    const el = document.querySelector(`[key="${observer.key}"]`);
-    let values = {};
-    for (const id of observer.ids) {
-      const subject = state.get(id);
-      if (!subject) {
-        console.error(`OOA watching an illegal ID: ${id}`);
-        return;
-      }
-      values[subject.id] = subject.value;
-      const updateFunction = (value) => {
-        values[id] = value;
-        const newValue = observer.update(...Object.values(values));
-        let attribute = observer.attribute;
-        switch (attribute) {
-          case "class":
-            attribute = "className";
-            break;
-        }
-        el[attribute] = newValue;
-      };
-      state.observe(subject, updateFunction);
-    }
-    console.info(`Registered Observer.`, observer);
-  }
-};
-var loadStateObjectAttributes = (pageData, deprecatedKeys, state) => {
-  const stateObjectAttributes = pageData.soa;
-  for (const soa of stateObjectAttributes || []) {
-    if (soa.key in deprecatedKeys) {
-      continue;
-    }
-    const el = document.querySelector(`[key="${soa.key}"]`);
-    if (!el) {
-      console.error(`An SOA is registered to a key which does not exist.`, soa);
-      return;
-    }
-    const subject = state.get(soa.id);
-    if (!subject) {
-      console.error(`An SOA is registered to a subject which does not exist.`, soa);
-      return;
-    }
-    if (typeof subject.value === "function") {
-      el[soa.attribute] = (event) => subject.value(state, event);
-    } else {
-      el[soa.attribute] = subject.value;
-    }
-    console.info(`Processed SOA.`, soa);
-  }
 };
 var loadPage = (deprecatedKeys = []) => {
   let pathname = sanitizePathname(window.location.pathname);
@@ -76,7 +21,6 @@ var loadPage = (deprecatedKeys = []) => {
   console.log(`Loading ${pathname}:`, pageData);
   const serverState = pageData.state;
   const pageLoadHooks = pageData.plh;
-  console.log(pageData.state);
   const state = {
     subjects: {},
     get: (id) => Object.values(state.subjects).find((s) => s.id === id),
@@ -103,17 +47,52 @@ var loadPage = (deprecatedKeys = []) => {
       pathname
     };
   }
-  loadObserverObjectAttributes(pageData, deprecatedKeys, state);
-  loadStateObjectAttributes(pageData, deprecatedKeys, state);
+  for (const observer of pageData.ooa || []) {
+    if (observer.key in deprecatedKeys) {
+      continue;
+    }
+    const el = document.querySelector(`[key="${observer.key}"]`);
+    let values = {};
+    for (const id of observer.ids) {
+      const subject = state.get(id);
+      values[subject.id] = subject.value;
+      const updateFunction = (value) => {
+        values[id] = value;
+        const newValue = observer.update(...Object.values(values));
+        let attribute = observer.attribute === "class" ? "className" : observer.attribute;
+        el[attribute] = newValue;
+      };
+      state.observe(subject, updateFunction);
+    }
+    console.info(`Registered Observer.`, observer);
+  }
+  for (const soa of pageData.soa || []) {
+    if (soa.key in deprecatedKeys) {
+      continue;
+    }
+    const el = document.querySelector(`[key="${soa.key}"]`);
+    const subject = state.get(soa.id);
+    if (typeof subject.value === "function") {
+      el[soa.attribute] = (event) => subject.value(state, event);
+    } else {
+      el[soa.attribute] = subject.value;
+    }
+    console.info(`Processed SOA.`, soa);
+  }
   for (const pageLoadHook of pageLoadHooks || []) {
     const cleanupFunction = pageLoadHook(state);
-    if (!cleanupFunction) continue;
-    cleanupFunctions.push(cleanupFunction);
+    if (cleanupFunction) cleanupFunctions.push(cleanupFunction);
   }
+  pageStringCache.set(
+    currentPage,
+    xmlSerializer.serializeToString(document)
+  );
 };
 var fetchPage = async (targetURL) => {
   const pathname = sanitizePathname(targetURL.pathname);
-  if (pageStringCache.has(pathname)) return;
+  if (pageStringCache.has(pathname)) {
+    return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
+  }
   console.log(`Fetching ${pathname}`);
   if (targetURL.hostname !== window.location.hostname) {
     console.error(`Client-side navigation may only occur on local URL's`);
@@ -121,10 +100,7 @@ var fetchPage = async (targetURL) => {
   }
   const res = await fetch(targetURL);
   const resText = await res.text();
-  if (!res.ok && res.status >= 500) {
-    console.error(`Server error whilst navigating to ${pathname}: ${resText}`);
-    return;
-  }
+  if (!res.ok) return;
   const newDOM = domParser.parseFromString(resText, "text/html");
   const pageDataScriptSrc = pathname === "/" ? pathname + "page_data.js" : pathname + "/page_data.js";
   if (!pd[pathname]) {
@@ -133,44 +109,18 @@ var fetchPage = async (targetURL) => {
   pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
   return newDOM;
 };
-var getDeprecatedKeys = ({
-  breakpointKey,
-  document: document2
-}) => {
-  const deprecatedKeys = [];
-  const getRecursively = (element) => {
-    const key = element.getAttribute("key");
-    if (key) {
-      deprecatedKeys.push(key);
-    }
-    if (element.children) {
-      if (key === breakpointKey) {
-        return;
-      }
-      for (const child of Array.from(element.children)) {
-        getRecursively(child);
-      }
-    }
-  };
-  getRecursively(document2.body);
-  return deprecatedKeys;
-};
 var navigateLocally = async (target, pushState = true) => {
   console.log(`Naving to: ${target} from ${currentPage}`);
   for (const func of cleanupFunctions) {
     func();
   }
   cleanupFunctions = [];
-  pageStringCache.set(currentPage, xmlSerializer.serializeToString(document));
   const targetURL = new URL(target);
   const pathname = sanitizePathname(targetURL.pathname);
-  let newPage = pageStringCache.get(pathname) ?? await fetchPage(targetURL);
+  let newPage = await fetchPage(targetURL);
   if (!newPage) return;
-  if (typeof newPage === "string") {
-    newPage = domParser.parseFromString(newPage, "text/html");
-  }
-  const curBreaks = Array.from(document.querySelectorAll("div[bp]"));
-  const newBreaks = Array.from(newPage.querySelectorAll("div[bp]"));
+  const curBreaks = makeArray(document.querySelectorAll("div[bp]"));
+  const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
   let lastBreakPairMatch = {
     currentPage: document.body,
     newPage: newPage.body
@@ -187,17 +137,23 @@ var navigateLocally = async (target, pushState = true) => {
       newPage: newBreak
     };
   }
-  console.log(`Replacing ${lastBreakPairMatch.currentPage} with ${lastBreakPairMatch.newPage}`);
-  const deprecatedKeys = getDeprecatedKeys({
-    breakpointKey: lastBreakPairMatch.currentPage.getAttribute("key"),
-    // Clean out the new page! Not the current one.
-    document: newPage
-  });
-  const parent = lastBreakPairMatch.currentPage.parentElement;
-  parent?.replaceChild(lastBreakPairMatch.newPage, lastBreakPairMatch.currentPage);
-  document.head.replaceChildren(...Array.from(newPage.head.children));
-  if (pushState) history.pushState(null, "", target);
+  const deprecatedKeys = [];
+  const breakpointKey = lastBreakPairMatch.currentPage.getAttribute("key");
+  const getDeprecatedKeysRecursively = (element) => {
+    const key = element.getAttribute("key");
+    if (key) {
+      deprecatedKeys.push(key);
+      if (key === breakpointKey) return;
+    }
+    for (const child of makeArray(element.children)) {
+      getDeprecatedKeysRecursively(child);
+    }
+  };
+  getDeprecatedKeysRecursively(document.body);
+  lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage);
+  document.head.replaceChildren(...makeArray(newPage.head.children));
   loadPage(deprecatedKeys);
+  if (pushState) history.pushState(null, "", target);
   currentPage = pathname;
 };
 window.onpopstate = async (event) => {

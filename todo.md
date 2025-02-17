@@ -4,11 +4,13 @@ POTENTIAL:
 TODO:
     - code cleanup
     - rewrite client
-    - write documentation (OMEGALUL)
-    - only send watch-mode code in watch-mode
+        - there's some weird shit with this, i need to make it more optimized
+          no abstraction though, obviously
     - make watch server url configurable.
+    - write documentation (OMEGALUL)
 
 DONE: 
+    - only send watch-mode code in watch-mode
     - optimize page-data
     - multi-page components that maintain state.
     - give each OA a ref to the pd[] that they belong to

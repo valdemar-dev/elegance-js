@@ -1,1 +1,198 @@
-(()=>{var j=Object.defineProperty;var i=(n,a)=>j(n,"name",{value:a,configurable:!0});const b=new DOMParser,v=new XMLSerializer,h=new Map;let w=window.location.pathname,g=[];const p=i(n=>!n.endsWith("/")||n==="/"?n:n.slice(0,-1),"sanitizePathname"),O=i((n,a,o)=>{const c=n.ooa;for(const e of c||[]){if(e.key in a)continue;const r=document.querySelector(`[key="${e.key}"]`);let t={};for(const s of e.ids){const l=o.get(s);if(!l)return;t[l.id]=l.value;const y=i(u=>{t[s]=u;const f=e.update(...Object.values(t));let d=e.attribute;switch(d){case"class":d="className";break}r[d]=f},"updateFunction");o.observe(l,y)}}},"loadObserverObjectAttributes"),L=i((n,a,o)=>{const c=n.soa;for(const e of c||[]){if(e.key in a)continue;const r=document.querySelector(`[key="${e.key}"]`);if(!r)return;const t=o.get(e.id);if(!t)return;typeof t.value=="function"?r[e.attribute]=s=>t.value(o,s):r[e.attribute]=t.value}},"loadStateObjectAttributes"),m=i((n=[])=>{let a=p(window.location.pathname),o=pd[a];if(!o)return;const c=o.state,e=o.plh,r={subjects:{},get:i(t=>Object.values(r.subjects).find(s=>s.id===t),"get"),set:i((t,s)=>{t.value=s,r.subjects[Object.keys(t)[0]]=t},"set"),signal:i(t=>{const s=t.observers;for(const l of s)l(t.value)},"signal"),observe:i((t,s)=>{t.observers.push(s)},"observe")};for(const[t,s]of Object.entries(c)){const l=s;r.subjects[t]={id:l.id,value:l.value,observers:[],pathname:a}}O(o,n,r),L(o,n,r);for(const t of e||[]){const s=t(r);s&&g.push(s)}},"loadPage"),S=i(async n=>{const a=p(n.pathname);if(h.has(a)||n.hostname!==window.location.hostname)return;const o=await fetch(n),c=await o.text();if(!o.ok&&o.status>=500)return;const e=b.parseFromString(c,"text/html"),r=a==="/"?a+"page_data.js":a+"/page_data.js";return pd[a]||await import(r),h.set(a,v.serializeToString(e)),e},"fetchPage"),E=i(({breakpointKey:n,document:a})=>{const o=[],c=i(e=>{const r=e.getAttribute("key");if(r&&o.push(r),e.children){if(r===n)return;for(const t of Array.from(e.children))c(t)}},"getRecursively");return c(a.body),o},"getDeprecatedKeys"),k=i(async(n,a=!0)=>{for(const u of g)u();g=[],h.set(w,v.serializeToString(document));const o=new URL(n),c=p(o.pathname);let e=h.get(c)??await S(o);if(!e)return;typeof e=="string"&&(e=b.parseFromString(e,"text/html"));const r=Array.from(document.querySelectorAll("div[bp]")),t=Array.from(e.querySelectorAll("div[bp]"));let s={currentPage:document.body,newPage:e.body};for(let u=0;u<r.length&&!(u>t.length-1);u++){const f=r[u],d=t[u],A=f.getAttribute("bp"),P=d.getAttribute("bp");if(A!==P)break;s={currentPage:f,newPage:d}}const l=E({breakpointKey:s.currentPage.getAttribute("key"),document:e});s.currentPage.parentElement?.replaceChild(s.newPage,s.currentPage),document.head.replaceChildren(...Array.from(e.head.children)),a&&history.pushState(null,"",n),m(l),w=c},"navigateLocally");window.onpopstate=async n=>{n.preventDefault();const a=n.target;await k(a.location.href,!1),history.replaceState(null,"",p(a.location.pathname))};globalThis.__ELEGANCE_CLIENT__={navigateLocally:k,fetchPage:S};m();if(Object.values(pd)[0]?.w){const n=new EventSource("http://localhost:3001/events");n.onmessage=async a=>{if(a.data==="reload"){const o=await fetch(window.location.href);for(const t of g)t();g=[];const c=b.parseFromString(await o.text(),"text/html");document.body=c.body,document.head.replaceWith(c.head);const e=document.querySelector("[rel=stylesheet]");if(!e)return;const r=e.getAttribute("href");e.setAttribute("href",r.split("?")[0]+"?"+new Date().getTime()),m()}else a.data==="hard-reload"&&window.location.reload()}}})();
+(() => {
+  var __defProp = Object.defineProperty;
+  var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+  console.log("Elegance.JS is loading..");
+  const domParser = new DOMParser();
+  const xmlSerializer = new XMLSerializer();
+  const pageStringCache = /* @__PURE__ */ new Map();
+  let currentPage = window.location.pathname;
+  let cleanupFunctions = [];
+  const makeArray = Array.from;
+  const sanitizePathname = /* @__PURE__ */ __name((pn) => {
+    if (!pn.endsWith("/") || pn === "/") return pn;
+    return pn.slice(0, -1);
+  }, "sanitizePathname");
+  const loadPage = /* @__PURE__ */ __name((deprecatedKeys = []) => {
+    let pathname = sanitizePathname(window.location.pathname);
+    let pageData = pd[pathname];
+    if (!pageData) {
+      console.error(`Failed to load! "page_data.js" is not present for the pathname: ${window.location.pathname}`);
+      return;
+    }
+    ;
+    console.log(`Loading ${pathname}:`, pageData);
+    const serverState = pageData.state;
+    const pageLoadHooks = pageData.plh;
+    const state = {
+      subjects: {},
+      get: /* @__PURE__ */ __name((id) => Object.values(state.subjects).find((s) => s.id === id), "get"),
+      set: /* @__PURE__ */ __name((subject, value) => {
+        subject.value = value;
+        state.subjects[Object.keys(subject)[0]] = subject;
+      }, "set"),
+      signal: /* @__PURE__ */ __name((subject) => {
+        const observers = subject.observers;
+        for (const observer of observers) {
+          observer(subject.value);
+        }
+      }, "signal"),
+      observe: /* @__PURE__ */ __name((subject, observer) => {
+        subject.observers.push(observer);
+      }, "observe")
+    };
+    for (const [subjectName, value] of Object.entries(serverState)) {
+      const subject = value;
+      state.subjects[subjectName] = {
+        id: subject.id,
+        value: subject.value,
+        observers: [],
+        pathname
+      };
+    }
+    for (const observer of pageData.ooa || []) {
+      if (observer.key in deprecatedKeys) {
+        continue;
+      }
+      const el = document.querySelector(`[key="${observer.key}"]`);
+      let values = {};
+      for (const id of observer.ids) {
+        const subject = state.get(id);
+        values[subject.id] = subject.value;
+        const updateFunction = /* @__PURE__ */ __name((value) => {
+          values[id] = value;
+          const newValue = observer.update(...Object.values(values));
+          let attribute = observer.attribute === "class" ? "className" : observer.attribute;
+          el[attribute] = newValue;
+        }, "updateFunction");
+        state.observe(subject, updateFunction);
+      }
+      console.info(`Registered Observer.`, observer);
+    }
+    for (const soa of pageData.soa || []) {
+      if (soa.key in deprecatedKeys) {
+        continue;
+      }
+      const el = document.querySelector(`[key="${soa.key}"]`);
+      const subject = state.get(soa.id);
+      if (typeof subject.value === "function") {
+        el[soa.attribute] = (event) => subject.value(state, event);
+      } else {
+        el[soa.attribute] = subject.value;
+      }
+      console.info(`Processed SOA.`, soa);
+    }
+    for (const pageLoadHook of pageLoadHooks || []) {
+      const cleanupFunction = pageLoadHook(state);
+      if (cleanupFunction) cleanupFunctions.push(cleanupFunction);
+    }
+    pageStringCache.set(
+      currentPage,
+      xmlSerializer.serializeToString(document)
+    );
+  }, "loadPage");
+  const fetchPage = /* @__PURE__ */ __name(async (targetURL) => {
+    const pathname = sanitizePathname(targetURL.pathname);
+    if (pageStringCache.has(pathname)) {
+      return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
+    }
+    console.log(`Fetching ${pathname}`);
+    if (targetURL.hostname !== window.location.hostname) {
+      console.error(`Client-side navigation may only occur on local URL's`);
+      return;
+    }
+    const res = await fetch(targetURL);
+    const resText = await res.text();
+    if (!res.ok) return;
+    const newDOM = domParser.parseFromString(resText, "text/html");
+    const pageDataScriptSrc = pathname === "/" ? pathname + "page_data.js" : pathname + "/page_data.js";
+    if (!pd[pathname]) {
+      await import(pageDataScriptSrc);
+    }
+    pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
+    return newDOM;
+  }, "fetchPage");
+  const navigateLocally = /* @__PURE__ */ __name(async (target, pushState = true) => {
+    console.log(`Naving to: ${target} from ${currentPage}`);
+    for (const func of cleanupFunctions) {
+      func();
+    }
+    cleanupFunctions = [];
+    const targetURL = new URL(target);
+    const pathname = sanitizePathname(targetURL.pathname);
+    let newPage = await fetchPage(targetURL);
+    if (!newPage) return;
+    const curBreaks = makeArray(document.querySelectorAll("div[bp]"));
+    const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
+    let lastBreakPairMatch = {
+      currentPage: document.body,
+      newPage: newPage.body
+    };
+    for (let i = 0; i < curBreaks.length; i++) {
+      if (i > newBreaks.length - 1) break;
+      const curBreak = curBreaks[i];
+      const newBreak = newBreaks[i];
+      const curName = curBreak.getAttribute("bp");
+      const newName = newBreak.getAttribute("bp");
+      if (curName !== newName) break;
+      lastBreakPairMatch = {
+        currentPage: curBreak,
+        newPage: newBreak
+      };
+    }
+    const deprecatedKeys = [];
+    const breakpointKey = lastBreakPairMatch.currentPage.getAttribute("key");
+    const getDeprecatedKeysRecursively = /* @__PURE__ */ __name((element) => {
+      const key = element.getAttribute("key");
+      if (key) {
+        deprecatedKeys.push(key);
+        if (key === breakpointKey) return;
+      }
+      for (const child of makeArray(element.children)) {
+        getDeprecatedKeysRecursively(child);
+      }
+    }, "getDeprecatedKeysRecursively");
+    getDeprecatedKeysRecursively(document.body);
+    lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage);
+    document.head.replaceChildren(...makeArray(newPage.head.children));
+    loadPage(deprecatedKeys);
+    if (pushState) history.pushState(null, "", target);
+    currentPage = pathname;
+  }, "navigateLocally");
+  window.onpopstate = async (event) => {
+    event.preventDefault();
+    const target = event.target;
+    await navigateLocally(target.location.href, false);
+    history.replaceState(null, "", sanitizePathname(target.location.pathname));
+  };
+  globalThis.__ELEGANCE_CLIENT__ = {
+    navigateLocally,
+    fetchPage
+  };
+  loadPage();
+  if (Object.values(pd)[0]?.w) {
+    const source = new EventSource("http://localhost:3001/events");
+    source.onmessage = async (event) => {
+      console.log(`hot-reload, command received: ${event.data}`);
+      if (event.data === "reload") {
+        const newHTML = await fetch(window.location.href);
+        for (const func of cleanupFunctions) {
+          func();
+        }
+        cleanupFunctions = [];
+        const newDOM = domParser.parseFromString(
+          await newHTML.text(),
+          "text/html"
+        );
+        document.body = newDOM.body;
+        document.head.replaceWith(newDOM.head);
+        const link = document.querySelector("[rel=stylesheet]");
+        if (!link) return;
+        const href = link.getAttribute("href");
+        link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
+        loadPage();
+      } else if (event.data === "hard-reload") {
+        window.location.reload();
+      }
+    };
+  }
+})();
