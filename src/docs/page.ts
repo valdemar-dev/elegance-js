@@ -1,6 +1,7 @@
 import { 
     Header,
 } from "./components/Header";
+import { RootLayout } from "./components/RootLayout";
 
 const pageTemplateString = 
 `
@@ -102,9 +103,7 @@ const convertToSpans = (inputString: string) => {
 }
 
 
-export const page = body ({
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
-},
+export const page = RootLayout (
     Header(),
 
     div ({ 

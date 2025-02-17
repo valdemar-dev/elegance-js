@@ -1,3 +1,11 @@
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
+  {
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
+  },
+  ...children
+);
+
 // src/docs/docs/components/PageHeading.ts
 var PageHeading = (title) => h1({
   class: "text-3xl font-semibold",
@@ -136,7 +144,7 @@ var Header = () => header(
   )
 );
 
-// src/docs/docs/components/RootLayout.ts
+// src/docs/docs/components/DocsLayout.ts
 var Sidebar = () => nav(
   {
     class: "w-1/4 pr-6 mr-6"
@@ -166,12 +174,12 @@ var Sidebar = () => nav(
     )
   )
 );
-var RootLayout = (...children) => div(
+var DocsLayout = (...children) => div(
   {},
   Header(),
   Breakpoint(
     {
-      name: "docs-navigation"
+      name: "docs-layout-breakpoint"
     },
     div(
       {
@@ -189,11 +197,8 @@ var RootLayout = (...children) => div(
 );
 
 // src/docs/docs/page.ts
-var page = body(
-  {
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
-  },
-  RootLayout(
+var page = RootLayout(
+  DocsLayout(
     PageHeading("Getting Started")
   )
 );

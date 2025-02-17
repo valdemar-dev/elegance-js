@@ -1,5 +1,9 @@
-import { RootLayout } from "../components/RootLayout";
+import { RootLayout } from "../../components/RootLayout";
+import { PageHeading } from "../components/PageHeading";
+import { DocsLayout } from "../components/DocsLayout";
 
-export const page = RootLayout(
-    "hi!",
-)
+export const page = RootLayout (
+    DocsLayout (
+        PageHeading ("hii"), 
+    ),
+);

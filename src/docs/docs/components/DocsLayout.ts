@@ -30,13 +30,12 @@ const Sidebar = () => nav ({
     ),
 )
  
-export const RootLayout = (...children: Child[]) => body ({
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
+export const DocsLayout = (...children: Child[]) => div ({
 },
     Header(),
 
     Breakpoint ({
-        name: "docs-navigation",
+        name: "docs-layout-breakpoint",
     },
         div ({
             class: "max-w-[1200px] w-full mx-auto flex mt-8",

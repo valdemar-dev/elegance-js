@@ -1,17 +1,3 @@
-// src/docs/components/RootLayout.ts
-var RootLayout = (...children) => body(
-  {
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
-  },
-  ...children
-);
-
-// src/docs/docs/components/PageHeading.ts
-var PageHeading = (title) => h1({
-  class: "text-3xl font-semibold",
-  innerText: title
-});
-
 // src/components/Breakpoint.ts
 var Breakpoint = ({ name }, ...children) => div(
   {
@@ -195,13 +181,6 @@ var DocsLayout = (...children) => div(
     )
   )
 );
-
-// src/docs/docs/page.ts
-var page = RootLayout(
-  DocsLayout(
-    PageHeading("Getting Started")
-  )
-);
 export {
-  page
+  DocsLayout
 };

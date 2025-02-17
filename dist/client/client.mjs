@@ -111,14 +111,15 @@ var fetchPage = async (targetURL) => {
 };
 var navigateLocally = async (target, pushState = true) => {
   console.log(`Naving to: ${target} from ${currentPage}`);
+  const targetURL = new URL(target);
+  const pathname = sanitizePathname(targetURL.pathname);
+  if (pathname === currentPage) return;
+  let newPage = await fetchPage(targetURL);
+  if (!newPage) return;
   for (const func of cleanupFunctions) {
     func();
   }
   cleanupFunctions = [];
-  const targetURL = new URL(target);
-  const pathname = sanitizePathname(targetURL.pathname);
-  let newPage = await fetchPage(targetURL);
-  if (!newPage) return;
   const curBreaks = makeArray(document.querySelectorAll("div[bp]"));
   const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
   let lastBreakPairMatch = {
@@ -143,8 +144,8 @@ var navigateLocally = async (target, pushState = true) => {
     const key = element.getAttribute("key");
     if (key) {
       deprecatedKeys.push(key);
-      if (key === breakpointKey) return;
     }
+    if (key === breakpointKey) return;
     for (const child of makeArray(element.children)) {
       getDeprecatedKeysRecursively(child);
     }
@@ -152,9 +153,9 @@ var navigateLocally = async (target, pushState = true) => {
   getDeprecatedKeysRecursively(document.body);
   lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage);
   document.head.replaceChildren(...makeArray(newPage.head.children));
-  loadPage(deprecatedKeys);
   if (pushState) history.pushState(null, "", target);
   currentPage = pathname;
+  loadPage(deprecatedKeys);
 };
 window.onpopstate = async (event) => {
   event.preventDefault();

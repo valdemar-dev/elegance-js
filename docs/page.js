@@ -166,6 +166,14 @@ var Header = () => header(
   )
 );
 
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
+  {
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
+  },
+  ...children
+);
+
 // src/docs/page.ts
 var pageTemplateString = `
 import { createState } from "elegance-js/helpers/createState";
@@ -245,10 +253,7 @@ var convertToSpans = (inputString) => {
   });
   return result;
 };
-var page = body(
-  {
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
-  },
+var page = RootLayout(
   Header(),
   div(
     {
