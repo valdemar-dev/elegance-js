@@ -8,7 +8,7 @@ var RootLayout = (...children) => body(
 
 // src/docs/docs/components/PageHeading.ts
 var PageHeading = (title, id) => h1({
-  class: "text-3xl font-semibold",
+  class: "text-3xl font-semibold mb-4",
   id,
   innerText: title
 });
@@ -92,8 +92,7 @@ var serverState = createState({
     const sanitizedTarget = client.sanitizePathname(target.pathname);
     const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
     if (sanitizedTarget === sanitizedCurrent) {
-      if (target.hash === window.location.hash)
-        return event.preventDefault();
+      if (target.hash === window.location.hash) return event.preventDefault();
       return;
     }
     event.preventDefault();
@@ -103,6 +102,9 @@ var serverState = createState({
 var Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;
+  }
+  if (!options.href.startsWith("/")) {
+    throw `Link elements may only navigate to local pages. "/"`;
   }
   return a(
     {
@@ -283,7 +285,7 @@ var DocsLayout = (...children) => div(
   Header(),
   div(
     {
-      class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-2 sm:min-[calc(1200px+1rem)]:px-0"
+      class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
     },
     Sidebar(),
     article(
@@ -307,16 +309,52 @@ var page = RootLayout(
       "Preamble",
       "preamble"
     ),
+    h2({
+      class: "text-lg font-medium mb-1",
+      innerText: "A Quick Forewarning"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Elegance is still in very early development.",
+      br({}),
+      "There are absolutely no guarantees of backwards compatibility, security or really anything.",
+      br({}),
+      "As such, elegance isn't really meant for production, yet."
+    ),
     div({
-      class: "h-[3000px]"
+      class: "my-10"
+    }, []),
+    h2({
+      class: "text-lg font-medium mb-1",
+      innerText: "What is Elegance?"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Elegance is a highly opinionated, compiled, fully-typescript, ",
+      br({}),
+      "web-framework designed for building fast and efficient web pages.",
+      br({}),
+      br({}),
+      "All code used in Elegance is written by hand, and dependencies are used ",
+      b("very "),
+      "sparsely.",
+      br({}),
+      br({}),
+      img({
+        src: "/assets/nullpage_size.png"
+      })
+    ),
+    div({
+      class: "my-20"
     }, []),
     PageHeading(
       "Install",
       "installation"
-    ),
-    div({
-      class: "h-[3000px]"
-    }, [])
+    )
   )
 );
 export {

@@ -1,6 +1,9 @@
 POTENTIAL:
-    - deprecate SOA, change to ELOA
     - fix race condition fetching in Links()
+    - get into image opts?
+
+CANNED: 
+    - deprecate SOA, change to ELOA
 
 TODO:
     - code cleanup

@@ -4,6 +4,11 @@ const domParser = new DOMParser();
 const xmlSerializer = new XMLSerializer();
 const pageStringCache = new Map();
 
+// Hello! Brief explanation of the below stuff.
+// Basically, optimization. They get minified into smaller variable references.
+// Put a definition here if something is referenced a lot.
+const loc = window.location;
+const doc = document;
 
 let cleanupFunctions: Array<() => void> = [];
 
@@ -14,27 +19,38 @@ const sanitizePathname = (pn: string) => {
     return pn.slice(0, -1);
 };
 
-let currentPage: string = sanitizePathname(window.location.pathname);
+let currentPage: string = sanitizePathname(loc.pathname);
 
 const loadPage = (deprecatedKeys: string[] = []) => {
-    let pathname = sanitizePathname(window.location.pathname);
+    const fixedUrl = new URL(loc.href);
+    fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
 
+    const pathname = fixedUrl.pathname;
+
+    history.replaceState(null, "", fixedUrl.href);
+    
     let pageData = pd[pathname];
     if (!pageData) {
-        console.error(`Failed to load! "page_data.js" is not present for the pathname: ${window.location.pathname}`)
+        console.error(`Failed to load! "page_data.js" is not present for the pathname: ${pathname}`)
         return;
     };
 
     console.log(`Loading ${pathname}:`, pageData);
     
-    const serverState = pageData.state;
-    const pageLoadHooks = pageData.plh
-
     let state = pageData.stateManager;
 
     if (!state) {
         state = {
-            subjects: {} as Record<string, any>,
+            subjects: Object.fromEntries(
+                Object.entries(pageData.state).map(([subjectName, value]: [string, any]) => [
+                    subjectName,
+                    {
+                        ...value,
+                        observers: [],
+                        pathname: pathname,
+                    }
+                ])
+            ),
 
             get: (id: number) => Object.values(state.subjects).find((s: ClientSubject) => s.id === id),
             getKey: (value: any) => Object.keys(state.subjects).find(k => state.subjects[k] === value),
@@ -52,20 +68,6 @@ const loadPage = (deprecatedKeys: string[] = []) => {
             }
         }
 
-        for (const [subjectName, value] of Object.entries(serverState)) {
-            const subject = value as {
-                value: any,
-                id: number,
-            }
-
-            state.subjects[subjectName] = {
-                id: subject.id,
-                value: subject.value,
-                observers: [],
-                pathname: pathname,
-            }
-        }
-
         pageData.stateManager = state;
     }
 
@@ -74,7 +76,7 @@ const loadPage = (deprecatedKeys: string[] = []) => {
             continue; 
         }
 
-        const el = document.querySelector(`[key="${observer.key}"]`);
+        const el = doc.querySelector(`[key="${observer.key}"]`);
 
         let values: Record<string, any> = {};
 
@@ -109,7 +111,7 @@ const loadPage = (deprecatedKeys: string[] = []) => {
             continue; 
         }
 
-        const el = document.querySelector(`[key="${soa.key}"]`) as any;
+        const el = doc.querySelector(`[key="${soa.key}"]`) as any;
         const subject = state.get(soa.id);
 
         if (typeof subject.value === "function") {
@@ -121,14 +123,14 @@ const loadPage = (deprecatedKeys: string[] = []) => {
         console.info(`Processed SOA.`, soa);
     }
 
-    for (const pageLoadHook of pageLoadHooks || []) {
+    for (const pageLoadHook of pageData.plh || []) {
         const cleanupFunction = pageLoadHook(state);
         if (cleanupFunction) cleanupFunctions.push(cleanupFunction);
     }
 
     pageStringCache.set(
         currentPage,
-        xmlSerializer.serializeToString(document)
+        xmlSerializer.serializeToString(doc)
     );
 };
 
@@ -141,17 +143,11 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
 
     console.log(`Fetching ${pathname}`);
 
-    if (targetURL.hostname !== window.location.hostname) {
-        console.error(`Client-side navigation may only occur on local URL's`);
-        return;
-    }
-
     const res = await fetch(targetURL);
-    const resText = await res.text();
 
     if (!res.ok) return;
 
-    const newDOM = domParser.parseFromString(resText, "text/html");
+    const newDOM = domParser.parseFromString(await res.text(), "text/html");
 
     const pageDataScriptSrc = pathname === "/" ?
         pathname + "page_data.js" :
@@ -172,9 +168,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
 
-    // fixes weird bug, never touch.
-    if (pathname === currentPage) return history.pushState(null, "", targetURL.href);
-
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
 
@@ -184,11 +177,11 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     cleanupFunctions = [];
     
-    const curBreaks = makeArray(document.querySelectorAll("div[bp]"));
+    const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
     const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
 
     let lastBreakPairMatch = {
-        currentPage: document.body,
+        currentPage: doc.body,
         newPage: newPage.body,
     };
 
@@ -227,13 +220,17 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         }
     };
 
-    getDeprecatedKeysRecursively(document.body);
+    getDeprecatedKeysRecursively(doc.body);
 
     lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage)
-    document.head.replaceChildren(...makeArray(newPage.head.children));
+    doc.head.replaceChildren(...makeArray(newPage.head.children));
 
     if (pushState) history.pushState(null, "", targetURL.href); 
     currentPage = pathname;
+
+    if (targetURL.hash) {
+        doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
+    }
 
     loadPage(deprecatedKeys);
 };
@@ -242,9 +239,12 @@ window.onpopstate = async (event: PopStateEvent) => {
     event.preventDefault();
 
     const target = event.target as Window;
+
+    if (sanitizePathname(target.location.pathname) === loc.pathname) return;
+
     await navigateLocally(target.location.href, false);
 
-    history.replaceState(null, "", sanitizePathname(target.location.href));
+    history.replaceState(null, "", target.location.href);
 };
 
 globalThis.__ELEGANCE_CLIENT__ = {

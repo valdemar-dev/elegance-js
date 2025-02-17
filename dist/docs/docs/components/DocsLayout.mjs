@@ -77,8 +77,7 @@ var serverState = createState({
     const sanitizedTarget = client.sanitizePathname(target.pathname);
     const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
     if (sanitizedTarget === sanitizedCurrent) {
-      if (target.hash === window.location.hash)
-        return event.preventDefault();
+      if (target.hash === window.location.hash) return event.preventDefault();
       return;
     }
     event.preventDefault();
@@ -88,6 +87,9 @@ var serverState = createState({
 var Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;
+  }
+  if (!options.href.startsWith("/")) {
+    throw `Link elements may only navigate to local pages. "/"`;
   }
   return a(
     {
@@ -268,7 +270,7 @@ var DocsLayout = (...children) => div(
   Header(),
   div(
     {
-      class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-2 sm:min-[calc(1200px+1rem)]:px-0"
+      class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
     },
     Sidebar(),
     article(

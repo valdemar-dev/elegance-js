@@ -15,6 +15,7 @@ if (Object.values(pd)[0]?.w) {
       if (!link) return;
       const href = link.getAttribute("href");
       link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
+      loadPage();
     } else if (event.data === "hard-reload") {
       window.location.reload();
     }

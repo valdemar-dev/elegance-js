@@ -54,9 +54,8 @@ const serverState = createState({
         const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
 
         if (sanitizedTarget === sanitizedCurrent) {
-            if (target.hash === window.location.hash)
-                return event.preventDefault();
-            return;  
+            if (target.hash === window.location.hash) return event.preventDefault();
+            return;
         }
 
         event.preventDefault();
@@ -69,6 +68,10 @@ export const Link = (options: Record<string, any>, ...children: Child[]
 ) => {    
     if (!options.href) {
         throw `Link elements must have a HREF attribute set.`;
+    }
+
+    if (!options.href.startsWith("/")) {
+        throw `Link elements may only navigate to local pages. "/"`
     }
 
     return a ({

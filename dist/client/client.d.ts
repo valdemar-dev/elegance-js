@@ -1,6 +1,8 @@
 declare const domParser: DOMParser;
 declare const xmlSerializer: XMLSerializer;
 declare const pageStringCache: Map<any, any>;
+declare const loc: Location;
+declare const doc: Document;
 declare let cleanupFunctions: Array<() => void>;
 declare const makeArray: {
     <T>(arrayLike: ArrayLike<T>): T[];

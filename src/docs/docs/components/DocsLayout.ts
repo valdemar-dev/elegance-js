@@ -123,7 +123,7 @@ export const DocsLayout = (...children: Child[]) => div ({
     Header(),
 
     div ({
-        class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-2 sm:min-[calc(1200px+1rem)]:px-0",
+        class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0",
     },
         Sidebar(),
 
