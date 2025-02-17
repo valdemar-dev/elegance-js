@@ -3,13 +3,13 @@ console.log("Elegance.JS is loading..");
 var domParser = new DOMParser();
 var xmlSerializer = new XMLSerializer();
 var pageStringCache = /* @__PURE__ */ new Map();
-var currentPage = window.location.pathname;
 var cleanupFunctions = [];
 var makeArray = Array.from;
 var sanitizePathname = (pn) => {
   if (!pn.endsWith("/") || pn === "/") return pn;
   return pn.slice(0, -1);
 };
+var currentPage = sanitizePathname(window.location.pathname);
 var loadPage = (deprecatedKeys = []) => {
   let pathname = sanitizePathname(window.location.pathname);
   let pageData = pd[pathname];
@@ -21,28 +21,32 @@ var loadPage = (deprecatedKeys = []) => {
   console.log(`Loading ${pathname}:`, pageData);
   const serverState = pageData.state;
   const pageLoadHooks = pageData.plh;
-  const state = {
-    subjects: {},
-    get: (id) => Object.values(state.subjects).find((s) => s.id === id),
-    getKey: (value) => Object.keys(state.subjects).find((k) => state.subjects[k] === value),
-    signal: (subject) => {
-      const observers = subject.observers;
-      for (const observer of observers) {
-        observer(subject.value);
+  let state = pageData.stateManager;
+  if (!state) {
+    state = {
+      subjects: {},
+      get: (id) => Object.values(state.subjects).find((s) => s.id === id),
+      getKey: (value) => Object.keys(state.subjects).find((k) => state.subjects[k] === value),
+      signal: (subject) => {
+        const observers = subject.observers;
+        for (const observer of observers) {
+          observer(subject.value);
+        }
+      },
+      observe: (subject, observer) => {
+        subject.observers.push(observer);
       }
-    },
-    observe: (subject, observer) => {
-      subject.observers.push(observer);
-    }
-  };
-  for (const [subjectName, value] of Object.entries(serverState)) {
-    const subject = value;
-    state.subjects[subjectName] = {
-      id: subject.id,
-      value: subject.value,
-      observers: [],
-      pathname
     };
+    for (const [subjectName, value] of Object.entries(serverState)) {
+      const subject = value;
+      state.subjects[subjectName] = {
+        id: subject.id,
+        value: subject.value,
+        observers: [],
+        pathname
+      };
+    }
+    pageData.stateManager = state;
   }
   for (const observer of pageData.ooa || []) {
     if (observer.key in deprecatedKeys) {

@@ -7,21 +7,28 @@ var RootLayout = (...children) => body(
 );
 
 // src/docs/docs/components/PageHeading.ts
-var PageHeading = (title) => h1({
+var PageHeading = (title, id) => h1({
   class: "text-3xl font-semibold",
+  id,
   innerText: title
 });
 
 // src/components/Breakpoint.ts
-var Breakpoint = ({ name }, ...children) => div(
-  {
-    bp: {
-      type: 4 /* BREAKPOINT */,
-      value: name
-    }
-  },
-  ...children
-);
+var Breakpoint = (options, ...children) => {
+  if (!options.name) throw `Breakpoints must set a name attribute.`;
+  const name = options.name;
+  delete options.name;
+  return div(
+    {
+      bp: {
+        type: 4 /* BREAKPOINT */,
+        value: name
+      },
+      ...options
+    },
+    ...children
+  );
+};
 
 // src/server/createEventListener.ts
 var createEventListener = (fn) => fn;
@@ -80,8 +87,10 @@ addPageLoadHooks([
 ]);
 var serverState = createState({
   navigate: createEventListener((state, event) => {
+    const target = event.currentTarget;
+    if (target.href === window.location.href) return;
     event.preventDefault();
-    __ELEGANCE_CLIENT__.navigateLocally(event.currentTarget.href);
+    __ELEGANCE_CLIENT__.navigateLocally(target.href);
   })
 });
 var Link = (options, ...children) => {
@@ -160,10 +169,7 @@ var serverState2 = createState({
   secondsSpentOnPage: 0
 });
 addPageLoadHooks([
-  ({
-    subjects,
-    signal
-  }) => {
+  ({ subjects, signal }) => {
     const secondsSpentOnPage = subjects.secondsSpentOnPage;
     const intervalId = setInterval(() => {
       secondsSpentOnPage.value++;
@@ -172,6 +178,12 @@ addPageLoadHooks([
     return () => clearInterval(intervalId);
   }
 ]);
+var NavSubLink = (href, innerText) => Link({
+  class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",
+  innerText,
+  href,
+  prefetch: "hover"
+});
 var Sidebar = () => nav(
   {
     class: "w-1/4 pr-6 mr-6"
@@ -182,12 +194,30 @@ var Sidebar = () => nav(
     },
     li(
       {},
-      span({
-        innerText: observe(
-          [serverState2.secondsSpentOnPage],
-          (secondsSpentOnPage) => `${secondsSpentOnPage}`
-        )
-      })
+      h2(
+        {
+          class: "text-lg font-semibold"
+        },
+        "Quick Nav"
+      ),
+      span(
+        {
+          class: "text-xs opacity-75"
+        },
+        "Elapsed: ",
+        span({
+          class: "font-mono",
+          innerText: observe(
+            [serverState2.secondsSpentOnPage],
+            (secondsSpentOnPage) => {
+              const hours = Math.floor(secondsSpentOnPage / 60 / 60);
+              const minutes = Math.floor(secondsSpentOnPage / 60 % 60);
+              const seconds = secondsSpentOnPage % 60;
+              return `${hours}h:${minutes}m:${seconds}s`;
+            }
+          )
+        })
+      )
     ),
     li(
       {
@@ -197,36 +227,65 @@ var Sidebar = () => nav(
         class: "text-base font-medium",
         innerText: "The Basics"
       }),
-      Link(
+      ol(
         {
-          href: "/docs/basics#installation",
-          prefetch: "hover"
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
         },
-        ol({
-          class: "text-sm font-normal flex flex-col gap-2",
-          innerText: "Installation"
-        })
+        NavSubLink(
+          "/docs/basics#preamble",
+          "Preamble"
+        ),
+        NavSubLink(
+          "/docs/basics#how-elegance-works",
+          "How Elegance Works"
+        ),
+        NavSubLink(
+          "/docs/basics#installation",
+          "Installation"
+        ),
+        NavSubLink(
+          "/docs/basics#your-first-page",
+          "Your First Page"
+        )
+      )
+    ),
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "Compilation"
+      }),
+      ol(
+        {
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+        },
+        NavSubLink(
+          "/docs/compilation#options",
+          "Compilation Options"
+        )
       )
     )
   )
 );
 var DocsLayout = (...children) => div(
   {
-    class: ""
+    class: "h-screen overflow-clip"
   },
   Header(),
-  Breakpoint(
+  div(
     {
-      name: "docs-layout-breakpoint"
+      class: "max-w-[1200px] h-full overflow-clip w-full mx-auto flex pt-8 px-2 sm:min-[calc(1200px+1rem)]:px-0"
     },
-    div(
+    Sidebar(),
+    article(
       {
-        class: "max-w-[1200px] w-full mx-auto flex mt-8 pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
+        class: "w-3/4 h-full overflow-y-scroll"
       },
-      Sidebar(),
-      main(
+      Breakpoint(
         {
-          class: "w-3/4"
+          name: "docs-breakpoint"
         },
         ...children
       )
@@ -237,7 +296,13 @@ var DocsLayout = (...children) => div(
 // src/docs/docs/basics/page.ts
 var page = RootLayout(
   DocsLayout(
-    PageHeading("hii")
+    PageHeading(
+      "hii",
+      "preamble"
+    ),
+    div({
+      class: "h-[3000px]"
+    })
   )
 );
 export {

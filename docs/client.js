@@ -5,13 +5,13 @@
   const domParser = new DOMParser();
   const xmlSerializer = new XMLSerializer();
   const pageStringCache = /* @__PURE__ */ new Map();
-  let currentPage = window.location.pathname;
   let cleanupFunctions = [];
   const makeArray = Array.from;
   const sanitizePathname = /* @__PURE__ */ __name((pn) => {
     if (!pn.endsWith("/") || pn === "/") return pn;
     return pn.slice(0, -1);
   }, "sanitizePathname");
+  let currentPage = sanitizePathname(window.location.pathname);
   const loadPage = /* @__PURE__ */ __name((deprecatedKeys = []) => {
     let pathname = sanitizePathname(window.location.pathname);
     let pageData = pd[pathname];
@@ -23,28 +23,32 @@
     console.log(`Loading ${pathname}:`, pageData);
     const serverState = pageData.state;
     const pageLoadHooks = pageData.plh;
-    const state = {
-      subjects: {},
-      get: /* @__PURE__ */ __name((id) => Object.values(state.subjects).find((s) => s.id === id), "get"),
-      getKey: /* @__PURE__ */ __name((value) => Object.keys(state.subjects).find((k) => state.subjects[k] === value), "getKey"),
-      signal: /* @__PURE__ */ __name((subject) => {
-        const observers = subject.observers;
-        for (const observer of observers) {
-          observer(subject.value);
-        }
-      }, "signal"),
-      observe: /* @__PURE__ */ __name((subject, observer) => {
-        subject.observers.push(observer);
-      }, "observe")
-    };
-    for (const [subjectName, value] of Object.entries(serverState)) {
-      const subject = value;
-      state.subjects[subjectName] = {
-        id: subject.id,
-        value: subject.value,
-        observers: [],
-        pathname
+    let state = pageData.stateManager;
+    if (!state) {
+      state = {
+        subjects: {},
+        get: /* @__PURE__ */ __name((id) => Object.values(state.subjects).find((s) => s.id === id), "get"),
+        getKey: /* @__PURE__ */ __name((value) => Object.keys(state.subjects).find((k) => state.subjects[k] === value), "getKey"),
+        signal: /* @__PURE__ */ __name((subject) => {
+          const observers = subject.observers;
+          for (const observer of observers) {
+            observer(subject.value);
+          }
+        }, "signal"),
+        observe: /* @__PURE__ */ __name((subject, observer) => {
+          subject.observers.push(observer);
+        }, "observe")
       };
+      for (const [subjectName, value] of Object.entries(serverState)) {
+        const subject = value;
+        state.subjects[subjectName] = {
+          id: subject.id,
+          value: subject.value,
+          observers: [],
+          pathname
+        };
+      }
+      pageData.stateManager = state;
     }
     for (const observer of pageData.ooa || []) {
       if (observer.key in deprecatedKeys) {
@@ -173,10 +177,6 @@
       console.log(`hot-reload, command received: ${event.data}`);
       if (event.data === "reload") {
         const newHTML = await fetch(window.location.href);
-        for (const func of cleanupFunctions) {
-          func();
-        }
-        cleanupFunctions = [];
         const newDOM = domParser.parseFromString(
           await newHTML.text(),
           "text/html"
@@ -187,7 +187,6 @@
         if (!link) return;
         const href = link.getAttribute("href");
         link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
-        loadPage();
       } else if (event.data === "hard-reload") {
         window.location.reload();
       }

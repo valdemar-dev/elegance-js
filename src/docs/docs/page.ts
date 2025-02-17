@@ -4,6 +4,6 @@ import { DocsLayout } from "./components/DocsLayout";
 
 export const page = RootLayout (
     DocsLayout (
-        PageHeading ("Getting Started"), 
+        PageHeading ("Getting Started", "#getting-started"), 
     ),
 );

@@ -4,7 +4,7 @@ const domParser = new DOMParser();
 const xmlSerializer = new XMLSerializer();
 const pageStringCache = new Map();
 
-let currentPage: string = window.location.pathname;
+
 let cleanupFunctions: Array<() => void> = [];
 
 const makeArray = Array.from;
@@ -13,6 +13,8 @@ const sanitizePathname = (pn: string) => {
     if ((!pn.endsWith("/")) || pn === "/") return pn;
     return pn.slice(0, -1);
 };
+
+let currentPage: string = sanitizePathname(window.location.pathname);
 
 const loadPage = (deprecatedKeys: string[] = []) => {
     let pathname = sanitizePathname(window.location.pathname);
@@ -28,37 +30,43 @@ const loadPage = (deprecatedKeys: string[] = []) => {
     const serverState = pageData.state;
     const pageLoadHooks = pageData.plh
 
-    const state = {
-        subjects: {} as Record<string, any>,
+    let state = pageData.stateManager;
 
-        get: (id: number) => Object.values(state.subjects).find((s) => s.id === id),
-        getKey: (value: any) => Object.keys(state.subjects).find(k => state.subjects[k] === value),
+    if (!state) {
+        state = {
+            subjects: {} as Record<string, any>,
 
-        signal: (subject: ClientSubject) => {
-            const observers = subject.observers;
+            get: (id: number) => Object.values(state.subjects).find((s: ClientSubject) => s.id === id),
+            getKey: (value: any) => Object.keys(state.subjects).find(k => state.subjects[k] === value),
 
-            for (const observer of observers) {
-                observer(subject.value);
+            signal: (subject: ClientSubject) => {
+                const observers = subject.observers;
+
+                for (const observer of observers) {
+                    observer(subject.value);
+                }
+            },
+
+            observe: (subject: ClientSubject, observer: (value: any) => any) => {
+                subject.observers.push(observer);
             }
-        },
-
-        observe: (subject: ClientSubject, observer: (value: any) => any) => {
-            subject.observers.push(observer);
-        }
-    }
-
-    for (const [subjectName, value] of Object.entries(serverState)) {
-        const subject = value as {
-            value: any,
-            id: number,
         }
 
-        state.subjects[subjectName] = {
-            id: subject.id,
-            value: subject.value,
-            observers: [],
-            pathname: pathname,
+        for (const [subjectName, value] of Object.entries(serverState)) {
+            const subject = value as {
+                value: any,
+                id: number,
+            }
+
+            state.subjects[subjectName] = {
+                id: subject.id,
+                value: subject.value,
+                observers: [],
+                pathname: pathname,
+            }
         }
+
+        pageData.stateManager = state;
     }
 
     for (const observer of pageData.ooa || []) {
@@ -158,7 +166,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
-
     if (pathname === currentPage) return;
 
     let newPage = await fetchPage(targetURL);

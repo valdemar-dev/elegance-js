@@ -5,10 +5,6 @@ if (Object.values(pd)[0]?.w) {
     console.log(`hot-reload, command received: ${event.data}`);
     if (event.data === "reload") {
       const newHTML = await fetch(window.location.href);
-      for (const func of cleanupFunctions) {
-        func();
-      }
-      cleanupFunctions = [];
       const newDOM = domParser.parseFromString(
         await newHTML.text(),
         "text/html"
@@ -19,7 +15,6 @@ if (Object.values(pd)[0]?.w) {
       if (!link) return;
       const href = link.getAttribute("href");
       link.setAttribute("href", href.split("?")[0] + "?" + (/* @__PURE__ */ new Date()).getTime());
-      loadPage();
     } else if (event.data === "hard-reload") {
       window.location.reload();
     }

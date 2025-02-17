@@ -1,5 +1,6 @@
 POTENTIAL:
     - deprecate SOA, change to ELOA
+    - fix race condition fetching in Links()
 
 TODO:
     - code cleanup

@@ -223,6 +223,8 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
         }
 
         const lowerCaseOption = option.toLowerCase();
+        // TODO: jank lol - val 2025-02-17
+        let optionFinal = lowerCaseOption;
         
         switch (attributeValue.type) {
             case ObjectAttributeType.STATE:
@@ -236,10 +238,7 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                     break;
                 }
 
-                if (lowerCaseOption === "innertext") {
-                    element.children = [attributeValue.value, ...element.children];
-                    delete element.options[option];
-                } else if (lowerCaseOption === "innerhtml") {
+                if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
                     element.children = [attributeValue.value];
                     delete element.options[option];
                 } else {
@@ -247,17 +246,12 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                     element.options[lowerCaseOption] = attributeValue.value;
                 }
 
-                objectAttributes.push({ ...attributeValue, key: key, attribute: lowerCaseOption, });
-
                 break;
 
             case ObjectAttributeType.OBSERVER:
                 const firstValue = attributeValue.update(...attributeValue.initialValues);
 
-                if (lowerCaseOption === "innertext") {
-                    element.children = [firstValue, ...element.children];
-                    delete element.options[option];
-                } else if (lowerCaseOption === "innerhtml") {
+                if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
                     element.children = [firstValue];
                     delete element.options[option];
                 } else {
@@ -265,7 +259,8 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                     element.options[lowerCaseOption] = firstValue;
                 }
 
-                objectAttributes.push({ ...attributeValue, key: key, attribute: option, });
+                // makey uppercasey againy -val 2025-02-17
+                optionFinal = option;
 
                 break;
 
@@ -276,10 +271,10 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                 layoutKeyMap[`${attributeValue}`] = value;
                 element.options["bp"] = value;
 
-                objectAttributes.push({ ...attributeValue, key: key, attribute: lowerCaseOption, });
-
                 break;
         }
+
+        objectAttributes.push({ ...attributeValue, key: key, attribute: optionFinal, });
     }
 
     for (let child of element.children) {

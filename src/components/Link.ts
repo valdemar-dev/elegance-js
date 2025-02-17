@@ -46,9 +46,13 @@ addPageLoadHooks([
 
 const serverState = createState({
     navigate: createEventListener((state: State<typeof serverState>, event: MouseEvent) => {
+        const target = event.currentTarget as HTMLLinkElement;
+
+        if (target.href === window.location.href) return;
+
         event.preventDefault();
 
-        __ELEGANCE_CLIENT__.navigateLocally((event.currentTarget as HTMLLinkElement).href);
+        __ELEGANCE_CLIENT__.navigateLocally(target.href);
     })
 });
 

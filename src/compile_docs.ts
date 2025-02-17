@@ -16,7 +16,7 @@ compile({
     environment: "development",
     watch: true,
 }).then(() => {
-    exec (`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --watch`)
+    exec (`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`)
 
     console.log("Built Docs.");
 })

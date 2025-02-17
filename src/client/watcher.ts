@@ -15,13 +15,13 @@ if (Object.values(pd)[0]?.w) {
             document.head.replaceWith(newDOM.head);
 
             const link = document.querySelector('[rel=stylesheet]') as HTMLLinkElement;
-
             if (!link) return;
 
             // Sneaky beaky hack!
             // Adding dates to href's on links makes them re-fetch.
             const href = link.getAttribute('href')!;
             link.setAttribute('href', href.split('?')[0] + '?' + new Date().getTime());
+
         } else if (event.data === "hard-reload") {
             window.location.reload();
         }

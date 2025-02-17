@@ -1,4 +1,3 @@
-import internal from "stream";
 import { Breakpoint } from "../../../components/Breakpoint";
 import { Link } from "../../../components/Link";
 import { addPageLoadHooks } from "../../../server/addPageLoadHooks";
@@ -11,21 +10,24 @@ const serverState = createState({
 });
 
 addPageLoadHooks([
-    ({
-        subjects,
-        signal,
-    }: State<typeof serverState>) => {
+    ({ subjects, signal, }: State<typeof serverState>) => {
         const secondsSpentOnPage = subjects.secondsSpentOnPage;
 
         const intervalId = setInterval(() => {
             secondsSpentOnPage.value++;
-
             signal(secondsSpentOnPage);
         }, 1000);
 
         return () => clearInterval(intervalId);
     },
 ]);
+
+const NavSubLink = (href: string, innerText: string) => Link ({
+    class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",
+    innerText: innerText,
+    href: href,
+    prefetch: "hover",
+});
 
 const Sidebar = () => nav ({
     class: "w-1/4 pr-6 mr-6"
@@ -35,13 +37,33 @@ const Sidebar = () => nav ({
     },
         li ({
         },
+            h2 ({
+                class: "text-lg font-semibold",
+            },
+                "Quick Nav"
+            ),
+
             span ({
-                innerText: observe(
-                    [serverState.secondsSpentOnPage],
-                    (secondsSpentOnPage) => `${secondsSpentOnPage}`,
-                )
-            })
+                class: "text-xs opacity-75",
+            },
+                "Elapsed: ",
+
+                span ({
+                    class: "font-mono",
+                    innerText: observe(
+                        [serverState.secondsSpentOnPage],
+                        (secondsSpentOnPage) => {
+                            const hours = Math.floor(secondsSpentOnPage / 60 / 60);
+                            const minutes = Math.floor((secondsSpentOnPage / 60) % 60);
+                            const seconds = secondsSpentOnPage % 60;
+
+                            return `${hours}h:${minutes}m:${seconds}s`;
+                        }
+                    ), 
+                }),
+            ),
         ),
+
         li ({
             class: "flex flex-col gap-1",
         },
@@ -50,37 +72,69 @@ const Sidebar = () => nav ({
                 innerText: "The Basics",
             }),
 
-            Link ({
-                href: "/docs/basics#installation",
-                prefetch: "hover",
+            ol ({
+                class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
             },
-                ol ({
-                    class: "text-sm font-normal flex flex-col gap-2",
-                    innerText: "Installation",
-                }),
+                NavSubLink (
+                    "/docs/basics#preamble",
+                    "Preamble",
+                ),
+
+                NavSubLink (
+                    "/docs/basics#how-elegance-works",
+                    "How Elegance Works",
+                ),
+
+                NavSubLink (
+                    "/docs/basics#installation",
+                    "Installation",
+                ),
+
+                NavSubLink (
+                    "/docs/basics#your-first-page",
+                    "Your First Page",
+                ),
+            ),
+        ),
+
+        li ({
+            class: "flex flex-col gap-1",
+        },
+            h4 ({
+                class: "text-base font-medium",
+                innerText: "Compilation",
+            }),
+
+            ol ({
+                class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+            },
+                NavSubLink (
+                    "/docs/compilation#options",
+                    "Compilation Options",
+                ),
             ),
         ),
     ),
 )
  
 export const DocsLayout = (...children: Child[]) => div ({
-  class: "",
+    class: "h-screen overflow-clip",
 },
     Header(),
 
-    Breakpoint ({
-        name: "docs-layout-breakpoint",
+    div ({
+        class: "max-w-[1200px] h-full overflow-clip w-full mx-auto flex pt-8 px-2 sm:min-[calc(1200px+1rem)]:px-0",
     },
-        div ({
-            class: "max-w-[1200px] w-full mx-auto flex mt-8 pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0",
-        },
-            Sidebar(),
+        Sidebar(),
 
-            main ({
-                class: "w-3/4",
+        article ({
+            class: "w-3/4 h-full overflow-y-scroll",
+        },
+            Breakpoint ({
+                name: "docs-breakpoint",
             },
                 ...children,
             )
-        ),
-    ), 
+        ), 
+    ),
 );

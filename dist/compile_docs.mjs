@@ -375,6 +375,7 @@ var processPageElements = (element, objectAttributes) => {
       throw `ObjectAttributeType is missing from object attribute. Got: ${valueAsString}. For attribute: ${option}`;
     }
     const lowerCaseOption = option.toLowerCase();
+    let optionFinal = lowerCaseOption;
     switch (attributeValue.type) {
       case 1 /* STATE */:
         if (typeof attributeValue.value === "function") {
@@ -384,40 +385,33 @@ var processPageElements = (element, objectAttributes) => {
           delete element.options[option];
           break;
         }
-        if (lowerCaseOption === "innertext") {
-          element.children = [attributeValue.value, ...element.children];
-          delete element.options[option];
-        } else if (lowerCaseOption === "innerhtml") {
+        if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
           element.children = [attributeValue.value];
           delete element.options[option];
         } else {
           delete element.options[option];
           element.options[lowerCaseOption] = attributeValue.value;
         }
-        objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
         break;
       case 3 /* OBSERVER */:
         const firstValue = attributeValue.update(...attributeValue.initialValues);
-        if (lowerCaseOption === "innertext") {
-          element.children = [firstValue, ...element.children];
-          delete element.options[option];
-        } else if (lowerCaseOption === "innerhtml") {
+        if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
           element.children = [firstValue];
           delete element.options[option];
         } else {
           delete element.options[option];
           element.options[lowerCaseOption] = firstValue;
         }
-        objectAttributes.push({ ...attributeValue, key, attribute: option });
+        optionFinal = option;
         break;
       case 4 /* BREAKPOINT */:
         let value = layoutKeyMap[`${attributeValue}`];
         if (!value) value = layoutKey++;
         layoutKeyMap[`${attributeValue}`] = value;
         element.options["bp"] = value;
-        objectAttributes.push({ ...attributeValue, key, attribute: lowerCaseOption });
         break;
     }
+    objectAttributes.push({ ...attributeValue, key, attribute: optionFinal });
   }
   for (let child of element.children) {
     const processedChild = processPageElements(child, objectAttributes);
@@ -759,6 +753,6 @@ compile({
   environment: "development",
   watch: true
 }).then(() => {
-  exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --watch`);
+  exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`);
   console.log("Built Docs.");
 });

@@ -1,3 +1,4 @@
 ## Good to remember
 object-attributes are separated, to reduce the size of large page_data files. 
 if not separated, each one would have to specify a type: enum, which would be quite redundant and costly.
+
