@@ -4,6 +4,12 @@ if (Object.values(pd)[0]?.w) {
         console.log(`hot-reload, command received: ${event.data}`);
 
         if (event.data === "reload") {
+            for (const func of cleanupFunctions) {
+                func();
+            }
+
+            cleanupFunctions = [];
+
             const newHTML = await fetch(window.location.href);
 
             const newDOM = domParser.parseFromString(

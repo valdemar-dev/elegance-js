@@ -30,7 +30,7 @@ const NavSubLink = (href: string, innerText: string) => Link ({
 });
 
 const Sidebar = () => nav ({
-    class: "w-1/4 pr-6 mr-6"
+    class: "w-1/5"
 },
     ul ({
         class: "flex flex-col gap-4"
@@ -128,7 +128,7 @@ export const DocsLayout = (...children: Child[]) => div ({
         Sidebar(),
 
         article ({
-            class: "w-3/4 h-full overflow-y-scroll",
+            class: "h-full overflow-y-scroll pb-[250px] pl-6 ml-6",
         },
             Breakpoint ({
                 name: "docs-breakpoint",

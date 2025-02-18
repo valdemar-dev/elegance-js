@@ -7,7 +7,7 @@ var RootLayout = (...children) => body(
 );
 
 // src/docs/docs/components/PageHeading.ts
-var PageHeading = (title, id) => h1({
+var PageHeading = (title, id) => h2({
   class: "text-3xl font-semibold mb-4",
   id,
   innerText: title
@@ -195,7 +195,7 @@ var NavSubLink = (href, innerText) => Link({
 });
 var Sidebar = () => nav(
   {
-    class: "w-1/4 pr-6 mr-6"
+    class: "w-1/5"
   },
   ul(
     {
@@ -290,7 +290,7 @@ var DocsLayout = (...children) => div(
     Sidebar(),
     article(
       {
-        class: "w-3/4 h-full overflow-y-scroll"
+        class: "h-full overflow-y-scroll pb-[250px] pl-6 ml-6"
       },
       Breakpoint(
         {
@@ -302,14 +302,60 @@ var DocsLayout = (...children) => div(
   )
 );
 
+// src/docs/docs/components/Separator.ts
+var Separator = () => div({
+  class: "my-20"
+}, []);
+
+// src/docs/docs/components/Mono.ts
+var Mono = (text) => span({
+  class: "font-mono"
+}, text);
+
+// src/docs/docs/components/CodeBlock.ts
+var CodeBlock = (value) => div(
+  {
+    class: "bg-background-950 p-2 rounded-sm border-[1px] border-background-800 w-max my-3 max-w-full overflow-scroll"
+  },
+  pre({}, value)
+);
+
 // src/docs/docs/basics/page.ts
+var demoPageTS = `export const page = body ({
+    style: "background-color: #000; color: #fff;",
+},
+    h1 ({
+        innerText: "Greetings Traveler!",
+    }),
+)`;
+var bodyCallResult = `
+{
+    tag: "body",
+    options: {
+        style: "background-color: #000; color: #fff;",
+    },
+    children: [
+        {
+            tag: "h1",
+            options: {
+                innerText: "Greetings Traveler!",
+            },
+            children: [],
+        },
+    ],
+}
+`;
+var demoInfoTS = `export const metadata = () => head ({},
+    title ("Greetings Traveler!"),
+);
+`;
 var page = RootLayout(
   DocsLayout(
     PageHeading(
       "Preamble",
       "preamble"
     ),
-    h2({
+    h3({
       class: "text-lg font-medium mb-1",
       innerText: "A Quick Forewarning"
     }),
@@ -326,7 +372,7 @@ var page = RootLayout(
     div({
       class: "my-10"
     }, []),
-    h2({
+    h3({
       class: "text-lg font-medium mb-1",
       innerText: "What is Elegance?"
     }),
@@ -334,24 +380,28 @@ var page = RootLayout(
       {
         class: "opacity-80"
       },
-      "Elegance is a highly opinionated, compiled, fully-typescript, ",
+      "Elegance is an opinionated, strict, compiled, fully-typescript, ",
       br({}),
-      "web-framework designed for building feature-rich, yet, fast and efficient web pages.",
+      "web-framework designed for building feature-rich, yet fast and efficient web pages.",
       br({}),
       br({}),
       "Elegance is written fully by hand, and dependencies are used ",
       b("very "),
       "sparsely.",
       br({}),
+      "As of writing, ",
+      b("esbuild "),
+      "is the only dependency.",
       br({}),
-      "A simple fully-working elegance page transfers only ",
+      br({}),
+      "A simple, fully-working (non gzipped) elegance page transfers only ",
       b("4kB "),
       "of data!",
       img({
-        class: "border-[1px] border-background-600 my-4",
+        class: "border-[1px] rounded-sm border-background-600 my-4",
         src: "/assets/nullpage_size.png"
       }),
-      'For context, an "empty" react app on average transfers roughly ',
+      'For context, an "empty" (gzipped)  react app on average transfers roughly ',
       b("200-300kB "),
       "of data.",
       br({}),
@@ -360,12 +410,166 @@ var page = RootLayout(
       "creating unnecessary, wildly complex rude goldberg machines; ",
       "and compilation instead of interpretation."
     ),
-    div({
-      class: "my-20"
-    }, []),
+    Separator(),
     PageHeading(
-      "Install",
+      "How Elegance Works",
+      "how-elegance-works"
+    ),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "File Structure"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "An Elegance.JS projects file structure is akin to that of something like a Next.JS project. ",
+      br({}),
+      "We use filesystem routing, where each directory contains a ",
+      Mono("page.ts, "),
+      "and an ",
+      Mono("info.ts "),
+      "file."
+    ),
+    div({
+      class: "my-10"
+    }, []),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Page Files"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "The page.ts file has one requirement, it must export a ",
+      Mono("page"),
+      " object, which is of type ",
+      Mono('EleganceElement<"body">')
+    ),
+    CodeBlock(demoPageTS),
+    p(
+      {
+        class: "opacity-70"
+      },
+      "Elements are created using simple, ambient global functions.",
+      br({}),
+      "The above ",
+      Mono("body()"),
+      " call, for example, gets turned into this."
+    ),
+    CodeBlock(bodyCallResult),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "The estute among you may have noticed that the result can easily be serialized into HTML or JSON.",
+      br({}),
+      "This is ",
+      b("precisely "),
+      "what the Elegance compiler does.",
+      br({}),
+      br({}),
+      "It recursively goes through the page, notes down any points of interest (more on this later), ",
+      br({}),
+      "and then serializes each element.",
+      br({}),
+      br({}),
+      "The resulting data can then either be used to serve static HTML pages, ",
+      br({}),
+      "(which still have all the normal features of Elegance, but won't get re-rendered),",
+      br({}),
+      "or dynamically server-rendered content."
+    ),
+    div({
+      class: "my-10"
+    }, []),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Info Files"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "The info.ts file also has only one requirement, it must export a ",
+      Mono("metadata"),
+      " function, which then resolves into an ",
+      Mono('EleganceElement<"head">')
+    ),
+    CodeBlock(demoInfoTS),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Metadata is of course a function, so that you may dynamically generate page information. ",
+      br({}),
+      br({}),
+      "This is useful for something like a social media page, ",
+      br({}),
+      "where you may want need to fetch information about a post, and then display it in a nice rich embed."
+    ),
+    div({
+      class: "my-10"
+    }, []),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Compilation"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Elegance exposes a function called ",
+      Mono("compile()"),
+      "which your project should call to build itself.",
+      br({}),
+      "Compilation handles generating page_data files, ",
+      "HTML, JSON, transpilation of ts into js, etc.",
+      br({}),
+      br({}),
+      "We will explore compilation, state, reactivity, optimization, ",
+      "static generation, hot-reloading, and many of the other features of ",
+      "Elegance in greater-depth later on. However, this is all that you need to know for now."
+    ),
+    Separator(),
+    PageHeading(
+      "Installation",
       "installation"
+    ),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "GitHub"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "As Elegance is still in it's formative stages, ",
+      "we haven't yet published to things like the NPM registry.",
+      br({}),
+      "However, installation is still quite simple.",
+      br({}),
+      br({}),
+      "First, decide where you'll want Elegance to live. ",
+      br({}),
+      "On a linux-based system, something like ",
+      Mono("~/bin/elegance"),
+      " is a good place.",
+      br({}),
+      b("Just remember where it is! You'll need it later."),
+      br({}),
+      br({}),
+      "Install ",
+      a({
+        href: "https://git-scm.com/",
+        class: "border-b-2 border-text-50"
+      }, "git"),
+      " for your system, if you haven't already.",
+      br({}),
+      br({}),
+      "Next, open a terminal / command prompt window, and issue the following the command.",
+      CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]")
     )
   )
 );

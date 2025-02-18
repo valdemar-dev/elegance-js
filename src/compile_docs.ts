@@ -14,7 +14,7 @@ compile({
     pagesDirectory: PAGES_DIR,
     outputDirectory: OUTPUT_DIR,
     environment: "production",
-    watch: true,
+    watch: false,
 }).then(() => {
     exec (`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`)
 

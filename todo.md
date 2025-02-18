@@ -6,6 +6,9 @@ CANNED:
     - deprecate SOA, change to ELOA
 
 TODO:
+    - make non children elements, that take in children, actually work
+    - fix links breaking on hot-reload
+        - basically set element.children = null on childrenless elements so that they're rendered properly
     - code cleanup
     - rewrite client
         - there's some weird shit with this, i need to make it more optimized
