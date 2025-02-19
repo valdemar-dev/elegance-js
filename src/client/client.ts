@@ -39,29 +39,32 @@ const loadPage = (deprecatedKeys: string[] = []) => {
     
     let state = pageData.stateManager;
 
+    cleanupFunctions.push(
+        () => {
+            state.subjects.forEach((subj: any) => subj.observers = [])
+        }
+    );
+
     if (!state) {
         state = {
-            subjects: Object.fromEntries(
-                Object.entries(pageData.state).map(([subjectName, value]: [string, any]) => [
-                    subjectName,
-                    {
-                        ...value,
-                        observers: [],
-                        pathname: pathname,
+            subjects: pageData.state.map((subject: any) => {
+                const s = {
+                    ...subject,
+                    observers: [],
+                    pathname: pathname,
+                };
+
+                s.signal = () => {
+                    for (const observer of s.observers) {
+                        observer(s.value);
                     }
-                ])
-            ),
-
-            get: (id: number) => Object.values(state.subjects).find((s: ClientSubject) => s.id === id),
-            getKey: (value: any) => Object.keys(state.subjects).find(k => state.subjects[k] === value),
-
-            signal: (subject: ClientSubject) => {
-                const observers = subject.observers;
-
-                for (const observer of observers) {
-                    observer(subject.value);
                 }
-            },
+
+                return s;
+            }),
+
+            get: (id: number) => state.subjects.find((s: ClientSubject) => s.id === id),
+            getAll: (ids: number[]) => ids?.map(id => state.get(id)),
 
             observe: (subject: ClientSubject, observer: (value: any) => any) => {
                 subject.observers.push(observer);

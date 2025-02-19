@@ -2,40 +2,42 @@ import { createState } from "../../server/createState"
 import { observe } from "../../server/observe";
 import { Link } from "../../components/Link";
 import { addPageLoadHooks } from "../../server/addPageLoadHooks";
+import { pageLoadHook } from "../../server/pageLoadHook";
 
 const serverState = createState({
     hasUserScrolled: false,
-    interval: 0,
-    globalTicker: 0,
-    urmom: "hi"
 });
 
 addPageLoadHooks([
-    (state: State<typeof serverState>) => {
-        const hasScrolled = state.subjects.hasUserScrolled;
+    pageLoadHook(
+        [serverState.hasUserScrolled],
+        (state, hasUserScrolled) => {
+            const handleScroll = () => {
+                const pos = {
+                    x: window.scrollX,
+                    y: window.scrollY,
+                };
 
-        const handleScroll = () => {
-            const pos = {
-                x: window.scrollX,
-                y: window.scrollY,
-            };
+                if (pos.y > 20) {
+                    if (hasUserScrolled.value === true) return;
 
-            if (pos.y > 20) {
-                if (hasScrolled.value === true) return;
+                    hasUserScrolled.value = true;
+                    hasUserScrolled.signal();
+                } else {
+                    if (hasUserScrolled.value === false) return;
 
-                hasScrolled.value = true;
-                state.signal(hasScrolled);
-            } else {
-                if (hasScrolled.value === false) return;
-
-                hasScrolled.value = false;
-                state.signal(hasScrolled);
+                    hasUserScrolled.value = false
+                    hasUserScrolled.signal();
+                }
             }
-        }
 
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    },
+            window.addEventListener("scroll", handleScroll);
+
+            return () => {
+                window.removeEventListener("scroll", handleScroll);
+            }
+        },
+    ),
 ])
 
 export const Header = () => header ({
@@ -45,7 +47,7 @@ export const Header = () => header ({
         class: observe(
             [serverState.hasUserScrolled],
             (hasUserScrolled) => {
-                console.log("change");
+                console.log("change nigga");
                 const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 "
 
                 if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950"

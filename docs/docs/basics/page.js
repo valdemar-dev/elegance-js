@@ -1,10 +1,352 @@
-var u=(...e)=>body({class:"bg-background-900 text-text-50 font-inter select-none text-text-50"},...e);var m=(e,t)=>h2({class:"text-3xl font-semibold mb-4",id:t,innerText:e});var y=(e,...t)=>{if(!e.name)throw"Breakpoints must set a name attribute.";let o=e.name;return delete e.name,div({bp:{type:4,value:o},...e},...t)};var v=e=>e;var f=e=>{globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...e)};globalThis.__SERVER_CURRENT_STATE_ID__||(globalThis.__SERVER_CURRENT_STATE_ID__=0);var w=globalThis.__SERVER_CURRENT_STATE_ID__,g=e=>{for(let[t,o]of Object.entries(e))globalThis.__SERVER_CURRENT_STATE__[t]={id:w++,value:o,type:1};return globalThis.__SERVER_CURRENT_STATE__};f([()=>{let e=Array.from(document.querySelectorAll("a[prefetch]")),t=[];for(let o of e){let r=o.getAttribute("prefetch"),c=new URL(o.href);switch(r){case"load":__ELEGANCE_CLIENT__.fetchPage(c);break;case"hover":let d=()=>{__ELEGANCE_CLIENT__.fetchPage(c)};o.addEventListener("mouseenter",d),t.push({el:o,fn:d});break}}return()=>{for(let o of t)o.el.removeEventListener("onmouseenter",o.fn)}}]);var k=g({navigate:v((e,t)=>{let o=new URL(t.currentTarget.href),r=globalThis.__ELEGANCE_CLIENT__,c=r.sanitizePathname(o.pathname),d=r.sanitizePathname(window.location.pathname);if(c===d)return o.hash===window.location.hash?t.preventDefault():void 0;t.preventDefault(),r.navigateLocally(o.href)})}),s=(e,...t)=>{if(!e.href)throw"Link elements must have a HREF attribute set.";if(!e.href.startsWith("/"))throw'Link elements may only navigate to local pages. "/"';return a({...e,onClick:k.navigate},...t)};var T=()=>header({class:"sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"},div({class:"group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"},div({class:"max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"},div({class:"flex min-w-max w-full items-center z-10"},s({href:"/",class:"flex items-center gap-1 h-full"},p({class:"font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",innerText:"Elegance"}),p({innerText:"JS",class:"font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"}))),div({class:"flex py-2 sm:py-4 flex relative items-center justify-end w-full"},s({prefetch:"hover",class:"z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",href:"/docs",innerText:"Docs"})))));var E=(e,t)=>({type:3,ids:e.map(r=>r.id),initialValues:e.map(r=>r.value),update:t});var R=g({secondsSpentOnPage:0});f([({subjects:e,signal:t})=>{let o=e.secondsSpentOnPage,r=setInterval(()=>{o.value++,t(o)},1e3);return()=>clearInterval(r)}]);var i=(e,t)=>s({class:"text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",innerText:t,href:e,prefetch:"hover"}),S=()=>nav({class:"w-1/5"},ul({class:"flex flex-col gap-4"},li({},h2({class:"text-lg font-semibold"},"Quick Nav"),span({class:"text-xs opacity-75"},"Elapsed: ",span({class:"font-mono",innerText:E([R.secondsSpentOnPage],e=>{let t=Math.floor(e/60/60),o=Math.floor(e/60%60),r=e%60;return`${t}h:${o}m:${r}s`})}))),li({class:"flex flex-col gap-1"},h4({class:"text-base font-medium",innerText:"The Basics"}),ol({class:"pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"},i("/docs/basics#preamble","Preamble"),i("/docs/basics#how-elegance-works","How Elegance Works"),i("/docs/basics#installation","Installation"),i("/docs/basics#your-first-page","Your First Page"))),li({class:"flex flex-col gap-1"},h4({class:"text-base font-medium",innerText:"Compilation"}),ol({class:"pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"},i("/docs/compilation#options","Compilation Options"))))),_=(...e)=>div({class:"h-screen overflow-clip"},T(),div({class:"max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"},S(),article({class:"h-full overflow-y-scroll pb-[250px] pl-6 ml-6"},y({name:"docs-breakpoint"},...e))));var h=()=>div({class:"my-20"},[]);var n=e=>span({class:"font-mono"},e);var l=e=>div({class:"bg-background-950 p-2 rounded-sm border-[1px] border-background-800 w-max my-3 max-w-full overflow-scroll"},pre({},e));var L=`export const page = body ({
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
+  {
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
+  },
+  ...children
+);
+
+// src/docs/docs/components/PageHeading.ts
+var PageHeading = (title, id) => h2({
+  class: "text-3xl font-semibold mb-4",
+  id,
+  innerText: title
+});
+
+// src/components/Breakpoint.ts
+var Breakpoint = (options, ...children) => {
+  if (!options.name) throw `Breakpoints must set a name attribute.`;
+  const name = options.name;
+  delete options.name;
+  return div(
+    {
+      bp: {
+        type: 4 /* BREAKPOINT */,
+        value: name
+      },
+      ...options
+    },
+    ...children
+  );
+};
+
+// src/server/eventListener.ts
+var eventListener = (dependencies, eventListener2) => {
+  return new Function(
+    "state",
+    "event",
+    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
+// src/server/addPageLoadHooks.ts
+var addPageLoadHooks = (hooks) => {
+  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
+};
+
+// src/server/createState.ts
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
+var createState = (augment) => {
+  for (const [key, value] of Object.entries(augment)) {
+    globalThis.__SERVER_CURRENT_STATE__[key] = {
+      id: currentId++,
+      value,
+      type: 1 /* STATE */
+    };
+  }
+  return globalThis.__SERVER_CURRENT_STATE__;
+};
+
+// src/components/Link.ts
+addPageLoadHooks([
+  () => {
+    const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
+    const elsToClear = [];
+    for (const anchor of anchors) {
+      const prefetch = anchor.getAttribute("prefetch");
+      const href = new URL(anchor.href);
+      switch (prefetch) {
+        case "load":
+          __ELEGANCE_CLIENT__.fetchPage(href);
+          break;
+        case "hover":
+          const fn = () => {
+            __ELEGANCE_CLIENT__.fetchPage(href);
+          };
+          anchor.addEventListener("mouseenter", fn);
+          elsToClear.push({
+            el: anchor,
+            fn
+          });
+          break;
+      }
+    }
+    return () => {
+      for (const listener of elsToClear) {
+        listener.el.removeEventListener("onmouseenter", listener.fn);
+      }
+    };
+  }
+]);
+var serverState = createState({
+  navigate: eventListener([], (event) => {
+    const target = new URL(event.currentTarget.href);
+    const client = globalThis.__ELEGANCE_CLIENT__;
+    const sanitizedTarget = client.sanitizePathname(target.pathname);
+    const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
+    if (sanitizedTarget === sanitizedCurrent) {
+      if (target.hash === window.location.hash) return event.preventDefault();
+      return;
+    }
+    event.preventDefault();
+    client.navigateLocally(target.href);
+  })
+});
+var Link = (options, ...children) => {
+  if (!options.href) {
+    throw `Link elements must have a HREF attribute set.`;
+  }
+  if (!options.href.startsWith("/")) {
+    throw `Link elements may only navigate to local pages. "/"`;
+  }
+  return a(
+    {
+      ...options,
+      onClick: serverState.navigate
+    },
+    ...children
+  );
+};
+
+// src/docs/docs/components/Header.ts
+var Header = () => header(
+  {
+    class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
+  },
+  div(
+    {
+      class: "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"
+    },
+    div(
+      {
+        class: "max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
+      },
+      div(
+        {
+          class: "flex min-w-max w-full items-center z-10"
+        },
+        Link(
+          {
+            href: "/",
+            class: "flex items-center gap-1 h-full"
+          },
+          p({
+            class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
+            innerText: "Elegance"
+          }),
+          p({
+            innerText: "JS",
+            class: "font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"
+          })
+        )
+      ),
+      div(
+        {
+          class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
+        },
+        Link({
+          prefetch: "hover",
+          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
+          href: "/docs",
+          innerText: "Docs"
+        })
+      )
+    )
+  )
+);
+
+// src/server/observe.ts
+var observe = (refs, update) => {
+  const returnValue = {
+    type: 3 /* OBSERVER */,
+    ids: refs.map((ref) => ref.id),
+    initialValues: refs.map((ref) => ref.value),
+    update
+  };
+  return returnValue;
+};
+
+// src/server/pageLoadHook.ts
+var pageLoadHook = (dependencies, pageLoadHook2) => {
+  return new Function(
+    "state",
+    `return (${pageLoadHook2.toString()})(state, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
+// src/docs/docs/components/DocsLayout.ts
+var serverState2 = createState({
+  secondsSpentOnPage: 1
+});
+addPageLoadHooks([
+  pageLoadHook(
+    [serverState2.secondsSpentOnPage],
+    (state, secondsOnPage) => {
+      const intervalId = setInterval(() => {
+        secondsOnPage.value++;
+        secondsOnPage.signal();
+      }, 1e3);
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  )
+]);
+var NavSubLink = (href, innerText) => Link({
+  class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",
+  innerText,
+  href,
+  prefetch: "hover"
+});
+var Sidebar = () => nav(
+  {
+    class: "w-1/5"
+  },
+  ul(
+    {
+      class: "flex flex-col gap-4"
+    },
+    li(
+      {},
+      h2(
+        {
+          class: "text-lg font-semibold"
+        },
+        "Quick Nav"
+      ),
+      span(
+        {
+          class: "text-xs opacity-75"
+        },
+        "Elapsed: ",
+        span({
+          class: "font-mono",
+          innerText: observe(
+            [serverState2.secondsSpentOnPage],
+            (secondsSpentOnPage) => {
+              const hours = Math.floor(secondsSpentOnPage / 60 / 60);
+              const minutes = Math.floor(secondsSpentOnPage / 60 % 60);
+              const seconds = secondsSpentOnPage % 60;
+              return `${hours}h:${minutes}m:${seconds}s`;
+            }
+          )
+        })
+      )
+    ),
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "The Basics"
+      }),
+      ol(
+        {
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+        },
+        NavSubLink(
+          "/docs/basics#preamble",
+          "Preamble"
+        ),
+        NavSubLink(
+          "/docs/basics#how-elegance-works",
+          "How Elegance Works"
+        ),
+        NavSubLink(
+          "/docs/basics#installation",
+          "Installation"
+        ),
+        NavSubLink(
+          "/docs/basics#your-first-page",
+          "Your First Page"
+        )
+      )
+    ),
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "Compilation"
+      }),
+      ol(
+        {
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+        },
+        NavSubLink(
+          "/docs/compilation#options",
+          "Compilation Options"
+        )
+      )
+    )
+  )
+);
+var DocsLayout = (...children) => div(
+  {
+    class: "h-screen overflow-clip"
+  },
+  Header(),
+  div(
+    {
+      class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
+    },
+    Sidebar(),
+    article(
+      {
+        class: "h-full w-full overflow-y-scroll pb-[250px] pl-6 ml-6"
+      },
+      Breakpoint(
+        {
+          name: "docs-breakpoint"
+        },
+        ...children
+      )
+    )
+  )
+);
+
+// src/docs/docs/components/Separator.ts
+var Separator = () => div({
+  class: "my-20"
+}, []);
+
+// src/docs/docs/components/Mono.ts
+var Mono = (text) => span({
+  class: "font-mono"
+}, text);
+
+// src/docs/docs/components/CodeBlock.ts
+var CodeBlock = (value) => div(
+  {
+    class: "bg-background-950 p-2 rounded-sm border-[1px] border-background-800 w-max my-3 max-w-full overflow-scroll"
+  },
+  pre({}, value)
+);
+
+// src/docs/docs/basics/page.ts
+var demoPageTS = `export const page = body ({
     style: "background-color: #000; color: #fff;",
 },
     h1 ({
         innerText: "Greetings Traveler!",
     }),
-)`,C=`
+);`;
+var bodyCallResult = `
 {
     tag: "body",
     options: {
@@ -20,7 +362,235 @@ var u=(...e)=>body({class:"bg-background-900 text-text-50 font-inter select-none
         },
     ],
 }
-`,N=`export const metadata = () => head ({},
+`;
+var demoInfoTS = `export const metadata = () => head ({},
     title ("Greetings Traveler!"),
 );
-`,pe=u(_(m("Preamble","preamble"),h3({class:"text-lg font-medium mb-1",innerText:"A Quick Forewarning"}),p({class:"opacity-80"},"Elegance is still in very early development.",br({}),"There are absolutely no guarantees of backwards compatibility, security or really anything.",br({}),"As such, elegance isn't really meant for production, yet."),div({class:"my-10"},[]),h3({class:"text-lg font-medium mb-1",innerText:"What is Elegance?"}),p({class:"opacity-80"},"Elegance is an opinionated, strict, compiled, fully-typescript, ",br({}),"web-framework designed for building feature-rich, yet fast and efficient web pages.",br({}),br({}),"Elegance is written fully by hand, and dependencies are used ",b("very "),"sparsely.",br({}),"As of writing, ",b("esbuild "),"is the only dependency.",br({}),br({}),"A simple, fully-working (non gzipped) elegance page transfers only ",b("4kB "),"of data!",img({class:"border-[1px] rounded-sm border-background-600 my-4",src:"/assets/nullpage_size.png"}),'For context, an "empty" (gzipped)  react app on average transfers roughly ',b("200-300kB "),"of data.",br({}),br({}),"This lack of JS sent to the browser is achieved through not ","creating unnecessary, wildly complex rude goldberg machines; ","and compilation instead of interpretation."),h(),m("How Elegance Works","how-elegance-works"),h3({class:"text-lg font-medium mb-1",innerText:"File Structure"}),p({class:"opacity-80"},"An Elegance.JS projects file structure is akin to that of something like a Next.JS project. ",br({}),"We use filesystem routing, where each directory contains a ",n("page.ts, "),"and an ",n("info.ts "),"file."),div({class:"my-10"},[]),h3({class:"text-lg font-medium mb-1",innerText:"Page Files"}),p({class:"opacity-80"},"The page.ts file has one requirement, it must export a ",n("page")," object, which is of type ",n('EleganceElement<"body">')),l(L),p({class:"opacity-70"},"Elements are created using simple, ambient global functions.",br({}),"The above ",n("body()")," call, for example, gets turned into this."),l(C),p({class:"opacity-80"},"The estute among you may have noticed that the result can easily be serialized into HTML or JSON.",br({}),"This is ",b("precisely "),"what the Elegance compiler does.",br({}),br({}),"It recursively goes through the page, notes down any points of interest (more on this later), ",br({}),"and then serializes each element.",br({}),br({}),"The resulting data can then either be used to serve static HTML pages, ",br({}),"(which still have all the normal features of Elegance, but won't get re-rendered),",br({}),"or dynamically server-rendered content."),div({class:"my-10"},[]),h3({class:"text-lg font-medium mb-1",innerText:"Info Files"}),p({class:"opacity-80"},"The info.ts file also has only one requirement, it must export a ",n("metadata")," function, which then resolves into an ",n('EleganceElement<"head">')),l(N),p({class:"opacity-80"},"Metadata is of course a function, so that you may dynamically generate page information. ",br({}),br({}),"This is useful for something like a social media page, ",br({}),"where you may want need to fetch information about a post, and then display it in a nice rich embed."),div({class:"my-10"},[]),h3({class:"text-lg font-medium mb-1",innerText:"Compilation"}),p({class:"opacity-80"},"Elegance exposes a function called ",n("compile()"),"which your project should call to build itself.",br({}),"Compilation handles generating page_data files, ","HTML, JSON, transpilation of ts into js, etc.",br({}),br({}),"We will explore compilation, state, reactivity, optimization, ","static generation, hot-reloading, and many of the other features of ","Elegance in greater-depth later on. However, this is all that you need to know for now."),h(),m("Installation","installation"),h3({class:"text-lg font-medium mb-1",innerText:"GitHub"}),p({class:"opacity-80"},"As Elegance is still in it's formative stages, ","we haven't yet published to things like the NPM registry.",br({}),"However, installation is still quite simple.",br({}),br({}),"First, decide where you'll want Elegance to live. ",br({}),"On a linux-based system, something like ",n("~/bin/elegance")," is a good place.",br({}),b("Just remember where it is! You'll need it later."),br({}),br({}),"Install ",a({href:"https://git-scm.com/",class:"border-b-2 border-text-50"},"git")," for your system, if you haven't already.",br({}),br({}),"Next, open a terminal / command prompt window, and issue the following the command.",l("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]"))));export{pe as page};
+`;
+var page = RootLayout(
+  DocsLayout(
+    PageHeading(
+      "Preamble",
+      "preamble"
+    ),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "A Quick Forewarning"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Elegance is still in very early development.",
+      br({}),
+      "There are absolutely no guarantees of backwards compatibility, security or really anything.",
+      br({}),
+      "As such, elegance isn't really meant for production, yet."
+    ),
+    div({
+      class: "my-10"
+    }, []),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "What is Elegance?"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Elegance is an opinionated, strict, compiled, fully-typescript, ",
+      br({}),
+      "web-framework designed for building feature-rich, yet fast and efficient web pages.",
+      br({}),
+      br({}),
+      "Elegance is written fully by hand, and dependencies are used ",
+      b("very "),
+      "sparsely.",
+      br({}),
+      "As of writing, ",
+      b("esbuild "),
+      "is the only dependency.",
+      br({}),
+      br({}),
+      "A simple, fully-working (non gzipped) elegance page transfers only ",
+      b("4kB "),
+      "of data!",
+      img({
+        class: "border-[1px] rounded-sm border-background-600 my-4",
+        src: "/assets/nullpage_size.png"
+      }),
+      'For context, an "empty" (gzipped)  react app on average transfers roughly ',
+      b("200-300kB "),
+      "of data.",
+      br({}),
+      br({}),
+      "This lack of JS sent to the browser is achieved through not ",
+      "creating unnecessary, wildly complex rude goldberg machines; ",
+      "and compilation instead of interpretation."
+    ),
+    Separator(),
+    PageHeading(
+      "How Elegance Works",
+      "how-elegance-works"
+    ),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "File Structure"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "An Elegance.JS projects file structure is akin to that of something like a Next.JS project. ",
+      br({}),
+      "We use filesystem routing, where each directory contains a ",
+      Mono("page.ts,"),
+      " and an ",
+      Mono("info.ts"),
+      " file."
+    ),
+    div({
+      class: "my-10"
+    }, []),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Page Files"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "The page.ts file has one requirement, it must export a ",
+      Mono("page"),
+      " object, which is of type ",
+      Mono('EleganceElement<"body">')
+    ),
+    CodeBlock(demoPageTS),
+    p(
+      {
+        class: "opacity-70"
+      },
+      "Elements are created using simple, ambient global functions.",
+      br({}),
+      "The above ",
+      Mono("body()"),
+      " call, for example, gets turned into this."
+    ),
+    CodeBlock(bodyCallResult),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "The estute among you may have noticed that the result can easily be serialized into HTML or JSON.",
+      br({}),
+      "This is ",
+      b("precisely "),
+      "what the Elegance compiler does.",
+      br({}),
+      br({}),
+      "It recursively goes through the page, notes down any points of interest (more on this later), ",
+      br({}),
+      "and then serializes each element.",
+      br({}),
+      br({}),
+      "The resulting data can then either be used to serve static HTML pages, ",
+      br({}),
+      "(which still have all the normal features of Elegance, but won't get re-rendered),",
+      br({}),
+      "or dynamically server-rendered content."
+    ),
+    div({
+      class: "my-10"
+    }, []),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Info Files"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "The info.ts file also has only one requirement, it must export a ",
+      Mono("metadata"),
+      " function, which then resolves into an ",
+      Mono('EleganceElement<"head">')
+    ),
+    CodeBlock(demoInfoTS),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Metadata is of course a function, so that you may dynamically generate page information. ",
+      br({}),
+      br({}),
+      "This is useful for something like a social media page, ",
+      br({}),
+      "where you may want need to fetch information about a post, and then display it in a nice rich embed."
+    ),
+    div({
+      class: "my-10"
+    }, []),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Compilation"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Elegance exposes a function called ",
+      Mono("compile()"),
+      "which your project should call to build itself.",
+      br({}),
+      "Compilation handles generating page_data files, ",
+      "HTML, JSON, transpilation of ts into js, etc.",
+      br({}),
+      br({}),
+      "We will explore compilation, state, reactivity, optimization, ",
+      "static generation, hot-reloading, and many of the other features of ",
+      "Elegance in greater-depth later on. However, this is all that you need to know for now."
+    ),
+    Separator(),
+    PageHeading(
+      "Installation",
+      "installation"
+    ),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "GitHub"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "As Elegance is still in it's formative stages, ",
+      "we haven't yet published to things like the NPM registry.",
+      br({}),
+      "However, installation is still quite simple.",
+      br({}),
+      br({}),
+      "First, decide where you'll want Elegance to live. ",
+      br({}),
+      "On a linux-based system, somewhere like ",
+      Mono("~/bin/elegance"),
+      " is a good place.",
+      br({}),
+      b("Just remember where it is! You'll need it later."),
+      br({}),
+      br({}),
+      "Install ",
+      a({
+        href: "https://git-scm.com/",
+        class: "border-b-2 border-text-50"
+      }, "git"),
+      " for your system, if you haven't already.",
+      br({}),
+      br({}),
+      "Next, open a terminal / command prompt window, and issue the following the command.",
+      CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]")
+    )
+  )
+);
+export {
+  page
+};

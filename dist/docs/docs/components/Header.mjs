@@ -1,5 +1,11 @@
-// src/server/createEventListener.ts
-var createEventListener = (fn) => fn;
+// src/server/eventListener.ts
+var eventListener = (dependencies, eventListener2) => {
+  return new Function(
+    "state",
+    "event",
+    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
 
 // src/server/addPageLoadHooks.ts
 var addPageLoadHooks = (hooks) => {
@@ -54,7 +60,7 @@ addPageLoadHooks([
   }
 ]);
 var serverState = createState({
-  navigate: createEventListener((state, event) => {
+  navigate: eventListener([], (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);

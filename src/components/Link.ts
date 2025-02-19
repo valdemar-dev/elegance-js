@@ -1,4 +1,4 @@
-import { createEventListener } from "../server/createEventListener";
+import { eventListener } from "../server/eventListener";
 import { addPageLoadHooks } from "../server/addPageLoadHooks";
 import { createState } from "../server/createState";
 
@@ -45,7 +45,7 @@ addPageLoadHooks([
 ])
 
 const serverState = createState({
-    navigate: createEventListener((state: State<typeof serverState>, event: MouseEvent) => {
+    navigate: eventListener([], (event: MouseEvent) => {
         const target = new URL((event.currentTarget as HTMLLinkElement).href);
 
         const client = globalThis.__ELEGANCE_CLIENT__;

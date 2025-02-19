@@ -229,12 +229,7 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
         switch (attributeValue.type) {
             case ObjectAttributeType.STATE:
                 if (typeof attributeValue.value === "function") {
-                    if (!lowerCaseOption.startsWith("on")) { 
-                        throw `SAO's may only be a function, if they are an event listener.`
-                    }
-
                     delete element.options[option];
-
                     break;
                 }
 
@@ -375,13 +370,13 @@ const generateClientPageData = async (
 
         for (const [key, subject] of sortedState) {
             if (typeof subject.value === "string") {
-                formattedStateString += `${key}:{id:${subject.id},value:"${subject.value}"},`;
+                formattedStateString += `{id:${subject.id},value:"${subject.value}"},`;
             } else {
-                formattedStateString += `${key}:{id:${subject.id},value:${subject.value}},`;
+                formattedStateString += `{id:${subject.id},value:${subject.value}},`;
             }
         }
      
-        clientPageJSText += `state:{${formattedStateString}},`;
+        clientPageJSText += `state:[${formattedStateString}],`;
     }
 
     const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);

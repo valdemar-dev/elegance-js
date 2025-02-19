@@ -13,8 +13,8 @@ compile({
     writeToHTML: true,
     pagesDirectory: PAGES_DIR,
     outputDirectory: OUTPUT_DIR,
-    environment: "production",
-    watch: false,
+    environment: "development",
+    watch: true,
 }).then(() => {
     exec (`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`)
 

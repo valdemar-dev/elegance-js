@@ -1,3 +1,17 @@
+// src/server/eventListener.ts
+var eventListener = (dependencies, eventListener2) => {
+  return new Function(
+    "state",
+    "event",
+    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
+// src/server/addPageLoadHooks.ts
+var addPageLoadHooks = (hooks) => {
+  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
+};
+
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -12,25 +26,6 @@ var createState = (augment) => {
     };
   }
   return globalThis.__SERVER_CURRENT_STATE__;
-};
-
-// src/server/observe.ts
-var observe = (refs, update) => {
-  const returnValue = {
-    type: 3 /* OBSERVER */,
-    ids: refs.map((ref) => ref.id),
-    initialValues: refs.map((ref) => ref.value),
-    update
-  };
-  return returnValue;
-};
-
-// src/server/createEventListener.ts
-var createEventListener = (fn) => fn;
-
-// src/server/addPageLoadHooks.ts
-var addPageLoadHooks = (hooks) => {
-  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
 };
 
 // src/components/Link.ts
@@ -65,7 +60,7 @@ addPageLoadHooks([
   }
 ]);
 var serverState = createState({
-  navigate: createEventListener((state, event) => {
+  navigate: eventListener([], (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);
@@ -94,34 +89,54 @@ var Link = (options, ...children) => {
   );
 };
 
+// src/server/observe.ts
+var observe = (refs, update) => {
+  const returnValue = {
+    type: 3 /* OBSERVER */,
+    ids: refs.map((ref) => ref.id),
+    initialValues: refs.map((ref) => ref.value),
+    update
+  };
+  return returnValue;
+};
+
+// src/server/pageLoadHook.ts
+var pageLoadHook = (dependencies, pageLoadHook2) => {
+  return new Function(
+    "state",
+    `return (${pageLoadHook2.toString()})(state, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
 // src/docs/components/Header.ts
 var serverState2 = createState({
-  hasUserScrolled: false,
-  interval: 0,
-  globalTicker: 0,
-  urmom: "hi"
+  hasUserScrolled: false
 });
 addPageLoadHooks([
-  (state) => {
-    const hasScrolled = state.subjects.hasUserScrolled;
-    const handleScroll = () => {
-      const pos = {
-        x: window.scrollX,
-        y: window.scrollY
+  pageLoadHook(
+    [serverState2.hasUserScrolled],
+    (state, hasUserScrolled) => {
+      const handleScroll = () => {
+        const pos = {
+          x: window.scrollX,
+          y: window.scrollY
+        };
+        if (pos.y > 20) {
+          if (hasUserScrolled.value === true) return;
+          hasUserScrolled.value = true;
+          hasUserScrolled.signal();
+        } else {
+          if (hasUserScrolled.value === false) return;
+          hasUserScrolled.value = false;
+          hasUserScrolled.signal();
+        }
       };
-      if (pos.y > 20) {
-        if (hasScrolled.value === true) return;
-        hasScrolled.value = true;
-        state.signal(hasScrolled);
-      } else {
-        if (hasScrolled.value === false) return;
-        hasScrolled.value = false;
-        state.signal(hasScrolled);
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }
+      window.addEventListener("scroll", handleScroll);
+      return () => {
+        window.removeEventListener("scroll", handleScroll);
+      };
+    }
+  )
 ]);
 var Header = () => header(
   {
@@ -132,7 +147,7 @@ var Header = () => header(
       class: observe(
         [serverState2.hasUserScrolled],
         (hasUserScrolled) => {
-          console.log("change");
+          console.log("change nigga");
           const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 ";
           if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950";
           return defaultClass + "bg-background-900 border-b-transparent";
@@ -187,68 +202,59 @@ var RootLayout = (...children) => body(
 
 // src/docs/page.ts
 var pageTemplateString = `
-import { createState } from "elegance-js/helpers/createState";
-import { observe } from "elegance-js/helpers/observe"; 
-
-export const serverState = createState({
+const variables = createState({
     counter: 0,
-})
+});
+
+const functions = createState({
+    increment: eventListener(
+        [variables.counter],
+        (event, counter) => {
+            counter.value++;
+            counter.signal();
+        }
+    ),
+});
 
 export const page = body ({
-    // Set any attribute you want.
     class: "bg-black text-white",
 },
-    p ({ 
-        // No black-boxes, just the observer pattern.
-        innerText: observe({
-            // Types and values inferred!
-            [serverState.counter],
-            // Whenever a value in the above id list changes, 
-            // this function gets called with the new values. (fully type-safe!) 
-            (counterValue) => \`\${counterValue}\`,
-        })
+    p ({
+        innerText: observe(
+            [variables.counter],
+            (value) => \`The Counter is at: \${value}\`,
+        )
     }),
 
     button ({
-        onClick: eventListener((state: State<typeof serverState>) => {
-            const counter = state.subjects.counter;
-
-            state.set(counter, counter.value + 1);
-
-            // Explicit state signalling!
-            state.signal(counter)
-        })
-    })
-)
+        onClick: functions.increment,
+    },
+        "Increment Counter",
+    ),
+);
 `;
 var convertToSpans = (inputString) => {
   const tokenMap = {
-    "const": "text-orange-400",
-    "return": "text-orange-400",
     "body": "text-orange-400",
     "observe": "text-orange-400",
     "createState": "text-orange-400",
     "p": "text-orange-400",
     "button": "text-orange-400",
-    "initializePage": "text-orange-400",
-    "getState": "text-orange-400",
-    "ids": "text-purple-400",
-    "state": "text-purple-400",
-    "signal": "text-red-400",
-    "create": "text-red-400",
-    "set": "text-red-400",
-    "get": "text-red-400",
+    "eventListener": "text-orange-400",
+    "signal": "text-orange-400",
+    "const": "text-orange-300",
+    "return": "text-orange-300",
     "export": "text-red-400",
-    "update": "text-red-400",
     "import": "text-red-400",
     "from": "text-red-400",
     "onClick": "text-orange-200",
-    "staticProperty": "text-orange-200",
     "innerText": "text-orange-200",
     "class": "text-orange-200",
-    "dynamicProperty": "text-orange-200"
+    "increment": "text-orange-200",
+    "counter": "text-orange-200",
+    "event": "text-orange-200"
   };
-  const regex = /(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|observe|createState|export|import|from|staticProperty|dynamicProperty|return|body|p|button|onClick|ids|update|innerText|class|signal|state|create|set|get|initializePage)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;
+  const regex = /(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|incrementobserve|createState|export|import|from|return|body|p|button|onClick|ids|update|event|innerText|counter|class|signal|eventListener)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;
   const result = inputString.replace(regex, (match) => {
     if (match.startsWith("//")) {
       return `<span class="text-neutral-500">${match}</span>`;
@@ -322,13 +328,13 @@ var page = RootLayout(
     ),
     div(
       {
-        class: "mt-4 bg-background-950 p-4 rounded-md mb-8 sm:mb-20"
+        class: "mt-6 bg-background-950 p-4 rounded-md mb-8 sm:mb-20"
       },
       div(
         {},
         h2({
           class: "text-sm sm:text-base text-text-200",
-          innerText: "/pages/page.js"
+          innerText: "/pages/page.ts"
         })
       ),
       pre({
@@ -339,98 +345,25 @@ var page = RootLayout(
   ),
   div(
     {
-      class: "max-w-[900px] w-full mx-auto px-4"
+      class: "max-w-[900px] w-full mx-auto px-4 pb-64 flex flex-col gap-4 items-start  sm:items-center sm:flex-row sm:justify-between"
     },
-    h2({
-      class: "text-xl sm:text-3xl font-bold mb-4",
-      innerText: "Key Features"
-    }),
-    section(
-      {
-        class: "mb-10 pb-4 border-b-[1px] border-background-800"
-      },
-      h3({
-        class: "text-base sm:text-lg font-semibold mb-2",
-        innerText: "Simple by Design"
+    div(
+      {},
+      h2({
+        class: "text-xl sm:text-3xl font-bold",
+        innerText: "Learn More"
       }),
       p(
-        {
-          class: "text-xs sm:text-sm text-text-100 leading-5"
-        },
-        "Elegance is not a ",
-        b("black box "),
-        "with thousands of moving parts, nor does it have 10 years of tech-debt.",
-        br({}),
-        "Everything is made in-house using as few depencencies as possible (1), with ",
-        b("modern vanilla typescript. "),
-        br({}),
-        br({}),
-        "By learning Elegance, you know ",
-        b("exactly "),
-        "how it works, and what it does.",
-        br({}),
-        "This ",
-        b("in-depth knowledge "),
-        "allows you to utilize Elegance to it's fullest, allowing you to create the best user experience."
+        {},
+        "Interested? ",
+        "Read our Docs on how Elegance works."
       )
     ),
-    section(
-      {
-        class: "mb-10 pb-4 border-b-[1px] border-background-800"
-      },
-      h3({
-        class: "text-base sm:text-lg font-semibold mb-2",
-        innerText: "Fully Reactive"
-      }),
-      p(
-        {
-          class: "text-xs sm:text-sm text-text-100 leading-5"
-        },
-        "Things you've come to learn, or even love from React like ",
-        b("functional components, "),
-        b("conditional rendering, "),
-        b("client-side navigation, "),
-        "etc. Are all fully available in Elegance; no extra packages needed."
-      )
-    ),
-    section(
-      {
-        class: "mb-10 pb-4 border-b-[1px] border-background-800"
-      },
-      h3({
-        class: "text-base sm:text-lg font-semibold mb-2",
-        innerText: "Strict & Opinionated"
-      }),
-      p(
-        {
-          class: "text-xs sm:text-sm text-text-100 leading-5"
-        },
-        "Developers are",
-        b(" lazy"),
-        ". Which is not as bad as it sounds. ",
-        "However, it does mean that if you give them",
-        b(" 10 "),
-        "ways of doing something, ",
-        "they will choose the way that is",
-        b(" quickest, "),
-        b(" easiest "),
-        "and",
-        b(" most "),
-        b(" comfortable "),
-        "to them.",
-        br({}),
-        br({}),
-        "This often results in sub-optimal code. ",
-        "It's impacts may not always be apparent, and sometimes may not show at all for a while, ",
-        "however when put to scale, small issues become big issues. ",
-        br({}),
-        br({}),
-        "By forcing developers to code correctly, you can prevent these issues from ever become ones in the first place.",
-        br({}),
-        b("Elegance Page Rater "),
-        "can be mounted on any page to address things like contrast, alt descriptors, component render time, etc."
-      )
-    )
+    Link({
+      class: "text-base sm:text-lg uppercase font-bold text-background-950 font-semibold px-5 sm:px-6 py-2 sm:py-3 rounded-full bg-accent-400",
+      href: "/docs",
+      innerText: "documentation"
+    })
   )
 );
 export {

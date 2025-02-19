@@ -4,22 +4,25 @@ import { addPageLoadHooks } from "../../../server/addPageLoadHooks";
 import { createState } from "../../../server/createState";
 import { Header } from "../components/Header";
 import { observe } from "../../../server/observe";
+import { pageLoadHook } from "../../../server/pageLoadHook";
 
 const serverState = createState({
-    secondsSpentOnPage: 0,
+    secondsSpentOnPage: 1,
 });
 
 addPageLoadHooks([
-    ({ subjects, signal, }: State<typeof serverState>) => {
-        const secondsSpentOnPage = subjects.secondsSpentOnPage;
+    pageLoadHook(
+        [serverState.secondsSpentOnPage],
+        (state, secondsOnPage) => {
+            const intervalId = setInterval(() => {
+                secondsOnPage.value++;
+                secondsOnPage.signal();
+            }, 1000);
 
-        const intervalId = setInterval(() => {
-            secondsSpentOnPage.value++;
-            signal(secondsSpentOnPage);
-        }, 1000);
-
-        return () => clearInterval(intervalId);
-    },
+            return () => {
+                clearInterval(intervalId);
+            }
+        }),
 ]);
 
 const NavSubLink = (href: string, innerText: string) => Link ({
@@ -128,7 +131,7 @@ export const DocsLayout = (...children: Child[]) => div ({
         Sidebar(),
 
         article ({
-            class: "h-full overflow-y-scroll pb-[250px] pl-6 ml-6",
+            class: "h-full w-full overflow-y-scroll pb-[250px] pl-6 ml-6",
         },
             Breakpoint ({
                 name: "docs-breakpoint",

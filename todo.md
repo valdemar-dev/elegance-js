@@ -4,11 +4,14 @@ POTENTIAL:
 
 CANNED: 
     - deprecate SOA, change to ELOA
+        - stupid, all OA's are separate for optimization
 
 TODO:
+    - state signal self, not controller signals state
     - make non children elements, that take in children, actually work
-    - fix links breaking on hot-reload
         - basically set element.children = null on childrenless elements so that they're rendered properly
+    - fix links breaking on hot-reload
+    - scrollintoview when clicking on hash
     - code cleanup
     - rewrite client
         - there's some weird shit with this, i need to make it more optimized

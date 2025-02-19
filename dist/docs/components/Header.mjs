@@ -25,8 +25,14 @@ var observe = (refs, update) => {
   return returnValue;
 };
 
-// src/server/createEventListener.ts
-var createEventListener = (fn) => fn;
+// src/server/eventListener.ts
+var eventListener = (dependencies, eventListener2) => {
+  return new Function(
+    "state",
+    "event",
+    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
 
 // src/server/addPageLoadHooks.ts
 var addPageLoadHooks = (hooks) => {
@@ -65,7 +71,7 @@ addPageLoadHooks([
   }
 ]);
 var serverState = createState({
-  navigate: createEventListener((state, event) => {
+  navigate: eventListener([], (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);
@@ -94,34 +100,43 @@ var Link = (options, ...children) => {
   );
 };
 
+// src/server/pageLoadHook.ts
+var pageLoadHook = (dependencies, pageLoadHook2) => {
+  return new Function(
+    "state",
+    `return (${pageLoadHook2.toString()})(state, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
 // src/docs/components/Header.ts
 var serverState2 = createState({
-  hasUserScrolled: false,
-  interval: 0,
-  globalTicker: 0,
-  urmom: "hi"
+  hasUserScrolled: false
 });
 addPageLoadHooks([
-  (state) => {
-    const hasScrolled = state.subjects.hasUserScrolled;
-    const handleScroll = () => {
-      const pos = {
-        x: window.scrollX,
-        y: window.scrollY
+  pageLoadHook(
+    [serverState2.hasUserScrolled],
+    (state, hasUserScrolled) => {
+      const handleScroll = () => {
+        const pos = {
+          x: window.scrollX,
+          y: window.scrollY
+        };
+        if (pos.y > 20) {
+          if (hasUserScrolled.value === true) return;
+          hasUserScrolled.value = true;
+          hasUserScrolled.signal();
+        } else {
+          if (hasUserScrolled.value === false) return;
+          hasUserScrolled.value = false;
+          hasUserScrolled.signal();
+        }
       };
-      if (pos.y > 20) {
-        if (hasScrolled.value === true) return;
-        hasScrolled.value = true;
-        state.signal(hasScrolled);
-      } else {
-        if (hasScrolled.value === false) return;
-        hasScrolled.value = false;
-        state.signal(hasScrolled);
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }
+      window.addEventListener("scroll", handleScroll);
+      return () => {
+        window.removeEventListener("scroll", handleScroll);
+      };
+    }
+  )
 ]);
 var Header = () => header(
   {
@@ -132,7 +147,7 @@ var Header = () => header(
       class: observe(
         [serverState2.hasUserScrolled],
         (hasUserScrolled) => {
-          console.log("change");
+          console.log("change nigga");
           const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 ";
           if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950";
           return defaultClass + "bg-background-900 border-b-transparent";

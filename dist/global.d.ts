@@ -16,13 +16,11 @@ declare global {
         value: any;
         observers: Array<(value: any) => any>;
         pathname: string;
+        signal: () => void;
     };
     type State<T> = {
-        subjects: {
-            [K in keyof T]: ClientSubject;
-        };
+        subjects: ClientSubject[];
         get: (id: number) => ClientSubject | undefined;
-        signal: (subject: ClientSubject) => void;
         observe: (subject: ClientSubject, observer: (value: any) => any) => void;
     };
     type Listener<S, E> = {

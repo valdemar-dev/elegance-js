@@ -1,1 +1,331 @@
-var d=(...e)=>body({class:"bg-background-900 text-text-50 font-inter select-none text-text-50"},...e);var m=(e,t)=>h2({class:"text-3xl font-semibold mb-4",id:t,innerText:e});var u=(e,...t)=>{if(!e.name)throw"Breakpoints must set a name attribute.";let o=e.name;return delete e.name,div({bp:{type:4,value:o},...e},...t)};var g=e=>e;var c=e=>{globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...e)};globalThis.__SERVER_CURRENT_STATE_ID__||(globalThis.__SERVER_CURRENT_STATE_ID__=0);var T=globalThis.__SERVER_CURRENT_STATE_ID__,f=e=>{for(let[t,o]of Object.entries(e))globalThis.__SERVER_CURRENT_STATE__[t]={id:T++,value:o,type:1};return globalThis.__SERVER_CURRENT_STATE__};c([()=>{let e=Array.from(document.querySelectorAll("a[prefetch]")),t=[];for(let o of e){let r=o.getAttribute("prefetch"),l=new URL(o.href);switch(r){case"load":__ELEGANCE_CLIENT__.fetchPage(l);break;case"hover":let i=()=>{__ELEGANCE_CLIENT__.fetchPage(l)};o.addEventListener("mouseenter",i),t.push({el:o,fn:i});break}}return()=>{for(let o of t)o.el.removeEventListener("onmouseenter",o.fn)}}]);var v=f({navigate:g((e,t)=>{let o=new URL(t.currentTarget.href),r=globalThis.__ELEGANCE_CLIENT__,l=r.sanitizePathname(o.pathname),i=r.sanitizePathname(window.location.pathname);if(l===i)return o.hash===window.location.hash?t.preventDefault():void 0;t.preventDefault(),r.navigateLocally(o.href)})}),n=(e,...t)=>{if(!e.href)throw"Link elements must have a HREF attribute set.";if(!e.href.startsWith("/"))throw'Link elements may only navigate to local pages. "/"';return a({...e,onClick:v.navigate},...t)};var h=()=>header({class:"sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"},div({class:"group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"},div({class:"max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"},div({class:"flex min-w-max w-full items-center z-10"},n({href:"/",class:"flex items-center gap-1 h-full"},p({class:"font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",innerText:"Elegance"}),p({innerText:"JS",class:"font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"}))),div({class:"flex py-2 sm:py-4 flex relative items-center justify-end w-full"},n({prefetch:"hover",class:"z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",href:"/docs",innerText:"Docs"})))));var _=(e,t)=>({type:3,ids:e.map(r=>r.id),initialValues:e.map(r=>r.value),update:t});var b=f({secondsSpentOnPage:0});c([({subjects:e,signal:t})=>{let o=e.secondsSpentOnPage,r=setInterval(()=>{o.value++,t(o)},1e3);return()=>clearInterval(r)}]);var s=(e,t)=>n({class:"text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",innerText:t,href:e,prefetch:"hover"}),R=()=>nav({class:"w-1/5"},ul({class:"flex flex-col gap-4"},li({},h2({class:"text-lg font-semibold"},"Quick Nav"),span({class:"text-xs opacity-75"},"Elapsed: ",span({class:"font-mono",innerText:_([b.secondsSpentOnPage],e=>{let t=Math.floor(e/60/60),o=Math.floor(e/60%60),r=e%60;return`${t}h:${o}m:${r}s`})}))),li({class:"flex flex-col gap-1"},h4({class:"text-base font-medium",innerText:"The Basics"}),ol({class:"pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"},s("/docs/basics#preamble","Preamble"),s("/docs/basics#how-elegance-works","How Elegance Works"),s("/docs/basics#installation","Installation"),s("/docs/basics#your-first-page","Your First Page"))),li({class:"flex flex-col gap-1"},h4({class:"text-base font-medium",innerText:"Compilation"}),ol({class:"pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"},s("/docs/compilation#options","Compilation Options"))))),E=(...e)=>div({class:"h-screen overflow-clip"},h(),div({class:"max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"},R(),article({class:"h-full overflow-y-scroll pb-[250px] pl-6 ml-6"},u({name:"docs-breakpoint"},...e))));var X=d(E(m("Getting Started","#getting-started")));export{X as page};
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
+  {
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
+  },
+  ...children
+);
+
+// src/docs/docs/components/PageHeading.ts
+var PageHeading = (title, id) => h2({
+  class: "text-3xl font-semibold mb-4",
+  id,
+  innerText: title
+});
+
+// src/components/Breakpoint.ts
+var Breakpoint = (options, ...children) => {
+  if (!options.name) throw `Breakpoints must set a name attribute.`;
+  const name = options.name;
+  delete options.name;
+  return div(
+    {
+      bp: {
+        type: 4 /* BREAKPOINT */,
+        value: name
+      },
+      ...options
+    },
+    ...children
+  );
+};
+
+// src/server/eventListener.ts
+var eventListener = (dependencies, eventListener2) => {
+  return new Function(
+    "state",
+    "event",
+    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
+// src/server/addPageLoadHooks.ts
+var addPageLoadHooks = (hooks) => {
+  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
+};
+
+// src/server/createState.ts
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
+var createState = (augment) => {
+  for (const [key, value] of Object.entries(augment)) {
+    globalThis.__SERVER_CURRENT_STATE__[key] = {
+      id: currentId++,
+      value,
+      type: 1 /* STATE */
+    };
+  }
+  return globalThis.__SERVER_CURRENT_STATE__;
+};
+
+// src/components/Link.ts
+addPageLoadHooks([
+  () => {
+    const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
+    const elsToClear = [];
+    for (const anchor of anchors) {
+      const prefetch = anchor.getAttribute("prefetch");
+      const href = new URL(anchor.href);
+      switch (prefetch) {
+        case "load":
+          __ELEGANCE_CLIENT__.fetchPage(href);
+          break;
+        case "hover":
+          const fn = () => {
+            __ELEGANCE_CLIENT__.fetchPage(href);
+          };
+          anchor.addEventListener("mouseenter", fn);
+          elsToClear.push({
+            el: anchor,
+            fn
+          });
+          break;
+      }
+    }
+    return () => {
+      for (const listener of elsToClear) {
+        listener.el.removeEventListener("onmouseenter", listener.fn);
+      }
+    };
+  }
+]);
+var serverState = createState({
+  navigate: eventListener([], (event) => {
+    const target = new URL(event.currentTarget.href);
+    const client = globalThis.__ELEGANCE_CLIENT__;
+    const sanitizedTarget = client.sanitizePathname(target.pathname);
+    const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
+    if (sanitizedTarget === sanitizedCurrent) {
+      if (target.hash === window.location.hash) return event.preventDefault();
+      return;
+    }
+    event.preventDefault();
+    client.navigateLocally(target.href);
+  })
+});
+var Link = (options, ...children) => {
+  if (!options.href) {
+    throw `Link elements must have a HREF attribute set.`;
+  }
+  if (!options.href.startsWith("/")) {
+    throw `Link elements may only navigate to local pages. "/"`;
+  }
+  return a(
+    {
+      ...options,
+      onClick: serverState.navigate
+    },
+    ...children
+  );
+};
+
+// src/docs/docs/components/Header.ts
+var Header = () => header(
+  {
+    class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
+  },
+  div(
+    {
+      class: "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"
+    },
+    div(
+      {
+        class: "max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
+      },
+      div(
+        {
+          class: "flex min-w-max w-full items-center z-10"
+        },
+        Link(
+          {
+            href: "/",
+            class: "flex items-center gap-1 h-full"
+          },
+          p({
+            class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
+            innerText: "Elegance"
+          }),
+          p({
+            innerText: "JS",
+            class: "font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"
+          })
+        )
+      ),
+      div(
+        {
+          class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
+        },
+        Link({
+          prefetch: "hover",
+          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
+          href: "/docs",
+          innerText: "Docs"
+        })
+      )
+    )
+  )
+);
+
+// src/server/observe.ts
+var observe = (refs, update) => {
+  const returnValue = {
+    type: 3 /* OBSERVER */,
+    ids: refs.map((ref) => ref.id),
+    initialValues: refs.map((ref) => ref.value),
+    update
+  };
+  return returnValue;
+};
+
+// src/server/pageLoadHook.ts
+var pageLoadHook = (dependencies, pageLoadHook2) => {
+  return new Function(
+    "state",
+    `return (${pageLoadHook2.toString()})(state, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
+// src/docs/docs/components/DocsLayout.ts
+var serverState2 = createState({
+  secondsSpentOnPage: 1
+});
+addPageLoadHooks([
+  pageLoadHook(
+    [serverState2.secondsSpentOnPage],
+    (state, secondsOnPage) => {
+      const intervalId = setInterval(() => {
+        secondsOnPage.value++;
+        secondsOnPage.signal();
+      }, 1e3);
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  )
+]);
+var NavSubLink = (href, innerText) => Link({
+  class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",
+  innerText,
+  href,
+  prefetch: "hover"
+});
+var Sidebar = () => nav(
+  {
+    class: "w-1/5"
+  },
+  ul(
+    {
+      class: "flex flex-col gap-4"
+    },
+    li(
+      {},
+      h2(
+        {
+          class: "text-lg font-semibold"
+        },
+        "Quick Nav"
+      ),
+      span(
+        {
+          class: "text-xs opacity-75"
+        },
+        "Elapsed: ",
+        span({
+          class: "font-mono",
+          innerText: observe(
+            [serverState2.secondsSpentOnPage],
+            (secondsSpentOnPage) => {
+              const hours = Math.floor(secondsSpentOnPage / 60 / 60);
+              const minutes = Math.floor(secondsSpentOnPage / 60 % 60);
+              const seconds = secondsSpentOnPage % 60;
+              return `${hours}h:${minutes}m:${seconds}s`;
+            }
+          )
+        })
+      )
+    ),
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "The Basics"
+      }),
+      ol(
+        {
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+        },
+        NavSubLink(
+          "/docs/basics#preamble",
+          "Preamble"
+        ),
+        NavSubLink(
+          "/docs/basics#how-elegance-works",
+          "How Elegance Works"
+        ),
+        NavSubLink(
+          "/docs/basics#installation",
+          "Installation"
+        ),
+        NavSubLink(
+          "/docs/basics#your-first-page",
+          "Your First Page"
+        )
+      )
+    ),
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "Compilation"
+      }),
+      ol(
+        {
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+        },
+        NavSubLink(
+          "/docs/compilation#options",
+          "Compilation Options"
+        )
+      )
+    )
+  )
+);
+var DocsLayout = (...children) => div(
+  {
+    class: "h-screen overflow-clip"
+  },
+  Header(),
+  div(
+    {
+      class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
+    },
+    Sidebar(),
+    article(
+      {
+        class: "h-full w-full overflow-y-scroll pb-[250px] pl-6 ml-6"
+      },
+      Breakpoint(
+        {
+          name: "docs-breakpoint"
+        },
+        ...children
+      )
+    )
+  )
+);
+
+// src/docs/docs/page.ts
+var page = RootLayout(
+  DocsLayout(
+    PageHeading("Getting Started", "#getting-started")
+  )
+);
+export {
+  page
+};

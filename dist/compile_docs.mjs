@@ -380,9 +380,6 @@ var processPageElements = (element, objectAttributes) => {
     switch (attributeValue.type) {
       case 1 /* STATE */:
         if (typeof attributeValue.value === "function") {
-          if (!lowerCaseOption.startsWith("on")) {
-            throw `SAO's may only be a function, if they are an event listener.`;
-          }
           delete element.options[option];
           break;
         }
@@ -472,12 +469,12 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     const sortedState = Object.entries(state).sort(([, av], [, bv]) => av.id - bv.id);
     for (const [key, subject] of sortedState) {
       if (typeof subject.value === "string") {
-        formattedStateString += `${key}:{id:${subject.id},value:"${subject.value}"},`;
+        formattedStateString += `{id:${subject.id},value:"${subject.value}"},`;
       } else {
-        formattedStateString += `${key}:{id:${subject.id},value:${subject.value}},`;
+        formattedStateString += `{id:${subject.id},value:${subject.value}},`;
       }
     }
-    clientPageJSText += `state:{${formattedStateString}},`;
+    clientPageJSText += `state:[${formattedStateString}],`;
   }
   const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
   if (stateObjectAttributes.length > 0) {
@@ -751,8 +748,8 @@ compile({
   writeToHTML: true,
   pagesDirectory: PAGES_DIR,
   outputDirectory: OUTPUT_DIR,
-  environment: "production",
-  watch: false
+  environment: "development",
+  watch: true
 }).then(() => {
   exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`);
   console.log("Built Docs.");

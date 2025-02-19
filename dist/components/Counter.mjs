@@ -34,34 +34,32 @@ var observe = (refs, update) => {
   return returnValue;
 };
 
-// src/docs/nullpage/page.ts
+// src/components/Counter.ts
 var variables = createState({
   counter: 0
 });
 var functions = createState({
-  increment: eventListener(
+  incrementCounter: eventListener(
     [variables.counter],
     (event, counter) => {
-      counter.value++;
+      counter.set(counter.value + 1);
       counter.signal();
     }
   )
 });
-var page = body(
+var Counter = () => div(
   {},
   p({
     innerText: observe(
       [variables.counter],
-      (value) => `The Counter is at: ${value}`
+      (counter) => `The Counter is at: ${counter}`
     )
   }),
-  button(
-    {
-      onClick: functions.increment
-    },
-    "Increment Counter"
-  )
+  button({
+    onClick: functions.incrementCounter,
+    innerText: "Increment Counter"
+  })
 );
 export {
-  page
+  Counter
 };

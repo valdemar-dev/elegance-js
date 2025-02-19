@@ -15,8 +15,14 @@ var Breakpoint = (options, ...children) => {
   );
 };
 
-// src/server/createEventListener.ts
-var createEventListener = (fn) => fn;
+// src/server/eventListener.ts
+var eventListener = (dependencies, eventListener2) => {
+  return new Function(
+    "state",
+    "event",
+    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
 
 // src/server/addPageLoadHooks.ts
 var addPageLoadHooks = (hooks) => {
@@ -71,7 +77,7 @@ addPageLoadHooks([
   }
 ]);
 var serverState = createState({
-  navigate: createEventListener((state, event) => {
+  navigate: eventListener([], (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);
@@ -158,19 +164,31 @@ var observe = (refs, update) => {
   return returnValue;
 };
 
+// src/server/pageLoadHook.ts
+var pageLoadHook = (dependencies, pageLoadHook2) => {
+  return new Function(
+    "state",
+    `return (${pageLoadHook2.toString()})(state, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+  );
+};
+
 // src/docs/docs/components/DocsLayout.ts
 var serverState2 = createState({
-  secondsSpentOnPage: 0
+  secondsSpentOnPage: 1
 });
 addPageLoadHooks([
-  ({ subjects, signal }) => {
-    const secondsSpentOnPage = subjects.secondsSpentOnPage;
-    const intervalId = setInterval(() => {
-      secondsSpentOnPage.value++;
-      signal(secondsSpentOnPage);
-    }, 1e3);
-    return () => clearInterval(intervalId);
-  }
+  pageLoadHook(
+    [serverState2.secondsSpentOnPage],
+    (state, secondsOnPage) => {
+      const intervalId = setInterval(() => {
+        secondsOnPage.value++;
+        secondsOnPage.signal();
+      }, 1e3);
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  )
 ]);
 var NavSubLink = (href, innerText) => Link({
   class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",
@@ -275,7 +293,7 @@ var DocsLayout = (...children) => div(
     Sidebar(),
     article(
       {
-        class: "h-full overflow-y-scroll pb-[250px] pl-6 ml-6"
+        class: "h-full w-full overflow-y-scroll pb-[250px] pl-6 ml-6"
       },
       Breakpoint(
         {

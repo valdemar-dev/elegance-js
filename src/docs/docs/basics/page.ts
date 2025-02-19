@@ -12,7 +12,7 @@ const demoPageTS =
     h1 ({
         innerText: "Greetings Traveler!",
     }),
-)`;
+);`;
 
 const bodyCallResult = `
 {
@@ -136,7 +136,7 @@ export const page = RootLayout (
             br ({}),
 
             "We use filesystem routing, where each directory contains a ",
-            Mono("page.ts, "), "and an ", Mono("info.ts "), "file.",
+            Mono("page.ts,"), " and an ", Mono("info.ts"), " file.",
         ),
 
         div ({
@@ -290,7 +290,7 @@ export const page = RootLayout (
 
             br ({}),
 
-            "On a linux-based system, something like ", Mono("~/bin/elegance"), " is a good place.",
+            "On a linux-based system, somewhere like ", Mono("~/bin/elegance"), " is a good place.",
             
             br ({}),
             

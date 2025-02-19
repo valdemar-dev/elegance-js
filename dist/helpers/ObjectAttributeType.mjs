@@ -5,6 +5,7 @@ var ObjectAttributeType = /* @__PURE__ */ ((ObjectAttributeType2) => {
   ObjectAttributeType2[ObjectAttributeType2["FUNCTION"] = 2] = "FUNCTION";
   ObjectAttributeType2[ObjectAttributeType2["OBSERVER"] = 3] = "OBSERVER";
   ObjectAttributeType2[ObjectAttributeType2["BREAKPOINT"] = 4] = "BREAKPOINT";
+  ObjectAttributeType2[ObjectAttributeType2["EVENT_LISTENER"] = 5] = "EVENT_LISTENER";
   return ObjectAttributeType2;
 })(ObjectAttributeType || {});
 export {

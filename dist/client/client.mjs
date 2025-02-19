@@ -25,26 +25,28 @@ var loadPage = (deprecatedKeys = []) => {
   ;
   console.log(`Loading ${pathname}:`, pageData);
   let state = pageData.stateManager;
+  cleanupFunctions.push(
+    () => {
+      state.subjects.forEach((subj) => subj.observers = []);
+    }
+  );
   if (!state) {
     state = {
-      subjects: Object.fromEntries(
-        Object.entries(pageData.state).map(([subjectName, value]) => [
-          subjectName,
-          {
-            ...value,
-            observers: [],
-            pathname
+      subjects: pageData.state.map((subject) => {
+        const s = {
+          ...subject,
+          observers: [],
+          pathname
+        };
+        s.signal = () => {
+          for (const observer of s.observers) {
+            observer(s.value);
           }
-        ])
-      ),
-      get: (id) => Object.values(state.subjects).find((s) => s.id === id),
-      getKey: (value) => Object.keys(state.subjects).find((k) => state.subjects[k] === value),
-      signal: (subject) => {
-        const observers = subject.observers;
-        for (const observer of observers) {
-          observer(subject.value);
-        }
-      },
+        };
+        return s;
+      }),
+      get: (id) => state.subjects.find((s) => s.id === id),
+      getAll: (ids) => ids?.map((id) => state.get(id)),
       observe: (subject, observer) => {
         subject.observers.push(observer);
       }
