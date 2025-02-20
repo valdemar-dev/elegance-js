@@ -47,7 +47,6 @@ export const Header = () => header ({
         class: observe(
             [serverState.hasUserScrolled],
             (hasUserScrolled) => {
-                console.log("change nigga");
                 const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 "
 
                 if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950"

@@ -27,21 +27,16 @@
     ;
     console.log(`Loading ${pathname}:`, pageData);
     let state = pageData.stateManager;
-    cleanupFunctions.push(
-      () => {
-        state.subjects.forEach((subj) => subj.observers = []);
-      }
-    );
     if (!state) {
       state = {
         subjects: pageData.state.map((subject) => {
           const s = {
             ...subject,
-            observers: [],
+            observers: /* @__PURE__ */ new Map(),
             pathname
           };
           s.signal = () => {
-            for (const observer of s.observers) {
+            for (const observer of s.observers.values()) {
               observer(s.value);
             }
           };
@@ -49,8 +44,9 @@
         }),
         get: /* @__PURE__ */ __name((id) => state.subjects.find((s) => s.id === id), "get"),
         getAll: /* @__PURE__ */ __name((ids) => ids?.map((id) => state.get(id)), "getAll"),
-        observe: /* @__PURE__ */ __name((subject, observer) => {
-          subject.observers.push(observer);
+        observe: /* @__PURE__ */ __name((subject, observer, key) => {
+          subject.observers.delete(key);
+          subject.observers.set(key, observer);
         }, "observe")
       };
       pageData.stateManager = state;
@@ -70,7 +66,7 @@
           let attribute2 = observer.attribute === "class" ? "className" : observer.attribute;
           el[attribute2] = newValue2;
         }, "updateFunction");
-        state.observe(subject, updateFunction);
+        state.observe(subject, updateFunction, observer.key);
       }
       const newValue = observer.update(...Object.values(values));
       let attribute = observer.attribute === "class" ? "className" : observer.attribute;
@@ -79,6 +75,7 @@
     }
     for (const soa of pageData.soa || []) {
       if (soa.key in deprecatedKeys) {
+        console.info(`not setting ${soa.key}`);
         continue;
       }
       const el = doc.querySelector(`[key="${soa.key}"]`);
@@ -91,6 +88,7 @@
       console.info(`Processed SOA.`, soa);
     }
     for (const pageLoadHook of pageData.plh || []) {
+      console.log(pageLoadHook.toString());
       const cleanupFunction = pageLoadHook(state);
       if (cleanupFunction) cleanupFunctions.push(cleanupFunction);
     }

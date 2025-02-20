@@ -39,23 +39,17 @@ const loadPage = (deprecatedKeys: string[] = []) => {
     
     let state = pageData.stateManager;
 
-    cleanupFunctions.push(
-        () => {
-            state.subjects.forEach((subj: any) => subj.observers = [])
-        }
-    );
-
     if (!state) {
         state = {
             subjects: pageData.state.map((subject: any) => {
                 const s = {
                     ...subject,
-                    observers: [],
+                    observers: new Map(),
                     pathname: pathname,
                 };
 
                 s.signal = () => {
-                    for (const observer of s.observers) {
+                    for (const observer of s.observers.values()) {
                         observer(s.value);
                     }
                 }
@@ -66,8 +60,9 @@ const loadPage = (deprecatedKeys: string[] = []) => {
             get: (id: number) => state.subjects.find((s: ClientSubject) => s.id === id),
             getAll: (ids: number[]) => ids?.map(id => state.get(id)),
 
-            observe: (subject: ClientSubject, observer: (value: any) => any) => {
-                subject.observers.push(observer);
+            observe: (subject: ClientSubject, observer: (value: any) => any, key: string) => {
+                subject.observers.delete(key);
+                subject.observers.set(key, observer);
             }
         }
 
@@ -76,7 +71,7 @@ const loadPage = (deprecatedKeys: string[] = []) => {
 
     for (const observer of pageData.ooa || []) {
         if (observer.key in deprecatedKeys) {
-            continue; 
+            continue;
         }
 
         const el = doc.querySelector(`[key="${observer.key}"]`);
@@ -97,8 +92,7 @@ const loadPage = (deprecatedKeys: string[] = []) => {
                 (el as any)[attribute] = newValue;
             };
 
-            state.observe(subject, updateFunction);
-
+            state.observe(subject, updateFunction, observer.key);
         }
 
         const newValue = observer.update(...Object.values(values));
@@ -111,7 +105,8 @@ const loadPage = (deprecatedKeys: string[] = []) => {
 
     for (const soa of pageData.soa || []) {
         if (soa.key in deprecatedKeys) {
-            continue; 
+            console.info(`not setting ${soa.key}`);
+            continue;
         }
 
         const el = doc.querySelector(`[key="${soa.key}"]`) as any;
@@ -127,6 +122,7 @@ const loadPage = (deprecatedKeys: string[] = []) => {
     }
 
     for (const pageLoadHook of pageData.plh || []) {
+        console.log(pageLoadHook.toString());
         const cleanupFunction = pageLoadHook(state);
         if (cleanupFunction) cleanupFunctions.push(cleanupFunction);
     }

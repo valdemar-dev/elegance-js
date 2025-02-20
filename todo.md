@@ -7,6 +7,7 @@ CANNED:
         - stupid, all OA's are separate for optimization
 
 TODO:
+    - typescript autocopmlete and typings for elements, make options {} good-ier
     - state signal self, not controller signals state
     - make non children elements, that take in children, actually work
         - basically set element.children = null on childrenless elements so that they're rendered properly

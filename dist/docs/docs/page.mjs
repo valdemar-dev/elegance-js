@@ -86,7 +86,7 @@ addPageLoadHooks([
     }
     return () => {
       for (const listener of elsToClear) {
-        listener.el.removeEventListener("onmouseenter", listener.fn);
+        listener.el.removeEventListener("mouseenter", listener.fn);
       }
     };
   }

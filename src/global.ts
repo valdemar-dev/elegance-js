@@ -20,7 +20,7 @@ declare global {
     type ClientSubject = {
         id: number,
         value: any,
-        observers: Array<(value: any) => any>,
+        observers: Map<string, (value: any) => any>,
         pathname: string,
         signal: () => void,
     };
