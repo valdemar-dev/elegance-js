@@ -1,6 +1,8 @@
 POTENTIAL:
     - fix race condition fetching in Links()
     - get into image opts?
+    - attributemap:
+        - onclick to 1, or wtv
 
 CANNED: 
     - deprecate SOA, change to ELOA

@@ -9,7 +9,7 @@ import http, { IncomingMessage, ServerResponse } from "http";
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
 import { getState, initializeState } from "./server/createState";
-import { getPageLoadHooks, initializePageLoadHooks } from "./server/addPageLoadHooks";
+import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -260,10 +260,10 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                 break;
 
             case ObjectAttributeType.BREAKPOINT:
-                let value = layoutKeyMap[`${attributeValue}`]
+                let value = layoutKeyMap[`${attributeValue.value}`]
                 if (!value) value = layoutKey++;
 
-                layoutKeyMap[`${attributeValue}`] = value;
+                layoutKeyMap[`${attributeValue.value}`] = value;
                 element.options["bp"] = value;
 
                 break;
@@ -300,7 +300,7 @@ const generateSuitablePageElements = async (
     const objectAttributes: Array<ObjectAttribute<any>> = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes);
 
-    elementKey = 1;
+    elementKey = 0;
 
     if (!writeToHTML) {
         fs.writeFileSync(
@@ -349,7 +349,7 @@ const generateClientPageData = async (
     pageLocation: string,
     state: Record<string, any>,
     objectAttributes: Array<ObjectAttribute<any>>,
-    pageLoadHooks: Array<(...params: any) => any>,
+    pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
     watch: boolean,
 ) => {
@@ -406,10 +406,18 @@ const generateClientPageData = async (
     }
 
     if (pageLoadHooks.length > 0) {
-        clientPageJSText += "plh:[";
+        clientPageJSText += "lh:[";
 
-        for (const pageLoadHook of pageLoadHooks) {
-            clientPageJSText += `${pageLoadHook.toString()},`;
+        for (const loadHook of pageLoadHooks) {
+            const key = layoutKeyMap[`${loadHook.bind}`]
+
+            if (!key) {
+                if (loadHook.bind.length > 0) {
+                    throw `Loadhook bound to non-existent breakpoint key: ${loadHook.bind}`;
+                }
+            }
+
+            clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
         }
 
         clientPageJSText += "],";
@@ -473,12 +481,12 @@ const buildPages = async (
 
         // reset server-state if it existed 
         initializeState();
-        initializePageLoadHooks();
+        resetLoadHooks();
 
         const { page: pageElements, } = await import(pagePath + `?${Date.now()}`);
 
         const state = getState();
-        const pageLoadHooks = getPageLoadHooks();
+        const pageLoadHooks = getLoadHooks();
 
         if (!pageElements) {
             throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`

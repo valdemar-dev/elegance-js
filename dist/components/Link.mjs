@@ -7,11 +7,6 @@ var eventListener = (dependencies, eventListener2) => {
   );
 };
 
-// src/server/addPageLoadHooks.ts
-var addPageLoadHooks = (hooks) => {
-  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
-};
-
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -28,9 +23,19 @@ var createState = (augment) => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
 
+// src/server/loadHook.ts
+var createLoadHook = (options) => {
+  const stringFn = options.fn.toString();
+  const depIds = options.deps?.map((dep) => dep.id);
+  globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
+    fn: `(state) => (${stringFn})(state, ...state.getAll([${depIds}]))`,
+    bind: options.bind || ""
+  });
+};
+
 // src/components/Link.ts
-addPageLoadHooks([
-  () => {
+createLoadHook({
+  fn: () => {
     const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
     const elsToClear = [];
     for (const anchor of anchors) {
@@ -58,7 +63,7 @@ addPageLoadHooks([
       }
     };
   }
-]);
+});
 var serverState = createState({
   navigate: eventListener([], (event) => {
     const target = new URL(event.currentTarget.href);

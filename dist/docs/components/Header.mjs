@@ -34,14 +34,19 @@ var eventListener = (dependencies, eventListener2) => {
   );
 };
 
-// src/server/addPageLoadHooks.ts
-var addPageLoadHooks = (hooks) => {
-  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
+// src/server/loadHook.ts
+var createLoadHook = (options) => {
+  const stringFn = options.fn.toString();
+  const depIds = options.deps?.map((dep) => dep.id);
+  globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
+    fn: `(state) => (${stringFn})(state, ...state.getAll([${depIds}]))`,
+    bind: options.bind || ""
+  });
 };
 
 // src/components/Link.ts
-addPageLoadHooks([
-  () => {
+createLoadHook({
+  fn: () => {
     const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
     const elsToClear = [];
     for (const anchor of anchors) {
@@ -69,7 +74,7 @@ addPageLoadHooks([
       }
     };
   }
-]);
+});
 var serverState = createState({
   navigate: eventListener([], (event) => {
     const target = new URL(event.currentTarget.href);
@@ -100,44 +105,34 @@ var Link = (options, ...children) => {
   );
 };
 
-// src/server/pageLoadHook.ts
-var pageLoadHook = (dependencies, pageLoadHook2) => {
-  return new Function(
-    "state",
-    `return (${pageLoadHook2.toString()})(state, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
-  );
-};
-
 // src/docs/components/Header.ts
 var serverState2 = createState({
   hasUserScrolled: false
 });
-addPageLoadHooks([
-  pageLoadHook(
-    [serverState2.hasUserScrolled],
-    (state, hasUserScrolled) => {
-      const handleScroll = () => {
-        const pos = {
-          x: window.scrollX,
-          y: window.scrollY
-        };
-        if (pos.y > 20) {
-          if (hasUserScrolled.value === true) return;
-          hasUserScrolled.value = true;
-          hasUserScrolled.signal();
-        } else {
-          if (hasUserScrolled.value === false) return;
-          hasUserScrolled.value = false;
-          hasUserScrolled.signal();
-        }
+createLoadHook({
+  deps: [serverState2.hasUserScrolled],
+  fn: (state, hasUserScrolled) => {
+    const handleScroll = () => {
+      const pos = {
+        x: window.scrollX,
+        y: window.scrollY
       };
-      window.addEventListener("scroll", handleScroll);
-      return () => {
-        window.removeEventListener("scroll", handleScroll);
-      };
-    }
-  )
-]);
+      if (pos.y > 20) {
+        if (hasUserScrolled.value === true) return;
+        hasUserScrolled.value = true;
+        hasUserScrolled.signal();
+      } else {
+        if (hasUserScrolled.value === false) return;
+        hasUserScrolled.value = false;
+        hasUserScrolled.signal();
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }
+});
 var Header = () => header(
   {
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"

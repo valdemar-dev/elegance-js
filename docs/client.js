@@ -7,14 +7,14 @@
   const pageStringCache = /* @__PURE__ */ new Map();
   const loc = window.location;
   const doc = document;
-  let cleanupFunctions = [];
+  let cleanupProcedures = [];
   const makeArray = Array.from;
   const sanitizePathname = /* @__PURE__ */ __name((pn) => {
     if (!pn.endsWith("/") || pn === "/") return pn;
     return pn.slice(0, -1);
   }, "sanitizePathname");
   let currentPage = sanitizePathname(loc.pathname);
-  const loadPage = /* @__PURE__ */ __name((deprecatedKeys = []) => {
+  const loadPage = /* @__PURE__ */ __name((deprecatedKeys = [], newBreakpoints) => {
     const fixedUrl = new URL(loc.href);
     fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
     const pathname = fixedUrl.pathname;
@@ -26,6 +26,8 @@
     }
     ;
     console.log(`Loading ${pathname}:`, pageData);
+    console.log("Deprecated Keys:", deprecatedKeys);
+    console.log("New Breakpoints:", newBreakpoints);
     let state = pageData.stateManager;
     if (!state) {
       state = {
@@ -71,11 +73,10 @@
       const newValue = observer.update(...Object.values(values));
       let attribute = observer.attribute === "class" ? "className" : observer.attribute;
       el[attribute] = newValue;
-      console.info(`Registered Observer.`, observer);
+      console.log(`%cObserver for el`, "font-size: 8px;", el);
     }
     for (const soa of pageData.soa || []) {
       if (soa.key in deprecatedKeys) {
-        console.info(`not setting ${soa.key}`);
         continue;
       }
       const el = doc.querySelector(`[key="${soa.key}"]`);
@@ -85,12 +86,24 @@
       } else {
         el[soa.attribute] = subject.value;
       }
-      console.info(`Processed SOA.`, soa);
     }
-    for (const pageLoadHook of pageData.plh || []) {
-      console.log(pageLoadHook.toString());
-      const cleanupFunction = pageLoadHook(state);
-      if (cleanupFunction) cleanupFunctions.push(cleanupFunction);
+    const loadHooks = pageData.lh;
+    for (const loadHook of loadHooks || []) {
+      const bind = loadHook.bind;
+      if (bind.length > 0 && newBreakpoints && !newBreakpoints.includes(bind)) {
+        console.log(`Won't add loadHook with bind ${bind}.`);
+        continue;
+      }
+      const fn = loadHook.fn;
+      const cleanupFunction = fn(state);
+      console.log(`Calling loadHook ${fn.toString()}, because its bind ${bind} was in`, newBreakpoints);
+      if (cleanupFunction) {
+        console.info(`Adding cleanup procedure for bind.`);
+        cleanupProcedures.push({
+          cleanupFunction,
+          bind: loadHook.bind
+        });
+      }
     }
     pageStringCache.set(
       currentPage,
@@ -102,7 +115,7 @@
     if (pageStringCache.has(pathname)) {
       return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
     }
-    console.log(`Fetching ${pathname}`);
+    console.info(`Fetching ${pathname}`);
     const res = await fetch(targetURL);
     if (!res.ok) return;
     const newDOM = domParser.parseFromString(await res.text(), "text/html");
@@ -114,54 +127,57 @@
     return newDOM;
   }, "fetchPage");
   const navigateLocally = /* @__PURE__ */ __name(async (target, pushState = true) => {
-    console.log(`Naving to: ${target} from ${currentPage}`);
+    console.log(`%cNaving to: ${target} from ${currentPage}`, "font-size: 22px");
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
-    for (const func of cleanupFunctions) {
-      func();
-    }
-    cleanupFunctions = [];
+    if (pathname === currentPage) return;
     const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
     const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
-    let lastBreakPairMatch = {
-      currentPage: doc.body,
-      newPage: newPage.body
-    };
-    for (let i = 0; i < curBreaks.length; i++) {
-      if (i > newBreaks.length - 1) break;
-      const curBreak = curBreaks[i];
-      const newBreak = newBreaks[i];
-      const curName = curBreak.getAttribute("bp");
-      const newName = newBreak.getAttribute("bp");
-      if (curName !== newName) break;
-      lastBreakPairMatch = {
-        currentPage: curBreak,
-        newPage: newBreak
-      };
-    }
+    const latestMatchingBreakpoints = /* @__PURE__ */ __name((arr1, arr2) => {
+      let i = 0;
+      const len = Math.min(arr1.length, arr2.length);
+      while (i < len && arr1[i].getAttribute("bp") === arr2[i].getAttribute("bp")) i++;
+      return i > 0 ? [arr1[i - 1], arr2[i - 1]] : [document.body, newPage.body];
+    }, "latestMatchingBreakpoints");
+    const [oldPageLatest, newPageLatest] = latestMatchingBreakpoints(curBreaks, newBreaks);
+    console.log(oldPageLatest, newPageLatest);
     const deprecatedKeys = [];
-    const breakpointKey = lastBreakPairMatch.currentPage.getAttribute("key");
+    const breakpointKey = oldPageLatest.getAttribute("key");
     const getDeprecatedKeysRecursively = /* @__PURE__ */ __name((element) => {
       const key = element.getAttribute("key");
       if (key) {
         deprecatedKeys.push(key);
       }
-      if (key === breakpointKey) return;
+      if (key === breakpointKey || !breakpointKey) return;
       for (const child of makeArray(element.children)) {
         getDeprecatedKeysRecursively(child);
       }
     }, "getDeprecatedKeysRecursively");
     getDeprecatedKeysRecursively(doc.body);
-    lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage);
-    doc.head.replaceChildren(...makeArray(newPage.head.children));
+    const deprecatedBreakpoints = curBreaks.filter(
+      (item) => !newBreaks.includes(item)
+    ).map((br) => br.getAttribute("br"));
+    const newBreakpoints = newBreaks.filter(
+      (item) => !curBreaks.includes(item)
+    ).map((br) => br.getAttribute("br"));
+    for (const cleanupProcedure of cleanupProcedures) {
+      const bind = cleanupProcedure.bind;
+      if (bind.length < 1 || deprecatedBreakpoints.includes(bind)) {
+        console.log(`Calling: ${cleanupProcedure.cleanupFunction.toString()} for bind ${bind}`);
+        cleanupProcedure.cleanupFunction();
+        cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
+      }
+    }
+    oldPageLatest.replaceWith(newPageLatest);
+    doc.head.replaceWith(newPage.head);
     if (pushState) history.pushState(null, "", targetURL.href);
     currentPage = pathname;
     if (targetURL.hash) {
       doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
-    loadPage(deprecatedKeys);
+    loadPage(deprecatedKeys, newBreakpoints);
   }, "navigateLocally");
   window.onpopstate = async (event) => {
     event.preventDefault();
@@ -181,10 +197,11 @@
     source.onmessage = async (event) => {
       console.log(`hot-reload, command received: ${event.data}`);
       if (event.data === "reload") {
-        for (const func of cleanupFunctions) {
-          func();
+        for (const cleanupProcedure of cleanupProcedures) {
+          if (!cleanupProcedure.bind !== "") continue;
+          cleanupProcedure.cleanupFunction();
+          cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure));
         }
-        cleanupFunctions = [];
         const newHTML = await fetch(window.location.href);
         const newDOM = domParser.parseFromString(
           await newHTML.text(),

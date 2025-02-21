@@ -1,29 +1,28 @@
 import { Breakpoint } from "../../../components/Breakpoint";
 import { Link } from "../../../components/Link";
-import { addPageLoadHooks } from "../../../server/addPageLoadHooks";
 import { createState } from "../../../server/createState";
 import { Header } from "../components/Header";
 import { observe } from "../../../server/observe";
-import { pageLoadHook } from "../../../server/pageLoadHook";
+import { createLoadHook } from "../../../server/loadHook";
 
 const serverState = createState({
     secondsSpentOnPage: 1,
 });
 
-addPageLoadHooks([
-    pageLoadHook(
-        [serverState.secondsSpentOnPage],
-        (state, secondsOnPage) => {
-            const intervalId = setInterval(() => {
-                secondsOnPage.value++;
-                secondsOnPage.signal();
-            }, 1000);
+createLoadHook({
+    deps: [serverState.secondsSpentOnPage], 
+    fn: (state, secondsOnPage) => {
+        const intervalId = setInterval(() => {
+            secondsOnPage.value++;
+            secondsOnPage.signal();
+        }, 1000);
 
-            return () => {
-                clearInterval(intervalId);
-            }
-        }),
-]);
+        return () => {
+            clearInterval(intervalId);
+        }
+    },
+    bind: "docs-breakpoint"
+})
 
 const NavSubLink = (href: string, innerText: string) => Link ({
     class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",

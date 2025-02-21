@@ -1,9 +1,9 @@
 import { eventListener } from "../server/eventListener";
-import { addPageLoadHooks } from "../server/addPageLoadHooks";
 import { createState } from "../server/createState";
+import { createLoadHook } from "../server/loadHook";
 
-addPageLoadHooks([
-    () => {
+createLoadHook({
+    fn: () => {
         const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
 
         const elsToClear: Array<{
@@ -41,8 +41,8 @@ addPageLoadHooks([
                 listener.el.removeEventListener("mouseenter", listener.fn);
             }
         }
-    }
-])
+    },
+})
 
 const serverState = createState({
     navigate: eventListener([], (event: MouseEvent) => {

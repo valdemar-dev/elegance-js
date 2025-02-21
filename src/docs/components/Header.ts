@@ -1,44 +1,41 @@
 import { createState } from "../../server/createState"
 import { observe } from "../../server/observe";
 import { Link } from "../../components/Link";
-import { addPageLoadHooks } from "../../server/addPageLoadHooks";
-import { pageLoadHook } from "../../server/pageLoadHook";
+import { createLoadHook } from "../../server/loadHook";
 
 const serverState = createState({
     hasUserScrolled: false,
 });
 
-addPageLoadHooks([
-    pageLoadHook(
-        [serverState.hasUserScrolled],
-        (state, hasUserScrolled) => {
-            const handleScroll = () => {
-                const pos = {
-                    x: window.scrollX,
-                    y: window.scrollY,
-                };
+createLoadHook({
+    deps: [serverState.hasUserScrolled],
+    fn: (state, hasUserScrolled) => {
+        const handleScroll = () => {
+            const pos = {
+                x: window.scrollX,
+                y: window.scrollY,
+            };
 
-                if (pos.y > 20) {
-                    if (hasUserScrolled.value === true) return;
+            if (pos.y > 20) {
+                if (hasUserScrolled.value === true) return;
 
-                    hasUserScrolled.value = true;
-                    hasUserScrolled.signal();
-                } else {
-                    if (hasUserScrolled.value === false) return;
+                hasUserScrolled.value = true;
+                hasUserScrolled.signal();
+            } else {
+                if (hasUserScrolled.value === false) return;
 
-                    hasUserScrolled.value = false
-                    hasUserScrolled.signal();
-                }
+                hasUserScrolled.value = false
+                hasUserScrolled.signal();
             }
+        }
 
-            window.addEventListener("scroll", handleScroll);
+        window.addEventListener("scroll", handleScroll);
 
-            return () => {
-                window.removeEventListener("scroll", handleScroll);
-            }
-        },
-    ),
-])
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+        }
+    },
+})
 
 export const Header = () => header ({
     class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"

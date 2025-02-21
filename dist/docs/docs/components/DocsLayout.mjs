@@ -24,11 +24,6 @@ var eventListener = (dependencies, eventListener2) => {
   );
 };
 
-// src/server/addPageLoadHooks.ts
-var addPageLoadHooks = (hooks) => {
-  globalThis.__SERVER_CURRENT_PAGELOADHOOKS__.push(...hooks);
-};
-
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -45,9 +40,19 @@ var createState = (augment) => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
 
+// src/server/loadHook.ts
+var createLoadHook = (options) => {
+  const stringFn = options.fn.toString();
+  const depIds = options.deps?.map((dep) => dep.id);
+  globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
+    fn: `(state) => (${stringFn})(state, ...state.getAll([${depIds}]))`,
+    bind: options.bind || ""
+  });
+};
+
 // src/components/Link.ts
-addPageLoadHooks([
-  () => {
+createLoadHook({
+  fn: () => {
     const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
     const elsToClear = [];
     for (const anchor of anchors) {
@@ -75,7 +80,7 @@ addPageLoadHooks([
       }
     };
   }
-]);
+});
 var serverState = createState({
   navigate: eventListener([], (event) => {
     const target = new URL(event.currentTarget.href);
@@ -164,32 +169,23 @@ var observe = (refs, update) => {
   return returnValue;
 };
 
-// src/server/pageLoadHook.ts
-var pageLoadHook = (dependencies, pageLoadHook2) => {
-  return new Function(
-    "state",
-    `return (${pageLoadHook2.toString()})(state, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
-  );
-};
-
 // src/docs/docs/components/DocsLayout.ts
 var serverState2 = createState({
   secondsSpentOnPage: 1
 });
-addPageLoadHooks([
-  pageLoadHook(
-    [serverState2.secondsSpentOnPage],
-    (state, secondsOnPage) => {
-      const intervalId = setInterval(() => {
-        secondsOnPage.value++;
-        secondsOnPage.signal();
-      }, 1e3);
-      return () => {
-        clearInterval(intervalId);
-      };
-    }
-  )
-]);
+createLoadHook({
+  deps: [serverState2.secondsSpentOnPage],
+  fn: (state, secondsOnPage) => {
+    const intervalId = setInterval(() => {
+      secondsOnPage.value++;
+      secondsOnPage.signal();
+    }, 1e3);
+    return () => {
+      clearInterval(intervalId);
+    };
+  },
+  bind: "docs-breakpoint"
+});
 var NavSubLink = (href, innerText) => Link({
   class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",
   innerText,

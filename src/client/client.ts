@@ -1,3 +1,6 @@
+import { LoadHook } from "module";
+import type { ClientLoadHook, } from "../server/loadHook";
+
 console.log("Elegance.JS is loading..");
 
 const domParser = new DOMParser();
@@ -10,7 +13,10 @@ const pageStringCache = new Map();
 const loc = window.location;
 const doc = document;
 
-let cleanupFunctions: Array<() => void> = [];
+let cleanupProcedures: Array<{
+    cleanupFunction: () => void,
+    bind: string,
+}> = [];
 
 const makeArray = Array.from;
 
@@ -21,7 +27,10 @@ const sanitizePathname = (pn: string) => {
 
 let currentPage: string = sanitizePathname(loc.pathname);
 
-const loadPage = (deprecatedKeys: string[] = []) => {
+const loadPage = (
+    deprecatedKeys: string[] = [],
+    newBreakpoints?: string[] | undefined,
+) => {
     const fixedUrl = new URL(loc.href);
     fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
 
@@ -36,6 +45,8 @@ const loadPage = (deprecatedKeys: string[] = []) => {
     };
 
     console.log(`Loading ${pathname}:`, pageData);
+    console.log("Deprecated Keys:", deprecatedKeys);
+    console.log("New Breakpoints:", newBreakpoints);
     
     let state = pageData.stateManager;
 
@@ -100,12 +111,11 @@ const loadPage = (deprecatedKeys: string[] = []) => {
 
         (el as any)[attribute] = newValue;
 
-        console.info(`Registered Observer.`, observer);
+        console.log(`%cObserver for el`, "font-size: 8px;", el);
     }
 
     for (const soa of pageData.soa || []) {
         if (soa.key in deprecatedKeys) {
-            console.info(`not setting ${soa.key}`);
             continue;
         }
 
@@ -117,14 +127,36 @@ const loadPage = (deprecatedKeys: string[] = []) => {
         } else {
             el[soa.attribute] = subject.value;
         }
-
-        console.info(`Processed SOA.`, soa);
     }
 
-    for (const pageLoadHook of pageData.plh || []) {
-        console.log(pageLoadHook.toString());
-        const cleanupFunction = pageLoadHook(state);
-        if (cleanupFunction) cleanupFunctions.push(cleanupFunction);
+    const loadHooks = pageData.lh as Array<ClientLoadHook>;
+
+    for (const loadHook of loadHooks || []) {
+        const bind = loadHook.bind;
+
+        if (
+            bind.length > 0 &&
+            newBreakpoints &&
+            (!newBreakpoints.includes(bind))
+        ) {
+            console.log(`Won't add loadHook with bind ${bind}.`);
+
+            continue
+        }
+
+        const fn = loadHook.fn;
+        const cleanupFunction = fn(state);
+
+        console.log(`Calling loadHook ${fn.toString()}, because its bind ${bind} was in`, newBreakpoints)
+
+        if (cleanupFunction){
+            console.info(`Adding cleanup procedure for bind.`);
+
+            cleanupProcedures.push({ 
+                cleanupFunction,
+                bind: loadHook.bind
+            });
+        }
     }
 
     pageStringCache.set(
@@ -140,7 +172,7 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
         return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
     }
 
-    console.log(`Fetching ${pathname}`);
+    console.info(`Fetching ${pathname}`);
 
     const res = await fetch(targetURL);
 
@@ -162,7 +194,7 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
 };
 
 const navigateLocally = async (target: string, pushState: boolean = true) => {
-    console.log(`Naving to: ${target} from ${currentPage}`);
+    console.log(`%cNaving to: ${target} from ${currentPage}`, "font-size: 22px");
 
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
@@ -170,40 +202,26 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
 
-    for (const func of cleanupFunctions) {
-        func();
-    }
-
-    cleanupFunctions = [];
+    if (pathname === currentPage) return;
     
     const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
     const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
 
-    let lastBreakPairMatch = {
-        currentPage: doc.body,
-        newPage: newPage.body,
+    const latestMatchingBreakpoints = (arr1: Element[], arr2: Element[]) => {
+        let i = 0;
+        const len = Math.min(arr1.length, arr2.length);
+
+        while (i < len && arr1[i].getAttribute("bp")! === arr2[i].getAttribute("bp")!) i++;
+
+        return i > 0 ? [arr1[i - 1], arr2[i - 1]] : [document.body, newPage.body];
     };
 
-    for (let i = 0; i < curBreaks.length; i++) {
-        if (i > newBreaks.length - 1) break;
-
-        const curBreak = curBreaks[i]; 
-        const newBreak = newBreaks[i];
-
-        const curName = curBreak.getAttribute("bp");
-        const newName = newBreak.getAttribute("bp");
-
-        if (curName !== newName) break;
-
-        lastBreakPairMatch = {
-            currentPage: curBreak as HTMLElement,
-            newPage: newBreak as HTMLElement
-        }
-    }
+    const [oldPageLatest, newPageLatest] = latestMatchingBreakpoints(curBreaks, newBreaks);
+    console.log(oldPageLatest, newPageLatest);
 
     const deprecatedKeys: string[] = [];
 
-    const breakpointKey = lastBreakPairMatch.currentPage.getAttribute("key")!;
+    const breakpointKey = oldPageLatest.getAttribute("key")!;
 
     const getDeprecatedKeysRecursively = (element: HTMLElement) => {
         const key = element.getAttribute("key");
@@ -212,7 +230,10 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
             deprecatedKeys.push(key)
         }
 
-        if (key === breakpointKey) return;
+        if (
+            key === breakpointKey ||
+            !breakpointKey
+        ) return;
         
         for (const child of makeArray(element.children)) {
             getDeprecatedKeysRecursively(child as HTMLElement);
@@ -221,8 +242,32 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     getDeprecatedKeysRecursively(doc.body);
 
-    lastBreakPairMatch.currentPage.replaceWith(lastBreakPairMatch.newPage)
-    doc.head.replaceChildren(...makeArray(newPage.head.children));
+    // We want to call these things cleanups, cause they're no longer in scope.
+    const deprecatedBreakpoints = curBreaks.filter(
+        item => !newBreaks.includes(item)
+    ).map(br => br.getAttribute("br")!);
+
+    // We call these, because they were just created.
+    const newBreakpoints = newBreaks.filter(
+        item => !curBreaks.includes(item)
+    ).map(br => br.getAttribute("br")!);
+
+    for (const cleanupProcedure of cleanupProcedures) {
+        const bind = cleanupProcedure.bind;
+
+        if (
+            bind.length < 1 || 
+            deprecatedBreakpoints.includes(bind)
+        ) {
+            console.log(`Calling: ${cleanupProcedure.cleanupFunction.toString()} for bind ${bind}`);
+
+            cleanupProcedure.cleanupFunction();
+            cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
+        }
+    } 
+
+    oldPageLatest.replaceWith(newPageLatest)
+    doc.head.replaceWith(newPage.head);
 
     if (pushState) history.pushState(null, "", targetURL.href); 
     currentPage = pathname;
@@ -231,7 +276,7 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
 
-    loadPage(deprecatedKeys);
+    loadPage(deprecatedKeys, newBreakpoints);
 };
 
 window.onpopstate = async (event: PopStateEvent) => {
