@@ -15,29 +15,36 @@ var Breakpoint = (options, ...children) => {
   );
 };
 
-// src/server/eventListener.ts
-var eventListener = (dependencies, eventListener2) => {
-  return new Function(
-    "state",
-    "event",
-    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
-  );
-};
-
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (augment) => {
+  const returnAugmentValue = {};
   for (const [key, value] of Object.entries(augment)) {
-    globalThis.__SERVER_CURRENT_STATE__[key] = {
+    const serverStateEntry = {
       id: currentId++,
       value,
       type: 1 /* STATE */
     };
+    globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+    returnAugmentValue[key] = serverStateEntry;
   }
-  return globalThis.__SERVER_CURRENT_STATE__;
+  return returnAugmentValue;
+};
+var createEventListener = (dependencies, eventListener) => {
+  const value = {
+    id: currentId++,
+    type: 1 /* STATE */,
+    value: new Function(
+      "state",
+      "event",
+      `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+    )
+  };
+  globalThis.__SERVER_CURRENT_STATE__.push(value);
+  return value;
 };
 
 // src/server/loadHook.ts
@@ -81,8 +88,9 @@ createLoadHook({
     };
   }
 });
-var serverState = createState({
-  navigate: eventListener([], (event) => {
+var navigate = createEventListener(
+  [],
+  (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);
@@ -93,8 +101,8 @@ var serverState = createState({
     }
     event.preventDefault();
     client.navigateLocally(target.href);
-  })
-});
+  }
+);
 var Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;
@@ -105,7 +113,7 @@ var Link = (options, ...children) => {
   return a(
     {
       ...options,
-      onClick: serverState.navigate
+      onClick: navigate
     },
     ...children
   );
@@ -170,21 +178,22 @@ var observe = (refs, update) => {
 };
 
 // src/docs/docs/components/DocsLayout.ts
-var serverState2 = createState({
+var serverState = createState({
   secondsSpentOnPage: 1
 });
 createLoadHook({
-  deps: [serverState2.secondsSpentOnPage],
-  fn: (state, secondsOnPage) => {
-    const intervalId = setInterval(() => {
-      secondsOnPage.value++;
-      secondsOnPage.signal();
+  deps: [serverState.secondsSpentOnPage],
+  bind: "docs-breakpoint",
+  fn: (state, time) => {
+    let intervalId;
+    intervalId = setInterval(() => {
+      time.value++;
+      time.signal();
     }, 1e3);
     return () => {
       clearInterval(intervalId);
     };
-  },
-  bind: "docs-breakpoint"
+  }
 });
 var NavSubLink = (href, innerText) => Link({
   class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",
@@ -216,7 +225,7 @@ var Sidebar = () => nav(
         span({
           class: "font-mono",
           innerText: observe(
-            [serverState2.secondsSpentOnPage],
+            [serverState.secondsSpentOnPage],
             (secondsSpentOnPage) => {
               const hours = Math.floor(secondsSpentOnPage / 60 / 60);
               const minutes = Math.floor(secondsSpentOnPage / 60 % 60);

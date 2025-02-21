@@ -11,18 +11,21 @@ const serverState = createState({
 
 createLoadHook({
     deps: [serverState.secondsSpentOnPage], 
-    fn: (state, secondsOnPage) => {
-        const intervalId = setInterval(() => {
-            secondsOnPage.value++;
-            secondsOnPage.signal();
+    bind: "docs-breakpoint",
+
+    fn: (state, time) => {
+        let intervalId;
+
+        intervalId = setInterval(() => {
+            time.value++;
+            time.signal();
         }, 1000);
 
         return () => {
             clearInterval(intervalId);
         }
     },
-    bind: "docs-breakpoint"
-})
+});
 
 const NavSubLink = (href: string, innerText: string) => Link ({
     class: "text-sm font-normal flex flex-col gap-2 opacity-80 hover:opacity-60 duration-200",

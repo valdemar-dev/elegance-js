@@ -4,20 +4,37 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (augment) => {
+  const returnAugmentValue = {};
   for (const [key, value] of Object.entries(augment)) {
-    globalThis.__SERVER_CURRENT_STATE__[key] = {
+    const serverStateEntry = {
       id: currentId++,
       value,
       type: 1 /* STATE */
     };
+    globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+    returnAugmentValue[key] = serverStateEntry;
   }
-  return globalThis.__SERVER_CURRENT_STATE__;
+  return returnAugmentValue;
 };
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = {};
+var createEventListener = (dependencies, eventListener) => {
+  const value = {
+    id: currentId++,
+    type: 1 /* STATE */,
+    value: new Function(
+      "state",
+      "event",
+      `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+    )
+  };
+  globalThis.__SERVER_CURRENT_STATE__.push(value);
+  return value;
+};
+var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
 export {
+  createEventListener,
   createState,
   getState,
   initializeState

@@ -1,5 +1,4 @@
-import { eventListener } from "../server/eventListener";
-import { createState } from "../server/createState";
+import { createEventListener, createState } from "../server/createState";
 import { createLoadHook } from "../server/loadHook";
 
 createLoadHook({
@@ -44,8 +43,8 @@ createLoadHook({
     },
 })
 
-const serverState = createState({
-    navigate: eventListener([], (event: MouseEvent) => {
+const navigate = createEventListener([],
+    (event: MouseEvent) => {
         const target = new URL((event.currentTarget as HTMLLinkElement).href);
 
         const client = globalThis.__ELEGANCE_CLIENT__;
@@ -61,8 +60,8 @@ const serverState = createState({
         event.preventDefault();
 
         client.navigateLocally(target.href);
-    })
-});
+    }
+);
 
 export const Link = (options: Record<string, any>, ...children: Child[]
 ) => {    
@@ -76,7 +75,7 @@ export const Link = (options: Record<string, any>, ...children: Child[]
 
     return a ({
         ...options,
-        onClick: serverState.navigate
+        onClick: navigate
     },
         ...children,
     );

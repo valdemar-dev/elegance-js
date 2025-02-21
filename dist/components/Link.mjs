@@ -1,26 +1,20 @@
-// src/server/eventListener.ts
-var eventListener = (dependencies, eventListener2) => {
-  return new Function(
-    "state",
-    "event",
-    `(${eventListener2.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
-  );
-};
-
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-var createState = (augment) => {
-  for (const [key, value] of Object.entries(augment)) {
-    globalThis.__SERVER_CURRENT_STATE__[key] = {
-      id: currentId++,
-      value,
-      type: 1 /* STATE */
-    };
-  }
-  return globalThis.__SERVER_CURRENT_STATE__;
+var createEventListener = (dependencies, eventListener) => {
+  const value = {
+    id: currentId++,
+    type: 1 /* STATE */,
+    value: new Function(
+      "state",
+      "event",
+      `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+    )
+  };
+  globalThis.__SERVER_CURRENT_STATE__.push(value);
+  return value;
 };
 
 // src/server/loadHook.ts
@@ -64,8 +58,9 @@ createLoadHook({
     };
   }
 });
-var serverState = createState({
-  navigate: eventListener([], (event) => {
+var navigate = createEventListener(
+  [],
+  (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);
@@ -76,8 +71,8 @@ var serverState = createState({
     }
     event.preventDefault();
     client.navigateLocally(target.href);
-  })
-});
+  }
+);
 var Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;
@@ -88,7 +83,7 @@ var Link = (options, ...children) => {
   return a(
     {
       ...options,
-      onClick: serverState.navigate
+      onClick: navigate
     },
     ...children
   );

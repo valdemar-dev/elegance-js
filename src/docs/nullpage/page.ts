@@ -1,20 +1,17 @@
-import { createState } from "../../server/createState";
-import { eventListener } from "../../server/eventListener";
+import { createEventListener, createState } from "../../server/createState";
 import { observe } from "../../server/observe";
 
 const variables = createState({
     counter: 0,
 });
 
-const functions = createState({
-    increment: eventListener(
-        [variables.counter],
-        (event, counter) => {
-            counter.value++;
-            counter.signal();
-        }
-    ),
-})
+const increment = createEventListener(
+    [variables.counter],
+    (event, counter) => {
+        counter.value++;
+        counter.signal();
+    }
+);
 
 export const page = body ({
 },
@@ -26,7 +23,7 @@ export const page = body ({
     }),
 
     button ({
-        onClick: functions.increment,
+        onClick: increment,
     },
         "Increment Counter",
     ),

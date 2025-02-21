@@ -2,7 +2,11 @@ import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 declare global {
     var __ELEGANCE_SERVER_DATA__: any;
     var __SERVER_CURRENT_STATE_ID__: number;
-    var __SERVER_CURRENT_STATE__: Record<string, any>;
+    var __SERVER_CURRENT_STATE__: Array<{
+        value: unknown;
+        type: ObjectAttributeType;
+        id: number;
+    }>;
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>;
     var __ELEGANCE_CLIENT__: {
         navigateLocally: (target: string, pushState?: boolean) => any;

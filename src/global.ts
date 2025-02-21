@@ -5,7 +5,13 @@ declare global {
 
     // server stuff
     var __SERVER_CURRENT_STATE_ID__: number;
-    var __SERVER_CURRENT_STATE__: Record<string, any>
+
+    var __SERVER_CURRENT_STATE__: Array<{
+        value: unknown;
+        type: ObjectAttributeType,
+        id: number;
+    }>
+
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>
 
     var __ELEGANCE_CLIENT__: {

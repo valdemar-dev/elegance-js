@@ -218,7 +218,7 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = {};
+var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
@@ -466,8 +466,8 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   }
   if (state) {
     let formattedStateString = "";
-    const sortedState = Object.entries(state).sort(([, av], [, bv]) => av.id - bv.id);
-    for (const [key, subject] of sortedState) {
+    const sortedState = state.sort((av, bv) => av.id - bv.id);
+    for (const subject of sortedState) {
       if (typeof subject.value === "string") {
         formattedStateString += `{id:${subject.id},value:"${subject.value}"},`;
       } else {

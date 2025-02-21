@@ -1,6 +1,6 @@
 import fs, { Dirent, FSWatcher } from "fs";
 import path from "path";
-import esbuild, { BuildOptions, Plugin, PluginBuild } from "esbuild";
+import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
 import { GenerateMetadata, } from "./types/Metadata";
@@ -347,7 +347,7 @@ const generateSuitablePageElements = async (
 
 const generateClientPageData = async (
     pageLocation: string,
-    state: Record<string, any>,
+    state: typeof globalThis.__SERVER_CURRENT_STATE__,
     objectAttributes: Array<ObjectAttribute<any>>,
     pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
@@ -366,9 +366,9 @@ const generateClientPageData = async (
 
         // sorting state cause uh
         // the client ooa's rely on state being sorted by ID. - val feb 9 2025
-        const sortedState = Object.entries(state).sort(([,av], [,bv]) => av.id - bv.id)
+        const sortedState = state.sort((av, bv) => av.id - bv.id)
 
-        for (const [key, subject] of sortedState) {
+        for (const subject of sortedState) {
             if (typeof subject.value === "string") {
                 formattedStateString += `{id:${subject.id},value:"${subject.value}"},`;
             } else {
