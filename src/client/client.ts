@@ -252,6 +252,10 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         item => !curBreaks.includes(item)
     ).map(br => br.getAttribute("br")!);
 
+    console.log(newBreaks.filter(
+        item => !curBreaks.includes(item)
+    ))
+
     for (const cleanupProcedure of cleanupProcedures) {
         const bind = cleanupProcedure.bind;
 
