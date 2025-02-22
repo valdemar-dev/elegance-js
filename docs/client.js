@@ -25,7 +25,7 @@
       return;
     }
     ;
-    console.log(`Loading ${pathname}. Page info follows:`, {
+    console.info(`Loading ${pathname}. Page info follows:`, {
       "Deprecated Keys": deprecatedKeys,
       "New Breakpoints:": newBreakpoints || "(none, initial load)",
       "State": pageData.state,
@@ -95,10 +95,8 @@
     for (const loadHook of loadHooks || []) {
       const bind = loadHook.bind;
       if (bind.length > 0 && newBreakpoints && !newBreakpoints.includes(bind)) {
-        console.log(`Skipping loadhook`, loadHook);
         continue;
       }
-      console.log(`Calling loadhook`, loadHook);
       const fn = loadHook.fn;
       const cleanupFunction = fn(state);
       if (cleanupFunction) {
@@ -113,8 +111,7 @@
       xmlSerializer.serializeToString(doc)
     );
     console.info(
-      `%cLoading finished, registered these cleanupProcedures`,
-      "font-size: 8px;",
+      `Loading finished, registered these cleanupProcedures`,
       cleanupProcedures
     );
   }, "loadPage");
@@ -135,12 +132,12 @@
     return newDOM;
   }, "fetchPage");
   const navigateLocally = /* @__PURE__ */ __name(async (target, pushState = true) => {
-    console.log(
-      `%cSluggin over to: ${target} from ${currentPage}`,
-      "font-size: 18px; font-weight: 600; color: lightgreen;"
-    );
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
+    console.log(
+      `%c${currentPage} -> ${targetURL.pathname}`,
+      "font-size: 18px; font-weight: 600; color: lightgreen;"
+    );
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
     if (pathname === currentPage) return;
@@ -203,8 +200,9 @@
     sanitizePathname
   };
   loadPage();
+  const watchServerPort = 4e3;
   if (Object.values(pd)[0]?.w) {
-    const source = new EventSource("http://localhost:3001/events");
+    const source = new EventSource(`http://localhost:${watchServerPort}/events`);
     source.onmessage = async (event) => {
       console.log(`hot-reload, command received: ${event.data}`);
       if (event.data === "reload") {

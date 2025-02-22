@@ -128,10 +128,12 @@ const buildClient = async (
     environment: "production" | "development",
     DIST_DIR: string,
     isInWatchMode: boolean,
+    watchServerPort: number
 ) => {
     let clientString = fs.readFileSync(clientPath, "utf-8");
 
     if (isInWatchMode) {
+        clientString += `const watchServerPort = ${watchServerPort}`;
         clientString += fs.readFileSync(watcherPath, "utf-8");
     }
 
@@ -618,7 +620,7 @@ const registerListener = async (props: any) => {
             }
         });
 
-        server.listen(3001, () => {
+        server.listen(props.watchServerPort, () => {
             log(bold(green('Hot-Reload server online!')));
         });
     } 
@@ -656,8 +658,11 @@ export const compile = async ({
     pagesDirectory,
     outputDirectory,
     environment,
+    watchServerPort = 3001,
 }: {
     writeToHTML?: boolean,
+    watchServerPort?: number
+
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
@@ -725,7 +730,7 @@ export const compile = async ({
         shouldClientHardReload
     } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
 
-    await buildClient(environment, DIST_DIR, watch);
+    await buildClient(environment, DIST_DIR, watch, watchServerPort);
 
     const end = performance.now();
 
@@ -746,6 +751,7 @@ export const compile = async ({
             outputDirectory,
             environment,
             watch,
+            watchServerPort
         })
     }
 

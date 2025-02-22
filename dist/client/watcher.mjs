@@ -1,6 +1,6 @@
 // src/client/watcher.ts
 if (Object.values(pd)[0]?.w) {
-  const source = new EventSource("http://localhost:3001/events");
+  const source = new EventSource(`http://localhost:${watchServerPort}/events`);
   source.onmessage = async (event) => {
     console.log(`hot-reload, command received: ${event.data}`);
     if (event.data === "reload") {

@@ -10,10 +10,8 @@ CANNED:
 
 TODO:
     - typescript autocopmlete and typings for elements, make options {} good-ier
-    - state signal self, not controller signals state
     - make non children elements, that take in children, actually work
         - basically set element.children = null on childrenless elements so that they're rendered properly
-    - fix links breaking on hot-reload
     - scrollintoview when clicking on hash
     - code cleanup
     - rewrite client
@@ -23,6 +21,8 @@ TODO:
     - write documentation (OMEGALUL)
 
 DONE: 
+    - fix links breaking on hot-reload
+    - state signal self, not controller signals state
     - only send watch-mode code in watch-mode
     - optimize page-data
     - multi-page components that maintain state.

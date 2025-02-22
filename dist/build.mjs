@@ -304,9 +304,10 @@ var getProjectFiles = (pagesDirectory) => {
     infoFiles
   };
 };
-var buildClient = async (environment, DIST_DIR, isInWatchMode) => {
+var buildClient = async (environment, DIST_DIR, isInWatchMode, watchServerPort) => {
   let clientString = fs.readFileSync(clientPath, "utf-8");
   if (isInWatchMode) {
+    clientString += `const watchServerPort = ${watchServerPort}`;
     clientString += fs.readFileSync(watcherPath, "utf-8");
   }
   const transformedClient = await esbuild.transform(clientString, {
@@ -640,7 +641,7 @@ var registerListener = async (props) => {
         res.end("Not Found");
       }
     });
-    server.listen(3001, () => {
+    server.listen(props.watchServerPort, () => {
       log(bold(green("Hot-Reload server online!")));
     });
   }
@@ -668,7 +669,8 @@ var compile = async ({
   writeToHTML = false,
   pagesDirectory,
   outputDirectory,
-  environment
+  environment,
+  watchServerPort = 3001
 }) => {
   const watch = environment === "development";
   const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
@@ -717,7 +719,7 @@ var compile = async ({
   const {
     shouldClientHardReload
   } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
-  await buildClient(environment, DIST_DIR, watch);
+  await buildClient(environment, DIST_DIR, watch, watchServerPort);
   const end = performance.now();
   log(bold(yellow(" -- Elegance.JS -- ")));
   log(white(`Finished build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}.`));
@@ -733,7 +735,8 @@ var compile = async ({
       pagesDirectory,
       outputDirectory,
       environment,
-      watch
+      watch,
+      watchServerPort
     });
   }
   return {

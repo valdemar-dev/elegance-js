@@ -130,12 +130,12 @@ var fetchPage = async (targetURL) => {
   return newDOM;
 };
 var navigateLocally = async (target, pushState = true) => {
-  console.log(
-    `%cSluggin over to: ${target} from ${currentPage}`,
-    "font-size: 18px; font-weight: 600; color: lightgreen;"
-  );
   const targetURL = new URL(target);
   const pathname = sanitizePathname(targetURL.pathname);
+  console.log(
+    `%c${currentPage} -> ${targetURL.pathname}`,
+    "font-size: 18px; font-weight: 600; color: lightgreen;"
+  );
   let newPage = await fetchPage(targetURL);
   if (!newPage) return;
   if (pathname === currentPage) return;
