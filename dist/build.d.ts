@@ -1,9 +1,8 @@
-export declare const compile: ({ writeToHTML, pagesDirectory, outputDirectory, environment, watch, }: {
+export declare const compile: ({ writeToHTML, pagesDirectory, outputDirectory, environment, }: {
     writeToHTML?: boolean;
     environment: "production" | "development";
     pagesDirectory: string;
     outputDirectory: string;
-    watch?: boolean;
 }) => Promise<{
     shouldClientHardReload: boolean;
 }>;

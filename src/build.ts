@@ -656,14 +656,14 @@ export const compile = async ({
     pagesDirectory,
     outputDirectory,
     environment,
-    watch = true,
 }: {
     writeToHTML?: boolean,
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
-    watch?: boolean,
 }) => {
+    const watch = environment === "development";
+
     const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
     const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server")
 

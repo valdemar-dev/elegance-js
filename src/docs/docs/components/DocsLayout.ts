@@ -23,6 +23,7 @@ createLoadHook({
 
         return () => {
             clearInterval(intervalId);
+            time.value = 1;
         }
     },
 });

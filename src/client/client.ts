@@ -40,14 +40,19 @@ const loadPage = (
     
     let pageData = pd[pathname];
     if (!pageData) {
-        console.error(`Failed to load! "page_data.js" is not present for the pathname: ${pathname}`)
+        console.error(`%cFailed to load! Missing "page_data.js" for page ${pathname}`, "font-size: 20px; font-weight: 600;")
         return;
     };
 
-    console.log(`Loading ${pathname}:`, pageData);
-    console.log("Deprecated Keys:", deprecatedKeys);
-    console.log("New Breakpoints:", newBreakpoints);
-    
+    console.info(`Loading ${pathname}. Page info follows:`, {
+        "Deprecated Keys": deprecatedKeys,
+        "New Breakpoints:": newBreakpoints || "(none, initial load)",
+        "State": pageData.state,
+        "OOA": pageData.ooa,
+        "SOA": pageData.soa,
+        "Load Hooks": pageData.lh,
+    })
+
     let state = pageData.stateManager;
 
     if (!state) {
@@ -80,16 +85,16 @@ const loadPage = (
         pageData.stateManager = state;
     }
 
-    for (const observer of pageData.ooa || []) {
-        if (observer.key in deprecatedKeys) {
+    for (const ooa of pageData.ooa || []) {
+        if (ooa.key in deprecatedKeys) {
             continue;
         }
 
-        const el = doc.querySelector(`[key="${observer.key}"]`);
+        const el = doc.querySelector(`[key="${ooa.key}"]`);
 
         let values: Record<string, any> = {};
 
-        for (const id of observer.ids) {
+        for (const id of ooa.ids) {
             const subject = state.get(id);
 
             values[subject.id] = subject.value;
@@ -97,21 +102,19 @@ const loadPage = (
             const updateFunction = (value: any) => {
                 values[id] = value;
 
-                const newValue = observer.update(...Object.values(values));
-                let attribute = observer.attribute === "class" ? "className" : observer.attribute;
+                const newValue = ooa.update(...Object.values(values));
+                let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
 
                 (el as any)[attribute] = newValue;
             };
 
-            state.observe(subject, updateFunction, observer.key);
+            state.observe(subject, updateFunction, ooa.key);
         }
 
-        const newValue = observer.update(...Object.values(values));
-        let attribute = observer.attribute === "class" ? "className" : observer.attribute;
+        const newValue = ooa.update(...Object.values(values));
+        let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
 
         (el as any)[attribute] = newValue;
-
-        console.log(`%cObserver for el`, "font-size: 8px;", el);
     }
 
     for (const soa of pageData.soa || []) {
@@ -139,22 +142,16 @@ const loadPage = (
             newBreakpoints &&
             (!newBreakpoints.includes(bind))
         ) {
-            console.log(`Won't add loadHook with bind ${bind}.`);
-
             continue
         }
 
         const fn = loadHook.fn;
         const cleanupFunction = fn(state);
 
-        console.log(`Calling loadHook ${fn.toString()}, because its bind ${bind} was in`, newBreakpoints)
-
         if (cleanupFunction){
-            console.info(`Adding cleanup procedure for bind.`);
-
             cleanupProcedures.push({ 
                 cleanupFunction,
-                bind: loadHook.bind
+                bind: `${bind}`
             });
         }
     }
@@ -162,6 +159,11 @@ const loadPage = (
     pageStringCache.set(
         currentPage,
         xmlSerializer.serializeToString(doc)
+    );
+
+    console.info(
+        `Loading finished, registered these cleanupProcedures`,
+        cleanupProcedures,
     );
 };
 
@@ -194,7 +196,10 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
 };
 
 const navigateLocally = async (target: string, pushState: boolean = true) => {
-    console.log(`%cNaving to: ${target} from ${currentPage}`, "font-size: 22px");
+    console.log(
+        `%cSluggin over to: ${target} from ${currentPage}`,
+        "font-size: 18px; font-weight: 600; color: lightgreen;",
+    );
 
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
@@ -205,7 +210,10 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     if (pathname === currentPage) return;
     
     const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
+    const curBpTags = curBreaks.map(bp => bp.getAttribute("bp")!)
+
     const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
+    const newBpTags = newBreaks.map(bp => bp.getAttribute("bp")!)
 
     const latestMatchingBreakpoints = (arr1: Element[], arr2: Element[]) => {
         let i = 0;
@@ -217,7 +225,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     };
 
     const [oldPageLatest, newPageLatest] = latestMatchingBreakpoints(curBreaks, newBreaks);
-    console.log(oldPageLatest, newPageLatest);
 
     const deprecatedKeys: string[] = [];
 
@@ -243,28 +250,22 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     getDeprecatedKeysRecursively(doc.body);
 
     // We want to call these things cleanups, cause they're no longer in scope.
-    const deprecatedBreakpoints = curBreaks.filter(
-        item => !newBreaks.includes(item)
-    ).map(br => br.getAttribute("br")!);
+    const deprecatedBreakpoints = curBpTags.filter(
+        item => !newBpTags.includes(item)
+    );
 
     // We call these, because they were just created.
-    const newBreakpoints = newBreaks.filter(
-        item => !curBreaks.includes(item)
-    ).map(br => br.getAttribute("br")!);
+    const newBreakpoints = newBpTags.filter(
+        item => !curBpTags.includes(item)
+    );
 
-    console.log(newBreaks.filter(
-        item => !curBreaks.includes(item)
-    ))
-
-    for (const cleanupProcedure of cleanupProcedures) {
+    for (const cleanupProcedure of [...cleanupProcedures]) {
         const bind = cleanupProcedure.bind;
 
         if (
             bind.length < 1 || 
             deprecatedBreakpoints.includes(bind)
         ) {
-            console.log(`Calling: ${cleanupProcedure.cleanupFunction.toString()} for bind ${bind}`);
-
             cleanupProcedure.cleanupFunction();
             cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
         }

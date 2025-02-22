@@ -671,9 +671,9 @@ var compile = async ({
   writeToHTML = false,
   pagesDirectory,
   outputDirectory,
-  environment,
-  watch = true
+  environment
 }) => {
+  const watch = environment === "development";
   const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
   const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server");
   if (!fs.existsSync(DIST_DIR)) {
@@ -754,8 +754,7 @@ compile({
   writeToHTML: true,
   pagesDirectory: PAGES_DIR,
   outputDirectory: OUTPUT_DIR,
-  environment: "development",
-  watch: true
+  environment: "development"
 }).then(() => {
   exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`);
   console.log("Built Docs.");

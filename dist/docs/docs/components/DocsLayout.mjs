@@ -192,6 +192,7 @@ createLoadHook({
     }, 1e3);
     return () => {
       clearInterval(intervalId);
+      time.value = 1;
     };
   }
 });
