@@ -4,10 +4,6 @@ POTENTIAL:
     - attributemap:
         - onclick to 1, or wtv
 
-CANNED: 
-    - deprecate SOA, change to ELOA
-        - stupid, all OA's are separate for optimization
-
 TODO:
     - typescript autocopmlete and typings for elements, make options {} good-ier
     - make non children elements, that take in children, actually work
