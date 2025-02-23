@@ -48,14 +48,18 @@ var createState = (augment) => {
   }
   return returnAugmentValue;
 };
-var createEventListener = (dependencies, eventListener) => {
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
     value: new Function(
       "state",
       "event",
-      `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
     )
   };
   globalThis.__SERVER_CURRENT_STATE__.push(value);
@@ -103,9 +107,8 @@ createLoadHook({
     };
   }
 });
-var navigate = createEventListener(
-  [],
-  (event) => {
+var navigate = createEventListener({
+  eventListener: (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);
@@ -117,7 +120,7 @@ var navigate = createEventListener(
     event.preventDefault();
     client.navigateLocally(target.href);
   }
-);
+});
 var Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;

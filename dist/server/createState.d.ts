@@ -7,11 +7,13 @@ export declare const createState: <T extends Record<string, any>>(augment: T) =>
     id: number;
     type: ObjectAttributeType.STATE;
 }; };
-export declare const createEventListener: <T extends {
+export declare const createEventListener: <D extends {
     type: ObjectAttributeType;
     value: unknown;
     id: number;
-}[]>(dependencies: [...T], eventListener: (event: Event, ...subjects: { [K in keyof T]: ClientSubjectGeneric<T[K]["value"]>; }) => void) => {
+}[], P extends Record<string, any>>(dependencies: [...D], eventListener: (params: {
+    event: Event;
+} & P, ...subjects: { [K in keyof D]: ClientSubjectGeneric<D[K]["value"]>; }) => void, params?: P) => {
     id: number;
     type: ObjectAttributeType;
     value: Function;

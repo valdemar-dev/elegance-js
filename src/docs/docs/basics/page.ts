@@ -3,7 +3,7 @@ import { PageHeading } from "../components/PageHeading";
 import { DocsLayout } from "../components/DocsLayout";
 import { Separator } from "../components/Separator";
 import { Mono } from "../components/Mono";
-import { CodeBlock } from "../components/CodeBlock";
+import { CodeBlock, Toast } from "../components/CodeBlock";
 
 const demoPageTS =
 `export const page = body ({
@@ -316,4 +316,6 @@ export const page = RootLayout (
             CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]"),
         ),
     ),
+
+    Toast(),
 );

@@ -33,9 +33,9 @@
       "SOA": pageData.soa,
       "Load Hooks": pageData.lh
     });
-    let state = pageData.stateManager;
-    if (!state) {
-      state = {
+    let state2 = pageData.stateManager;
+    if (!state2) {
+      state2 = {
         subjects: pageData.state.map((subject) => {
           const s = {
             ...subject,
@@ -49,14 +49,14 @@
           };
           return s;
         }),
-        get: /* @__PURE__ */ __name((id) => state.subjects.find((s) => s.id === id), "get"),
-        getAll: /* @__PURE__ */ __name((ids) => ids?.map((id) => state.get(id)), "getAll"),
+        get: /* @__PURE__ */ __name((id) => state2.subjects.find((s) => s.id === id), "get"),
+        getAll: /* @__PURE__ */ __name((ids) => ids?.map((id) => state2.get(id)), "getAll"),
         observe: /* @__PURE__ */ __name((subject, observer, key) => {
           subject.observers.delete(key);
           subject.observers.set(key, observer);
         }, "observe")
       };
-      pageData.stateManager = state;
+      pageData.stateManager = state2;
     }
     for (const ooa of pageData.ooa || []) {
       if (ooa.key in deprecatedKeys) {
@@ -65,7 +65,7 @@
       const el = doc.querySelector(`[key="${ooa.key}"]`);
       let values = {};
       for (const id of ooa.ids) {
-        const subject = state.get(id);
+        const subject = state2.get(id);
         values[subject.id] = subject.value;
         const updateFunction = /* @__PURE__ */ __name((value) => {
           values[id] = value;
@@ -73,7 +73,7 @@
           let attribute2 = ooa.attribute === "class" ? "className" : ooa.attribute;
           el[attribute2] = newValue2;
         }, "updateFunction");
-        state.observe(subject, updateFunction, ooa.key);
+        state2.observe(subject, updateFunction, ooa.key);
       }
       const newValue = ooa.update(...Object.values(values));
       let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
@@ -84,9 +84,9 @@
         continue;
       }
       const el = doc.querySelector(`[key="${soa.key}"]`);
-      const subject = state.get(soa.id);
+      const subject = state2.get(soa.id);
       if (typeof subject.value === "function") {
-        el[soa.attribute] = (event) => subject.value(state, event);
+        el[soa.attribute] = (event) => subject.value(state2, event);
       } else {
         el[soa.attribute] = subject.value;
       }
@@ -98,7 +98,7 @@
         continue;
       }
       const fn = loadHook.fn;
-      const cleanupFunction = fn(state);
+      const cleanupFunction = fn(state2);
       if (cleanupFunction) {
         cleanupProcedures.push({
           cleanupFunction,
@@ -207,10 +207,10 @@
       console.log(`hot-reload, command received: ${event.data}`);
       if (event.data === "reload") {
         for (const cleanupProcedure of cleanupProcedures) {
-          if (!cleanupProcedure.bind !== "") continue;
           cleanupProcedure.cleanupFunction();
           cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure));
         }
+        state.subjects.map((subj) => ({ ...subj, observers: [] }));
         const newHTML = await fetch(window.location.href);
         const newDOM = domParser.parseFromString(
           await newHTML.text(),

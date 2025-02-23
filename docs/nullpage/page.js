@@ -16,14 +16,18 @@ var createState = (augment) => {
   }
   return returnAugmentValue;
 };
-var createEventListener = (dependencies, eventListener) => {
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
     value: new Function(
       "state",
       "event",
-      `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
     )
   };
   globalThis.__SERVER_CURRENT_STATE__.push(value);
@@ -45,13 +49,13 @@ var observe = (refs, update) => {
 var variables = createState({
   counter: 0
 });
-var increment = createEventListener(
-  [variables.counter],
-  (event, counter) => {
+var increment = createEventListener({
+  dependencies: [variables.counter],
+  eventListener: (event, counter) => {
     counter.value++;
     counter.signal();
   }
-);
+});
 var page = body(
   {},
   p({

@@ -269,6 +269,11 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
                 element.options["bp"] = value;
 
                 break;
+
+            case ObjectAttributeType.REFERENCE:
+                element.options["ref"] = attributeValue.value;
+
+                break;
         }
 
         objectAttributes.push({ ...attributeValue, key: key, attribute: optionFinal, });

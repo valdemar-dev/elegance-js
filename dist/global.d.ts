@@ -2,6 +2,7 @@ import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 declare global {
     var __ELEGANCE_SERVER_DATA__: any;
     var __SERVER_CURRENT_STATE_ID__: number;
+    var __SERVER_CURRENT_REF_ID__: number;
     var __SERVER_CURRENT_STATE__: Array<{
         value: unknown;
         type: ObjectAttributeType;

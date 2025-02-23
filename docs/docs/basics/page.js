@@ -48,14 +48,18 @@ var createState = (augment) => {
   }
   return returnAugmentValue;
 };
-var createEventListener = (dependencies, eventListener) => {
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
     value: new Function(
       "state",
       "event",
-      `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
     )
   };
   globalThis.__SERVER_CURRENT_STATE__.push(value);
@@ -103,9 +107,8 @@ createLoadHook({
     };
   }
 });
-var navigate = createEventListener(
-  [],
-  (event) => {
+var navigate = createEventListener({
+  eventListener: (event) => {
     const target = new URL(event.currentTarget.href);
     const client = globalThis.__ELEGANCE_CLIENT__;
     const sanitizedTarget = client.sanitizePathname(target.pathname);
@@ -117,7 +120,7 @@ var navigate = createEventListener(
     event.preventDefault();
     client.navigateLocally(target.href);
   }
-);
+});
 var Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;
@@ -336,18 +339,43 @@ var Mono = (text) => span({
   class: "font-mono"
 }, text);
 
+// src/server/createReference.ts
+if (!globalThis.__SERVER_CURRENT_REF_ID__) {
+  globalThis.__SERVER_CURRENT_REF_ID__ = 0;
+}
+var currentRefId = globalThis.__SERVER_CURRENT_REF_ID__;
+var createReference = () => {
+  return {
+    type: 6 /* REFERENCE */,
+    value: currentRefId++
+  };
+};
+
 // src/docs/docs/components/CodeBlock.ts
-var copyCode = createEventListener(
-  [],
-  async (event) => {
+var toastRef = createReference();
+var copyCode = createEventListener({
+  dependencies: [],
+  params: {
+    ref: toastRef.value
+  },
+  eventListener: async ({ event, ref }) => {
     const children = event.currentTarget.children;
     const pre2 = children.item(0);
     await navigator.clipboard.writeText(pre2.innerText);
+    console.log(`toast reference: ${ref}`);
   }
+});
+var Toast = () => div(
+  {
+    ref: toastRef
+  },
+  "i am a toast!"
 );
 var CodeBlock = (value) => div(
   {
-    class: "bg-background-950 hover:cursor-pointer p-2 rounded-sm border-[1px] border-background-800 w-max my-3 max-w-full overflow-scroll",
+    class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
+            border-[1px] border-background-800 w-max my-3 max-w-full
+            overflow-scroll`,
     onClick: copyCode
   },
   pre({
@@ -606,7 +634,8 @@ var page = RootLayout(
       "Next, open a terminal / command prompt window, and issue the following the command.",
       CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]")
     )
-  )
+  ),
+  Toast()
 );
 export {
   page

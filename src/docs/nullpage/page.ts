@@ -5,13 +5,13 @@ const variables = createState({
     counter: 0,
 });
 
-const increment = createEventListener(
-    [variables.counter],
-    (event, counter) => {
+const increment = createEventListener({
+    dependencies: [variables.counter],
+    eventListener: (event, counter) => {
         counter.value++;
         counter.signal();
     }
-);
+});
 
 export const page = body ({
 },

@@ -43,8 +43,8 @@ createLoadHook({
     },
 })
 
-const navigate = createEventListener([],
-    (event: MouseEvent) => {
+const navigate = createEventListener({
+    eventListener: (event: MouseEvent) => {
         const target = new URL((event.currentTarget as HTMLLinkElement).href);
 
         const client = globalThis.__ELEGANCE_CLIENT__;
@@ -61,7 +61,7 @@ const navigate = createEventListener([],
 
         client.navigateLocally(target.href);
     }
-);
+});
 
 export const Link = (options: Record<string, any>, ...children: Child[]
 ) => {    

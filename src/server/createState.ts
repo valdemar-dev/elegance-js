@@ -31,17 +31,40 @@ export const createState = <T extends Record<string, any>>(augment: T) => {
     };
 };
 
+
+type Dependencies = { type: ObjectAttributeType; value: unknown; id: number }[];
+type Parameters = Record<string, any>;
+
+type CreateEventListenerOptions<
+    D extends Dependencies,
+    P extends Parameters,
+> = {
+    dependencies?: [...D] | [], 
+    eventListener: (
+        params: {
+            event: Event,
+        } & P,
+        ...subjects: { [K in keyof D]: ClientSubjectGeneric<D[K]["value"]> }
+    ) => void,
+    params?: P
+}
+
 export const createEventListener = <
-    T extends { type: ObjectAttributeType; value: unknown; id: number }[]
->(
-    dependencies: [...T], 
-    eventListener: (event: Event, ...subjects: { [K in keyof T]: ClientSubjectGeneric<T[K]["value"]> }) => void,
+    D extends Dependencies,
+    P extends Parameters,
+>({
+    eventListener,
+    dependencies = [],
+    params,
+}: CreateEventListenerOptions<D,P>,
 ) => {
     const value = {
         id: currentId++,
         type: ObjectAttributeType.STATE,
         value: new Function(
-            "state", "event", `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map(dep => dep.id)}]))`
+            "state",
+            "event",
+            `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map(dep => dep.id)}]))`
         ),
     };
 
@@ -55,3 +78,5 @@ export const initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 export const getState = () => {
     return globalThis.__SERVER_CURRENT_STATE__;
 }
+
+

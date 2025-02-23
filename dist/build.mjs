@@ -406,6 +406,9 @@ var processPageElements = (element, objectAttributes) => {
         layoutKeyMap[`${attributeValue.value}`] = value;
         element.options["bp"] = value;
         break;
+      case 6 /* REFERENCE */:
+        element.options["ref"] = attributeValue.value;
+        break;
     }
     objectAttributes.push({ ...attributeValue, key, attribute: optionFinal });
   }

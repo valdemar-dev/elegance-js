@@ -5,6 +5,8 @@ declare global {
 
     // server stuff
     var __SERVER_CURRENT_STATE_ID__: number;
+    var __SERVER_CURRENT_REF_ID__: number;
+
 
     var __SERVER_CURRENT_STATE__: Array<{
         value: unknown;

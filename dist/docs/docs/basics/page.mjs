@@ -48,14 +48,14 @@ var createState = (augment) => {
   }
   return returnAugmentValue;
 };
-var createEventListener = (dependencies, eventListener) => {
+var createEventListener = (dependencies, eventListener, params) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
     value: new Function(
       "state",
       "event",
-      `(${eventListener.toString()})(event, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
     )
   };
   globalThis.__SERVER_CURRENT_STATE__.push(value);
@@ -336,12 +336,48 @@ var Mono = (text) => span({
   class: "font-mono"
 }, text);
 
+// src/server/createReference.ts
+if (!globalThis.__SERVER_CURRENT_REF_ID__) {
+  globalThis.__SERVER_CURRENT_REF_ID__ = 0;
+}
+var currentRefId = globalThis.__SERVER_CURRENT_REF_ID__;
+var createReference = () => {
+  return {
+    type: 6 /* REFERENCE */,
+    value: currentRefId++
+  };
+};
+
 // src/docs/docs/components/CodeBlock.ts
+var toastRef = createReference();
+var copyCode = createEventListener(
+  [],
+  async ({ event, ref }) => {
+    const children = event.currentTarget.children;
+    const pre2 = children.item(0);
+    await navigator.clipboard.writeText(pre2.innerText);
+    console.log(`toast reference: ${ref}`);
+  },
+  {
+    ref: toastRef.value
+  }
+);
+var Toast = () => div(
+  {
+    ref: toastRef
+  },
+  "i am a toast!"
+);
 var CodeBlock = (value) => div(
   {
-    class: "bg-background-950 p-2 rounded-sm border-[1px] border-background-800 w-max my-3 max-w-full overflow-scroll"
+    class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
+            border-[1px] border-background-800 w-max my-3 max-w-full
+            overflow-scroll`,
+    onClick: copyCode
   },
-  pre({}, value)
+  pre({
+    innerText: value
+  })
 );
 
 // src/docs/docs/basics/page.ts
@@ -595,7 +631,8 @@ var page = RootLayout(
       "Next, open a terminal / command prompt window, and issue the following the command.",
       CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]")
     )
-  )
+  ),
+  Toast()
 );
 export {
   page

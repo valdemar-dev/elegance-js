@@ -5,4 +5,5 @@ export enum ObjectAttributeType {
     OBSERVER = 3,
     BREAKPOINT = 4,
     EVENT_LISTENER = 5,
+    REFERENCE = 6,
 }

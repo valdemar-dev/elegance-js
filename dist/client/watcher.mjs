@@ -5,10 +5,10 @@ if (Object.values(pd)[0]?.w) {
     console.log(`hot-reload, command received: ${event.data}`);
     if (event.data === "reload") {
       for (const cleanupProcedure of cleanupProcedures) {
-        if (!cleanupProcedure.bind !== "") continue;
         cleanupProcedure.cleanupFunction();
         cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure));
       }
+      state.subjects.map((subj) => ({ ...subj, observers: [] }));
       const newHTML = await fetch(window.location.href);
       const newDOM = domParser.parseFromString(
         await newHTML.text(),
