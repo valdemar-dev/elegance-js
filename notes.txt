@@ -4,3 +4,5 @@ if not separated, each one would have to specify a type: enum, which would be qu
 
 console.log() in observer will show in initial-render on the server.
 
+special characters: newline, etc, are escaped
+
