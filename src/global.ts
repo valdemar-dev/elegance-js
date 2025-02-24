@@ -54,12 +54,12 @@ declare global {
     } & GlobalAttributes & EventHandlers
 
     type EleganceElement<T> = (
-        options: ElementOptions | Child,
+        options?: ElementOptions | Child,
         ...children: ElementChildren
     ) => BuiltElement<T>;
 
     type EleganceChildrenlessElement<T> = (
-        options: ElementOptions | Child
+        options?: ElementOptions
     ) => ChildrenLessBuiltElement<T>;
 
     type Child = 

@@ -75,8 +75,9 @@ export const Link = (options: Record<string, any>, ...children: Child[]
 
     return a ({
         ...options,
-        onClick: navigate
+        onClick: navigate,
     },
         ...children,
     );
+
 };

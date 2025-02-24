@@ -45,8 +45,8 @@ declare global {
     type ElementOptions = {
         [key: string]: string | number | boolean | ObjectAttribute<any>;
     } & GlobalAttributes & EventHandlers;
-    type EleganceElement<T> = (options: ElementOptions | Child, ...children: ElementChildren) => BuiltElement<T>;
-    type EleganceChildrenlessElement<T> = (options: ElementOptions | Child) => ChildrenLessBuiltElement<T>;
+    type EleganceElement<T> = (options?: ElementOptions | Child, ...children: ElementChildren) => BuiltElement<T>;
+    type EleganceChildrenlessElement<T> = (options?: ElementOptions) => ChildrenLessBuiltElement<T>;
     type Child = BuiltElement<ElementTags> | ChildrenLessBuiltElement<ChildrenlessElementTags> | string | boolean | number | Array<number | string | boolean>;
     type ElementChildren = Array<Child>;
     type OmitSomething<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
