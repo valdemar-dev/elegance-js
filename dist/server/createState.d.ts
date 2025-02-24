@@ -13,16 +13,21 @@ type Dependencies = {
     id: number;
 }[];
 type Parameters = Record<string, any>;
+export type SetEvent<E, CT> = Omit<Parameters, "event"> & {
+    event: Omit<E, "currentTarget"> & {
+        currentTarget: CT;
+    };
+};
 export type CreateEventListenerOptions<D extends Dependencies, P extends Parameters> = {
     dependencies?: [...D] | [];
-    eventListener: (params: P & {
+    eventListener: (params: {
         event: Event;
-    }, ...subjects: {
+    } & P, ...subjects: {
         [K in keyof D]: ClientSubjectGeneric<D[K]["value"]>;
     }) => void;
     params?: P;
 };
-export declare const createEventListener: <D extends Dependencies, P extends Parameters>({ eventListener, dependencies, params, }: CreateEventListenerOptions<D, P>) => {
+export declare const createEventListener: <D extends Dependencies = Dependencies, P extends Parameters = Parameters>({ eventListener, dependencies, params, }: CreateEventListenerOptions<D, P>) => {
     id: number;
     type: ObjectAttributeType;
     value: Function;

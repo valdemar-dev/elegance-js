@@ -35,23 +35,28 @@ export const createState = <T extends Record<string, any>>(augment: T) => {
 type Dependencies = { type: ObjectAttributeType; value: unknown; id: number }[];
 type Parameters = Record<string, any>;
 
+
+export type SetEvent<E, CT> = Omit<Parameters, "event"> & {
+    event: Omit<E, "currentTarget"> & { currentTarget: CT }
+};
+
 export type CreateEventListenerOptions<
     D extends Dependencies,
     P extends Parameters,
 > = {
     dependencies?: [...D] | [], 
     eventListener: (
-        params: P & {
+        params: {
             event: Event,
-        },
+        } & P,
         ...subjects: { [K in keyof D]: ClientSubjectGeneric<D[K]["value"]> }
     ) => void,
     params?: P
 }
 
 export const createEventListener = <
-    D extends Dependencies,
-    P extends Parameters,
+    D extends Dependencies = Dependencies,
+    P extends Parameters = Parameters,
 >({
     eventListener,
     dependencies = [],

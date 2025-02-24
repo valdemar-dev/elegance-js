@@ -5,6 +5,7 @@ POTENTIAL:
         - onclick to 1, or wtv
 
 TODO:
+    - object state
     - typescript autocopmlete and typings for elements, make options {} good-ier
     - make non children elements, that take in children, actually work
         - basically set element.children = null on childrenless elements so that they're rendered properly

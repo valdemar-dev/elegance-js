@@ -1,28 +1,61 @@
-import { createReference, } from "../../../server/createReference";
-import { createEventListener, } from "../../../server/createState"
+import { createEventListener, createState, SetEvent, } from "../../../server/createState"
+import { observe } from "../../../server/observe";
 
-const toastRef = createReference();
+const serverState = createState({
+    isToastShowing: false,
+    toastTimeoutId: 0,
+});
 
 const copyCode = createEventListener({
-    dependencies: [],
+    dependencies: [
+        serverState.isToastShowing,
+        serverState.toastTimeoutId,
+    ],
+
     params: {
-        ref: toastRef.value,
     },
 
-    eventListener: async ({ event, ref }) => {
-        const children = (event.currentTarget as HTMLElement).children;
+    eventListener: async (
+        params: SetEvent<MouseEvent, HTMLButtonElement>,
+        isToastShowing,
+        toastTimeoutId,
+    ) => {
+        const children = params.event.currentTarget.children;
         const pre = children.item(0) as HTMLPreElement;
 
-        await navigator.clipboard.writeText(pre.innerText); 
+        const content = pre.innerText;
 
-        console.log(`toast reference: ${client.getReference(ref)}`);
+        await navigator.clipboard.writeText(content); 
+
+        if (toastTimeoutId.value !== 0) clearTimeout(toastTimeoutId.value);
+
+        isToastShowing.value = true;
+        isToastShowing.signal();
+
+        const timeoutId: number = window.setTimeout(() => {
+            isToastShowing.value = false;
+            isToastShowing.signal();
+        }, 5000);
+
+        toastTimeoutId.value = timeoutId;
     },
 });
 
 export const Toast = () => div ({
-    ref: toastRef,
+    class: observe(
+        [serverState.isToastShowing],
+        (isShowing) => {
+            const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-white text-black ";
+
+            if (isShowing) {
+                return defaultClassName + "right-8";
+            }
+
+            return defaultClassName + "right-0 translate-x-full";
+        }
+    )
 },
-    "i am a toast!",
+    h1 ("Copied to clipboard!"),
 );
 
 export const CodeBlock =  (value: string) => div ({

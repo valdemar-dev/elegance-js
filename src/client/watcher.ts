@@ -11,7 +11,7 @@ eventSource.onmessage = async (event) => {
             cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure));
         }
 
-        state.subjects.map(subj => ({ ...subj, observers: [], }))
+        pd[sanitizePathname(loc.pathname)].stateManager.subjects.map(subj => ({ ...subj, observers: [], }))
 
         const newHTML = await fetch(window.location.href);
 

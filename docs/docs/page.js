@@ -108,7 +108,7 @@ createLoadHook({
   }
 });
 var navigate = createEventListener({
-  eventListener: ({ event }) => {
+  eventListener: (event) => {
     const target = new URL(event.currentTarget.href);
     const client2 = globalThis.client;
     const sanitizedTarget = client2.sanitizePathname(target.pathname);

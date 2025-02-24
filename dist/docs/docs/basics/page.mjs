@@ -339,37 +339,46 @@ var Mono = (text) => span({
   class: "font-mono"
 }, text);
 
-// src/server/createReference.ts
-if (!globalThis.__SERVER_CURRENT_REF_ID__) {
-  globalThis.__SERVER_CURRENT_REF_ID__ = 0;
-}
-var currentRefId = globalThis.__SERVER_CURRENT_REF_ID__;
-var createReference = () => {
-  return {
-    type: 6 /* REFERENCE */,
-    value: currentRefId++
-  };
-};
-
 // src/docs/docs/components/CodeBlock.ts
-var toastRef = createReference();
+var serverState2 = createState({
+  isToastShowing: false,
+  toastTimeoutId: 0
+});
 var copyCode = createEventListener({
-  dependencies: [],
-  params: {
-    ref: toastRef.value
-  },
-  eventListener: async ({ event, ref }) => {
-    const children = event.currentTarget.children;
+  dependencies: [
+    serverState2.isToastShowing,
+    serverState2.toastTimeoutId
+  ],
+  params: {},
+  eventListener: async (params, isToastShowing, toastTimeoutId) => {
+    const children = params.event.currentTarget.children;
     const pre2 = children.item(0);
-    await navigator.clipboard.writeText(pre2.innerText);
-    console.log(`toast reference: ${client.getReference(ref)}`);
+    const content = pre2.innerText;
+    await navigator.clipboard.writeText(content);
+    if (toastTimeoutId.value !== 0) clearTimeout(toastTimeoutId.value);
+    isToastShowing.value = true;
+    isToastShowing.signal();
+    const timeoutId = window.setTimeout(() => {
+      isToastShowing.value = false;
+      isToastShowing.signal();
+    }, 5e3);
+    toastTimeoutId.value = timeoutId;
   }
 });
 var Toast = () => div(
   {
-    ref: toastRef
+    class: observe(
+      [serverState2.isToastShowing],
+      (isShowing) => {
+        const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-white text-black ";
+        if (isShowing) {
+          return defaultClassName + "right-8";
+        }
+        return defaultClassName + "right-0 translate-x-full";
+      }
+    )
   },
-  "i am a toast!"
+  h1("Copied to clipboard!")
 );
 var CodeBlock = (value) => div(
   {

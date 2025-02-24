@@ -23,16 +23,16 @@ const createElementOptions = (obj: Record<string, any>) => {
 const createBuildableElement = (tag: ElementTags) => {
     return (options: Record<string, any>, ...children: ElementChildren) => ({
         tag: tag,
-        options: options,
+        options: options || {},
         children: children,
     });
 };
 
 const createChildrenlessBuildableElement = (tag: ChildrenlessElementTags) => {
     return (options: Record<string, any>) => ({
-	tag: tag,
-	options: options,
-	children: null,
+        tag: tag,
+        options: options || {},
+        children: null,
     });
 
 };

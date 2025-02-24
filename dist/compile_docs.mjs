@@ -11,14 +11,14 @@ import { fileURLToPath } from "url";
 var createBuildableElement = (tag) => {
   return (options, ...children) => ({
     tag,
-    options,
+    options: options || {},
     children
   });
 };
 var createChildrenlessBuildableElement = (tag) => {
   return (options) => ({
     tag,
-    options,
+    options: options || {},
     children: null
   });
 };
