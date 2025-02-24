@@ -54,11 +54,11 @@ createLoadHook({
       const href = new URL(anchor.href);
       switch (prefetch) {
         case "load":
-          __ELEGANCE_CLIENT__.fetchPage(href);
+          client.fetchPage(href);
           break;
         case "hover":
           const fn = () => {
-            __ELEGANCE_CLIENT__.fetchPage(href);
+            client.fetchPage(href);
           };
           anchor.addEventListener("mouseenter", fn);
           elsToClear.push({
@@ -76,17 +76,17 @@ createLoadHook({
   }
 });
 var navigate = createEventListener({
-  eventListener: (event) => {
+  eventListener: ({ event }) => {
     const target = new URL(event.currentTarget.href);
-    const client = globalThis.__ELEGANCE_CLIENT__;
-    const sanitizedTarget = client.sanitizePathname(target.pathname);
-    const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
+    const client2 = globalThis.client;
+    const sanitizedTarget = client2.sanitizePathname(target.pathname);
+    const sanitizedCurrent = client2.sanitizePathname(window.location.pathname);
     if (sanitizedTarget === sanitizedCurrent) {
       if (target.hash === window.location.hash) return event.preventDefault();
       return;
     }
     event.preventDefault();
-    client.navigateLocally(target.href);
+    client2.navigateLocally(target.href);
   }
 });
 var Link = (options, ...children) => {

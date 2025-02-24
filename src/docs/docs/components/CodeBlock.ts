@@ -15,7 +15,7 @@ const copyCode = createEventListener({
 
         await navigator.clipboard.writeText(pre.innerText); 
 
-        console.log(`toast reference: ${ref}`);
+        console.log(`toast reference: ${client.getReference(ref)}`);
     },
 });
 
@@ -31,7 +31,5 @@ export const CodeBlock =  (value: string) => div ({
             overflow-scroll`,
     onClick: copyCode, 
 },
-    pre ({
-        innerText: value,
-    }),
+    pre ({}, value ),
 )

@@ -14,7 +14,7 @@ type LoadHookOptions<T extends ServerSubject[]> = {
     bind?: string,
     deps?: [...T],
     fn: (
-        state: State<any>,
+        state: State,
         ...subjects: {
             [K in keyof T]: ClientSubjectGeneric<T[K]["value"]>
         }
@@ -29,7 +29,7 @@ export type LoadHook = {
 export type ClientLoadHook = {
     bind: string,
     fn: (
-        state: State<any>,
+        state: State,
     ) => (void | (() => void)),
 }
 

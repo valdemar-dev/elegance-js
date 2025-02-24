@@ -14,7 +14,7 @@ compile({
     pagesDirectory: PAGES_DIR,
     outputDirectory: OUTPUT_DIR,
     environment: "development",
-    watchServerPort: 4000,
+    watchServerPort: 3001,
 }).then(() => {
     exec (`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`)
 

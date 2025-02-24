@@ -4,29 +4,56 @@ import path from "path";
 import esbuild from "esbuild";
 import { fileURLToPath } from "url";
 
-// src/shared/bindBrowserElements.ts
-var elementsWithAttributesAndChildren = [
+// src/shared/serverElements.ts
+var createBuildableElement = (tag) => {
+  return (options, ...children) => ({
+    tag,
+    options,
+    children
+  });
+};
+var createChildrenlessBuildableElement = (tag) => {
+  return (options) => ({
+    tag,
+    options,
+    children: null
+  });
+};
+var childrenlessElementTags = [
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "source",
+  "track"
+];
+var elementTags = [
   "a",
-  "abbr",
   "address",
   "article",
   "aside",
-  "b",
-  "body",
+  "audio",
   "blockquote",
+  "body",
   "button",
   "canvas",
-  "cite",
-  "code",
+  "caption",
   "colgroup",
   "data",
+  "datalist",
+  "dd",
   "del",
   "details",
-  "dfn",
+  "dialog",
   "div",
   "dl",
   "dt",
-  "em",
   "fieldset",
   "figcaption",
   "figure",
@@ -38,113 +65,87 @@ var elementsWithAttributesAndChildren = [
   "h4",
   "h5",
   "h6",
+  "head",
   "header",
-  "hr",
-  "i",
+  "hgroup",
+  "html",
   "iframe",
-  "img",
-  "input",
   "ins",
-  "kbd",
   "label",
   "legend",
   "li",
   "main",
   "map",
-  "mark",
-  "menu",
-  "menuitem",
   "meter",
   "nav",
+  "noscript",
   "object",
   "ol",
   "optgroup",
   "option",
   "output",
   "p",
+  "picture",
   "pre",
   "progress",
   "q",
   "section",
   "select",
-  "small",
-  "span",
-  "strong",
-  "sub",
   "summary",
-  "sup",
   "table",
   "tbody",
   "td",
+  "template",
   "textarea",
   "tfoot",
   "th",
   "thead",
   "time",
   "tr",
-  "u",
   "ul",
-  "var",
   "video",
-  "details",
-  "datalist"
-];
-var elementsWithAttributesOnly = [
-  "audio",
-  "base",
-  "br",
-  "col",
-  "embed",
-  "link",
-  "meta",
-  "noscript",
-  "source",
-  "track",
+  "span",
+  "script",
+  "abbr",
+  "b",
+  "bdi",
+  "bdo",
+  "cite",
+  "code",
+  "dfn",
+  "em",
+  "i",
+  "kbd",
+  "mark",
+  "rp",
+  "rt",
+  "ruby",
+  "s",
+  "samp",
+  "small",
+  "strong",
+  "sub",
+  "sup",
+  "u",
   "wbr",
-  "area",
-  "command",
-  "picture",
-  "progress",
-  "html",
-  "head"
+  "title"
 ];
-var elementsWithChildrenOnly = [
-  "title",
-  "template"
-];
-var define = (tagName, hasAttr, hasChildren) => {
-  return (...args) => {
-    let options = {};
-    let children = [];
-    if (hasAttr && args.length > 0 && typeof args[0] === "object") {
-      options = args[0];
-      if (hasChildren && args.length > 1) {
-        children = args.slice(1);
-      }
-    } else if (hasChildren && args.length > 0) {
-      children = args;
-    }
-    return {
-      tag: tagName,
-      getOptions: options ?? {},
-      children
-    };
-  };
+var elements = {};
+var childrenlessElements = {};
+for (const element of elementTags) {
+  elements[element] = createBuildableElement(element);
+}
+for (const element of childrenlessElementTags) {
+  childrenlessElements[element] = createChildrenlessBuildableElement(element);
+}
+var allElements = {
+  ...elements,
+  ...childrenlessElements
 };
-Object.assign(globalThis, {
-  ...elementsWithAttributesAndChildren.reduce((acc, el) => {
-    acc[el] = define(el, true, true);
-    return acc;
-  }, {}),
-  ...elementsWithChildrenOnly.reduce((acc, el) => {
-    acc[el] = define(el, false, true);
-    return acc;
-  }, {}),
-  ...elementsWithAttributesOnly.reduce((acc, el) => {
-    acc[el] = define(el, true, false);
-    return acc;
-  }, {})
-});
+
+// src/shared/bindServerElements.ts
+Object.assign(globalThis, elements);
+Object.assign(globalThis, childrenlessElements);
 
 // src/server/render.ts
 var renderRecursively = (element) => {
@@ -156,13 +157,15 @@ var renderRecursively = (element) => {
     return returnString + element.join(", ");
   }
   returnString += `<${element.tag}`;
-  for (const [attrName, attrValue] of Object.entries(element.options)) {
-    if (typeof attrValue === "object") {
-      throw `Internal error, attr ${attrName} has obj type.`;
+  if (typeof element.options === "object") {
+    for (const [attrName, attrValue] of Object.entries(element.options)) {
+      if (typeof attrValue === "object") {
+        throw `Internal error, attr ${attrName} has obj type.`;
+      }
+      returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
     }
-    returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
   }
-  if (element.children.length < 1) {
+  if (element.children === null) {
     returnString += "/>";
     return returnString;
   }
@@ -347,74 +350,113 @@ var escapeHtml = (str) => {
 var elementKey = 0;
 var layoutKey = 0;
 var layoutKeyMap = {};
+var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
+  const lcOptionName = optionName.toLowerCase();
+  const options = element.options;
+  let key = options.key;
+  if (!options.key) {
+    key = elementKey++;
+    options.key = key;
+  }
+  if (!optionValue.type) {
+    throw `ObjectAttributeType is missing from object attribute.`;
+  }
+  let optionFinal = lcOptionName;
+  switch (optionValue.type) {
+    case 1 /* STATE */:
+      const SOA = optionValue;
+      if (typeof SOA.value === "function") {
+        delete options[optionName];
+        break;
+      }
+      if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
+        element.children = [SOA.value];
+        delete options[optionName];
+      } else {
+        delete options[optionName];
+        options[lcOptionName] = SOA.value;
+      }
+      break;
+    case 3 /* OBSERVER */:
+      const OOA = optionValue;
+      const firstValue = OOA.update(...OOA.initialValues);
+      if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
+        element.children = [firstValue];
+        delete options[optionName];
+      } else {
+        delete options[optionName];
+        options[lcOptionName] = firstValue;
+      }
+      optionFinal = optionName;
+      break;
+    case 4 /* BREAKPOINT */:
+      const BPOA = optionValue;
+      let value = layoutKeyMap[`${BPOA.value}`];
+      if (!value) value = layoutKey++;
+      layoutKeyMap[`${BPOA.value}`] = value;
+      options["bp"] = value;
+      break;
+    case 6 /* REFERENCE */:
+      options["ref"] = optionValue.value;
+      break;
+  }
+  objectAttributes.push({ ...optionValue, key, attribute: optionFinal });
+};
 var processPageElements = (element, objectAttributes) => {
   if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
   if (typeof element === "string") {
     return escapeHtml(element);
   }
-  for (const [option, attributeValue] of Object.entries(element.options)) {
-    if (typeof attributeValue !== "object") {
-      if (option.toLowerCase() === "innertext") {
-        delete element.options[option];
-        element.children = [attributeValue, ...element.children];
-      } else if (option.toLowerCase() === "innerhtml") {
-        delete element.options[option];
-        element.children = [attributeValue];
+  const processElementOptionsAsChildAndReturn = () => {
+    const children = element.children;
+    element.children = [
+      element.options,
+      ...children
+    ];
+    for (let child of children) {
+      const processedChild = processPageElements(child, objectAttributes);
+      child = processedChild;
+    }
+    return element;
+  };
+  if (typeof element.options !== "object") {
+    return processElementOptionsAsChildAndReturn();
+  }
+  const {
+    tag: elementTag,
+    options: elementOptions,
+    children: elementChildren
+  } = element.options;
+  if (elementTag && elementOptions && elementChildren) {
+    return processElementOptionsAsChildAndReturn();
+  }
+  const options = element.options;
+  for (const [optionName, optionValue] of Object.entries(options)) {
+    const lcOptionName = optionName.toLowerCase();
+    if (typeof optionValue !== "object") {
+      if (lcOptionName === "innertext") {
+        delete options[optionName];
+        if (element.children === null) {
+          throw `Cannot use innerText or innerHTML on childrenless elements.`;
+        }
+        element.children = [optionValue, ...element.children];
+      } else if (lcOptionName === "innerhtml") {
+        if (element.children === null) {
+          throw `Cannot use innerText or innerHTML on childrenless elements.`;
+        }
+        delete options[optionName];
+        element.children = [optionValue];
       }
       continue;
     }
     ;
-    let key = element.options.key;
-    if (!element.options.key) {
-      key = elementKey++;
-      element.options.key = key;
-    }
-    if (!attributeValue.type) {
-      const valueAsString = JSON.stringify(attributeValue);
-      throw `ObjectAttributeType is missing from object attribute. Got: ${valueAsString}. For attribute: ${option}`;
-    }
-    const lowerCaseOption = option.toLowerCase();
-    let optionFinal = lowerCaseOption;
-    switch (attributeValue.type) {
-      case 1 /* STATE */:
-        if (typeof attributeValue.value === "function") {
-          delete element.options[option];
-          break;
-        }
-        if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
-          element.children = [attributeValue.value];
-          delete element.options[option];
-        } else {
-          delete element.options[option];
-          element.options[lowerCaseOption] = attributeValue.value;
-        }
-        break;
-      case 3 /* OBSERVER */:
-        const firstValue = attributeValue.update(...attributeValue.initialValues);
-        if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
-          element.children = [firstValue];
-          delete element.options[option];
-        } else {
-          delete element.options[option];
-          element.options[lowerCaseOption] = firstValue;
-        }
-        optionFinal = option;
-        break;
-      case 4 /* BREAKPOINT */:
-        let value = layoutKeyMap[`${attributeValue.value}`];
-        if (!value) value = layoutKey++;
-        layoutKeyMap[`${attributeValue.value}`] = value;
-        element.options["bp"] = value;
-        break;
-      case 6 /* REFERENCE */:
-        element.options["ref"] = attributeValue.value;
-        break;
-    }
-    objectAttributes.push({ ...attributeValue, key, attribute: optionFinal });
+    processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
   }
-  for (let child of element.children) {
-    const processedChild = processPageElements(child, objectAttributes);
-    child = processedChild;
+  if (element.children) {
+    for (let child of element.children) {
+      const processedChild = processPageElements(child, objectAttributes);
+      child = processedChild;
+    }
   }
   return element;
 };
@@ -458,13 +500,10 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   }
   return objectAttributes;
 };
-var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR, watch) => {
+var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR) => {
   let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
   clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
   clientPageJSText += `pd[url]={`;
-  if (watch) {
-    clientPageJSText += "w:true,";
-  }
   if (state) {
     let formattedStateString = "";
     const sortedState = state.sort((av, bv) => av.id - bv.id);
@@ -479,7 +518,11 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   }
   const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
   if (stateObjectAttributes.length > 0) {
-    clientPageJSText += `soa:${JSON.stringify(stateObjectAttributes)},`;
+    const processed = [...stateObjectAttributes].map((soa) => {
+      delete soa.type;
+      return soa;
+    });
+    clientPageJSText += `soa:${JSON.stringify(processed)},`;
   }
   const observerObjectAttributes = objectAttributes.filter((oa) => oa.type === 3 /* OBSERVER */);
   if (observerObjectAttributes.length > 0) {
@@ -558,8 +601,7 @@ var buildPages = async (pages, DIST_DIR, writeToHTML, watch) => {
       state || {},
       objectAttributes,
       pageLoadHooks || [],
-      DIST_DIR,
-      watch
+      DIST_DIR
     );
     if (sendHardReloadInstruction === true) shouldClientHardReload = true;
   }

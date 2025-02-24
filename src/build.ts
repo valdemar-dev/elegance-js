@@ -187,7 +187,92 @@ let elementKey = 0;
 let layoutKey = 0;
 let layoutKeyMap: Record<string, number> = {};
 
-const processPageElements = (element: Child, objectAttributes: Array<ObjectAttribute<any>>): Child => {
+const processOptionAsObjectAttribute = (
+    element: AnyBuiltElement,
+    optionName: string,
+    optionValue: ObjectAttribute<any>,
+    objectAttributes: Array<any>,
+) => {
+    const lcOptionName = optionName.toLowerCase();
+
+    const options = element.options as ElementOptions;
+
+    let key = options.key;
+    if (!options.key) {
+        key = elementKey++;
+        options.key = key;
+    }
+
+    if (!optionValue.type) {
+        throw `ObjectAttributeType is missing from object attribute.`;
+    }
+
+    // TODO: jank lol - val 2025-02-17
+    let optionFinal = lcOptionName;
+    
+    switch (optionValue.type) {
+        case ObjectAttributeType.STATE:
+            const SOA = optionValue as ObjectAttribute<ObjectAttributeType.STATE>;
+
+            if (typeof SOA.value === "function") {
+                delete options[optionName];
+                break;
+            }
+
+            if (
+                lcOptionName === "innertext" ||
+                lcOptionName === "innerhtml"
+            ) {
+                element.children = [SOA.value];
+                delete options[optionName];
+            } else {
+                delete options[optionName];
+                options[lcOptionName] = SOA.value;
+            }
+
+            break;
+
+        case ObjectAttributeType.OBSERVER:
+            const OOA = optionValue as ObjectAttribute<ObjectAttributeType.OBSERVER>;
+
+            const firstValue = OOA.update(...OOA.initialValues);
+
+            if (
+                lcOptionName === "innertext" ||
+                lcOptionName === "innerhtml"
+            ) {
+                element.children = [firstValue];
+                delete options[optionName];
+            } else {
+                delete options[optionName];
+                options[lcOptionName] = firstValue;
+            }
+
+            optionFinal = optionName;
+
+            break;
+
+        case ObjectAttributeType.BREAKPOINT:
+            const BPOA = optionValue as ObjectAttribute<ObjectAttributeType.BREAKPOINT>;
+
+            let value = layoutKeyMap[`${BPOA.value}`]
+            if (!value) value = layoutKey++;
+
+            layoutKeyMap[`${BPOA.value}`] = value;
+            options["bp"] = value;
+
+            break;
+
+        case ObjectAttributeType.REFERENCE:
+            options["ref"] = (optionValue as any).value;
+
+            break;
+    }
+
+    objectAttributes.push({ ...optionValue, key: key, attribute: optionFinal, });
+};
+
+const processPageElements = (element: Child, objectAttributes: Array<any>): Child => {
     if (
         typeof element === "boolean" ||
         typeof element === "number" ||
@@ -198,91 +283,81 @@ const processPageElements = (element: Child, objectAttributes: Array<ObjectAttri
         return escapeHtml(element);
     }
 
-    for (const [option, attributeValue] of Object.entries(element.options)) {
-        if (typeof attributeValue !== "object") {
-            if (option.toLowerCase() === "innertext") {
-                delete element.options[option];
-                element.children = [attributeValue, ...element.children];
+    const processElementOptionsAsChildAndReturn = () => {
+        const children = element.children as Child[];
+
+        (element.children as Child[]) = [
+            (element.options as Child),
+            ...children
+        ];
+
+        for (let child of children) {
+            const processedChild = processPageElements(child, objectAttributes)
+
+            child = processedChild;	
+        }
+
+        return element;
+    };
+
+    if (typeof element.options !== "object") {
+        return processElementOptionsAsChildAndReturn();
+    }
+
+    // This is so we can check if uh
+    // the first param of a element creation call is a child
+    // instead of options.
+    // It's a syntag sugar thing, but causes headaches.
+    const {
+        tag: elementTag,
+        options: elementOptions,
+        children: elementChildren
+    } = (element.options as AnyBuiltElement);
+
+    if (
+        elementTag &&
+        elementOptions &&
+        elementChildren
+    ) {
+        return processElementOptionsAsChildAndReturn();
+    }
+
+    const options = element.options as ElementOptions;
+
+    for (const [optionName, optionValue] of Object.entries(options)) {
+        const lcOptionName = optionName.toLowerCase();
+
+        if (typeof optionValue !== "object") {
+            if (lcOptionName === "innertext") {
+                delete options[optionName];
+
+                if (element.children === null) {
+                    throw `Cannot use innerText or innerHTML on childrenless elements.`;
+                }
+                element.children = [optionValue, ...(element.children as Child[])];
             }
 
-            else if (option.toLowerCase() === "innerhtml") {
-                delete element.options[option];
-                element.children = [attributeValue];
+            else if (lcOptionName === "innerhtml") {
+                if (element.children === null) {
+                    throw `Cannot use innerText or innerHTML on childrenless elements.`;
+                }
+
+                delete options[optionName];
+                element.children = [optionValue];
             }
 
             continue;
         };
 
-        let key = element.options.key;
-        if (!element.options.key) {
-            key = elementKey++;
-            element.options.key = key;
-        }
-
-        if (!attributeValue.type) {
-            const valueAsString = JSON.stringify(attributeValue);
-            throw `ObjectAttributeType is missing from object attribute. Got: ${valueAsString}. For attribute: ${option}`;
-        }
-
-        const lowerCaseOption = option.toLowerCase();
-        // TODO: jank lol - val 2025-02-17
-        let optionFinal = lowerCaseOption;
-        
-        switch (attributeValue.type) {
-            case ObjectAttributeType.STATE:
-                if (typeof attributeValue.value === "function") {
-                    delete element.options[option];
-                    break;
-                }
-
-                if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
-                    element.children = [attributeValue.value];
-                    delete element.options[option];
-                } else {
-                    delete element.options[option];
-                    element.options[lowerCaseOption] = attributeValue.value;
-                }
-
-                break;
-
-            case ObjectAttributeType.OBSERVER:
-                const firstValue = attributeValue.update(...attributeValue.initialValues);
-
-                if (lowerCaseOption === "innertext" || lowerCaseOption === "innerhtml") {
-                    element.children = [firstValue];
-                    delete element.options[option];
-                } else {
-                    delete element.options[option];
-                    element.options[lowerCaseOption] = firstValue;
-                }
-
-                // makey uppercasey againy -val 2025-02-17
-                optionFinal = option;
-
-                break;
-
-            case ObjectAttributeType.BREAKPOINT:
-                let value = layoutKeyMap[`${attributeValue.value}`]
-                if (!value) value = layoutKey++;
-
-                layoutKeyMap[`${attributeValue.value}`] = value;
-                element.options["bp"] = value;
-
-                break;
-
-            case ObjectAttributeType.REFERENCE:
-                element.options["ref"] = attributeValue.value;
-
-                break;
-        }
-
-        objectAttributes.push({ ...attributeValue, key: key, attribute: optionFinal, });
+        processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
     }
 
-    for (let child of element.children) {
-        const processedChild = processPageElements(child, objectAttributes)
+    if (element.children) {
+        for (let child of element.children) {
+            const processedChild = processPageElements(child, objectAttributes)
 
-        child = processedChild;	
+            child = processedChild;	
+        }
     }
 
     return element;
@@ -358,15 +433,10 @@ const generateClientPageData = async (
     objectAttributes: Array<ObjectAttribute<any>>,
     pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
-    watch: boolean,
 ) => {
     let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
     clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`
     clientPageJSText += `pd[url]={`;
-
-    if (watch) {
-        clientPageJSText += "w:true,";
-    }
 
     if (state) {
         let formattedStateString = "";
@@ -389,7 +459,12 @@ const generateClientPageData = async (
     const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
 
     if (stateObjectAttributes.length > 0) {
-        clientPageJSText += `soa:${JSON.stringify(stateObjectAttributes)},`
+        const processed = [...stateObjectAttributes].map((soa: any) => {
+            delete soa.type
+            return soa;
+        });
+
+        clientPageJSText += `soa:${JSON.stringify(processed)},`
     }
 
     const observerObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.OBSERVER);
@@ -515,7 +590,6 @@ const buildPages = async (
             objectAttributes,
             pageLoadHooks || [],
             DIST_DIR,
-            watch
         );
 
         if (sendHardReloadInstruction === true) shouldClientHardReload = true;
@@ -764,4 +838,3 @@ export const compile = async ({
         shouldClientHardReload
     }
 };
-

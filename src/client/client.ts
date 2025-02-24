@@ -294,11 +294,12 @@ window.onpopstate = async (event: PopStateEvent) => {
     history.replaceState(null, "", target.location.href);
 };
 
-globalThis.__ELEGANCE_CLIENT__ = {
+globalThis.client = {
     navigateLocally,
     fetchPage,
     currentPage,
     sanitizePathname,
+    getReference: (id: number) => document.querySelector(`[ref="${id}"]`)
 };
 
 loadPage();

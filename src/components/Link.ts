@@ -17,11 +17,11 @@ createLoadHook({
 
             switch (prefetch) {
                 case "load":
-                    __ELEGANCE_CLIENT__.fetchPage(href);
+                    client.fetchPage(href);
                     break;
                 case "hover":
                     const fn = () => {
-                        __ELEGANCE_CLIENT__.fetchPage(href);
+                        client.fetchPage(href);
                     };
 
                     anchor.addEventListener("mouseenter", fn);
@@ -44,10 +44,10 @@ createLoadHook({
 })
 
 const navigate = createEventListener({
-    eventListener: (event: MouseEvent) => {
+    eventListener: (event) => {
         const target = new URL((event.currentTarget as HTMLLinkElement).href);
 
-        const client = globalThis.__ELEGANCE_CLIENT__;
+        const client = globalThis.client;
 
         const sanitizedTarget = client.sanitizePathname(target.pathname);
         const sanitizedCurrent = client.sanitizePathname(window.location.pathname);

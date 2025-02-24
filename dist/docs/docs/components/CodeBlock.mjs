@@ -15,7 +15,11 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-var createEventListener = (dependencies, eventListener, params) => {
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
@@ -31,18 +35,18 @@ var createEventListener = (dependencies, eventListener, params) => {
 
 // src/docs/docs/components/CodeBlock.ts
 var toastRef = createReference();
-var copyCode = createEventListener(
-  [],
-  async ({ event, ref }) => {
+var copyCode = createEventListener({
+  dependencies: [],
+  params: {
+    ref: toastRef.value
+  },
+  eventListener: async ({ event, ref }) => {
     const children = event.currentTarget.children;
     const pre2 = children.item(0);
     await navigator.clipboard.writeText(pre2.innerText);
-    console.log(`toast reference: ${ref}`);
-  },
-  {
-    ref: toastRef.value
+    console.log(`toast reference: ${client.getReference(ref)}`);
   }
-);
+});
 var Toast = () => div(
   {
     ref: toastRef
@@ -56,9 +60,7 @@ var CodeBlock = (value) => div(
             overflow-scroll`,
     onClick: copyCode
   },
-  pre({
-    innerText: value
-  })
+  pre({}, value)
 );
 export {
   CodeBlock,

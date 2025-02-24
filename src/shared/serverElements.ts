@@ -22,17 +22,9 @@ const createElementOptions = (obj: Record<string, any>) => {
 
 const createBuildableElement = (tag: ElementTags) => {
     return (options: Record<string, any>, ...children: ElementChildren) => ({
-	tag: tag,
-	options: options,
-	children: children,
-    });
-};
-
-const createOptionlessBuildableElement = (tag: OptionlessElementTags) => {
-    return (...children: ElementChildren) => ({
-	tag: tag,
-	options: {},
-	children: children,
+        tag: tag,
+        options: options,
+        children: children,
     });
 };
 
@@ -40,16 +32,10 @@ const createChildrenlessBuildableElement = (tag: ChildrenlessElementTags) => {
     return (options: Record<string, any>) => ({
 	tag: tag,
 	options: options,
-	children: [],
+	children: null,
     });
 
 };
-
-const optionlessElementTags: Array<OptionlessElementTags> = [
-    "abbr", "b", "bdi", "bdo", "cite", "code", "dfn", "em", "i", "kbd", "mark", 
-    "rp", "rt", "ruby", "s", "samp", "small", "strong", "sub", "sup", 
-    "u", "wbr", "title",
-];
 
 const childrenlessElementTags: Array<ChildrenlessElementTags> = [
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", 
@@ -65,19 +51,16 @@ const elementTags: Array<ElementTags> = [
     "noscript", "object", "ol", "optgroup", "option", "output", "p", "picture", 
     "pre", "progress", "q", "section", "select", "summary", "table", "tbody", 
     "td", "template", "textarea", "tfoot", "th", "thead", "time", "tr", 
-    "ul", "video", "span", "script",
+    "ul", "video", "span", "script", "abbr", "b", "bdi", "bdo", "cite", "code", "dfn", "em", "i", "kbd", "mark", 
+    "rp", "rt", "ruby", "s", "samp", "small", "strong", "sub", "sup", 
+    "u", "wbr", "title"
 ];
 
 const elements: { [key: string]: EleganceElement<ElementTags> } = {};
-const optionlessElements: { [key: string]: EleganceOptionlessElement<OptionlessElementTags> } = {};
 const childrenlessElements: { [key: string]: EleganceChildrenlessElement<ChildrenlessElementTags> } = {};
 
 for (const element of elementTags) {
     elements[element] = createBuildableElement(element);
-}
-
-for (const element of optionlessElementTags) {
-    optionlessElements[element] = createOptionlessBuildableElement(element);
 }
 
 for (const element of childrenlessElementTags) {
@@ -86,13 +69,11 @@ for (const element of childrenlessElementTags) {
 
 const allElements = {
     ...elements,
-    ...optionlessElements,
     ...childrenlessElements,
 }
 
 export { 
     elements,
-    optionlessElements,
     childrenlessElements,
     createElementOptions,
     allElements

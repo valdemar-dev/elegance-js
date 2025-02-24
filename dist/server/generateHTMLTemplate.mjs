@@ -1,26 +1,53 @@
-// src/shared/bindBrowserElements.ts
-var elementsWithAttributesAndChildren = [
+// src/shared/serverElements.ts
+var createBuildableElement = (tag) => {
+  return (options, ...children) => ({
+    tag,
+    options,
+    children
+  });
+};
+var createChildrenlessBuildableElement = (tag) => {
+  return (options) => ({
+    tag,
+    options,
+    children: null
+  });
+};
+var childrenlessElementTags = [
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "source",
+  "track"
+];
+var elementTags = [
   "a",
-  "abbr",
   "address",
   "article",
   "aside",
-  "b",
-  "body",
+  "audio",
   "blockquote",
+  "body",
   "button",
   "canvas",
-  "cite",
-  "code",
+  "caption",
   "colgroup",
   "data",
+  "datalist",
+  "dd",
   "del",
   "details",
-  "dfn",
+  "dialog",
   "div",
   "dl",
   "dt",
-  "em",
   "fieldset",
   "figcaption",
   "figure",
@@ -32,113 +59,87 @@ var elementsWithAttributesAndChildren = [
   "h4",
   "h5",
   "h6",
+  "head",
   "header",
-  "hr",
-  "i",
+  "hgroup",
+  "html",
   "iframe",
-  "img",
-  "input",
   "ins",
-  "kbd",
   "label",
   "legend",
   "li",
   "main",
   "map",
-  "mark",
-  "menu",
-  "menuitem",
   "meter",
   "nav",
+  "noscript",
   "object",
   "ol",
   "optgroup",
   "option",
   "output",
   "p",
+  "picture",
   "pre",
   "progress",
   "q",
   "section",
   "select",
-  "small",
-  "span",
-  "strong",
-  "sub",
   "summary",
-  "sup",
   "table",
   "tbody",
   "td",
+  "template",
   "textarea",
   "tfoot",
   "th",
   "thead",
   "time",
   "tr",
-  "u",
   "ul",
-  "var",
   "video",
-  "details",
-  "datalist"
-];
-var elementsWithAttributesOnly = [
-  "audio",
-  "base",
-  "br",
-  "col",
-  "embed",
-  "link",
-  "meta",
-  "noscript",
-  "source",
-  "track",
+  "span",
+  "script",
+  "abbr",
+  "b",
+  "bdi",
+  "bdo",
+  "cite",
+  "code",
+  "dfn",
+  "em",
+  "i",
+  "kbd",
+  "mark",
+  "rp",
+  "rt",
+  "ruby",
+  "s",
+  "samp",
+  "small",
+  "strong",
+  "sub",
+  "sup",
+  "u",
   "wbr",
-  "area",
-  "command",
-  "picture",
-  "progress",
-  "html",
-  "head"
+  "title"
 ];
-var elementsWithChildrenOnly = [
-  "title",
-  "template"
-];
-var define = (tagName, hasAttr, hasChildren) => {
-  return (...args) => {
-    let options = {};
-    let children = [];
-    if (hasAttr && args.length > 0 && typeof args[0] === "object") {
-      options = args[0];
-      if (hasChildren && args.length > 1) {
-        children = args.slice(1);
-      }
-    } else if (hasChildren && args.length > 0) {
-      children = args;
-    }
-    return {
-      tag: tagName,
-      getOptions: options ?? {},
-      children
-    };
-  };
+var elements = {};
+var childrenlessElements = {};
+for (const element of elementTags) {
+  elements[element] = createBuildableElement(element);
+}
+for (const element of childrenlessElementTags) {
+  childrenlessElements[element] = createChildrenlessBuildableElement(element);
+}
+var allElements = {
+  ...elements,
+  ...childrenlessElements
 };
-Object.assign(globalThis, {
-  ...elementsWithAttributesAndChildren.reduce((acc, el) => {
-    acc[el] = define(el, true, true);
-    return acc;
-  }, {}),
-  ...elementsWithChildrenOnly.reduce((acc, el) => {
-    acc[el] = define(el, false, true);
-    return acc;
-  }, {}),
-  ...elementsWithAttributesOnly.reduce((acc, el) => {
-    acc[el] = define(el, true, false);
-    return acc;
-  }, {})
-});
+
+// src/shared/bindServerElements.ts
+Object.assign(globalThis, elements);
+Object.assign(globalThis, childrenlessElements);
 
 // src/server/render.ts
 var renderRecursively = (element) => {
@@ -150,13 +151,15 @@ var renderRecursively = (element) => {
     return returnString + element.join(", ");
   }
   returnString += `<${element.tag}`;
-  for (const [attrName, attrValue] of Object.entries(element.options)) {
-    if (typeof attrValue === "object") {
-      throw `Internal error, attr ${attrName} has obj type.`;
+  if (typeof element.options === "object") {
+    for (const [attrName, attrValue] of Object.entries(element.options)) {
+      if (typeof attrValue === "object") {
+        throw `Internal error, attr ${attrName} has obj type.`;
+      }
+      returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
     }
-    returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
   }
-  if (element.children.length < 1) {
+  if (element.children === null) {
     returnString += "/>";
     return returnString;
   }

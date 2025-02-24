@@ -1,4 +1,4 @@
-import "../shared/bindBrowserElements";
+import "../shared/bindServerElements";
 
 export const renderRecursively = (element: Child) => {
     let returnString = "";
@@ -18,15 +18,17 @@ export const renderRecursively = (element: Child) => {
 
     returnString += `<${element.tag}`;
 
-    for (const [attrName, attrValue] of Object.entries(element.options)) {
-        if (typeof attrValue === "object") {
-            throw `Internal error, attr ${attrName} has obj type.`;
+    if (typeof element.options === "object") {
+        for (const [attrName, attrValue] of Object.entries(element.options)) {
+            if (typeof attrValue === "object") {
+                throw `Internal error, attr ${attrName} has obj type.`;
+            }
+
+            returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
         }
-
-        returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
     }
-
-    if (element.children.length < 1) {
+     
+    if (element.children === null) {
         returnString += "/>";
 
         return returnString;

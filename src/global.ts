@@ -1,12 +1,18 @@
 import { ObjectAttributeType, } from "./helpers/ObjectAttributeType";
+import { CreateEventListenerOptions } from "./server/createState";
 
 declare global {
+    type NonVoid<T> = T extends void ? never : T;
+    type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
+
+    /*
+     * The below is all magical server stuff.
+     * The client won't know of *any* of it!
+     */
     var __ELEGANCE_SERVER_DATA__: any;
 
-    // server stuff
     var __SERVER_CURRENT_STATE_ID__: number;
     var __SERVER_CURRENT_REF_ID__: number;
-
 
     var __SERVER_CURRENT_STATE__: Array<{
         value: unknown;
@@ -16,89 +22,52 @@ declare global {
 
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>
 
-    var __ELEGANCE_CLIENT__: {
-        navigateLocally: (target: string, pushState?: boolean) => any;
-        fetchPage: (targetURL: URL) => Promise<Document | void>;
-        currentPage: string,
-        sanitizePathname: (target: string) => string;
-    }
-
-    var pd: Record<string, any>;
-
-    type ClientSubject = {
-        id: number,
-        value: any,
-        observers: Map<string, (value: any) => any>,
-        pathname: string,
-        signal: () => void,
-    };
-
-    type State<T> = {
-        subjects: ClientSubject[],
-        get: (id: number) => ClientSubject | undefined;
-        observe: (subject: ClientSubject, observer: (value: any) => any) => void;
-    };
-
-    type Listener<S, E> = { 
-        state: State<S>,
-        event: E,
-    }
-
-    type AnyBuiltElement = BuiltElement<ElementTags> | BuiltElement<OptionlessElementTags> | BuiltElement<ChildrenlessElementTags>;
+    type AnyBuiltElement = BuiltElement<ElementTags> | ChildrenLessBuiltElement<ChildrenlessElementTags>;
 
     type BuiltElement<T> = {
         tag: T;
         children: ElementChildren;
-        options: Record<string, any>;
+        options: Record<string, any> | Child;
     };
+
+    type ChildrenLessBuiltElement<T> = {
+        tag: T;
+        children: null;
+        options: Record<string, any> | Child;
+    }
 
     type ServerData = { data: any };
     type ExecuteOnServer = (...args: any[]) => Promise<ServerData | void>;
 
-    type NonVoid<T> = T extends void ? never : T;
-    type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
-
     type Page = AnyBuiltElement;
-
-    type PageOld<T extends ExecuteOnServer = never> = 
-        [T] extends [never]
-            ? ({ }: {
-		    abort: () => void;  
-            }) => Child
-            : ({ serverData }: {
-		    abort: () => void;
-		    serverData: ReturnTypeStrict<T>["data"]
-            }) => Child;
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
         ? { type: ObjectAttributeType, id: string | number, value: any, }
         : T extends ObjectAttributeType.OBSERVER
-        ? { type: ObjectAttributeType, ids: number[], initialValues: any[], update: (...value: any) => void }
+        ? { type: ObjectAttributeType, ids: number[], initialValues: any[], update: (...value: any) => any }
+        : T extends ObjectAttributeType.BREAKPOINT
+        ? { type: ObjectAttributeType, value: number, }
         : { type: ObjectAttributeType, };
 
     type ElementOptions = {
         [key: string]: string | number | boolean | ObjectAttribute<any>
-    }
+    } & GlobalAttributes & EventHandlers
 
     type EleganceElement<T> = (
-        options: ElementOptions,
-        ...children: ElementChildren
-    ) => BuiltElement<T>;
-
-    type EleganceOptionlessElement<T> = (
+        options: ElementOptions | Child,
         ...children: ElementChildren
     ) => BuiltElement<T>;
 
     type EleganceChildrenlessElement<T> = (
-        options: ElementOptions
-    ) => BuiltElement<T>;
+        options: ElementOptions | Child
+    ) => ChildrenLessBuiltElement<T>;
 
     type Child = 
         | BuiltElement<ElementTags>
-        | BuiltElement<OptionlessElementTags>
-        | BuiltElement<ChildrenlessElementTags>
+        | ChildrenLessBuiltElement<ChildrenlessElementTags>
         | string
         | boolean
+        | number
 	| Array<number | string | boolean>;
 
     type ElementChildren = Array<Child>;
@@ -107,121 +76,41 @@ declare global {
 
     type AllowedHTMLElements = OmitSomething<HTMLElementTagNameMap, "var">;
 
-    type OptionlessElementTags = 
-        | "abbr"
-        | "b"
-        | "bdi"
-        | "bdo"
-        | "cite"
-        | "code"
-        | "dfn"
-        | "em"
-        | "i"
-        | "kbd"
-        | "mark"
-        | "rp"
-        | "rt"
-        | "ruby"
-        | "s"
-        | "samp"
-        | "small"
-        | "strong"
-        | "sub"
-        | "sup"
-        | "title"
-        | "u"
-        | "wbr";
+    interface GlobalAttributes {
+        [key: `data-${string}`]: string | undefined;
+        [key: `aria-${string}`]: string | undefined;
+    }
 
-    type ChildrenlessElementTags = 
-        | "area"
-        | "base"
-        | "br"
-        | "col"
-        | "embed"
-        | "hr"
-        | "img"
-        | "input"
-        | "link"
-        | "meta"
-        | "source"
-        | "track";
+    type ChildrenlessElementTags = | "area" | "base" | "br" | "col" | "embed" | "hr" | "img" |
+        "input" | "link" | "meta" | "source" | "track";
 
-    type ElementTags = 
-        | "a"
-        | "address"
-        | "article"
-        | "aside"
-        | "audio"
-        | "blockquote"
-        | "body"
-        | "button"
-        | "canvas"
-        | "caption"
-        | "colgroup"
-        | "data"
-        | "span"
-        | "datalist"
-        | "dd"
-        | "del"
-        | "details"
-        | "dialog"
-        | "div"
-        | "dl"
-        | "dt"
-        | "fieldset"
-        | "figcaption"
-        | "figure"
-        | "footer"
-        | "form"
-        | "h1"
-        | "h2"
-        | "h3"
-        | "h4"
-        | "h5"
-        | "h6"
-        | "head"
-        | "header"
-        | "hgroup"
-        | "html"
-        | "iframe"
-        | "ins"
-        | "label"
-        | "legend"
-        | "li"
-        | "main"
-        | "map"
-        | "meter"
-        | "menu"
-        | "nav"
-        | "noscript"
-        | "object"
-        | "ol"
-        | "optgroup"
-        | "option"
-        | "output"
-        | "p"
-        | "picture"
-        | "pre"
-        | "progress"
-        | "q"
-        | "script"
-        | "search"
-        | "section"
-        | "select"
-        | "slot"
-        | "summary"
-        | "table"
-        | "tbody"
-        | "td"
-        | "template"
-        | "textarea"
-        | "tfoot"
-        | "th"
-        | "thead"
-        | "time"
-        | "tr"
-        | "ul"
-        | "video";
+    type ElementTags = | "a" | "address" | "article" | "aside" | "audio" | "blockquote" |
+        "body" | "button" | "canvas" | "caption" | "colgroup" | "data" |
+        "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" |
+        "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" |
+        "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" |
+        "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" |
+        "main" | "map" | "meter" | "menu" | "nav" | "noscript" | "object" |
+        "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" |
+        "progress" | "q" | "script" | "search" | "section" | "select" | "slot" |
+        "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" |
+        "th" | "thead" | "time" | "tr" | "ul" | "video" | "abbr" | "b" | "bdi" |
+        "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" |
+        "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" |
+        "title" | "u" | "wbr";
+
+    var area: EleganceChildrenlessElement<"area">;
+    var base: EleganceChildrenlessElement<"base">;
+    var br: EleganceChildrenlessElement<"br">;
+    var col: EleganceChildrenlessElement<"col">;
+    var embed: EleganceChildrenlessElement<"embed">;
+    var hr: EleganceChildrenlessElement<"hr">;
+    var img: EleganceChildrenlessElement<"img">;
+    var input: EleganceChildrenlessElement<"input">;
+    var link: EleganceChildrenlessElement<"link">;
+    var meta: EleganceChildrenlessElement<"meta">;
+    var source: EleganceChildrenlessElement<"source">;
+    var track: EleganceChildrenlessElement<"track">;
 
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;
@@ -298,44 +187,139 @@ declare global {
     var tr: EleganceElement<"tr">;
     var ul: EleganceElement<"ul">;
     var video: EleganceElement<"video">;
-
-    var area: EleganceChildrenlessElement<"area">;
-    var base: EleganceChildrenlessElement<"base">;
-    var br: EleganceChildrenlessElement<"br">;
-    var col: EleganceChildrenlessElement<"col">;
-    var embed: EleganceChildrenlessElement<"embed">;
-    var hr: EleganceChildrenlessElement<"hr">;
-    var img: EleganceChildrenlessElement<"img">;
-    var input: EleganceChildrenlessElement<"input">;
-    var link: EleganceChildrenlessElement<"link">;
-    var meta: EleganceChildrenlessElement<"meta">;
-    var source: EleganceChildrenlessElement<"source">;
-    var track: EleganceChildrenlessElement<"track">;
-
-    var abbr: EleganceOptionlessElement<"abbr">;
-    var b: EleganceOptionlessElement<"b">;
-    var bdi: EleganceOptionlessElement<"bdi">;
-    var bdo: EleganceOptionlessElement<"bdo">;
-    var cite: EleganceOptionlessElement<"cite">;
-    var code: EleganceOptionlessElement<"code">;
-    var dfn: EleganceOptionlessElement<"dfn">;
-    var em: EleganceOptionlessElement<"em">;
-    var i: EleganceOptionlessElement<"i">;
-    var kbd: EleganceOptionlessElement<"kbd">;
-    var mark: EleganceOptionlessElement<"mark">;
-    var rp: EleganceOptionlessElement<"rp">;
-    var rt: EleganceOptionlessElement<"rt">;
-    var ruby: EleganceOptionlessElement<"ruby">;
-    var s: EleganceOptionlessElement<"s">;
-    var samp: EleganceOptionlessElement<"samp">;
-    var small: EleganceOptionlessElement<"small">;
+    var abbr: EleganceElement<"abbr">;
+    var b: EleganceElement<"b">;
+    var bdi: EleganceElement<"bdi">;
+    var bdo: EleganceElement<"bdo">;
+    var cite: EleganceElement<"cite">;
+    var code: EleganceElement<"code">;
+    var dfn: EleganceElement<"dfn">;
+    var em: EleganceElement<"em">;
+    var i: EleganceElement<"i">;
+    var kbd: EleganceElement<"kbd">;
+    var mark: EleganceElement<"mark">;
+    var rp: EleganceElement<"rp">;
+    var rt: EleganceElement<"rt">;
+    var ruby: EleganceElement<"ruby">;
+    var s: EleganceElement<"s">;
+    var samp: EleganceElement<"samp">;
+    var small: EleganceElement<"small">;
     var span: EleganceElement<"span">;
-    var strong: EleganceOptionlessElement<"strong">;
-    var sub: EleganceOptionlessElement<"sub">;
-    var sup: EleganceOptionlessElement<"sup">;
-    var u: EleganceOptionlessElement<"u">;
-    var wbr: EleganceOptionlessElement<"wbr">;
-    var title: EleganceOptionlessElement<"title">;
+    var strong: EleganceElement<"strong">;
+    var sub: EleganceElement<"sub">;
+    var sup: EleganceElement<"sup">;
+    var u: EleganceElement<"u">;
+    var wbr: EleganceElement<"wbr">;
+    var title: EleganceElement<"title">;
+
+    type EleganceEventListener = ObjectAttribute<ObjectAttributeType.STATE>;
+
+    interface EventHandlers {
+        onCopy?: EleganceEventListener;
+        onCut?: EleganceEventListener;
+        onPaste?: EleganceEventListener;
+        onCompositionStart?: EleganceEventListener;
+        onCompositionUpdate?: EleganceEventListener;
+        onCompositionEnd?: EleganceEventListener;
+        onKeyDown?: EleganceEventListener;
+        onKeyPress?: EleganceEventListener;
+        onKeyUp?: EleganceEventListener;
+        onFocus?: EleganceEventListener;
+        onBlur?: EleganceEventListener;
+        onChange?: EleganceEventListener;
+        onInput?: EleganceEventListener;
+        onInvalid?: EleganceEventListener;
+        onSubmit?: EleganceEventListener;
+        onClick?: EleganceEventListener;
+        onDoubleClick?: EleganceEventListener;
+        onMouseDown?: EleganceEventListener;
+        onMouseUp?: EleganceEventListener;
+        onMouseEnter?: EleganceEventListener;
+        onMouseLeave?: EleganceEventListener;
+        onMouseMove?: EleganceEventListener;
+        onMouseOver?: EleganceEventListener;
+        onMouseOut?: EleganceEventListener;
+        onContextMenu?: EleganceEventListener;
+        onDrag?: EleganceEventListener;
+        onDragStart?: EleganceEventListener;
+        onDragEnd?: EleganceEventListener;
+        onDragEnter?: EleganceEventListener;
+        onDragLeave?: EleganceEventListener;
+        onDragOver?: EleganceEventListener;
+        onDrop?: EleganceEventListener;
+        onScroll?: EleganceEventListener;
+        onWheel?: EleganceEventListener;
+        onTouchStart?: EleganceEventListener;
+        onTouchMove?: EleganceEventListener;
+        onTouchEnd?: EleganceEventListener;
+        onTouchCancel?: EleganceEventListener;
+        onPointerDown?: EleganceEventListener;
+        onPointerUp?: EleganceEventListener;
+        onPointerCancel?: EleganceEventListener;
+        onPointerEnter?: EleganceEventListener;
+        onPointerLeave?: EleganceEventListener;
+        onPointerMove?: EleganceEventListener;
+        onPointerOver?: EleganceEventListener;
+        onPointerOut?: EleganceEventListener;
+        onGotPointerCapture?: EleganceEventListener;
+        onLostPointerCapture?: EleganceEventListener;
+        onLoad?: EleganceEventListener;
+        onError?: EleganceEventListener;
+        onAbort?: EleganceEventListener;
+        onCanPlay?: EleganceEventListener;
+        onCanPlayThrough?: EleganceEventListener;
+        onDurationChange?: EleganceEventListener;
+        onEmptied?: EleganceEventListener;
+        onEnded?: EleganceEventListener;
+        onLoadedData?: EleganceEventListener;
+        onLoadedMetadata?: EleganceEventListener;
+        onLoadStart?: EleganceEventListener;
+        onPause?: EleganceEventListener;
+        onPlay?: EleganceEventListener;
+        onPlaying?: EleganceEventListener;
+        onProgress?: EleganceEventListener;
+        onRateChange?: EleganceEventListener;
+        onSeeked?: EleganceEventListener;
+        onSeeking?: EleganceEventListener;
+        onStalled?: EleganceEventListener;
+        onSuspend?: EleganceEventListener;
+        onTimeUpdate?: EleganceEventListener;
+        onVolumeChange?: EleganceEventListener;
+        onWaiting?: EleganceEventListener;
+        onAnimationStart?: EleganceEventListener;
+        onAnimationEnd?: EleganceEventListener;
+        onAnimationIteration?: EleganceEventListener;
+        onTransitionEnd?: EleganceEventListener;
+        onToggle?: EleganceEventListener;
+    }
+
+    /*
+     * The below is al magical client stuff.
+     * So, don't use this on the server. It won't be defined!
+     */
+    var pd: Record<string, any>;
+
+    var client: {
+        navigateLocally: (target: string, pushState?: boolean) => any;
+        fetchPage: (targetURL: URL) => Promise<Document | void>;
+        currentPage: string,
+        sanitizePathname: (target: string) => string;
+        getReference: (id: number) => HTMLElement | null;
+    }
+
+    type ClientSubject = {
+        id: number,
+        value: any,
+        observers: Map<string, (value: any) => any>,
+        pathname: string,
+        signal: () => void,
+    };
+
+    type State = {
+        subjects: ClientSubject[],
+        get: (id: number) => ClientSubject | undefined;
+        observe: (subject: ClientSubject, observer: (value: any) => any) => void;
+    };
 }
 
 export {};

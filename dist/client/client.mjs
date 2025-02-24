@@ -191,10 +191,11 @@ window.onpopstate = async (event) => {
   await navigateLocally(target.location.href, false);
   history.replaceState(null, "", target.location.href);
 };
-globalThis.__ELEGANCE_CLIENT__ = {
+globalThis.client = {
   navigateLocally,
   fetchPage,
   currentPage,
-  sanitizePathname
+  sanitizePathname,
+  getReference: (id) => document.querySelector(`[ref="${id}"]`)
 };
 loadPage();

@@ -16,7 +16,11 @@ var createState = (augment) => {
   }
   return returnAugmentValue;
 };
-var createEventListener = (dependencies, eventListener, params) => {
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
@@ -45,13 +49,13 @@ var observe = (refs, update) => {
 var variables = createState({
   counter: 0
 });
-var increment = createEventListener(
-  [variables.counter],
-  (event, counter) => {
+var increment = createEventListener({
+  dependencies: [variables.counter],
+  eventListener: (event, counter) => {
     counter.value++;
     counter.signal();
   }
-);
+});
 var page = body(
   {},
   p({

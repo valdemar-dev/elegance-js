@@ -16,7 +16,11 @@ var createState = (augment) => {
   }
   return returnAugmentValue;
 };
-var createEventListener = (dependencies, eventListener, params) => {
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,

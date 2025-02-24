@@ -48,7 +48,11 @@ var createState = (augment) => {
   }
   return returnAugmentValue;
 };
-var createEventListener = (dependencies, eventListener, params) => {
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
@@ -82,11 +86,11 @@ createLoadHook({
       const href = new URL(anchor.href);
       switch (prefetch) {
         case "load":
-          __ELEGANCE_CLIENT__.fetchPage(href);
+          client.fetchPage(href);
           break;
         case "hover":
           const fn = () => {
-            __ELEGANCE_CLIENT__.fetchPage(href);
+            client.fetchPage(href);
           };
           anchor.addEventListener("mouseenter", fn);
           elsToClear.push({
@@ -103,21 +107,20 @@ createLoadHook({
     };
   }
 });
-var navigate = createEventListener(
-  [],
-  (event) => {
+var navigate = createEventListener({
+  eventListener: (event) => {
     const target = new URL(event.currentTarget.href);
-    const client = globalThis.__ELEGANCE_CLIENT__;
-    const sanitizedTarget = client.sanitizePathname(target.pathname);
-    const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
+    const client2 = globalThis.client;
+    const sanitizedTarget = client2.sanitizePathname(target.pathname);
+    const sanitizedCurrent = client2.sanitizePathname(window.location.pathname);
     if (sanitizedTarget === sanitizedCurrent) {
       if (target.hash === window.location.hash) return event.preventDefault();
       return;
     }
     event.preventDefault();
-    client.navigateLocally(target.href);
+    client2.navigateLocally(target.href);
   }
-);
+});
 var Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;
@@ -350,18 +353,18 @@ var createReference = () => {
 
 // src/docs/docs/components/CodeBlock.ts
 var toastRef = createReference();
-var copyCode = createEventListener(
-  [],
-  async ({ event, ref }) => {
+var copyCode = createEventListener({
+  dependencies: [],
+  params: {
+    ref: toastRef.value
+  },
+  eventListener: async ({ event, ref }) => {
     const children = event.currentTarget.children;
     const pre2 = children.item(0);
     await navigator.clipboard.writeText(pre2.innerText);
-    console.log(`toast reference: ${ref}`);
-  },
-  {
-    ref: toastRef.value
+    console.log(`toast reference: ${client.getReference(ref)}`);
   }
-);
+});
 var Toast = () => div(
   {
     ref: toastRef
@@ -375,9 +378,7 @@ var CodeBlock = (value) => div(
             overflow-scroll`,
     onClick: copyCode
   },
-  pre({
-    innerText: value
-  })
+  pre({}, value)
 );
 
 // src/docs/docs/basics/page.ts

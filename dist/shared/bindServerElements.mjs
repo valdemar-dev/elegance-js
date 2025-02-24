@@ -6,45 +6,13 @@ var createBuildableElement = (tag) => {
     children
   });
 };
-var createOptionlessBuildableElement = (tag) => {
-  return (...children) => ({
-    tag,
-    options: {},
-    children
-  });
-};
 var createChildrenlessBuildableElement = (tag) => {
   return (options) => ({
     tag,
     options,
-    children: []
+    children: null
   });
 };
-var optionlessElementTags = [
-  "abbr",
-  "b",
-  "bdi",
-  "bdo",
-  "cite",
-  "code",
-  "dfn",
-  "em",
-  "i",
-  "kbd",
-  "mark",
-  "rp",
-  "rt",
-  "ruby",
-  "s",
-  "samp",
-  "small",
-  "strong",
-  "sub",
-  "sup",
-  "u",
-  "wbr",
-  "title"
-];
 var childrenlessElementTags = [
   "area",
   "base",
@@ -131,27 +99,44 @@ var elementTags = [
   "ul",
   "video",
   "span",
-  "script"
+  "script",
+  "abbr",
+  "b",
+  "bdi",
+  "bdo",
+  "cite",
+  "code",
+  "dfn",
+  "em",
+  "i",
+  "kbd",
+  "mark",
+  "rp",
+  "rt",
+  "ruby",
+  "s",
+  "samp",
+  "small",
+  "strong",
+  "sub",
+  "sup",
+  "u",
+  "wbr",
+  "title"
 ];
 var elements = {};
-var optionlessElements = {};
 var childrenlessElements = {};
 for (const element of elementTags) {
   elements[element] = createBuildableElement(element);
-}
-for (const element of optionlessElementTags) {
-  optionlessElements[element] = createOptionlessBuildableElement(element);
 }
 for (const element of childrenlessElementTags) {
   childrenlessElements[element] = createChildrenlessBuildableElement(element);
 }
 var allElements = {
   ...elements,
-  ...optionlessElements,
   ...childrenlessElements
 };
 
 // src/shared/bindServerElements.ts
 Object.assign(globalThis, elements);
-Object.assign(globalThis, optionlessElements);
 Object.assign(globalThis, childrenlessElements);
