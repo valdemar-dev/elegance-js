@@ -227,6 +227,11 @@ var getState = () => {
 var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
 var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
 
+// src/server/layout.ts
+var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
+if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
+var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
+
 // src/build.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
@@ -348,13 +353,11 @@ var escapeHtml = (str) => {
   return replaced;
 };
 var elementKey = 0;
-var layoutKey = 0;
-var layoutKeyMap = {};
 var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
   const lcOptionName = optionName.toLowerCase();
   const options = element.options;
   let key = options.key;
-  if (!options.key) {
+  if (!key) {
     key = elementKey++;
     options.key = key;
   }
@@ -377,7 +380,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
         options[lcOptionName] = SOA.value;
       }
       break;
-    case 3 /* OBSERVER */:
+    case 2 /* OBSERVER */:
       const OOA = optionValue;
       const firstValue = OOA.update(...OOA.initialValues);
       if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
@@ -389,14 +392,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
       }
       optionFinal = optionName;
       break;
-    case 4 /* BREAKPOINT */:
-      const BPOA = optionValue;
-      let value = layoutKeyMap[`${BPOA.value}`];
-      if (!value) value = layoutKey++;
-      layoutKeyMap[`${BPOA.value}`] = value;
-      options["bp"] = value;
-      break;
-    case 6 /* REFERENCE */:
+    case 4 /* REFERENCE */:
       options["ref"] = optionValue.value;
       break;
   }
@@ -502,19 +498,49 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
 };
 var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR) => {
   let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
+  if (state) {
+  }
   clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`;
   clientPageJSText += `pd[url]={`;
   if (state) {
-    let formattedStateString = "";
-    const sortedState = state.sort((av, bv) => av.id - bv.id);
-    for (const subject of sortedState) {
+    const nonBoundState = state.filter((subj) => subj.bind === void 0);
+    clientPageJSText += `state:[`;
+    for (const subject of nonBoundState) {
       if (typeof subject.value === "string") {
-        formattedStateString += `{id:${subject.id},value:"${subject.value}"},`;
+        clientPageJSText += `{id:${subject.id},value:"${subject.value}"},`;
       } else {
-        formattedStateString += `{id:${subject.id},value:${subject.value}},`;
+        clientPageJSText += `{id:${subject.id},value:${subject.value}},`;
       }
     }
-    clientPageJSText += `state:[${formattedStateString}],`;
+    clientPageJSText += `],`;
+    const formattedBoundState = {};
+    const stateBinds = state.map((subj) => subj.bind).filter((bind) => bind !== void 0);
+    for (const bind of stateBinds) {
+      formattedBoundState[bind] = [];
+    }
+    ;
+    const boundState = state.filter((subj) => subj.bind !== void 0);
+    for (const subject of boundState) {
+      const bindingState = formattedBoundState[subject.bind];
+      delete subject.bind;
+      bindingState.push(subject);
+    }
+    const bindSubjectPairing = Object.entries(formattedBoundState);
+    if (bindSubjectPairing.length > 0) {
+      clientPageJSText += "binds:{";
+      for (const [bind, subjects] of bindSubjectPairing) {
+        clientPageJSText += `${bind}:[`;
+        for (const subject of subjects) {
+          if (typeof subject.value === "string") {
+            clientPageJSText += `{id:${subject.id},value:"${subject.value}"},`;
+          } else {
+            clientPageJSText += `{id:${subject.id},value:${subject.value}},`;
+          }
+        }
+        clientPageJSText += "]";
+      }
+      clientPageJSText += "},";
+    }
   }
   const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
   if (stateObjectAttributes.length > 0) {
@@ -524,13 +550,19 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     });
     clientPageJSText += `soa:${JSON.stringify(processed)},`;
   }
-  const observerObjectAttributes = objectAttributes.filter((oa) => oa.type === 3 /* OBSERVER */);
+  const observerObjectAttributes = objectAttributes.filter((oa) => oa.type === 2 /* OBSERVER */);
   if (observerObjectAttributes.length > 0) {
     let observerObjectAttributeString = "ooa:[";
     for (const observerObjectAttribute of observerObjectAttributes) {
       const ooa = observerObjectAttribute;
-      observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",`;
-      observerObjectAttributeString += `ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
+      observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",update:${ooa.update.toString()},`;
+      observerObjectAttributeString += `refs:[`;
+      for (const ref of ooa.refs) {
+        observerObjectAttributeString += `{id:${ref.id}`;
+        if (ref.bind !== void 0) observerObjectAttributeString += `,bind:${ref.bind}`;
+        observerObjectAttributeString += "},";
+      }
+      observerObjectAttributeString += "]},";
     }
     observerObjectAttributeString += "],";
     clientPageJSText += observerObjectAttributeString;
@@ -538,12 +570,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   if (pageLoadHooks.length > 0) {
     clientPageJSText += "lh:[";
     for (const loadHook of pageLoadHooks) {
-      const key = layoutKeyMap[`${loadHook.bind}`];
-      if (!key) {
-        if (loadHook.bind.length > 0) {
-          throw `Loadhook bound to non-existent breakpoint key: ${loadHook.bind}`;
-        }
-      }
+      const key = loadHook.bind;
       clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
     }
     clientPageJSText += "],";
@@ -581,6 +608,7 @@ var buildPages = async (pages, DIST_DIR, writeToHTML, watch) => {
     const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js");
     initializeState();
     resetLoadHooks();
+    resetLayouts();
     const { page: pageElements } = await import(pagePath + `?${Date.now()}`);
     const state = getState();
     const pageLoadHooks = getLoadHooks();
@@ -741,8 +769,6 @@ var compile = async ({
     log("");
   }
   const start = performance.now();
-  layoutKeyMap = {};
-  layoutKey = 1;
   const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
   await buildInfoFiles(infoFiles, environment, SERVER_DIR);
   const pages = await getPageCompilationDirections(pageFiles, pagesDirectory, SERVER_DIR);

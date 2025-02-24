@@ -10,7 +10,7 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
 
 let currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 
-export const createState = <T extends Record<string, any>>(augment: T) => {
+export const createStateOld = <T extends Record<string, any>>(augment: T) => {
     const returnAugmentValue: Record<string, any> = {};
 
     for (const [key, value] of Object.entries(augment)) {
@@ -31,10 +31,42 @@ export const createState = <T extends Record<string, any>>(augment: T) => {
     };
 };
 
+type Widen<T> =
+    T extends number ? number :
+    T extends string ? string :
+    T extends boolean ? boolean :
+    T;
 
-type Dependencies = { type: ObjectAttributeType; value: unknown; id: number }[];
-type Parameters = Record<string, any>;
+export const createState = <
+    U extends number | string | boolean,
+>(
+    value: U,
+    options?: {
+        bind?: number;
+        // ephemeral?: boolean;
+    },
+) => {
+    type ValueType = Widen<U>;
 
+    const serverStateEntry = {
+        id: currentId++,
+        value: value,
+        type: ObjectAttributeType.STATE,
+        bind: options?.bind,
+    };
+
+    globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+
+    return serverStateEntry as {
+        id: number,
+        value: ValueType,
+        type: ObjectAttributeType.STATE,
+        bind: string | undefined,
+    };
+};
+
+type Dependencies = { type: ObjectAttributeType; value: unknown; id: number; bind?: string, }[];
+type Parameters = {};
 
 export type SetEvent<E, CT> = Omit<Parameters, "event"> & {
     event: Omit<E, "currentTarget"> & { currentTarget: CT }
@@ -42,34 +74,47 @@ export type SetEvent<E, CT> = Omit<Parameters, "event"> & {
 
 export type CreateEventListenerOptions<
     D extends Dependencies,
-    P extends Parameters,
+    P extends {} = {},
 > = {
     dependencies?: [...D] | [], 
     eventListener: (
-        params: {
+        params: P & {
             event: Event,
-        } & P,
+        },
         ...subjects: { [K in keyof D]: ClientSubjectGeneric<D[K]["value"]> }
     ) => void,
-    params?: P
+    params?: P | null
 }
 
 export const createEventListener = <
-    D extends Dependencies = Dependencies,
-    P extends Parameters = Parameters,
+    D extends Dependencies,
+    P extends Parameters,
 >({
     eventListener,
     dependencies = [],
     params,
 }: CreateEventListenerOptions<D,P>,
 ) => {
+    const deps = dependencies.map(dep => ({ id: dep.id, bind: dep.bind, }));
+
+    let dependencyString = "[";
+    for (const dep of deps) {
+        dependencyString += `{id:${dep.id}`;
+
+        if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+
+        dependencyString += `},`;
+    }
+
+    dependencyString += "]";
+
     const value = {
         id: currentId++,
         type: ObjectAttributeType.STATE,
         value: new Function(
             "state",
             "event",
-            `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map(dep => dep.id)}]))`
+            `(${eventListener.toString()})({ event, ...${JSON.stringify(params || {})} }, ...state.getAll(${dependencyString}))`
         ),
     };
 

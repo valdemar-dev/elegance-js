@@ -1,14 +1,11 @@
 // src/components/Breakpoint.ts
 var Breakpoint = (options, ...children) => {
-  if (!options.name) throw `Breakpoints must set a name attribute.`;
-  const name = options.name;
-  delete options.name;
+  if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
+  const id = options.id;
+  delete options.id;
   return div(
     {
-      bp: {
-        type: 4 /* BREAKPOINT */,
-        value: name
-      },
+      bp: id,
       ...options
     },
     ...children
@@ -20,31 +17,36 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-var createState = (augment) => {
-  const returnAugmentValue = {};
-  for (const [key, value] of Object.entries(augment)) {
-    const serverStateEntry = {
-      id: currentId++,
-      value,
-      type: 1 /* STATE */
-    };
-    globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
-    returnAugmentValue[key] = serverStateEntry;
-  }
-  return returnAugmentValue;
+var createState = (value, options) => {
+  const serverStateEntry = {
+    id: currentId++,
+    value,
+    type: 1 /* STATE */,
+    bind: options?.bind
+  };
+  globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+  return serverStateEntry;
 };
 var createEventListener = ({
   eventListener,
   dependencies = [],
   params
 }) => {
+  const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
     value: new Function(
       "state",
       "event",
-      `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params || {})} }, ...state.getAll(${dependencyString}))`
     )
   };
   globalThis.__SERVER_CURRENT_STATE__.push(value);
@@ -54,9 +56,19 @@ var createEventListener = ({
 // src/server/loadHook.ts
 var createLoadHook = (options) => {
   const stringFn = options.fn.toString();
-  const depIds = options.deps?.map((dep) => dep.id);
+  const deps = (options.deps || []).map((dep) => ({
+    id: dep.id,
+    bind: dep.bind
+  }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
   globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-    fn: `(state) => (${stringFn})(state, ...state.getAll([${depIds}]))`,
+    fn: `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`,
     bind: options.bind || ""
   });
 };
@@ -93,16 +105,16 @@ createLoadHook({
   }
 });
 var navigate = createEventListener({
-  eventListener: (event) => {
-    const target = new URL(event.currentTarget.href);
+  eventListener: (params) => {
+    const target = new URL(params.event.currentTarget.href);
     const client2 = globalThis.client;
     const sanitizedTarget = client2.sanitizePathname(target.pathname);
     const sanitizedCurrent = client2.sanitizePathname(window.location.pathname);
     if (sanitizedTarget === sanitizedCurrent) {
-      if (target.hash === window.location.hash) return event.preventDefault();
+      if (target.hash === window.location.hash) return params.event.preventDefault();
       return;
     }
-    event.preventDefault();
+    params.event.preventDefault();
     client2.navigateLocally(target.href);
   }
 });
@@ -172,21 +184,92 @@ var Header = () => header(
 // src/server/observe.ts
 var observe = (refs, update) => {
   const returnValue = {
-    type: 3 /* OBSERVER */,
-    ids: refs.map((ref) => ref.id),
+    type: 2 /* OBSERVER */,
     initialValues: refs.map((ref) => ref.value),
-    update
+    update,
+    refs: refs.map((ref) => ({
+      id: ref.id,
+      bind: ref.bind
+    }))
   };
   return returnValue;
 };
 
+// src/docs/docs/components/CodeBlock.ts
+var isToastShowing = createState(false);
+var toastTimeoutId = createState(0);
+var copyCode = createEventListener({
+  dependencies: [
+    isToastShowing,
+    toastTimeoutId
+  ],
+  params: {},
+  eventListener: async (params, isToastShowing2, toastTimeoutId2) => {
+    const children = params.event.currentTarget.children;
+    const pre2 = children.item(0);
+    const content = pre2.innerText;
+    await navigator.clipboard.writeText(content);
+    if (toastTimeoutId2.value !== 0) clearTimeout(toastTimeoutId2.value);
+    isToastShowing2.value = true;
+    isToastShowing2.signal();
+    const timeoutId = window.setTimeout(() => {
+      isToastShowing2.value = false;
+      isToastShowing2.signal();
+    }, 5e3);
+    toastTimeoutId2.value = timeoutId;
+  }
+});
+var Toast = (bind) => {
+  createLoadHook({
+    bind,
+    deps: [
+      toastTimeoutId,
+      isToastShowing
+    ],
+    fn: (state, toastTimeoutId2, isToastShowing2) => {
+      return () => {
+        clearTimeout(toastTimeoutId2.value);
+        isToastShowing2.value = false;
+        isToastShowing2.signal();
+      };
+    }
+  });
+  return div(
+    {
+      class: observe(
+        [isToastShowing],
+        (isShowing) => {
+          const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-background-800 ";
+          if (isShowing) {
+            return defaultClassName + "right-8";
+          }
+          return defaultClassName + "right-0 translate-x-full";
+        }
+      )
+    },
+    h1("Copied to clipboard!")
+  );
+};
+
+// src/server/layout.ts
+if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
+var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
+var createLayout = (name) => {
+  const layouts = globalThis.__SERVER_CURRENT_LAYOUTS__;
+  if (layouts.has(name)) return layouts.get(name);
+  const id = layoutId++;
+  layouts.set(name, id);
+  return id;
+};
+
 // src/docs/docs/components/DocsLayout.ts
-var serverState = createState({
-  secondsSpentOnPage: 1
+var docsLayoutId = createLayout("docs-layout");
+var secondsSpentOnPage = createState(0, {
+  bind: docsLayoutId
 });
 createLoadHook({
-  deps: [serverState.secondsSpentOnPage],
-  bind: "docs-breakpoint",
+  deps: [secondsSpentOnPage],
+  bind: docsLayoutId,
   fn: (state, time) => {
     let intervalId;
     intervalId = setInterval(() => {
@@ -195,7 +278,6 @@ createLoadHook({
     }, 1e3);
     return () => {
       clearInterval(intervalId);
-      time.value = 1;
     };
   }
 });
@@ -229,11 +311,11 @@ var Sidebar = () => nav(
         span({
           class: "font-mono",
           innerText: observe(
-            [serverState.secondsSpentOnPage],
-            (secondsSpentOnPage) => {
-              const hours = Math.floor(secondsSpentOnPage / 60 / 60);
-              const minutes = Math.floor(secondsSpentOnPage / 60 % 60);
-              const seconds = secondsSpentOnPage % 60;
+            [secondsSpentOnPage],
+            (secondsSpentOnPage2) => {
+              const hours = Math.floor(secondsSpentOnPage2 / 60 / 60);
+              const minutes = Math.floor(secondsSpentOnPage2 / 60 % 60);
+              const seconds = secondsSpentOnPage2 % 60;
               return `${hours}h:${minutes}m:${seconds}s`;
             }
           )
@@ -295,6 +377,7 @@ var DocsLayout = (...children) => div(
     class: "h-screen overflow-clip"
   },
   Header(),
+  Toast(docsLayoutId),
   div(
     {
       class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
@@ -306,7 +389,7 @@ var DocsLayout = (...children) => div(
       },
       Breakpoint(
         {
-          name: "docs-breakpoint"
+          id: docsLayoutId
         },
         ...children
       )

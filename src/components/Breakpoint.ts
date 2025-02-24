@@ -1,19 +1,18 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 
 export const Breakpoint = (
-    options: Record<string, any>,
+    options: {
+        id?: number,
+    },
     ...children: Child[]
 ) => { 
-    if (!options.name) throw `Breakpoints must set a name attribute.`;
-    const name = options.name;
+    if (options.id === undefined) throw `Breakpoints must set a name attribute.`;
+    const id = options.id;
 
-    delete options.name;
+    delete options.id;
 
     return div ({
-        bp: {
-            type: ObjectAttributeType.BREAKPOINT,
-            value: name,
-        },
+        bp: id,
         ...options,
     },
         ...children,

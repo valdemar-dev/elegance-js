@@ -8,13 +8,21 @@ var createEventListener = ({
   dependencies = [],
   params
 }) => {
+  const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
     value: new Function(
       "state",
       "event",
-      `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params || {})} }, ...state.getAll(${dependencyString}))`
     )
   };
   globalThis.__SERVER_CURRENT_STATE__.push(value);
@@ -24,9 +32,19 @@ var createEventListener = ({
 // src/server/loadHook.ts
 var createLoadHook = (options) => {
   const stringFn = options.fn.toString();
-  const depIds = options.deps?.map((dep) => dep.id);
+  const deps = (options.deps || []).map((dep) => ({
+    id: dep.id,
+    bind: dep.bind
+  }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
   globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-    fn: `(state) => (${stringFn})(state, ...state.getAll([${depIds}]))`,
+    fn: `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`,
     bind: options.bind || ""
   });
 };
@@ -63,16 +81,16 @@ createLoadHook({
   }
 });
 var navigate = createEventListener({
-  eventListener: (event) => {
-    const target = new URL(event.currentTarget.href);
+  eventListener: (params) => {
+    const target = new URL(params.event.currentTarget.href);
     const client2 = globalThis.client;
     const sanitizedTarget = client2.sanitizePathname(target.pathname);
     const sanitizedCurrent = client2.sanitizePathname(window.location.pathname);
     if (sanitizedTarget === sanitizedCurrent) {
-      if (target.hash === window.location.hash) return event.preventDefault();
+      if (target.hash === window.location.hash) return params.event.preventDefault();
       return;
     }
-    event.preventDefault();
+    params.event.preventDefault();
     client2.navigateLocally(target.href);
   }
 });

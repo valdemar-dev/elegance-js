@@ -18,9 +18,13 @@ declare global {
         value: unknown;
         type: ObjectAttributeType,
         id: number;
+        bind?: number;
     }>
 
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>
+
+    var __SERVER_CURRENT_LAYOUTS__: Map<string, number>;
+    var __SERVER_CURRENT_LAYOUT_ID__: number;
 
     type AnyBuiltElement = BuiltElement<ElementTags> | ChildrenLessBuiltElement<ChildrenlessElementTags>;
 
@@ -44,9 +48,7 @@ declare global {
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
         ? { type: ObjectAttributeType, id: string | number, value: any, }
         : T extends ObjectAttributeType.OBSERVER
-        ? { type: ObjectAttributeType, ids: number[], initialValues: any[], update: (...value: any) => any }
-        : T extends ObjectAttributeType.BREAKPOINT
-        ? { type: ObjectAttributeType, value: number, }
+        ? { type: ObjectAttributeType, refs: { id: number, bind?: string, }[], initialValues: any[], update: (...value: any) => any }
         : { type: ObjectAttributeType, };
 
     type ElementOptions = {

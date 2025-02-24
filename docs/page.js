@@ -3,31 +3,36 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-var createState = (augment) => {
-  const returnAugmentValue = {};
-  for (const [key, value] of Object.entries(augment)) {
-    const serverStateEntry = {
-      id: currentId++,
-      value,
-      type: 1 /* STATE */
-    };
-    globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
-    returnAugmentValue[key] = serverStateEntry;
-  }
-  return returnAugmentValue;
+var createState = (value, options) => {
+  const serverStateEntry = {
+    id: currentId++,
+    value,
+    type: 1 /* STATE */,
+    bind: options?.bind
+  };
+  globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+  return serverStateEntry;
 };
 var createEventListener = ({
   eventListener,
   dependencies = [],
   params
 }) => {
+  const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
   const value = {
     id: currentId++,
     type: 1 /* STATE */,
     value: new Function(
       "state",
       "event",
-      `(${eventListener.toString()})({ event, ...${JSON.stringify(params)} }, ...state.getAll([${dependencies.map((dep) => dep.id)}]))`
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params || {})} }, ...state.getAll(${dependencyString}))`
     )
   };
   globalThis.__SERVER_CURRENT_STATE__.push(value);
@@ -37,9 +42,19 @@ var createEventListener = ({
 // src/server/loadHook.ts
 var createLoadHook = (options) => {
   const stringFn = options.fn.toString();
-  const depIds = options.deps?.map((dep) => dep.id);
+  const deps = (options.deps || []).map((dep) => ({
+    id: dep.id,
+    bind: dep.bind
+  }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
   globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-    fn: `(state) => (${stringFn})(state, ...state.getAll([${depIds}]))`,
+    fn: `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`,
     bind: options.bind || ""
   });
 };
@@ -76,16 +91,16 @@ createLoadHook({
   }
 });
 var navigate = createEventListener({
-  eventListener: (event) => {
-    const target = new URL(event.currentTarget.href);
+  eventListener: (params) => {
+    const target = new URL(params.event.currentTarget.href);
     const client2 = globalThis.client;
     const sanitizedTarget = client2.sanitizePathname(target.pathname);
     const sanitizedCurrent = client2.sanitizePathname(window.location.pathname);
     if (sanitizedTarget === sanitizedCurrent) {
-      if (target.hash === window.location.hash) return event.preventDefault();
+      if (target.hash === window.location.hash) return params.event.preventDefault();
       return;
     }
-    event.preventDefault();
+    params.event.preventDefault();
     client2.navigateLocally(target.href);
   }
 });
@@ -108,34 +123,35 @@ var Link = (options, ...children) => {
 // src/server/observe.ts
 var observe = (refs, update) => {
   const returnValue = {
-    type: 3 /* OBSERVER */,
-    ids: refs.map((ref) => ref.id),
+    type: 2 /* OBSERVER */,
     initialValues: refs.map((ref) => ref.value),
-    update
+    update,
+    refs: refs.map((ref) => ({
+      id: ref.id,
+      bind: ref.bind
+    }))
   };
   return returnValue;
 };
 
 // src/docs/components/Header.ts
-var serverState = createState({
-  hasUserScrolled: false
-});
+var hasUserScrolled = createState(false);
 createLoadHook({
-  deps: [serverState.hasUserScrolled],
-  fn: (state, hasUserScrolled) => {
+  deps: [hasUserScrolled],
+  fn: (state, hasUserScrolled2) => {
     const handleScroll = () => {
       const pos = {
         x: window.scrollX,
         y: window.scrollY
       };
       if (pos.y > 20) {
-        if (hasUserScrolled.value === true) return;
-        hasUserScrolled.value = true;
-        hasUserScrolled.signal();
+        if (hasUserScrolled2.value === true) return;
+        hasUserScrolled2.value = true;
+        hasUserScrolled2.signal();
       } else {
-        if (hasUserScrolled.value === false) return;
-        hasUserScrolled.value = false;
-        hasUserScrolled.signal();
+        if (hasUserScrolled2.value === false) return;
+        hasUserScrolled2.value = false;
+        hasUserScrolled2.signal();
       }
     };
     window.addEventListener("scroll", handleScroll);
@@ -151,10 +167,10 @@ var Header = () => header(
   div(
     {
       class: observe(
-        [serverState.hasUserScrolled],
-        (hasUserScrolled) => {
+        [hasUserScrolled],
+        (hasUserScrolled2) => {
           const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 ";
-          if (hasUserScrolled) return defaultClass + "border-b-background-800 bg-background-950";
+          if (hasUserScrolled2) return defaultClass + "border-b-background-800 bg-background-950";
           return defaultClass + "bg-background-900 border-b-transparent";
         }
       )

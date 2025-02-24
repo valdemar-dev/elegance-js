@@ -3,12 +3,10 @@ import { observe } from "../../server/observe";
 import { Link } from "../../components/Link";
 import { createLoadHook } from "../../server/loadHook";
 
-const serverState = createState({
-    hasUserScrolled: false,
-});
+const hasUserScrolled = createState(false);
 
 createLoadHook({
-    deps: [serverState.hasUserScrolled],
+    deps: [hasUserScrolled],
     fn: (state, hasUserScrolled) => {
         const handleScroll = () => {
             const pos = {
@@ -42,7 +40,7 @@ export const Header = () => header ({
 },
     div ({
         class: observe(
-            [serverState.hasUserScrolled],
+            [hasUserScrolled],
             (hasUserScrolled) => {
                 const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 "
 

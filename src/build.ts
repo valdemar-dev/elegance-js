@@ -10,6 +10,7 @@ import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
 import { getState, initializeState } from "./server/createState";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
+import { resetLayouts } from "./server/layout";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -184,8 +185,6 @@ const escapeHtml = (str: string): string => {
 };
 
 let elementKey = 0;
-let layoutKey = 0;
-let layoutKeyMap: Record<string, number> = {};
 
 const processOptionAsObjectAttribute = (
     element: AnyBuiltElement,
@@ -198,7 +197,7 @@ const processOptionAsObjectAttribute = (
     const options = element.options as ElementOptions;
 
     let key = options.key;
-    if (!options.key) {
+    if (!key) {
         key = elementKey++;
         options.key = key;
     }
@@ -249,17 +248,6 @@ const processOptionAsObjectAttribute = (
             }
 
             optionFinal = optionName;
-
-            break;
-
-        case ObjectAttributeType.BREAKPOINT:
-            const BPOA = optionValue as ObjectAttribute<ObjectAttributeType.BREAKPOINT>;
-
-            let value = layoutKeyMap[`${BPOA.value}`]
-            if (!value) value = layoutKey++;
-
-            layoutKeyMap[`${BPOA.value}`] = value;
-            options["bp"] = value;
 
             break;
 
@@ -435,25 +423,67 @@ const generateClientPageData = async (
     DIST_DIR: string,
 ) => {
     let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
+
+    if (state) {
+
+    }
+
+
     clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`
     clientPageJSText += `pd[url]={`;
 
     if (state) {
-        let formattedStateString = "";
+        const nonBoundState = state.filter(subj => (subj.bind === undefined));        
 
-        // sorting state cause uh
-        // the client ooa's rely on state being sorted by ID. - val feb 9 2025
-        const sortedState = state.sort((av, bv) => av.id - bv.id)
+        clientPageJSText += `state:[`
 
-        for (const subject of sortedState) {
+        for (const subject of nonBoundState) {
             if (typeof subject.value === "string") {
-                formattedStateString += `{id:${subject.id},value:"${subject.value}"},`;
+                clientPageJSText += `{id:${subject.id},value:"${subject.value}"},`;
             } else {
-                formattedStateString += `{id:${subject.id},value:${subject.value}},`;
+                clientPageJSText += `{id:${subject.id},value:${subject.value}},`;
             }
         }
-     
-        clientPageJSText += `state:[${formattedStateString}],`;
+
+        clientPageJSText += `],`;
+
+        const formattedBoundState: Record<string, any> = {};
+
+        const stateBinds = state.map(subj => subj.bind).filter(bind => bind !== undefined);
+
+        for (const bind of stateBinds) {
+            formattedBoundState[bind] = [];
+        };
+
+        const boundState = state.filter(subj => (subj.bind !== undefined))
+        for (const subject of boundState) {
+            const bindingState = formattedBoundState[subject.bind!];
+
+            delete subject.bind;
+
+            bindingState.push(subject);
+        }
+
+        const bindSubjectPairing = Object.entries(formattedBoundState);
+        if (bindSubjectPairing.length > 0) {
+            clientPageJSText += "binds:{";
+
+            for (const [bind, subjects] of bindSubjectPairing) {
+                clientPageJSText += `${bind}:[`;
+
+                for (const subject of subjects) {
+                    if (typeof subject.value === "string") {
+                        clientPageJSText += `{id:${subject.id},value:"${subject.value}"},`;
+                    } else {
+                        clientPageJSText += `{id:${subject.id},value:${subject.value}},`;
+                    }
+                }
+
+                clientPageJSText += "]";
+            }
+
+            clientPageJSText += "},";
+        }
     }
 
     const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
@@ -474,13 +504,25 @@ const generateClientPageData = async (
         for (const observerObjectAttribute of observerObjectAttributes) {
             const ooa = observerObjectAttribute as unknown as {
                 key: string,
-                ids: number[],
+                refs: {
+                    id: number,
+                    bind: string | undefined,
+                }[],
                 attribute: string,
                 update: (...value: any) => any,
             };
 
-            observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",`;
-            observerObjectAttributeString += `ids:[${ooa.ids}],update:${ooa.update.toString()}},`;
+            observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",update:${ooa.update.toString()},`;
+            observerObjectAttributeString += `refs:[`;
+
+            for (const ref of ooa.refs) {
+                observerObjectAttributeString += `{id:${ref.id}`;
+                if (ref.bind !== undefined) observerObjectAttributeString += `,bind:${ref.bind}`;
+
+                observerObjectAttributeString += "},";
+            }
+
+            observerObjectAttributeString += "]},";
         }
 
         observerObjectAttributeString += "],";
@@ -491,13 +533,7 @@ const generateClientPageData = async (
         clientPageJSText += "lh:[";
 
         for (const loadHook of pageLoadHooks) {
-            const key = layoutKeyMap[`${loadHook.bind}`]
-
-            if (!key) {
-                if (loadHook.bind.length > 0) {
-                    throw `Loadhook bound to non-existent breakpoint key: ${loadHook.bind}`;
-                }
-            }
+            const key = loadHook.bind
 
             clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
         }
@@ -561,9 +597,9 @@ const buildPages = async (
 
         const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
 
-        // reset server-state if it existed 
         initializeState();
         resetLoadHooks();
+        resetLayouts();
 
         const { page: pageElements, } = await import(pagePath + `?${Date.now()}`);
 
@@ -777,11 +813,6 @@ export const compile = async ({
     }
 
     const start = performance.now();
-
-    // reset layout keys between builds
-    // DO NOT REMOVE!
-    layoutKeyMap = {};
-    layoutKey = 1;
 
     const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
 

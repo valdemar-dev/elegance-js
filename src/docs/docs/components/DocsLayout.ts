@@ -4,14 +4,18 @@ import { createState } from "../../../server/createState";
 import { Header } from "../components/Header";
 import { observe } from "../../../server/observe";
 import { createLoadHook } from "../../../server/loadHook";
+import { Toast } from "./CodeBlock";
+import { createLayout } from "../../../server/layout";
 
-const serverState = createState({
-    secondsSpentOnPage: 1,
+const docsLayoutId = createLayout("docs-layout");
+
+const secondsSpentOnPage = createState(0, {
+    bind: docsLayoutId,
 });
 
 createLoadHook({
-    deps: [serverState.secondsSpentOnPage], 
-    bind: "docs-breakpoint",
+    deps: [secondsSpentOnPage], 
+    bind: docsLayoutId,
 
     fn: (state, time) => {
         let intervalId;
@@ -23,7 +27,6 @@ createLoadHook({
 
         return () => {
             clearInterval(intervalId);
-            time.value = 1;
         }
     },
 });
@@ -57,7 +60,7 @@ const Sidebar = () => nav ({
                 span ({
                     class: "font-mono",
                     innerText: observe(
-                        [serverState.secondsSpentOnPage],
+                        [secondsSpentOnPage],
                         (secondsSpentOnPage) => {
                             const hours = Math.floor(secondsSpentOnPage / 60 / 60);
                             const minutes = Math.floor((secondsSpentOnPage / 60) % 60);
@@ -128,6 +131,8 @@ export const DocsLayout = (...children: Child[]) => div ({
 },
     Header(),
 
+    Toast(docsLayoutId),
+
     div ({
         class: "max-w-[1200px] h-full w-full mx-auto flex pt-8 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0",
     },
@@ -137,7 +142,7 @@ export const DocsLayout = (...children: Child[]) => div ({
             class: "h-full w-full overflow-y-scroll pb-[250px] pl-6 ml-6",
         },
             Breakpoint ({
-                name: "docs-breakpoint",
+                id: docsLayoutId,
             },
                 ...children,
             )

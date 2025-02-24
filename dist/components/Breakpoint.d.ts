@@ -1,1 +1,3 @@
-export declare const Breakpoint: (options: Record<string, any>, ...children: Child[]) => BuiltElement<"div">;
+export declare const Breakpoint: (options: {
+    id?: number;
+}, ...children: Child[]) => BuiltElement<"div">;

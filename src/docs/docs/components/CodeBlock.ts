@@ -1,15 +1,14 @@
 import { createEventListener, createState, SetEvent, } from "../../../server/createState"
+import { createLoadHook } from "../../../server/loadHook";
 import { observe } from "../../../server/observe";
 
-const serverState = createState({
-    isToastShowing: false,
-    toastTimeoutId: 0,
-});
+const isToastShowing = createState(false);
+const toastTimeoutId = createState(0);
 
 const copyCode = createEventListener({
     dependencies: [
-        serverState.isToastShowing,
-        serverState.toastTimeoutId,
+        isToastShowing,
+        toastTimeoutId,
     ],
 
     params: {
@@ -32,7 +31,7 @@ const copyCode = createEventListener({
         isToastShowing.value = true;
         isToastShowing.signal();
 
-        const timeoutId: number = window.setTimeout(() => {
+        const timeoutId = window.setTimeout(() => {
             isToastShowing.value = false;
             isToastShowing.signal();
         }, 5000);
@@ -41,22 +40,43 @@ const copyCode = createEventListener({
     },
 });
 
-export const Toast = () => div ({
-    class: observe(
-        [serverState.isToastShowing],
-        (isShowing) => {
-            const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-white text-black ";
+export const Toast = (bind?: number) =>{
+    createLoadHook({
+        bind: bind,
 
-            if (isShowing) {
-                return defaultClassName + "right-8";
+        deps: [
+            toastTimeoutId,
+            isToastShowing
+        ],
+
+        fn: (state, toastTimeoutId, isToastShowing,) => {
+            return () => {
+                clearTimeout(toastTimeoutId.value);
+
+                isToastShowing.value = false;
+                isToastShowing.signal();
             }
-
-            return defaultClassName + "right-0 translate-x-full";
         }
-    )
-},
-    h1 ("Copied to clipboard!"),
-);
+    });
+
+   return div ({
+        class: observe(
+            [isToastShowing],
+            (isShowing) => {
+                const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-background-800 ";
+
+                if (isShowing) {
+                    return defaultClassName + "right-8";
+                }
+
+                return defaultClassName + "right-0 translate-x-full";
+            }
+        )
+    },
+        h1 ("Copied to clipboard!"),
+    );
+
+}
 
 export const CodeBlock =  (value: string) => div ({
     class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm

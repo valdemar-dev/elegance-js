@@ -8,10 +8,11 @@ type ServerSubject = {
     type: ObjectAttributeType;
     value: unknown;
     id: number;
+    bind?: string;
 }
 
 type LoadHookOptions<T extends ServerSubject[]> = {
-    bind?: string,
+    bind?: number | undefined,
     deps?: [...T],
     fn: (
         state: State,
@@ -23,11 +24,11 @@ type LoadHookOptions<T extends ServerSubject[]> = {
 
 export type LoadHook = {
     fn: string,
-    bind: string,
+    bind: number,
 }
 
 export type ClientLoadHook = {
-    bind: string,
+    bind: number,
     fn: (
         state: State,
     ) => (void | (() => void)),
@@ -38,7 +39,24 @@ export const getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
 
 export const createLoadHook = <T extends ServerSubject[]>(options: LoadHookOptions<T>) => {
     const stringFn = options.fn.toString();
-    const depIds = options.deps?.map(dep => dep.id);
+
+    const deps = (options.deps || []).map(dep => ({
+        id: dep.id,
+        bind: dep.bind,
+    }));
+
+    let dependencyString = "[";
+    for (const dep of deps) {
+        dependencyString += `{id:${dep.id}`;
+
+        if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+
+        dependencyString += `},`;
+    }
+
+    dependencyString += "]";
+
+
 
     // hi 
     // send this so the build system
@@ -46,7 +64,7 @@ export const createLoadHook = <T extends ServerSubject[]>(options: LoadHookOptio
     // thanks love ou bye
 
     globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-        fn: `(state) => (${stringFn})(state, ...state.getAll([${depIds}]))`,
+        fn: `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`,
         bind: options.bind || "",
     })
 };

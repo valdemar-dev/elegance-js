@@ -12,6 +12,39 @@ var sanitizePathname = (pn) => {
   return pn.slice(0, -1);
 };
 var currentPage = sanitizePathname(loc.pathname);
+var createStateManager = (subjects) => {
+  const state = {
+    subjects: subjects.map((subject) => {
+      const s = {
+        ...subject,
+        observers: /* @__PURE__ */ new Map()
+      };
+      s.signal = () => {
+        for (const observer of s.observers.values()) {
+          observer(s.value);
+        }
+      };
+      return s;
+    }),
+    get: (id, bind) => {
+      if (bind) {
+        return pd[bind].get(id);
+      }
+      return state.subjects.find((s) => s.id === id);
+    },
+    getAll: (refs) => refs?.map((ref) => {
+      if (ref.bind) {
+        return pd[ref.bind].get(ref.id);
+      }
+      return state.get(ref.id);
+    }),
+    observe: (subject, observer, key) => {
+      subject.observers.delete(key);
+      subject.observers.set(key, observer);
+    }
+  };
+  return state;
+};
 var loadPage = (deprecatedKeys = [], newBreakpoints) => {
   const fixedUrl = new URL(loc.href);
   fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
@@ -31,58 +64,45 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
     "SOA": pageData.soa,
     "Load Hooks": pageData.lh
   });
-  let state = pageData.stateManager;
-  if (!state) {
-    state = {
-      subjects: pageData.state.map((subject) => {
-        const s = {
-          ...subject,
-          observers: /* @__PURE__ */ new Map(),
-          pathname
-        };
-        s.signal = () => {
-          for (const observer of s.observers.values()) {
-            observer(s.value);
-          }
-        };
-        return s;
-      }),
-      get: (id) => state.subjects.find((s) => s.id === id),
-      getAll: (ids) => ids?.map((id) => state.get(id)),
-      observe: (subject, observer, key) => {
-        subject.observers.delete(key);
-        subject.observers.set(key, observer);
-      }
-    };
-    pageData.stateManager = state;
-  }
-  for (const ooa of pageData.ooa || []) {
-    if (ooa.key in deprecatedKeys) {
+  for (const [bind, subjects] of Object.entries(pageData.binds || {})) {
+    if (!pd[bind]) {
+      pd[bind] = createStateManager(subjects);
       continue;
     }
+    const stateManager = pd[bind];
+    const newSubjects = subjects;
+    for (const subject of newSubjects) {
+      if (stateManager.get(subject.id)) continue;
+      pd[bind].subjects.push(subject);
+    }
+  }
+  let state = pageData.stateManager;
+  if (!state) {
+    state = createStateManager(pageData.state);
+    pageData.stateManager = state;
+  }
+  for (const subject of state.subjects) {
+    subject.observers = /* @__PURE__ */ new Map();
+  }
+  for (const ooa of pageData.ooa || []) {
     const el = doc.querySelector(`[key="${ooa.key}"]`);
     let values = {};
-    for (const id of ooa.ids) {
-      const subject = state.get(id);
+    for (const { id, bind } of ooa.refs) {
+      const subject = state.get(id, bind);
       values[subject.id] = subject.value;
       const updateFunction = (value) => {
         values[id] = value;
-        const newValue2 = ooa.update(...Object.values(values));
-        let attribute2 = ooa.attribute === "class" ? "className" : ooa.attribute;
-        el[attribute2] = newValue2;
+        const newValue = ooa.update(...Object.values(values));
+        let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
+        el[attribute] = newValue;
       };
+      updateFunction(subject.value);
       state.observe(subject, updateFunction, ooa.key);
     }
-    const newValue = ooa.update(...Object.values(values));
-    let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
-    el[attribute] = newValue;
   }
   for (const soa of pageData.soa || []) {
-    if (soa.key in deprecatedKeys) {
-      continue;
-    }
     const el = doc.querySelector(`[key="${soa.key}"]`);
-    const subject = state.get(soa.id);
+    const subject = state.get(soa.id, soa.bind);
     if (typeof subject.value === "function") {
       el[soa.attribute] = (event) => subject.value(state, event);
     } else {
@@ -92,7 +112,7 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
   const loadHooks = pageData.lh;
   for (const loadHook of loadHooks || []) {
     const bind = loadHook.bind;
-    if (bind.length > 0 && newBreakpoints && !newBreakpoints.includes(bind)) {
+    if (bind !== void 0 && newBreakpoints && !newBreakpoints.includes(`${bind}`)) {
       continue;
     }
     const fn = loadHook.fn;

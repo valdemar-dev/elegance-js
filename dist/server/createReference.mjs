@@ -8,7 +8,7 @@ var getReference = (ref) => {
 };
 var createReference = () => {
   return {
-    type: 6 /* REFERENCE */,
+    type: 4 /* REFERENCE */,
     value: currentRefId++
   };
 };

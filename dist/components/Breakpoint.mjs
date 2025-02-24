@@ -1,14 +1,11 @@
 // src/components/Breakpoint.ts
 var Breakpoint = (options, ...children) => {
-  if (!options.name) throw `Breakpoints must set a name attribute.`;
-  const name = options.name;
-  delete options.name;
+  if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
+  const id = options.id;
+  delete options.id;
   return div(
     {
-      bp: {
-        type: 4 /* BREAKPOINT */,
-        value: name
-      },
+      bp: id,
       ...options
     },
     ...children

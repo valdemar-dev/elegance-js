@@ -1,10 +1,13 @@
 // src/server/observe.ts
 var observe = (refs, update) => {
   const returnValue = {
-    type: 3 /* OBSERVER */,
-    ids: refs.map((ref) => ref.id),
+    type: 2 /* OBSERVER */,
     initialValues: refs.map((ref) => ref.value),
-    update
+    update,
+    refs: refs.map((ref) => ({
+      id: ref.id,
+      bind: ref.bind
+    }))
   };
   return returnValue;
 };

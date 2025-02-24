@@ -1,4 +1,3 @@
-import { LoadHook } from "module";
 import type { ClientLoadHook, } from "../server/loadHook";
 
 console.log("Elegance.JS is loading..");
@@ -27,6 +26,48 @@ const sanitizePathname = (pn: string) => {
 
 let currentPage: string = sanitizePathname(loc.pathname);
 
+const createStateManager = (subjects: ClientSubject[]) => {
+    const state = {
+        subjects: subjects.map((subject: any) => {
+            const s = {
+                ...subject,
+                observers: new Map(),
+            };
+
+            s.signal = () => {
+                for (const observer of s.observers.values()) {
+                    observer(s.value);
+                }
+            }
+
+            return s;
+        }),
+
+        get: (id: number, bind?: string | undefined) => {
+            if (bind) {
+                return pd[bind].get(id);
+            }
+
+            return state.subjects.find((s: ClientSubject) => s.id === id)
+        },
+
+        getAll: (refs: { id: number, bind?: number, }[]) => refs?.map(ref => {
+            if (ref.bind) {
+                return pd[ref.bind].get(ref.id);
+            }
+
+            return state.get(ref.id)
+        }),
+
+        observe: (subject: ClientSubject, observer: (value: any) => any, key: string) => {
+            subject.observers.delete(key);
+            subject.observers.set(key, observer);
+        }
+    }
+
+    return state;
+};
+
 const loadPage = (
     deprecatedKeys: string[] = [],
     newBreakpoints?: string[] | undefined,
@@ -53,49 +94,40 @@ const loadPage = (
         "Load Hooks": pageData.lh,
     })
 
-    let state = pageData.stateManager;
-
-    if (!state) {
-        state = {
-            subjects: pageData.state.map((subject: any) => {
-                const s = {
-                    ...subject,
-                    observers: new Map(),
-                    pathname: pathname,
-                };
-
-                s.signal = () => {
-                    for (const observer of s.observers.values()) {
-                        observer(s.value);
-                    }
-                }
-
-                return s;
-            }),
-
-            get: (id: number) => state.subjects.find((s: ClientSubject) => s.id === id),
-            getAll: (ids: number[]) => ids?.map(id => state.get(id)),
-
-            observe: (subject: ClientSubject, observer: (value: any) => any, key: string) => {
-                subject.observers.delete(key);
-                subject.observers.set(key, observer);
-            }
+    for (const [bind, subjects] of Object.entries(pageData.binds || {})) {
+        if (!pd[bind]) {
+            pd[bind] = createStateManager(subjects as ClientSubject[]);
+            continue;
         }
+
+        const stateManager = pd[bind];
+        const newSubjects = subjects as ClientSubject[];
+
+        for (const subject of newSubjects) {
+            if (stateManager.get(subject.id)) continue;
+
+            pd[bind].subjects.push(subject);
+        }
+    } 
+
+    let state = pageData.stateManager;
+    if (!state) {
+        state = createStateManager(pageData.state);
 
         pageData.stateManager = state;
     }
 
-    for (const ooa of pageData.ooa || []) {
-        if (ooa.key in deprecatedKeys) {
-            continue;
-        }
+    for (const subject of state.subjects) {
+        subject.observers = new Map();
+    }
 
+    for (const ooa of pageData.ooa || []) {
         const el = doc.querySelector(`[key="${ooa.key}"]`);
 
         let values: Record<string, any> = {};
 
-        for (const id of ooa.ids) {
-            const subject = state.get(id);
+        for (const { id, bind } of ooa.refs) {
+            const subject = state.get(id, bind);
 
             values[subject.id] = subject.value;
 
@@ -108,22 +140,16 @@ const loadPage = (
                 (el as any)[attribute] = newValue;
             };
 
+            updateFunction(subject.value);
+
             state.observe(subject, updateFunction, ooa.key);
         }
-
-        const newValue = ooa.update(...Object.values(values));
-        let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
-
-        (el as any)[attribute] = newValue;
     }
 
     for (const soa of pageData.soa || []) {
-        if (soa.key in deprecatedKeys) {
-            continue;
-        }
-
         const el = doc.querySelector(`[key="${soa.key}"]`) as any;
-        const subject = state.get(soa.id);
+
+        const subject = state.get(soa.id, soa.bind);
 
         if (typeof subject.value === "function") {
             el[soa.attribute] = (event: Event) => subject.value(state, event);
@@ -138,9 +164,9 @@ const loadPage = (
         const bind = loadHook.bind;
 
         if (
-            bind.length > 0 &&
+            bind !== undefined &&
             newBreakpoints &&
-            (!newBreakpoints.includes(bind))
+            (!newBreakpoints.includes(`${bind}`))
         ) {
             continue
         }

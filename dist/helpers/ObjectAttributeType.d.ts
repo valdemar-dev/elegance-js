@@ -1,9 +1,7 @@
 export declare enum ObjectAttributeType {
     GENERIC = 0,
     STATE = 1,
-    FUNCTION = 2,
-    OBSERVER = 3,
-    BREAKPOINT = 4,
-    EVENT_LISTENER = 5,
-    REFERENCE = 6
+    OBSERVER = 2,
+    EVENT_LISTENER = 3,
+    REFERENCE = 4
 }
