@@ -8,8 +8,9 @@ eventSource.onmessage = async (event) => {
     if (event.data === "reload") {
         for (const cleanupProcedure of cleanupProcedures) {
             cleanupProcedure.cleanupFunction();
-            cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
         }
+
+        cleanupProcedures = [];
 
         pd[sanitizePathname(loc.pathname)].stateManager.subjects.map(subj => ({ ...subj, observers: [], }))
 
