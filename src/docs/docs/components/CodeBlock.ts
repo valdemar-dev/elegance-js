@@ -74,11 +74,23 @@ export const Toast = (bind?: number) =>{
     );
 }
 
+const escapeHtml = (str: string): string => {
+    const replaced = str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+
+    return replaced;
+};
+
 export const CodeBlock =  (value: string, parse: boolean = true) => div ({
     class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
             border-[1px] border-background-800 w-max my-3 max-w-full
             overflow-scroll`,
     onClick: copyCode, 
 },
-    pre ({}, parse ? highlightCode(value) : value ),
+    pre ({}, parse ? highlightCode(value) : escapeHtml(value) ),
 )
+

@@ -13,7 +13,7 @@ eventSource.onmessage = async (event) => {
       await newHTML.text(),
       "text/html"
     );
-    document.body = newDOM.body;
+    document.body.replaceWith(newDOM.body);
     document.head.replaceWith(newDOM.head);
     const link = document.querySelector("[rel=stylesheet]");
     if (!link) return;

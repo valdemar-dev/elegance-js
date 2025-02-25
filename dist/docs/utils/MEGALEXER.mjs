@@ -82,7 +82,7 @@ var Lexer = class {
       }
       if (/[a-zA-Z_$]/.test(currentChar)) {
         const value = this.readWhile((c) => /[a-zA-Z0-9_$]/.test(c));
-        const type = this.keywords.has(value) ? "text-amber-100" /* Keyword */ : "text-orange-300" /* Identifier */;
+        const type = this.keywords.has(value) ? "text-amber-100 font-semibold" /* Keyword */ : "text-orange-300" /* Identifier */;
         tokens.push({ type, value, position: this.index });
         continue;
       }

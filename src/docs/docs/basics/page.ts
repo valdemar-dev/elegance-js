@@ -4,6 +4,9 @@ import { DocsLayout } from "../components/DocsLayout";
 import { Separator } from "../components/Separator";
 import { Mono } from "../components/Mono";
 import { CodeBlock, } from "../components/CodeBlock";
+import { highlightCode } from "../../utils/MEGALEXER";
+import { Subtext } from "../components/Subtext";
+import { kill } from "process";
 
 const demoPageTS =
 `export const page = body ({
@@ -161,7 +164,7 @@ export const page = RootLayout (
         CodeBlock(demoPageTS),
 
         p ({
-            class: "opacity-70",
+            class: "opacity-80",
         },
             "Elements are created using simple, ambient global functions.",
             br (),
@@ -314,9 +317,98 @@ export const page = RootLayout (
             br (),
             br (),
 
-            "Next, open a terminal / command prompt window, and issue the following the command.",
+            "Next, open a terminal / command prompt window, and issue the following the command."
+        ),
 
-            CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]", false),
+        CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]", false),
+
+        p ({
+            class: "opacity-80",
+        },
+            "You have now installed Elegance.JS onto your system. Congratulations!",
+        ),
+
+        Separator(),
+
+        PageHeading (
+            "Your First Page",
+            "your-first-page",
+        ), 
+
+        p ({
+            class: "opacity-80",
+        },
+            "Now that Elegance is installed on your machine, it's time to make your first page.",
+
+            br (),
+
+            "With your terminal still open, go ahead and make a new a directory where your project will live.",
+
+            br (),
+            br (),
+
+            "Once that's done, navigate to the directory you just made, and run this command.",
+        ),
+
+        CodeBlock("npm init -y && npm install esbuild", false),
+
+        p ({
+            class: "opacity-80",
+        },
+            "This will create a simple npm project, and install ", b("esbuild"), ", Elegances only dependency.",
+
+            br (),
+            br (),
+
+            "For the unitiated, esbuild is a ridiculously fast JS bundler written in Go.",
+
+            br(),
+
+            "I don't currently *have* plans to write my own bundler, but the complexity of the build process ",
+
+            br(),
+
+            "may make it necessary.",
+
+            br (),
+
+            Subtext("(most of the build time is spent sending different build calls to esbuild)"),
+        ),
+
+        div ({
+            class: "my-10",
+        }),
+
+        p ({
+            class: "opacity-80",
+        },
+            "Next, you'll need to link Elegance to your project.",
+        ),
+
+        CodeBlock("npm link [where you installed elegance]", false),
+
+        p ({
+            class: "opacity-80",
+        },
+            "After linking, create a file at the root of your project called ", 
+            Mono("elegance.d.ts"),
+
+            br (),
+            
+            "And put this inside of it.",
+        ),
+
+        CodeBlock('/// <reference path="elegance-js/types/global" />', false),
+
+        p ({
+            class: "opacity-80",
+        },
+            "This takes the ambient global types from Elegance, and puts them into your project.",
+
+            br(),
+            br(),
+
+            "If all goes well, Elegance should be setup fully now!",
         ),
     ),
 );

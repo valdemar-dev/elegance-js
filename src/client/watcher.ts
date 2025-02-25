@@ -21,7 +21,7 @@ eventSource.onmessage = async (event) => {
             "text/html"
         );
 
-        document.body = newDOM.body;
+        document.body.replaceWith(newDOM.body);
         document.head.replaceWith(newDOM.head);
 
         const link = document.querySelector('[rel=stylesheet]') as HTMLLinkElement;

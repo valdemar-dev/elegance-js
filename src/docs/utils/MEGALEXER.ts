@@ -1,6 +1,6 @@
 
 enum TokenType {
-    Keyword = "text-amber-100",
+    Keyword = "text-amber-100 font-semibold",
     Identifier = "text-orange-300",
     Number = "text-blue-400",
     String = "text-green-200",

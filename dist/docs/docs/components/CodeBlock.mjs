@@ -157,7 +157,7 @@ var Lexer = class {
       }
       if (/[a-zA-Z_$]/.test(currentChar)) {
         const value = this.readWhile((c) => /[a-zA-Z0-9_$]/.test(c));
-        const type = this.keywords.has(value) ? "text-amber-100" /* Keyword */ : "text-orange-300" /* Identifier */;
+        const type = this.keywords.has(value) ? "text-amber-100 font-semibold" /* Keyword */ : "text-orange-300" /* Identifier */;
         tokens.push({ type, value, position: this.index });
         continue;
       }
@@ -347,6 +347,10 @@ var Toast = (bind) => {
     }, "copied to clipboard")
   );
 };
+var escapeHtml2 = (str) => {
+  const replaced = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  return replaced;
+};
 var CodeBlock = (value, parse = true) => div(
   {
     class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
@@ -354,7 +358,7 @@ var CodeBlock = (value, parse = true) => div(
             overflow-scroll`,
     onClick: copyCode
   },
-  pre({}, parse ? highlightCode(value) : value)
+  pre({}, parse ? highlightCode(value) : escapeHtml2(value))
 );
 export {
   CodeBlock,
