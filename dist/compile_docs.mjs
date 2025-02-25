@@ -235,6 +235,11 @@ var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
 var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 
+// src/helpers/camelToKebab.ts
+var camelToKebabCase = (input) => {
+  return input.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+};
+
 // src/build.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
@@ -259,9 +264,6 @@ var underline = (text) => {
 };
 var white = (text) => {
   return `\x1B[38;2;255;247;229m${text}`;
-};
-var white_100 = (text) => {
-  return `\x1B[38;2;255;239;204m${text}`;
 };
 var green = (text) => {
   return `\x1B[38;2;65;224;108m${text}`;
@@ -315,15 +317,15 @@ var getProjectFiles = (pagesDirectory) => {
     infoFiles
   };
 };
-var buildClient = async (environment, DIST_DIR, isInWatchMode, watchServerPort) => {
+var buildClient = async (environment2, DIST_DIR, isInWatchMode, watchServerPort) => {
   let clientString = fs.readFileSync(clientPath, "utf-8");
   if (isInWatchMode) {
     clientString += `const watchServerPort = ${watchServerPort}`;
     clientString += fs.readFileSync(watcherPath, "utf-8");
   }
   const transformedClient = await esbuild.transform(clientString, {
-    minify: environment === "production",
-    drop: environment === "production" ? ["console", "debugger"] : void 0,
+    minify: environment2 === "production",
+    drop: environment2 === "production" ? ["console", "debugger"] : void 0,
     keepNames: true,
     format: "iife",
     platform: "node",
@@ -334,11 +336,11 @@ var buildClient = async (environment, DIST_DIR, isInWatchMode, watchServerPort) 
     transformedClient.code
   );
 };
-var buildInfoFiles = async (infoFiles, environment, SERVER_DIR) => {
+var buildInfoFiles = async (infoFiles, environment2, SERVER_DIR) => {
   const mappedInfoFileNames = infoFiles.map((f) => `${f.parentPath}/${f.name}`);
   await esbuild.build({
-    minify: environment === "production",
-    drop: environment === "production" ? ["console", "debugger"] : void 0,
+    minify: environment2 === "production",
+    drop: environment2 === "production" ? ["console", "debugger"] : void 0,
     entryPoints: mappedInfoFileNames,
     bundle: true,
     outdir: SERVER_DIR,
@@ -439,13 +441,17 @@ var processPageElements = (element, objectAttributes) => {
           throw `Cannot use innerText or innerHTML on childrenless elements.`;
         }
         element.children = [optionValue, ...element.children];
+        continue;
       } else if (lcOptionName === "innerhtml") {
         if (element.children === null) {
           throw `Cannot use innerText or innerHTML on childrenless elements.`;
         }
         delete options[optionName];
         element.children = [optionValue];
+        continue;
       }
+      delete options[optionName];
+      options[camelToKebabCase(optionName)] = optionValue;
       continue;
     }
     ;
@@ -743,10 +749,12 @@ var compile = async ({
   writeToHTML = false,
   pagesDirectory,
   outputDirectory,
-  environment,
-  watchServerPort = 3001
+  environment: environment2,
+  watchServerPort = 3001,
+  postCompile,
+  publicDirectory
 }) => {
-  const watch = environment === "development";
+  const watch = environment2 === "development";
   const BUILD_FLAG = path.join(outputDirectory, "ELEGANE_BUILD_FLAG");
   if (fs.existsSync(outputDirectory)) {
     if (!fs.existsSync(BUILD_FLAG)) {
@@ -771,7 +779,7 @@ var compile = async ({
   log(bold(yellow(" -- Elegance.JS -- ")));
   log(white(`Beginning build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}..`));
   log("");
-  if (environment === "production") {
+  if (environment2 === "production") {
     log(
       " - ",
       bgYellow(bold(black(" NOTE "))),
@@ -784,14 +792,17 @@ var compile = async ({
   }
   const start = performance.now();
   const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
-  await buildInfoFiles(infoFiles, environment, SERVER_DIR);
+  const projectFilesGathered = performance.now();
+  await buildInfoFiles(infoFiles, environment2, SERVER_DIR);
+  const infoFilesBuilt = performance.now();
   const pages = await getPageCompilationDirections(pageFiles, pagesDirectory, SERVER_DIR);
+  const compilationDirectionsGathered = performance.now();
   await esbuild.build({
     entryPoints: [
       ...pages.map((page) => page.pageFilepath)
     ],
-    minify: environment === "production",
-    drop: environment === "production" ? ["console", "debugger"] : void 0,
+    minify: environment2 === "production",
+    drop: environment2 === "production" ? ["console", "debugger"] : void 0,
     bundle: true,
     outdir: DIST_DIR,
     loader: {
@@ -801,28 +812,37 @@ var compile = async ({
     format: "esm",
     platform: "node"
   });
+  const pagesTranspiled = performance.now();
   const {
     shouldClientHardReload
   } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
-  await buildClient(environment, DIST_DIR, watch, watchServerPort);
-  const end = performance.now();
-  log(bold(yellow(" -- Elegance.JS -- ")));
-  log(white(`Finished build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}.`));
-  log(green(bold(`Created ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
-  log("");
-  log(white("  Pages:"));
-  for (const page of pages) {
-    log(white_100(`    - /${page.pageLocation}`));
+  const pagesBuilt = performance.now();
+  await buildClient(environment2, DIST_DIR, watch, watchServerPort);
+  if (publicDirectory) {
+    fs.symlinkSync(publicDirectory, path.join(DIST_DIR, "public"), "dir");
   }
+  const end = performance.now();
+  console.log(`${Math.round(projectFilesGathered - start)}ms to Gather Project Files`);
+  console.log(`${Math.round(infoFilesBuilt - projectFilesGathered)}ms to Build info Files`);
+  console.log(`${Math.round(compilationDirectionsGathered - infoFilesBuilt)}ms to Gather Compilation Directions`);
+  console.log(`${Math.round(pagesTranspiled - compilationDirectionsGathered)} to Transpile Pages`);
+  console.log(`${Math.round(pagesBuilt - pagesTranspiled)}ms to Build Pages`);
+  console.log(`${Math.round(end - pagesBuilt)}ms to Build Client`);
+  log(green(bold(`Created ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
   if (watch) {
     await registerListener({
       writeToHTML,
       pagesDirectory,
       outputDirectory,
-      environment,
+      environment: environment2,
       watch,
-      watchServerPort
+      watchServerPort,
+      postCompile,
+      publicDirectory
     });
+  }
+  if (postCompile) {
+    await postCompile();
   }
   return {
     shouldClientHardReload
@@ -830,18 +850,24 @@ var compile = async ({
 };
 
 // src/compile_docs.ts
-import { exec } from "child_process";
+import { execSync } from "child_process";
 import path2 from "path";
 var __dirname2 = path2.dirname(fileURLToPath2(import.meta.url));
 var PAGES_DIR = path2.join(__dirname2, "../src/docs");
+var PUBLIC_DIR = path2.join(__dirname2, "../src/docs/public");
 var OUTPUT_DIR = path2.join(__dirname2, "../docs");
+var environmentArg = process.argv.find((arg) => arg.startsWith("--environment"));
+if (!environmentArg) environmentArg = "--environment='production'";
+var environment = environmentArg.split("=")[1];
+console.log(`Environment: ${environment}`);
 compile({
   writeToHTML: true,
   pagesDirectory: PAGES_DIR,
   outputDirectory: OUTPUT_DIR,
-  environment: process.env.ENVIRONMENT,
-  watchServerPort: 3001
-}).then(() => {
-  exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify ${process.env.ENVIRONMENT === "development" ? "--watch" : ""}`);
-  console.log("Built Docs.");
+  environment,
+  watchServerPort: 3001,
+  publicDirectory: PUBLIC_DIR,
+  postCompile: async () => {
+    execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify`);
+  }
 });

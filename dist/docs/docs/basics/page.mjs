@@ -343,6 +343,13 @@ var tokenize = (input) => {
       } else if (value === "true" || value === "false") {
         type = "text-blue-200" /* Boolean */;
       }
+      let tempIndex = index;
+      while (tempIndex < length && /\s/.test(input[tempIndex])) {
+        tempIndex++;
+      }
+      if (tempIndex < length && input[tempIndex] === "(") {
+        type = "text-red-300" /* FunctionCall */;
+      }
       tokens.push({ type, value, position: startPos });
       continue;
     }
@@ -565,7 +572,7 @@ var Sidebar = () => nav(
           class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
         },
         NavSubLink(
-          "/docs/concepts/elements",
+          "/docs/concepts#elements",
           "Elements"
         )
       )
@@ -705,9 +712,7 @@ var page = RootLayout(
       br(),
       "As such, elegance isn't really meant for production, yet."
     ),
-    div({
-      class: "my-10"
-    }, []),
+    Separator(),
     h3({
       class: "text-lg font-medium mb-1",
       innerText: "What is Elegance?"
@@ -735,7 +740,7 @@ var page = RootLayout(
       "of data!",
       img({
         class: "border-[1px] rounded-sm border-background-600 my-4",
-        src: "/assets/nullpage_size.png"
+        src: "/public/nullpage_size.png"
       }),
       'For context, an "empty" (gzipped)  react app on average transfers roughly ',
       b("200-300kB "),

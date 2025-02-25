@@ -232,6 +232,11 @@ var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
 var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 
+// src/helpers/camelToKebab.ts
+var camelToKebabCase = (input) => {
+  return input.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+};
+
 // src/build.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
@@ -256,9 +261,6 @@ var underline = (text) => {
 };
 var white = (text) => {
   return `\x1B[38;2;255;247;229m${text}`;
-};
-var white_100 = (text) => {
-  return `\x1B[38;2;255;239;204m${text}`;
 };
 var green = (text) => {
   return `\x1B[38;2;65;224;108m${text}`;
@@ -436,13 +438,17 @@ var processPageElements = (element, objectAttributes) => {
           throw `Cannot use innerText or innerHTML on childrenless elements.`;
         }
         element.children = [optionValue, ...element.children];
+        continue;
       } else if (lcOptionName === "innerhtml") {
         if (element.children === null) {
           throw `Cannot use innerText or innerHTML on childrenless elements.`;
         }
         delete options[optionName];
         element.children = [optionValue];
+        continue;
       }
+      delete options[optionName];
+      options[camelToKebabCase(optionName)] = optionValue;
       continue;
     }
     ;
@@ -741,7 +747,9 @@ var compile = async ({
   pagesDirectory,
   outputDirectory,
   environment,
-  watchServerPort = 3001
+  watchServerPort = 3001,
+  postCompile,
+  publicDirectory
 }) => {
   const watch = environment === "development";
   const BUILD_FLAG = path.join(outputDirectory, "ELEGANE_BUILD_FLAG");
@@ -781,8 +789,11 @@ var compile = async ({
   }
   const start = performance.now();
   const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
+  const projectFilesGathered = performance.now();
   await buildInfoFiles(infoFiles, environment, SERVER_DIR);
+  const infoFilesBuilt = performance.now();
   const pages = await getPageCompilationDirections(pageFiles, pagesDirectory, SERVER_DIR);
+  const compilationDirectionsGathered = performance.now();
   await esbuild.build({
     entryPoints: [
       ...pages.map((page) => page.pageFilepath)
@@ -798,19 +809,23 @@ var compile = async ({
     format: "esm",
     platform: "node"
   });
+  const pagesTranspiled = performance.now();
   const {
     shouldClientHardReload
   } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
+  const pagesBuilt = performance.now();
   await buildClient(environment, DIST_DIR, watch, watchServerPort);
-  const end = performance.now();
-  log(bold(yellow(" -- Elegance.JS -- ")));
-  log(white(`Finished build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}.`));
-  log(green(bold(`Created ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
-  log("");
-  log(white("  Pages:"));
-  for (const page of pages) {
-    log(white_100(`    - /${page.pageLocation}`));
+  if (publicDirectory) {
+    fs.symlinkSync(publicDirectory, path.join(DIST_DIR, "public"), "dir");
   }
+  const end = performance.now();
+  console.log(`${Math.round(projectFilesGathered - start)}ms to Gather Project Files`);
+  console.log(`${Math.round(infoFilesBuilt - projectFilesGathered)}ms to Build info Files`);
+  console.log(`${Math.round(compilationDirectionsGathered - infoFilesBuilt)}ms to Gather Compilation Directions`);
+  console.log(`${Math.round(pagesTranspiled - compilationDirectionsGathered)} to Transpile Pages`);
+  console.log(`${Math.round(pagesBuilt - pagesTranspiled)}ms to Build Pages`);
+  console.log(`${Math.round(end - pagesBuilt)}ms to Build Client`);
+  log(green(bold(`Created ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
   if (watch) {
     await registerListener({
       writeToHTML,
@@ -818,8 +833,13 @@ var compile = async ({
       outputDirectory,
       environment,
       watch,
-      watchServerPort
+      watchServerPort,
+      postCompile,
+      publicDirectory
     });
+  }
+  if (postCompile) {
+    await postCompile();
   }
   return {
     shouldClientHardReload

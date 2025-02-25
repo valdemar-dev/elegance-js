@@ -166,6 +166,15 @@ const tokenize = (input: string): Token[] => {
             } else if (value === "true" || value === "false") {
                 type = TokenType.Boolean;
             }
+
+            let tempIndex = index;
+            while (tempIndex < length && /\s/.test(input[tempIndex])) {
+                tempIndex++;
+            }
+            if (tempIndex < length && input[tempIndex] === '(') {
+                type = TokenType.FunctionCall;
+            }
+
             tokens.push({ type, value, position: startPos });
             continue;
         }

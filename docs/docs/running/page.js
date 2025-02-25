@@ -1,5 +1,1 @@
-// src/docs/docs/running/page.ts
-var page = body({});
-export {
-  page
-};
+var o=body({});export{o as page};

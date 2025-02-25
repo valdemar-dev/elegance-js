@@ -77,9 +77,7 @@ export const page = RootLayout (
             "As such, elegance isn't really meant for production, yet."
         ),
 
-        div ({
-            class: "my-10",
-        }, []),
+        Separator(),
 
         h3 ({
             class: "text-lg font-medium mb-1",
@@ -115,7 +113,7 @@ export const page = RootLayout (
 
             img ({
                 class: "border-[1px] rounded-sm border-background-600 my-4",
-                src: "/assets/nullpage_size.png",
+                src: "/public/nullpage_size.png",
             }),
 
             "For context, an \"empty\" (gzipped)  react app on average transfers roughly ",

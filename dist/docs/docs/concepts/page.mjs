@@ -1,25 +1,3 @@
-// src/docs/components/RootLayout.ts
-var RootLayout = (...children) => body(
-  {
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
-  },
-  ...children
-);
-
-// src/components/Breakpoint.ts
-var Breakpoint = (options, ...children) => {
-  if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
-  const id = options.id;
-  delete options.id;
-  return div(
-    {
-      bp: id,
-      ...options
-    },
-    ...children
-  );
-};
-
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -142,51 +120,12 @@ var Link = (options, ...children) => {
   );
 };
 
-// src/docs/docs/components/Header.ts
-var Header = () => header(
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
   {
-    class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
   },
-  div(
-    {
-      class: "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"
-    },
-    div(
-      {
-        class: "max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
-      },
-      div(
-        {
-          class: "flex min-w-max w-full items-center z-10"
-        },
-        Link(
-          {
-            href: "/",
-            class: "flex items-center gap-1 h-full"
-          },
-          p({
-            class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
-            innerText: "Elegance"
-          }),
-          p({
-            innerText: "JS",
-            class: "font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"
-          })
-        )
-      ),
-      div(
-        {
-          class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
-        },
-        Link({
-          prefetch: "hover",
-          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
-          href: "/docs",
-          innerText: "Docs"
-        })
-      )
-    )
-  )
+  ...children
 );
 
 // src/server/observe.ts
@@ -201,6 +140,176 @@ var observe = (refs, update) => {
     }))
   };
   return returnValue;
+};
+
+// src/docs/utils/MEGALEXER.ts
+var tokenize = (input) => {
+  const tokens = [];
+  const length = input.length;
+  let index = 0;
+  const keywords = /* @__PURE__ */ new Set([
+    "if",
+    "else",
+    "for",
+    "while",
+    "function",
+    "return",
+    "class",
+    "const",
+    "let",
+    "var",
+    "interface",
+    "type",
+    "extends",
+    "implements",
+    "export",
+    "import",
+    "from"
+  ]);
+  const operatorChars = /* @__PURE__ */ new Set([
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "=",
+    ">",
+    "<",
+    "!",
+    "&",
+    "|",
+    "^",
+    "~",
+    "?",
+    ":"
+  ]);
+  const punctuationChars = /* @__PURE__ */ new Set([
+    ";",
+    ",",
+    ".",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]"
+  ]);
+  const peek = (offset = 1) => index + offset < length ? input[index + offset] : "";
+  const readWhile = (predicate) => {
+    const start = index;
+    while (index < length && predicate(input[index])) {
+      index++;
+    }
+    return input.slice(start, index);
+  };
+  const readString = (quoteType) => {
+    let value = input[index++];
+    while (index < length && input[index] !== quoteType) {
+      if (input[index] === "\\") {
+        value += input[index++];
+        if (index < length) {
+          value += input[index++];
+        }
+      } else {
+        value += input[index++];
+      }
+    }
+    if (index < length) {
+      value += input[index++];
+    }
+    return value;
+  };
+  const readLineComment = () => {
+    const start = index;
+    index += 2;
+    while (index < length && input[index] !== "\n") {
+      index++;
+    }
+    return input.slice(start, index);
+  };
+  const readBlockComment = () => {
+    const start = index;
+    index += 2;
+    while (index < length && !(input[index] === "*" && peek() === "/")) {
+      index++;
+    }
+    if (index < length) {
+      index += 2;
+    }
+    return input.slice(start, index);
+  };
+  while (index < length) {
+    const char = input[index];
+    const startPos = index;
+    if (/\s/.test(char)) {
+      const value = readWhile((c) => /\s/.test(c));
+      tokens.push({ type: "" /* Whitespace */, value, position: startPos });
+      continue;
+    }
+    if (char === "/") {
+      if (peek() === "/") {
+        const value = readLineComment();
+        tokens.push({ type: "text-gray-400" /* Comment */, value, position: startPos });
+        continue;
+      } else if (peek() === "*") {
+        const value = readBlockComment();
+        tokens.push({ type: "text-gray-400" /* Comment */, value, position: startPos });
+        continue;
+      }
+    }
+    if (char === '"' || char === "'") {
+      const value = readString(char);
+      tokens.push({ type: "text-green-200" /* String */, value, position: startPos });
+      continue;
+    }
+    if (/\d/.test(char)) {
+      const value = readWhile((c) => /[\d\.]/.test(c));
+      tokens.push({ type: "text-blue-400" /* Number */, value, position: startPos });
+      continue;
+    }
+    if (/[a-zA-Z_$]/.test(char)) {
+      const value = readWhile((c) => /[a-zA-Z0-9_$]/.test(c));
+      let type = "text-orange-300" /* Identifier */;
+      if (keywords.has(value)) {
+        type = "text-amber-100 font-semibold" /* Keyword */;
+      } else if (value === "true" || value === "false") {
+        type = "text-blue-200" /* Boolean */;
+      }
+      let tempIndex = index;
+      while (tempIndex < length && /\s/.test(input[tempIndex])) {
+        tempIndex++;
+      }
+      if (tempIndex < length && input[tempIndex] === "(") {
+        type = "text-red-300" /* FunctionCall */;
+      }
+      tokens.push({ type, value, position: startPos });
+      continue;
+    }
+    if (operatorChars.has(char)) {
+      let value = char;
+      index++;
+      if (index < length && operatorChars.has(input[index])) {
+        value += input[index++];
+      }
+      tokens.push({ type: "" /* Operator */, value, position: startPos });
+      continue;
+    }
+    if (punctuationChars.has(char)) {
+      tokens.push({ type: "text-gray-400" /* Punctuation */, value: char, position: startPos });
+      index++;
+      continue;
+    }
+    tokens.push({ type: "" /* Unknown */, value: char, position: startPos });
+    index++;
+  }
+  return tokens;
+};
+var escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+var highlightCode = (code) => {
+  const tokens = tokenize(code);
+  return tokens.map(
+    (token) => token.type === "" /* Whitespace */ ? token.value : `<span class="${token.type}">${escapeHtml(token.value)}</span>`
+  ).join("");
 };
 
 // src/docs/docs/components/CodeBlock.ts
@@ -256,6 +365,80 @@ var Toast = (bind) => {
     }, "copied to clipboard")
   );
 };
+var escapeHtml2 = (str) => {
+  const replaced = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  return replaced;
+};
+var CodeBlock = (value, parse = true) => div(
+  {
+    class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
+            border-[1px] border-background-800 w-max my-3 max-w-full
+            overflow-scroll`,
+    onClick: copyCode
+  },
+  pre({}, parse ? highlightCode(value) : escapeHtml2(value))
+);
+
+// src/components/Breakpoint.ts
+var Breakpoint = (options, ...children) => {
+  if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
+  const id = options.id;
+  delete options.id;
+  return div(
+    {
+      bp: id,
+      ...options
+    },
+    ...children
+  );
+};
+
+// src/docs/docs/components/Header.ts
+var Header = () => header(
+  {
+    class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
+  },
+  div(
+    {
+      class: "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"
+    },
+    div(
+      {
+        class: "max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
+      },
+      div(
+        {
+          class: "flex min-w-max w-full items-center z-10"
+        },
+        Link(
+          {
+            href: "/",
+            class: "flex items-center gap-1 h-full"
+          },
+          p({
+            class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
+            innerText: "Elegance"
+          }),
+          p({
+            innerText: "JS",
+            class: "font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"
+          })
+        )
+      ),
+      div(
+        {
+          class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
+        },
+        Link({
+          prefetch: "hover",
+          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
+          href: "/docs",
+          innerText: "Docs"
+        })
+      )
+    )
+  )
+);
 
 // src/server/layout.ts
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
@@ -382,7 +565,7 @@ var Sidebar = () => nav(
           class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
         },
         NavSubLink(
-          "/docs/concepts/elements",
+          "/docs/concepts#elements",
           "Elements"
         )
       )
@@ -450,6 +633,11 @@ var DocsLayout = (...children) => div(
   )
 );
 
+// src/docs/docs/components/Mono.ts
+var Mono = (text) => span({
+  class: "font-mono select-text"
+}, text);
+
 // src/docs/docs/components/PageHeading.ts
 var PageHeading = (title, id) => h2({
   class: "text-3xl font-semibold mb-4",
@@ -457,10 +645,153 @@ var PageHeading = (title, id) => h2({
   innerText: title
 });
 
+// src/docs/docs/components/Paragraph.ts
+var Paragraph = (...children) => p(
+  {
+    class: "opacity-80"
+  },
+  ...children
+);
+
+// src/docs/docs/components/SubSeparator.ts
+var SubSeparator = () => div({
+  class: "my-10"
+}, []);
+
 // src/docs/docs/concepts/page.ts
+var exampleElementWithNoOptions = `
+h1 ("I'll have 1 child, and no options!"),
+h1 ("I'll have 2 children, and no options!", "I am the second child."),
+`;
+var exampleElementWithNoOptionsResult = `
+[
+    {
+        tag: "h1",
+        options: {},
+        children: ["I'll have 1 child, and no options!"],
+    },
+    {
+        tag: "h1",
+        options: {},
+        children: [
+            "I'll have 1 child, and no options!",
+            "I am the second child!",
+        ],
+    }
+]
+`;
+var exampleOptions = `
+div ({
+    id: "my-element-id",
+    customAttribute: "SUPER-IMPORTANT",
+    innerText: "Pokemon Platinum was peak Pokemon.",
+})
+`;
+var exampleAllowedChildren = `
+div (
+    1,
+    true,
+    "Hello World!",
+    ["Apple", "Banana"],
+    ...someArray.map((value, index) => p(index)),
+)
+`;
 var page = RootLayout(
   DocsLayout(
-    PageHeading("Elements", "elements")
+    PageHeading("Elements", "elements"),
+    Paragraph(
+      "Elements are simple function calls of ambient global variables.",
+      br(),
+      "All standard HTML5 elements except ",
+      Mono("var"),
+      " (for obvious reasons) are available."
+    ),
+    SubSeparator(),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Element Options"
+    }),
+    Paragraph(
+      "The first parameter you pass to an element can either be another element,",
+      br(),
+      "or an options object. If the first parameter is an element, then that element is prepended",
+      br(),
+      "to the elements children; and the element will have no options."
+    ),
+    CodeBlock(exampleElementWithNoOptions),
+    CodeBlock(exampleElementWithNoOptionsResult),
+    Paragraph(
+      "This is done purely for syntax reasons. For example,",
+      br(),
+      "I think it's nicer to write ",
+      Mono('b("bold.")'),
+      " than ",
+      Mono('b({}, "bold.")'),
+      br(),
+      br(),
+      "An options object may specify ",
+      b("any"),
+      " attribute, and that attributes value may be a string,",
+      br(),
+      "number or boolean.",
+      CodeBlock(exampleOptions)
+    ),
+    SubSeparator(),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Important Considerations"
+    }),
+    ol(
+      {
+        class: "flex flex-col gap-2"
+      },
+      Paragraph(
+        "1. You should enter attributes as camelCase. They will be converted into kebab-case upon compilation."
+      ),
+      Paragraph(
+        "2. Unlike in React, you'll want to use ",
+        Mono("class"),
+        " for class names, rather than ",
+        Mono("className.")
+      ),
+      Paragraph(
+        "3. ",
+        Mono("on[Event]"),
+        " handlers can only be ",
+        Link({
+          href: "/docs/concepts/object-attributes",
+          class: "border-b-2"
+        }, "State Object Attributes")
+      ),
+      Paragraph(
+        "4. The attributes ",
+        Mono("key"),
+        " and ",
+        Mono("bp"),
+        " are reserved by Elegance."
+      ),
+      Paragraph(
+        "5. ",
+        Mono("innerText"),
+        " prepends its own value to the elements children."
+      ),
+      Paragraph(
+        "6. ",
+        Mono("innerHTML"),
+        " sets the elements children to its value."
+      )
+    ),
+    SubSeparator(),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Children"
+    }),
+    Paragraph(
+      "The rest of the values passed in to an element call, will be the elements children.",
+      br(),
+      "Strings, numbers, booleans, arrays, and other element calls, are all valid children."
+    ),
+    CodeBlock(exampleAllowedChildren)
   )
 );
 export {

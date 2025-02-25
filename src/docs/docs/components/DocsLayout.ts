@@ -133,7 +133,7 @@ const Sidebar = () => nav ({
                 class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
             },
                 NavSubLink (
-                    "/docs/concepts/elements",
+                    "/docs/concepts#elements",
                     "Elements",
                 ),
             ),

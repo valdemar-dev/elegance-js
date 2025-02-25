@@ -1,1 +1,1 @@
-let url="/nullpage";globalThis.pd||(globalThis.pd={});let pd=globalThis.pd;pd[url]={state:[{id:0,value:0},{id:1,value:function(a,i){((t,l)=>{l.value++,l.signal()})({event:i},...a.getAll([{id:0}]))}}],soa:[{id:1,key:1,attribute:"onclick"}],ooa:[{key:0,attribute:"innerText",update:e=>`The Counter is at: ${e}`,refs:[{id:0}]}]};
+let url="/nullpage";globalThis.pd||(globalThis.pd={});let pd=globalThis.pd;pd[url]={state:[]};

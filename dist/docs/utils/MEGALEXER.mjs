@@ -131,6 +131,13 @@ var tokenize = (input) => {
       } else if (value === "true" || value === "false") {
         type = "text-blue-200" /* Boolean */;
       }
+      let tempIndex = index;
+      while (tempIndex < length && /\s/.test(input[tempIndex])) {
+        tempIndex++;
+      }
+      if (tempIndex < length && input[tempIndex] === "(") {
+        type = "text-red-300" /* FunctionCall */;
+      }
       tokens.push({ type, value, position: startPos });
       continue;
     }

@@ -11,6 +11,7 @@ import { serverSideRenderPage } from "./server/render";
 import { getState, initializeState } from "./server/createState";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
+import { camelToKebabCase } from "./helpers/camelToKebab";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -323,6 +324,8 @@ const processPageElements = (element: Child, objectAttributes: Array<any>): Chil
                     throw `Cannot use innerText or innerHTML on childrenless elements.`;
                 }
                 element.children = [optionValue, ...(element.children as Child[])];
+
+                continue;
             }
 
             else if (lcOptionName === "innerhtml") {
@@ -332,8 +335,13 @@ const processPageElements = (element: Child, objectAttributes: Array<any>): Chil
 
                 delete options[optionName];
                 element.children = [optionValue];
+
+                continue;
             }
 
+            delete options[optionName];
+            options[camelToKebabCase(optionName)] = optionValue;
+            
             continue;
         };
 
@@ -770,13 +778,16 @@ export const compile = async ({
     outputDirectory,
     environment,
     watchServerPort = 3001,
+    postCompile,
+    publicDirectory,
 }: {
     writeToHTML?: boolean,
     watchServerPort?: number
-
+    postCompile?: () => any,
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
+    publicDirectory?: string,
 }) => {
     const watch = environment === "development";
 
@@ -830,9 +841,15 @@ export const compile = async ({
 
     const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
 
+    const projectFilesGathered = performance.now();
+
     await buildInfoFiles(infoFiles, environment, SERVER_DIR);
 
+    const infoFilesBuilt = performance.now();
+
     const pages = await getPageCompilationDirections(pageFiles, pagesDirectory, SERVER_DIR);
+
+    const compilationDirectionsGathered = performance.now();
 
     await esbuild.build({
         entryPoints: [
@@ -850,23 +867,30 @@ export const compile = async ({
         platform: "node",
     });
 
+    const pagesTranspiled = performance.now();
+
     const {
         shouldClientHardReload
     } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
 
+    const pagesBuilt = performance.now();
+
     await buildClient(environment, DIST_DIR, watch, watchServerPort);
+
+    if (publicDirectory) {
+        fs.symlinkSync(publicDirectory, path.join(DIST_DIR, "public"), "dir");
+    }
 
     const end = performance.now();
 
-    log(bold(yellow(" -- Elegance.JS -- ")));
-    log(white(`Finished build at ${new Date().toLocaleTimeString()}.`));
-    log(green(bold((`Created ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
-    log("");
+    console.log(`${Math.round(projectFilesGathered-start)}ms to Gather Project Files`)
+    console.log(`${Math.round(infoFilesBuilt-projectFilesGathered)}ms to Build info Files`)
+    console.log(`${Math.round(compilationDirectionsGathered-infoFilesBuilt)}ms to Gather Compilation Directions`)
+    console.log(`${Math.round(pagesTranspiled-compilationDirectionsGathered)} to Transpile Pages`)
+    console.log(`${Math.round(pagesBuilt-pagesTranspiled)}ms to Build Pages`)
+    console.log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
 
-    log(white("  Pages:"));
-    for (const page of pages) {
-        log(white_100(`    - /${page.pageLocation}`));
-    }
+    log(green(bold((`Created ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
 
     if (watch) {
         await registerListener({
@@ -875,8 +899,14 @@ export const compile = async ({
             outputDirectory,
             environment,
             watch,
-            watchServerPort
+            watchServerPort,
+            postCompile,
+            publicDirectory,
         })
+    }
+
+    if (postCompile) {
+        await postCompile();
     }
 
     return {
