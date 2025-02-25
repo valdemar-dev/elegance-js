@@ -635,8 +635,8 @@ export const page = RootLayout (
                 href: "http://localhost:3000/",
                 class: "border-b-2",
             },
-                "localhost:3000"
-            )
+                "localhost:3000."
+            ),
         ),
     ),
 );

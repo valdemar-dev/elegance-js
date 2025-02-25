@@ -415,6 +415,7 @@ const generateSuitablePageElements = async (
     return objectAttributes;
 };
 
+// TODO: REWRITE THIS SHITTY FUNCTION
 const generateClientPageData = async (
     pageLocation: string,
     state: typeof globalThis.__SERVER_CURRENT_STATE__,
@@ -423,11 +424,6 @@ const generateClientPageData = async (
     DIST_DIR: string,
 ) => {
     let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
-
-    if (state) {
-
-    }
-
 
     clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`
     clientPageJSText += `pd[url]={`;
@@ -784,9 +780,23 @@ export const compile = async ({
 }) => {
     const watch = environment === "development";
 
-    if (!fs.existsSync(outputDirectory)) {
-        fs.mkdirSync(outputDirectory);
+    const BUILD_FLAG = path.join(outputDirectory, "ELEGANE_BUILD_FLAG");
+
+    if (fs.existsSync(outputDirectory)) {
+        if (!fs.existsSync(BUILD_FLAG)) {
+            throw `The output directory already exists, but is not an Elegance Build directory.`;
+        }
+
+        fs.rmSync(outputDirectory, { recursive: true, })
     }
+
+    fs.mkdirSync(outputDirectory);
+
+    fs.writeFileSync(
+        path.join(BUILD_FLAG),
+        "This file just marks this directory as one containing an Elegance Build.",
+        "utf-8",
+    ); 
 
     const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
     const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server")
