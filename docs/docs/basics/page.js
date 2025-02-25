@@ -211,225 +211,167 @@ var observe = (refs, update) => {
 };
 
 // src/docs/utils/MEGALEXER.ts
-var Lexer = class {
-  constructor(input) {
-    this.keywords = /* @__PURE__ */ new Set([
-      "if",
-      "else",
-      "for",
-      "while",
-      "function",
-      "return",
-      "class",
-      "const",
-      "let",
-      "var",
-      "interface",
-      "type",
-      "extends",
-      "implements",
-      "export"
-    ]);
-    this.input = input;
-    this.index = 0;
-    this.length = input.length;
-  }
-  tokenize() {
-    const tokens = [];
-    const operatorChars = /* @__PURE__ */ new Set([
-      "+",
-      "-",
-      "*",
-      "/",
-      "%",
-      "=",
-      ">",
-      "<",
-      "!",
-      "&",
-      "|",
-      "^",
-      "~",
-      "?",
-      ":"
-    ]);
-    const punctuationChars = /* @__PURE__ */ new Set([
-      ";",
-      ",",
-      ".",
-      "(",
-      ")",
-      "{",
-      "}",
-      "[",
-      "]"
-    ]);
-    while (this.index < this.length) {
-      const currentChar = this.input[this.index];
-      if (/\s/.test(currentChar)) {
-        const value = this.readWhile((c) => /\s/.test(c));
-        tokens.push({ type: "" /* Whitespace */, value, position: this.index });
-        continue;
-      }
-      if (currentChar === "/") {
-        if (this.peek() === "/") {
-          const value = this.readLineComment();
-          tokens.push({ type: "text-gray-400" /* Comment */, value, position: this.index });
-          continue;
-        } else if (this.peek() === "*") {
-          const value = this.readBlockComment();
-          tokens.push({ type: "text-gray-400" /* Comment */, value, position: this.index });
-          continue;
-        }
-      }
-      if (currentChar === '"' || currentChar === "'") {
-        const value = this.readString(currentChar);
-        tokens.push({ type: "text-green-200" /* String */, value, position: this.index });
-        continue;
-      }
-      if (/\d/.test(currentChar)) {
-        const value = this.readWhile((c) => /[\d\.]/.test(c));
-        tokens.push({ type: "text-blue-400" /* Number */, value, position: this.index });
-        continue;
-      }
-      if (/[a-zA-Z_$]/.test(currentChar)) {
-        const value = this.readWhile((c) => /[a-zA-Z0-9_$]/.test(c));
-        const type = this.keywords.has(value) ? "text-amber-100 font-semibold" /* Keyword */ : "text-orange-300" /* Identifier */;
-        tokens.push({ type, value, position: this.index });
-        continue;
-      }
-      if (operatorChars.has(currentChar)) {
-        let value = currentChar;
-        this.index++;
-        if (this.index < this.length && operatorChars.has(this.input[this.index])) {
-          value += this.input[this.index++];
-        }
-        tokens.push({ type: "" /* Operator */, value, position: this.index });
-        continue;
-      }
-      if (punctuationChars.has(currentChar)) {
-        tokens.push({ type: "text-gray-400" /* Punctuation */, value: currentChar, position: this.index + 1 });
-        this.index++;
-        continue;
-      }
-      tokens.push({ type: "" /* Unknown */, value: currentChar, position: this.index + 1 });
-      this.index++;
+var tokenize = (input) => {
+  const tokens = [];
+  const length = input.length;
+  let index = 0;
+  const keywords = /* @__PURE__ */ new Set([
+    "if",
+    "else",
+    "for",
+    "while",
+    "function",
+    "return",
+    "class",
+    "const",
+    "let",
+    "var",
+    "interface",
+    "type",
+    "extends",
+    "implements",
+    "export",
+    "import",
+    "from"
+  ]);
+  const operatorChars = /* @__PURE__ */ new Set([
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "=",
+    ">",
+    "<",
+    "!",
+    "&",
+    "|",
+    "^",
+    "~",
+    "?",
+    ":"
+  ]);
+  const punctuationChars = /* @__PURE__ */ new Set([
+    ";",
+    ",",
+    ".",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]"
+  ]);
+  const peek = (offset = 1) => index + offset < length ? input[index + offset] : "";
+  const readWhile = (predicate) => {
+    const start = index;
+    while (index < length && predicate(input[index])) {
+      index++;
     }
-    return tokens;
-  }
-  readWhile(predicate) {
-    const start = this.index;
-    while (this.index < this.length && predicate(this.input[this.index])) {
-      this.index++;
-    }
-    return this.input.slice(start, this.index);
-  }
-  readLineComment() {
-    let value = this.input[this.index] + this.input[this.index + 1];
-    this.index += 2;
-    while (this.index < this.length && this.input[this.index] !== "\n") {
-      value += this.input[this.index++];
-    }
-    return value;
-  }
-  readBlockComment() {
-    let value = this.input[this.index] + this.input[this.index + 1];
-    this.index += 2;
-    while (this.index < this.length && !(this.input[this.index] === "*" && this.peek() === "/")) {
-      value += this.input[this.index++];
-    }
-    if (this.index < this.length) {
-      value += this.input[this.index++] + this.input[this.index++];
-    }
-    return value;
-  }
-  readString(quoteType) {
-    let value = this.input[this.index++];
-    while (this.index < this.length && this.input[this.index] !== quoteType) {
-      if (this.input[this.index] === "\\") {
-        value += this.input[this.index++];
-        if (this.index < this.length) {
-          value += this.input[this.index++];
+    return input.slice(start, index);
+  };
+  const readString = (quoteType) => {
+    let value = input[index++];
+    while (index < length && input[index] !== quoteType) {
+      if (input[index] === "\\") {
+        value += input[index++];
+        if (index < length) {
+          value += input[index++];
         }
       } else {
-        value += this.input[this.index++];
+        value += input[index++];
       }
     }
-    if (this.index < this.length) {
-      value += this.input[this.index++];
+    if (index < length) {
+      value += input[index++];
     }
     return value;
+  };
+  const readLineComment = () => {
+    const start = index;
+    index += 2;
+    while (index < length && input[index] !== "\n") {
+      index++;
+    }
+    return input.slice(start, index);
+  };
+  const readBlockComment = () => {
+    const start = index;
+    index += 2;
+    while (index < length && !(input[index] === "*" && peek() === "/")) {
+      index++;
+    }
+    if (index < length) {
+      index += 2;
+    }
+    return input.slice(start, index);
+  };
+  while (index < length) {
+    const char = input[index];
+    const startPos = index;
+    if (/\s/.test(char)) {
+      const value = readWhile((c) => /\s/.test(c));
+      tokens.push({ type: "" /* Whitespace */, value, position: startPos });
+      continue;
+    }
+    if (char === "/") {
+      if (peek() === "/") {
+        const value = readLineComment();
+        tokens.push({ type: "text-gray-400" /* Comment */, value, position: startPos });
+        continue;
+      } else if (peek() === "*") {
+        const value = readBlockComment();
+        tokens.push({ type: "text-gray-400" /* Comment */, value, position: startPos });
+        continue;
+      }
+    }
+    if (char === '"' || char === "'") {
+      const value = readString(char);
+      tokens.push({ type: "text-green-200" /* String */, value, position: startPos });
+      continue;
+    }
+    if (/\d/.test(char)) {
+      const value = readWhile((c) => /[\d\.]/.test(c));
+      tokens.push({ type: "text-blue-400" /* Number */, value, position: startPos });
+      continue;
+    }
+    if (/[a-zA-Z_$]/.test(char)) {
+      const value = readWhile((c) => /[a-zA-Z0-9_$]/.test(c));
+      let type = "text-orange-300" /* Identifier */;
+      if (keywords.has(value)) {
+        type = "text-amber-100 font-semibold" /* Keyword */;
+      } else if (value === "true" || value === "false") {
+        type = "text-blue-200" /* Boolean */;
+      }
+      tokens.push({ type, value, position: startPos });
+      continue;
+    }
+    if (operatorChars.has(char)) {
+      let value = char;
+      index++;
+      if (index < length && operatorChars.has(input[index])) {
+        value += input[index++];
+      }
+      tokens.push({ type: "" /* Operator */, value, position: startPos });
+      continue;
+    }
+    if (punctuationChars.has(char)) {
+      tokens.push({ type: "text-gray-400" /* Punctuation */, value: char, position: startPos });
+      index++;
+      continue;
+    }
+    tokens.push({ type: "" /* Unknown */, value: char, position: startPos });
+    index++;
   }
-  peek(offset = 1) {
-    return this.index + offset < this.length ? this.input[this.index + offset] : "";
-  }
+  return tokens;
 };
-function postProcessTokens(tokens) {
-  const processed = [];
-  let insideObject = false;
-  const braceStack = [];
-  const nextNonWhitespace = (i) => {
-    let j = i + 1;
-    while (j < tokens.length && tokens[j].type === "" /* Whitespace */) {
-      j++;
-    }
-    return tokens[j];
-  };
-  const prevNonWhitespace = (i) => {
-    let j = i - 1;
-    while (j >= 0 && tokens[j].type === "" /* Whitespace */) {
-      j--;
-    }
-    return tokens[j];
-  };
-  for (let i = 0; i < tokens.length; i++) {
-    let token = tokens[i];
-    if (token.type === "text-gray-400" /* Punctuation */) {
-      if (token.value === "{") {
-        braceStack.push(token);
-        insideObject = true;
-      } else if (token.value === "}") {
-        braceStack.pop();
-        if (braceStack.length === 0) {
-          insideObject = false;
-        }
-      }
-    }
-    if (token.type === "text-orange-300" /* Identifier */) {
-      const next = nextNonWhitespace(i);
-      if (next && next.type === "text-gray-400" /* Punctuation */ && next.value === "(") {
-        token = { ...token, type: "text-orange-300" /* FunctionCall */ };
-      }
-    }
-    if (insideObject && (token.type === "text-orange-300" /* Identifier */ || token.type === "text-green-200" /* String */)) {
-      const next = nextNonWhitespace(i);
-      if (next && next.type === "text-gray-400" /* Punctuation */ && next.value === ":") {
-        token = { ...token, type: "" /* ObjectKey */ };
-      }
-    }
-    if (insideObject) {
-      const prev = prevNonWhitespace(i);
-      if (prev && prev.type === "text-gray-400" /* Punctuation */ && prev.value === ":") {
-        if (token.type !== "text-gray-400" /* Punctuation */ || token.value !== "," && token.value !== "}") {
-          token = { ...token, type: "" /* ObjectValue */ };
-        }
-      }
-    }
-    processed.push(token);
-  }
-  return processed;
-}
-function escapeHtml(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-function highlightCode(code) {
-  const lexer = new Lexer(code);
-  let tokens = lexer.tokenize();
-  tokens = postProcessTokens(tokens);
+var escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+var highlightCode = (code) => {
+  const tokens = tokenize(code);
   return tokens.map(
     (token) => token.type === "" /* Whitespace */ ? token.value : `<span class="${token.type}">${escapeHtml(token.value)}</span>`
   ).join("");
-}
+};
 
 // src/docs/docs/components/CodeBlock.ts
 var isToastShowing = createState(false);
@@ -675,9 +617,7 @@ var Subtext = (text) => span({
 var demoPageTS = `export const page = body ({
     style: "background-color: #000; color: #fff;",
 },
-    h1 ({
-        innerText: "Greetings Traveler!",
-    }),
+    h1 ("Greetings Traveler!"),
 );`;
 var bodyCallResult = `
 {
@@ -696,10 +636,19 @@ var bodyCallResult = `
     ],
 }
 `;
-var demoInfoTS = `export const metadata = () => head ({},
-    title ("Greetings Traveler!"),
+var demoInfoTS = `export const metadata = () => head (
+    title ("The BEST Page Ever!"),
 );
 `;
+var demoIndexTs = `import { compile } from "elegance-js/build";
+
+compile({
+    environment: "development",
+    outputDirectory: "./.elegance",
+    pagesDirectory: "./pages",
+    writeToHTML: false,
+});`;
+var demoFirstPage = `export const page = body ("Greetings Traveller!");`;
 var page = RootLayout(
   DocsLayout(
     PageHeading(
@@ -933,6 +882,10 @@ var page = RootLayout(
       "Your First Page",
       "your-first-page"
     ),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Making a Project"
+    }),
     p(
       {
         class: "opacity-80"
@@ -949,22 +902,13 @@ var page = RootLayout(
       {
         class: "opacity-80"
       },
-      "This will create a simple npm project, and install ",
+      "This will initialize npm, and install ",
       b("esbuild"),
       ", Elegances only dependency.",
       br(),
       br(),
-      "For the unitiated, esbuild is a ridiculously fast JS bundler written in Go.",
-      br(),
-      "I don't currently *have* plans to write my own bundler, but the complexity of the build process ",
-      br(),
-      "may make it necessary.",
-      br(),
-      Subtext("(most of the build time is spent sending different build calls to esbuild)")
+      "For the unitiated, esbuild is a ridiculously fast JS bundler written in Go."
     ),
-    div({
-      class: "my-10"
-    }),
     p(
       {
         class: "opacity-80"
@@ -972,12 +916,29 @@ var page = RootLayout(
       "Next, you'll need to link Elegance to your project."
     ),
     CodeBlock("npm link [where you installed elegance]", false),
+    Subtext("(you might need sudo for this if you're on linux)"),
+    div({
+      class: "my-10"
+    }),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Typescript Configuration"
+    }),
     p(
       {
         class: "opacity-80"
       },
-      "After linking, create a file at the root of your project called ",
-      Mono("elegance.d.ts"),
+      "Now, for the TypeScript users, you'll want to do these next few steps.",
+      br(),
+      "First, boostrap a ",
+      Mono("tsconfig.json"),
+      " so typescript works properly.",
+      br(),
+      Subtext("Note: You might need to set your moduleResolution as bundler, or this might not work."),
+      br(),
+      br(),
+      "Create a file at the root of your project called ",
+      Mono("env.d.ts"),
       br(),
       "And put this inside of it."
     ),
@@ -988,8 +949,167 @@ var page = RootLayout(
       },
       "This takes the ambient global types from Elegance, and puts them into your project.",
       br(),
-      br(),
       "If all goes well, Elegance should be setup fully now!"
+    ),
+    div({
+      class: "my-10"
+    }),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Creating Pages"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Like we mentioned earlier, a page requires two files. ",
+      Mono("info.ts & page.ts"),
+      br(),
+      "So, let's create those, shall we?",
+      br(),
+      br(),
+      "At the root of your project, create a directory. You can call it pages, app, whatever you want.",
+      br(),
+      br(),
+      "In this new directory, create a ",
+      Mono("page.ts"),
+      " file.",
+      br(),
+      "Just for a start, put something simple into it. Like this.",
+      br(),
+      "We'll get whacky and crazy later on, don't worry."
+    ),
+    CodeBlock(demoFirstPage),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Next, create an ",
+      Mono("info.ts"),
+      " file, and again, put something simple into it."
+    ),
+    CodeBlock(demoInfoTS),
+    div({
+      class: "my-10"
+    }),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Building your Project"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Create an ",
+      Mono("index.ts"),
+      " file at the root of your project.",
+      br(),
+      br(),
+      "Elegance exposes the ",
+      Mono("compile()"),
+      " function from it's build process,",
+      br(),
+      "which we'll be using to compile your project."
+    ),
+    CodeBlock(demoIndexTs),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "Here's an example usage of the ",
+      Mono("compile()"),
+      " function.",
+      br(),
+      br(),
+      Mono('environment: "development"'),
+      br(),
+      " Means that Elegance won't minify your page code, and will create a 'watch-server',",
+      br(),
+      "which will auto-reload your pages when you save them.",
+      br(),
+      br(),
+      Mono('outputDirectory: "./.elegance"'),
+      br(),
+      " This is where Elegance will put it's compiled files into.,",
+      br(),
+      "We wouldn't recommend changing this, however, you can, if need be.",
+      br(),
+      br(),
+      Mono('pagesDirectory: "./pages"'),
+      br(),
+      "This is the directory where you put your pages.",
+      br(),
+      "You should make it match whatever you named the directory obviously.",
+      br(),
+      br(),
+      Mono("writeToHTML: true"),
+      br(),
+      "This makes Elegance write static HTML files, instead of keeping the generated page JSON",
+      br(),
+      "You can turn this off if you want to server render per-request.",
+      br(),
+      br(),
+      ""
+    ),
+    div({
+      class: "my-10"
+    }),
+    h3({
+      class: "text-lg font-medium mb-1",
+      innerText: "Running your Project"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "You can choose how to run your own project. ",
+      br(),
+      "Elegance ",
+      i("should "),
+      "work with most JS runtimes like Node, Deno, etc.",
+      br(),
+      "However some (like Deno), may require a little tweaking.",
+      br(),
+      br(),
+      Link(
+        {
+          href: "/docs/running",
+          class: "border-b-2"
+        },
+        "More about running here."
+      )
+    ),
+    div({
+      class: "my-10"
+    }),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "For the purposes of this tutorial, we'll try to keep it simple.",
+      br(),
+      "Simply issue the following command in your terminal."
+    ),
+    CodeBlock("npx tsx index.ts && cd .elegance && python3 -m http.server 3000", false),
+    p(
+      {
+        class: "opacity-80"
+      },
+      "This'll take your ",
+      Mono("index.ts"),
+      " run it, and then serve the ",
+      br(),
+      "generated files over a simple Python HTTP server.",
+      br(),
+      br(),
+      "And that's it! You can view your shiny new webpage at the URL, ",
+      a(
+        {
+          href: "http://localhost:3000/",
+          class: "border-b-2"
+        },
+        "localhost:3000"
+      )
     )
   )
 );

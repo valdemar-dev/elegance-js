@@ -605,7 +605,7 @@ var buildPages = async (pages, DIST_DIR, writeToHTML, watch) => {
         );
       }
     }
-    const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js");
+    const pagePath = path.resolve(path.join(DIST_DIR, page.pageLocation, "page.js"));
     initializeState();
     resetLoadHooks();
     resetLayouts();
@@ -641,7 +641,7 @@ var getPageCompilationDirections = async (pageFiles, pagesDirectory, SERVER_DIR)
   const builtInfoFiles = [...getAllSubdirectories(SERVER_DIR), ""];
   const compilationDirections = [];
   for (const builtInfoFile of builtInfoFiles) {
-    const absoluteFilePath = `${path.join(SERVER_DIR, builtInfoFile, "/info.js")}`;
+    const absoluteFilePath = `${path.resolve(process.cwd(), path.join(SERVER_DIR, builtInfoFile, "/info.js"))}`;
     const pagePath = path.join(pagesDirectory, builtInfoFile);
     const pageFile = pageFiles.find((page) => page.parentPath === pagePath);
     if (!pageFile) continue;
@@ -746,6 +746,9 @@ var compile = async ({
   watchServerPort = 3001
 }) => {
   const watch = environment === "development";
+  if (!fs.existsSync(outputDirectory)) {
+    fs.mkdirSync(outputDirectory);
+  }
   const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
   const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server");
   if (!fs.existsSync(DIST_DIR)) {

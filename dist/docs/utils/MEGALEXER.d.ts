@@ -1,1 +1,1 @@
-export declare function highlightCode(code: string): string;
+export declare const highlightCode: (code: string) => string;

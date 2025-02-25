@@ -595,7 +595,7 @@ const buildPages = async (
             }
         }
 
-        const pagePath = path.join(DIST_DIR, page.pageLocation, "page.js")
+        const pagePath = path.resolve(path.join(DIST_DIR, page.pageLocation, "page.js"))
 
         initializeState();
         resetLoadHooks();
@@ -642,7 +642,7 @@ const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirec
     const compilationDirections = [];
 
     for (const builtInfoFile of builtInfoFiles) {
-        const absoluteFilePath = `${path.join(SERVER_DIR, builtInfoFile, "/info.js")}`;
+        const absoluteFilePath = `${path.resolve(process.cwd(), path.join(SERVER_DIR, builtInfoFile, "/info.js"))}`;
 
         const pagePath = path.join(pagesDirectory, builtInfoFile)
         const pageFile = pageFiles.find(page => page.parentPath === pagePath);
@@ -783,6 +783,10 @@ export const compile = async ({
     outputDirectory: string,
 }) => {
     const watch = environment === "development";
+
+    if (!fs.existsSync(outputDirectory)) {
+        fs.mkdirSync(outputDirectory);
+    }
 
     const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
     const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server")

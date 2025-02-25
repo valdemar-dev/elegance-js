@@ -7,14 +7,13 @@ import { CodeBlock, } from "../components/CodeBlock";
 import { highlightCode } from "../../utils/MEGALEXER";
 import { Subtext } from "../components/Subtext";
 import { kill } from "process";
+import { Link } from "../../../components/Link";
 
 const demoPageTS =
 `export const page = body ({
     style: "background-color: #000; color: #fff;",
 },
-    h1 ({
-        innerText: "Greetings Traveler!",
-    }),
+    h1 ("Greetings Traveler!"),
 );`;
 
 const bodyCallResult = `
@@ -36,10 +35,21 @@ const bodyCallResult = `
 `;
 
 const demoInfoTS =
-`export const metadata = () => head ({},
-    title ("Greetings Traveler!"),
+`export const metadata = () => head (
+    title ("The BEST Page Ever!"),
 );
 `;
+
+const demoIndexTs = `import { compile } from "elegance-js/build";
+
+compile({
+    environment: "development",
+    outputDirectory: "./.elegance",
+    pagesDirectory: "./pages",
+    writeToHTML: false,
+});`
+
+const demoFirstPage = `export const page = body ("Greetings Traveller!");`
 
 export const page = RootLayout (
     DocsLayout (
@@ -335,6 +345,11 @@ export const page = RootLayout (
             "your-first-page",
         ), 
 
+        h3 ({
+            class: "text-lg font-medium mb-1",
+            innerText: "Making a Project",
+        }),
+
         p ({
             class: "opacity-80",
         },
@@ -355,29 +370,13 @@ export const page = RootLayout (
         p ({
             class: "opacity-80",
         },
-            "This will create a simple npm project, and install ", b("esbuild"), ", Elegances only dependency.",
+            "This will initialize npm, and install ", b("esbuild"), ", Elegances only dependency.",
 
             br (),
             br (),
 
             "For the unitiated, esbuild is a ridiculously fast JS bundler written in Go.",
-
-            br(),
-
-            "I don't currently *have* plans to write my own bundler, but the complexity of the build process ",
-
-            br(),
-
-            "may make it necessary.",
-
-            br (),
-
-            Subtext("(most of the build time is spent sending different build calls to esbuild)"),
         ),
-
-        div ({
-            class: "my-10",
-        }),
 
         p ({
             class: "opacity-80",
@@ -387,11 +386,35 @@ export const page = RootLayout (
 
         CodeBlock("npm link [where you installed elegance]", false),
 
+        Subtext("(you might need sudo for this if you're on linux)"),
+
+        div ({
+            class: "my-10",
+        }),
+
+        h3 ({
+            class: "text-lg font-medium mb-1",
+            innerText: "Typescript Configuration",
+        }),
+
         p ({
             class: "opacity-80",
         },
-            "After linking, create a file at the root of your project called ", 
-            Mono("elegance.d.ts"),
+            "Now, for the TypeScript users, you'll want to do these next few steps.",
+
+            br(),
+
+            "First, boostrap a ", Mono("tsconfig.json"), " so typescript works properly.",
+
+            br(),
+
+            Subtext("Note: You might need to set your moduleResolution as bundler, or this might not work."),
+
+            br(),
+            br(),
+
+            "Create a file at the root of your project called ", 
+            Mono("env.d.ts"),
 
             br (),
             
@@ -406,9 +429,214 @@ export const page = RootLayout (
             "This takes the ambient global types from Elegance, and puts them into your project.",
 
             br(),
-            br(),
 
             "If all goes well, Elegance should be setup fully now!",
+        ),
+
+        div ({
+            class: "my-10",
+        }),
+
+        h3 ({
+            class: "text-lg font-medium mb-1",
+            innerText: "Creating Pages",
+        }),
+
+        p ({
+            class: "opacity-80",
+        },
+            "Like we mentioned earlier, a page requires two files. ", Mono("info.ts & page.ts"),
+
+            br (),
+
+            "So, let's create those, shall we?",
+
+            br (),
+            br (),
+
+            "At the root of your project, create a directory. You can call it pages, app, whatever you want.",
+
+            br (),
+            br (),
+
+            "In this new directory, create a ", Mono("page.ts"), " file.",
+
+            br (),
+
+            "Just for a start, put something simple into it. Like this.",
+
+            br(),
+
+            "We'll get whacky and crazy later on, don't worry.",
+        ),
+
+        CodeBlock(demoFirstPage),
+
+        p ({
+            class: "opacity-80",
+        },
+            "Next, create an ", Mono("info.ts"), " file, and again, put something simple into it."
+        ),
+        
+        CodeBlock(demoInfoTS),
+
+        div ({
+            class: "my-10"
+        }),
+
+        h3 ({
+            class: "text-lg font-medium mb-1",
+            innerText: "Building your Project",
+        }),
+
+        p ({
+            class: "opacity-80",
+        },
+            "Create an ", Mono("index.ts"), " file at the root of your project.",
+
+            br (),
+            br (),
+
+            "Elegance exposes the ", Mono("compile()"), " function from it's build process,",
+
+            br(),
+
+            "which we'll be using to compile your project."
+        ),
+
+        CodeBlock(demoIndexTs),
+
+        p ({
+            class: "opacity-80",
+        },
+            "Here's an example usage of the ", Mono("compile()"), " function.",
+
+            br(),
+            br(),
+
+            Mono("environment: \"development\""),
+            
+            br(),
+
+            " Means that Elegance won't minify your page code, and will create a 'watch-server',",
+            br(),
+
+            "which will auto-reload your pages when you save them.",
+
+            br(),
+            br(),
+
+            Mono("outputDirectory: \"./.elegance\""),
+            
+            br(),
+
+            " This is where Elegance will put it's compiled files into.,",
+
+            br(),
+
+            "We wouldn't recommend changing this, however, you can, if need be.",
+
+            br(),
+            br(),
+
+            Mono("pagesDirectory: \"./pages\""),
+            
+            br(),
+
+            "This is the directory where you put your pages.",
+
+            br(),
+
+            "You should make it match whatever you named the directory obviously.",
+
+            br(),
+            br(),
+
+            Mono("writeToHTML: true"),
+            
+            br(),
+
+            "This makes Elegance write static HTML files, instead of keeping the generated page JSON",
+
+            br(),
+
+            "You can turn this off if you want to server render per-request.",
+
+            br(),
+            br(),
+
+            ""
+        ),
+
+        div ({
+            class: "my-10"
+        }),
+
+        h3 ({
+            class: "text-lg font-medium mb-1",
+            innerText: "Running your Project",
+        }),
+
+        p ({
+            class: "opacity-80",
+        },
+            "You can choose how to run your own project. ",
+
+            br(),
+
+            "Elegance ", i("should "), "work with most JS runtimes like Node, Deno, etc.",
+
+            br(),
+
+            "However some (like Deno), may require a little tweaking.",
+
+            br(),
+            br(),
+
+            Link ({
+                href: "/docs/running",
+                class: "border-b-2"
+            },
+                "More about running here."
+            )
+        ),
+
+        div ({
+            class: "my-10",
+        }),
+
+        p ({
+            class: "opacity-80",
+        },
+            "For the purposes of this tutorial, we'll try to keep it simple.",
+
+            br(),
+
+            "Simply issue the following command in your terminal.",
+        ),
+
+        CodeBlock("npx tsx index.ts && cd .elegance && python3 -m http.server 3000", false),
+
+        p ({
+            class: "opacity-80",
+        },
+            "This'll take your ", Mono("index.ts"), " run it, and then serve the ",
+
+            br(),
+
+            "generated files over a simple Python HTTP server." ,
+
+            br (),
+            br (),
+
+            "And that's it! You can view your shiny new webpage at the URL, ",
+
+            a ({
+                href: "http://localhost:3000/",
+                class: "border-b-2",
+            },
+                "localhost:3000"
+            )
         ),
     ),
 );
