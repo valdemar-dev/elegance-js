@@ -210,6 +210,227 @@ var observe = (refs, update) => {
   return returnValue;
 };
 
+// src/docs/utils/MEGALEXER.ts
+var Lexer = class {
+  constructor(input) {
+    this.keywords = /* @__PURE__ */ new Set([
+      "if",
+      "else",
+      "for",
+      "while",
+      "function",
+      "return",
+      "class",
+      "const",
+      "let",
+      "var",
+      "interface",
+      "type",
+      "extends",
+      "implements",
+      "export"
+    ]);
+    this.input = input;
+    this.index = 0;
+    this.length = input.length;
+  }
+  tokenize() {
+    const tokens = [];
+    const operatorChars = /* @__PURE__ */ new Set([
+      "+",
+      "-",
+      "*",
+      "/",
+      "%",
+      "=",
+      ">",
+      "<",
+      "!",
+      "&",
+      "|",
+      "^",
+      "~",
+      "?",
+      ":"
+    ]);
+    const punctuationChars = /* @__PURE__ */ new Set([
+      ";",
+      ",",
+      ".",
+      "(",
+      ")",
+      "{",
+      "}",
+      "[",
+      "]"
+    ]);
+    while (this.index < this.length) {
+      const currentChar = this.input[this.index];
+      if (/\s/.test(currentChar)) {
+        const value = this.readWhile((c) => /\s/.test(c));
+        tokens.push({ type: "" /* Whitespace */, value, position: this.index });
+        continue;
+      }
+      if (currentChar === "/") {
+        if (this.peek() === "/") {
+          const value = this.readLineComment();
+          tokens.push({ type: "text-gray-400" /* Comment */, value, position: this.index });
+          continue;
+        } else if (this.peek() === "*") {
+          const value = this.readBlockComment();
+          tokens.push({ type: "text-gray-400" /* Comment */, value, position: this.index });
+          continue;
+        }
+      }
+      if (currentChar === '"' || currentChar === "'") {
+        const value = this.readString(currentChar);
+        tokens.push({ type: "text-green-200" /* String */, value, position: this.index });
+        continue;
+      }
+      if (/\d/.test(currentChar)) {
+        const value = this.readWhile((c) => /[\d\.]/.test(c));
+        tokens.push({ type: "text-blue-400" /* Number */, value, position: this.index });
+        continue;
+      }
+      if (/[a-zA-Z_$]/.test(currentChar)) {
+        const value = this.readWhile((c) => /[a-zA-Z0-9_$]/.test(c));
+        const type = this.keywords.has(value) ? "text-amber-100" /* Keyword */ : "text-orange-300" /* Identifier */;
+        tokens.push({ type, value, position: this.index });
+        continue;
+      }
+      if (operatorChars.has(currentChar)) {
+        let value = currentChar;
+        this.index++;
+        if (this.index < this.length && operatorChars.has(this.input[this.index])) {
+          value += this.input[this.index++];
+        }
+        tokens.push({ type: "" /* Operator */, value, position: this.index });
+        continue;
+      }
+      if (punctuationChars.has(currentChar)) {
+        tokens.push({ type: "text-gray-400" /* Punctuation */, value: currentChar, position: this.index + 1 });
+        this.index++;
+        continue;
+      }
+      tokens.push({ type: "" /* Unknown */, value: currentChar, position: this.index + 1 });
+      this.index++;
+    }
+    return tokens;
+  }
+  readWhile(predicate) {
+    const start = this.index;
+    while (this.index < this.length && predicate(this.input[this.index])) {
+      this.index++;
+    }
+    return this.input.slice(start, this.index);
+  }
+  readLineComment() {
+    let value = this.input[this.index] + this.input[this.index + 1];
+    this.index += 2;
+    while (this.index < this.length && this.input[this.index] !== "\n") {
+      value += this.input[this.index++];
+    }
+    return value;
+  }
+  readBlockComment() {
+    let value = this.input[this.index] + this.input[this.index + 1];
+    this.index += 2;
+    while (this.index < this.length && !(this.input[this.index] === "*" && this.peek() === "/")) {
+      value += this.input[this.index++];
+    }
+    if (this.index < this.length) {
+      value += this.input[this.index++] + this.input[this.index++];
+    }
+    return value;
+  }
+  readString(quoteType) {
+    let value = this.input[this.index++];
+    while (this.index < this.length && this.input[this.index] !== quoteType) {
+      if (this.input[this.index] === "\\") {
+        value += this.input[this.index++];
+        if (this.index < this.length) {
+          value += this.input[this.index++];
+        }
+      } else {
+        value += this.input[this.index++];
+      }
+    }
+    if (this.index < this.length) {
+      value += this.input[this.index++];
+    }
+    return value;
+  }
+  peek(offset = 1) {
+    return this.index + offset < this.length ? this.input[this.index + offset] : "";
+  }
+};
+function postProcessTokens(tokens) {
+  const processed = [];
+  let insideObject = false;
+  const braceStack = [];
+  const nextNonWhitespace = (i) => {
+    let j = i + 1;
+    while (j < tokens.length && tokens[j].type === "" /* Whitespace */) {
+      j++;
+    }
+    return tokens[j];
+  };
+  const prevNonWhitespace = (i) => {
+    let j = i - 1;
+    while (j >= 0 && tokens[j].type === "" /* Whitespace */) {
+      j--;
+    }
+    return tokens[j];
+  };
+  for (let i = 0; i < tokens.length; i++) {
+    let token = tokens[i];
+    if (token.type === "text-gray-400" /* Punctuation */) {
+      if (token.value === "{") {
+        braceStack.push(token);
+        insideObject = true;
+      } else if (token.value === "}") {
+        braceStack.pop();
+        if (braceStack.length === 0) {
+          insideObject = false;
+        }
+      }
+    }
+    if (token.type === "text-orange-300" /* Identifier */) {
+      const next = nextNonWhitespace(i);
+      if (next && next.type === "text-gray-400" /* Punctuation */ && next.value === "(") {
+        token = { ...token, type: "text-orange-300" /* FunctionCall */ };
+      }
+    }
+    if (insideObject && (token.type === "text-orange-300" /* Identifier */ || token.type === "text-green-200" /* String */)) {
+      const next = nextNonWhitespace(i);
+      if (next && next.type === "text-gray-400" /* Punctuation */ && next.value === ":") {
+        token = { ...token, type: "" /* ObjectKey */ };
+      }
+    }
+    if (insideObject) {
+      const prev = prevNonWhitespace(i);
+      if (prev && prev.type === "text-gray-400" /* Punctuation */ && prev.value === ":") {
+        if (token.type !== "text-gray-400" /* Punctuation */ || token.value !== "," && token.value !== "}") {
+          token = { ...token, type: "" /* ObjectValue */ };
+        }
+      }
+    }
+    processed.push(token);
+  }
+  return processed;
+}
+function escapeHtml(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function highlightCode(code) {
+  const lexer = new Lexer(code);
+  let tokens = lexer.tokenize();
+  tokens = postProcessTokens(tokens);
+  return tokens.map(
+    (token) => token.type === "" /* Whitespace */ ? token.value : `<span class="${token.type}">${escapeHtml(token.value)}</span>`
+  ).join("");
+}
+
 // src/docs/docs/components/CodeBlock.ts
 var isToastShowing = createState(false);
 var toastTimeoutId = createState(0);
@@ -218,7 +439,6 @@ var copyCode = createEventListener({
     isToastShowing,
     toastTimeoutId
   ],
-  params: {},
   eventListener: async (params, isToastShowing2, toastTimeoutId2) => {
     const children = params.event.currentTarget.children;
     const pre2 = children.item(0);
@@ -230,7 +450,7 @@ var copyCode = createEventListener({
     const timeoutId = window.setTimeout(() => {
       isToastShowing2.value = false;
       isToastShowing2.signal();
-    }, 5e3);
+    }, 3e3);
     toastTimeoutId2.value = timeoutId;
   }
 });
@@ -254,25 +474,24 @@ var Toast = (bind) => {
       class: observe(
         [isToastShowing],
         (isShowing) => {
-          const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-background-800 ";
-          if (isShowing) {
-            return defaultClassName + "right-8";
-          }
-          return defaultClassName + "right-0 translate-x-full";
+          const modularClass = isShowing ? "right-8" : "right-0 translate-x-full";
+          return `fixed z-50 shadow-lg rounded-sm duration-200 bottom-4 px-4 py-2 w-max bg-background-950 ` + modularClass;
         }
       )
     },
-    h1("Copied to clipboard!")
+    h1({
+      class: "font-mono uppercase"
+    }, "copied to clipboard")
   );
 };
-var CodeBlock = (value) => div(
+var CodeBlock = (value, parse = true) => div(
   {
     class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
             border-[1px] border-background-800 w-max my-3 max-w-full
             overflow-scroll`,
     onClick: copyCode
   },
-  pre({}, value)
+  pre({}, parse ? highlightCode(value) : value)
 );
 
 // src/server/layout.ts
@@ -295,12 +514,23 @@ createLoadHook({
   deps: [secondsSpentOnPage],
   bind: docsLayoutId,
   fn: (state, time) => {
+    const storedTime = localStorage.getItem("time-on-page");
+    if (storedTime) {
+      time.value = parseInt(storedTime);
+      time.signal();
+    }
     let intervalId;
     intervalId = setInterval(() => {
       time.value++;
       time.signal();
     }, 1e3);
+    const handlePageLeave = () => {
+      localStorage.setItem("time-on-page", `${time.value}`);
+    };
+    window.addEventListener("beforeunload", handlePageLeave);
     return () => {
+      window.removeEventListener("beforeunload", handlePageLeave);
+      handlePageLeave();
       clearInterval(intervalId);
     };
   }
@@ -428,7 +658,7 @@ var Separator = () => div({
 
 // src/docs/docs/components/Mono.ts
 var Mono = (text) => span({
-  class: "font-mono"
+  class: "font-mono select-text"
 }, text);
 
 // src/docs/docs/basics/page.ts
@@ -475,9 +705,9 @@ var page = RootLayout(
         class: "opacity-80"
       },
       "Elegance is still in very early development.",
-      br({}),
+      br(),
       "There are absolutely no guarantees of backwards compatibility, security or really anything.",
-      br({}),
+      br(),
       "As such, elegance isn't really meant for production, yet."
     ),
     div({
@@ -492,19 +722,19 @@ var page = RootLayout(
         class: "opacity-80"
       },
       "Elegance is an opinionated, strict, compiled, fully-typescript, ",
-      br({}),
+      br(),
       "web-framework designed for building feature-rich, yet fast and efficient web pages.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "Elegance is written fully by hand, and dependencies are used ",
       b("very "),
       "sparsely.",
-      br({}),
+      br(),
       "As of writing, ",
       b("esbuild "),
       "is the only dependency.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "A simple, fully-working (non gzipped) elegance page transfers only ",
       b("4kB "),
       "of data!",
@@ -515,8 +745,8 @@ var page = RootLayout(
       'For context, an "empty" (gzipped)  react app on average transfers roughly ',
       b("200-300kB "),
       "of data.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "This lack of JS sent to the browser is achieved through not ",
       "creating unnecessary, wildly complex rude goldberg machines; ",
       "and compilation instead of interpretation."
@@ -535,10 +765,10 @@ var page = RootLayout(
         class: "opacity-80"
       },
       "An Elegance.JS projects file structure is akin to that of something like a Next.JS project. ",
-      br({}),
+      br(),
       "We use filesystem routing, where each directory contains a ",
-      Mono("page.ts,"),
-      " and an ",
+      Mono("page.ts"),
+      ", and an ",
       Mono("info.ts"),
       " file."
     ),
@@ -564,7 +794,7 @@ var page = RootLayout(
         class: "opacity-70"
       },
       "Elements are created using simple, ambient global functions.",
-      br({}),
+      br(),
       "The above ",
       Mono("body()"),
       " call, for example, gets turned into this."
@@ -575,21 +805,21 @@ var page = RootLayout(
         class: "opacity-80"
       },
       "The estute among you may have noticed that the result can easily be serialized into HTML or JSON.",
-      br({}),
+      br(),
       "This is ",
       b("precisely "),
       "what the Elegance compiler does.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "It recursively goes through the page, notes down any points of interest (more on this later), ",
-      br({}),
+      br(),
       "and then serializes each element.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "The resulting data can then either be used to serve static HTML pages, ",
-      br({}),
+      br(),
       "(which still have all the normal features of Elegance, but won't get re-rendered),",
-      br({}),
+      br(),
       "or dynamically server-rendered content."
     ),
     div({
@@ -614,10 +844,10 @@ var page = RootLayout(
         class: "opacity-80"
       },
       "Metadata is of course a function, so that you may dynamically generate page information. ",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "This is useful for something like a social media page, ",
-      br({}),
+      br(),
       "where you may want need to fetch information about a post, and then display it in a nice rich embed."
     ),
     div({
@@ -633,12 +863,12 @@ var page = RootLayout(
       },
       "Elegance exposes a function called ",
       Mono("compile()"),
-      "which your project should call to build itself.",
-      br({}),
+      " which your project should call to build itself.",
+      br(),
       "Compilation handles generating page_data files, ",
       "HTML, JSON, transpilation of ts into js, etc.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "We will explore compilation, state, reactivity, optimization, ",
       "static generation, hot-reloading, and many of the other features of ",
       "Elegance in greater-depth later on. However, this is all that you need to know for now."
@@ -658,29 +888,29 @@ var page = RootLayout(
       },
       "As Elegance is still in it's formative stages, ",
       "we haven't yet published to things like the NPM registry.",
-      br({}),
+      br(),
       "However, installation is still quite simple.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "First, decide where you'll want Elegance to live. ",
-      br({}),
+      br(),
       "On a linux-based system, somewhere like ",
       Mono("~/bin/elegance"),
       " is a good place.",
-      br({}),
+      br(),
       b("Just remember where it is! You'll need it later."),
-      br({}),
-      br({}),
+      br(),
+      br(),
       "Install ",
       a({
         href: "https://git-scm.com/",
         class: "border-b-2 border-text-50"
       }, "git"),
       " for your system, if you haven't already.",
-      br({}),
-      br({}),
+      br(),
+      br(),
       "Next, open a terminal / command prompt window, and issue the following the command.",
-      CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]")
+      CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]", false)
     )
   )
 );

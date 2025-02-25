@@ -1,6 +1,7 @@
 import { createEventListener, createState, SetEvent, } from "../../../server/createState"
 import { createLoadHook } from "../../../server/loadHook";
 import { observe } from "../../../server/observe";
+import { highlightCode } from "../../utils/MEGALEXER";
 
 const isToastShowing = createState(false);
 const toastTimeoutId = createState(0);
@@ -10,9 +11,6 @@ const copyCode = createEventListener({
         isToastShowing,
         toastTimeoutId,
     ],
-
-    params: {
-    },
 
     eventListener: async (
         params: SetEvent<MouseEvent, HTMLButtonElement>,
@@ -34,7 +32,7 @@ const copyCode = createEventListener({
         const timeoutId = window.setTimeout(() => {
             isToastShowing.value = false;
             isToastShowing.signal();
-        }, 5000);
+        }, 3000);
 
         toastTimeoutId.value = timeoutId;
     },
@@ -59,30 +57,28 @@ export const Toast = (bind?: number) =>{
         }
     });
 
-   return div ({
+    return div ({
         class: observe(
             [isToastShowing],
             (isShowing) => {
-                const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-background-800 ";
+                const modularClass = isShowing ? "right-8" : "right-0 translate-x-full";
 
-                if (isShowing) {
-                    return defaultClassName + "right-8";
-                }
+                return `fixed z-50 shadow-lg rounded-sm duration-200 bottom-4 px-4 py-2 w-max bg-background-950 ` + modularClass;
 
-                return defaultClassName + "right-0 translate-x-full";
             }
         )
     },
-        h1 ("Copied to clipboard!"),
+        h1 ({
+            class: "font-mono uppercase",
+        }, "copied to clipboard"),
     );
-
 }
 
-export const CodeBlock =  (value: string) => div ({
+export const CodeBlock =  (value: string, parse: boolean = true) => div ({
     class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
             border-[1px] border-background-800 w-max my-3 max-w-full
             overflow-scroll`,
     onClick: copyCode, 
 },
-    pre ({}, value ),
+    pre ({}, parse ? highlightCode(value) : value ),
 )

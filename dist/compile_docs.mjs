@@ -828,9 +828,9 @@ compile({
   writeToHTML: true,
   pagesDirectory: PAGES_DIR,
   outputDirectory: OUTPUT_DIR,
-  environment: "production",
+  environment: process.env.ENVIRONMENT,
   watchServerPort: 3001
 }).then(() => {
-  exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify --watch`);
+  exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify ${process.env.ENVIRONMENT === "development" ? "--watch" : ""}`);
   console.log("Built Docs.");
 });

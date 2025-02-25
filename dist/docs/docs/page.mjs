@@ -218,7 +218,6 @@ var copyCode = createEventListener({
     isToastShowing,
     toastTimeoutId
   ],
-  params: {},
   eventListener: async (params, isToastShowing2, toastTimeoutId2) => {
     const children = params.event.currentTarget.children;
     const pre2 = children.item(0);
@@ -230,7 +229,7 @@ var copyCode = createEventListener({
     const timeoutId = window.setTimeout(() => {
       isToastShowing2.value = false;
       isToastShowing2.signal();
-    }, 5e3);
+    }, 3e3);
     toastTimeoutId2.value = timeoutId;
   }
 });
@@ -254,15 +253,14 @@ var Toast = (bind) => {
       class: observe(
         [isToastShowing],
         (isShowing) => {
-          const defaultClassName = "fixed duration-200 bottom-4 max-w-[300px] w-full bg-background-800 ";
-          if (isShowing) {
-            return defaultClassName + "right-8";
-          }
-          return defaultClassName + "right-0 translate-x-full";
+          const modularClass = isShowing ? "right-8" : "right-0 translate-x-full";
+          return `fixed z-50 shadow-lg rounded-sm duration-200 bottom-4 px-4 py-2 w-max bg-background-950 ` + modularClass;
         }
       )
     },
-    h1("Copied to clipboard!")
+    h1({
+      class: "font-mono uppercase"
+    }, "copied to clipboard")
   );
 };
 
@@ -286,12 +284,23 @@ createLoadHook({
   deps: [secondsSpentOnPage],
   bind: docsLayoutId,
   fn: (state, time) => {
+    const storedTime = localStorage.getItem("time-on-page");
+    if (storedTime) {
+      time.value = parseInt(storedTime);
+      time.signal();
+    }
     let intervalId;
     intervalId = setInterval(() => {
       time.value++;
       time.signal();
     }, 1e3);
+    const handlePageLeave = () => {
+      localStorage.setItem("time-on-page", `${time.value}`);
+    };
+    window.addEventListener("beforeunload", handlePageLeave);
     return () => {
+      window.removeEventListener("beforeunload", handlePageLeave);
+      handlePageLeave();
       clearInterval(intervalId);
     };
   }

@@ -18,6 +18,12 @@ createLoadHook({
     bind: docsLayoutId,
 
     fn: (state, time) => {
+        const storedTime = localStorage.getItem("time-on-page");
+        if (storedTime) {
+            time.value = parseInt(storedTime);
+            time.signal();
+        }
+
         let intervalId;
 
         intervalId = setInterval(() => {
@@ -25,7 +31,16 @@ createLoadHook({
             time.signal();
         }, 1000);
 
+        const handlePageLeave = () => {
+            localStorage.setItem("time-on-page", `${time.value}`);
+        };
+
+        window.addEventListener("beforeunload", handlePageLeave);
+
         return () => {
+            window.removeEventListener("beforeunload", handlePageLeave);
+
+            handlePageLeave();
             clearInterval(intervalId);
         }
     },

@@ -55,11 +55,11 @@ export const page = RootLayout (
         },
             "Elegance is still in very early development.",
 
-            br ({}),
+            br (),
 
             "There are absolutely no guarantees of backwards compatibility, security or really anything.",
 
-            br ({}),
+            br (),
 
             "As such, elegance isn't really meant for production, yet."
         ),
@@ -78,23 +78,23 @@ export const page = RootLayout (
         },
             "Elegance is an opinionated, strict, compiled, fully-typescript, ",
 
-            br ({}),
+            br (),
 
             "web-framework designed for building feature-rich, yet fast and efficient web pages.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "Elegance is written fully by hand, and dependencies are used ",
             b("very "),
             "sparsely.",
 
-            br ({}),
+            br (),
 
             "As of writing, ", b("esbuild "), "is the only dependency.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "A simple, fully-working (non gzipped) elegance page transfers only ",
             b("4kB "),
@@ -108,8 +108,8 @@ export const page = RootLayout (
             "For context, an \"empty\" (gzipped)  react app on average transfers roughly ",
             b("200-300kB "), "of data.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "This lack of JS sent to the browser is achieved through not ",
             "creating unnecessary, wildly complex rude goldberg machines; ",
@@ -133,10 +133,13 @@ export const page = RootLayout (
         },
             "An Elegance.JS projects file structure is akin to that of something like a Next.JS project. ",
 
-            br ({}),
+            br (),
 
             "We use filesystem routing, where each directory contains a ",
-            Mono("page.ts,"), " and an ", Mono("info.ts"), " file.",
+            Mono("page.ts"),
+            ", and an ",
+            Mono("info.ts"),
+            " file.",
         ),
 
         div ({
@@ -161,7 +164,7 @@ export const page = RootLayout (
             class: "opacity-70",
         },
             "Elements are created using simple, ambient global functions.",
-            br ({}),
+            br (),
             "The above ", Mono("body()"),
             " call, for example, gets turned into this.",
         ),
@@ -173,29 +176,29 @@ export const page = RootLayout (
         },
             "The estute among you may have noticed that the result can easily be serialized into HTML or JSON.",
 
-            br ({}),
+            br (),
 
             "This is ", b("precisely "), "what the Elegance compiler does.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "It recursively goes through the page, notes down any points of interest (more on this later), ",
 
-            br ({}),
+            br (),
 
             "and then serializes each element.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "The resulting data can then either be used to serve static HTML pages, ",
 
-            br ({}),
+            br (),
 
             "(which still have all the normal features of Elegance, but won't get re-rendered),",
             
-            br ({}),
+            br (),
 
             "or dynamically server-rendered content."
         ),
@@ -223,12 +226,12 @@ export const page = RootLayout (
         },
             "Metadata is of course a function, so that you may dynamically generate page information. ",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "This is useful for something like a social media page, ",
 
-            br ({}),
+            br (),
 
             "where you may want need to fetch information about a post, and then display it in a nice rich embed."
         ),
@@ -246,15 +249,15 @@ export const page = RootLayout (
             class: "opacity-80",
         },
             "Elegance exposes a function called ", Mono("compile()"),
-            "which your project should call to build itself.",
+            " which your project should call to build itself.",
 
-            br ({}),
+            br (),
 
             "Compilation handles generating page_data files, ",
             "HTML, JSON, transpilation of ts into js, etc.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "We will explore compilation, state, reactivity, optimization, ",
             "static generation, hot-reloading, and many of the other features of ",
@@ -279,25 +282,25 @@ export const page = RootLayout (
             "As Elegance is still in it's formative stages, ",
             "we haven't yet published to things like the NPM registry.",
 
-            br ({}),
+            br (),
 
             "However, installation is still quite simple.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "First, decide where you'll want Elegance to live. ",
 
-            br ({}),
+            br (),
 
             "On a linux-based system, somewhere like ", Mono("~/bin/elegance"), " is a good place.",
             
-            br ({}),
+            br (),
             
             b("Just remember where it is! You'll need it later."),
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "Install ",
 
@@ -308,12 +311,12 @@ export const page = RootLayout (
 
             " for your system, if you haven't already.",
 
-            br ({}),
-            br ({}),
+            br (),
+            br (),
 
             "Next, open a terminal / command prompt window, and issue the following the command.",
 
-            CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]"),
+            CodeBlock("git clone https://github.com/valdemar-dev/elegance-js [your destination folder]", false),
         ),
     ),
 );
