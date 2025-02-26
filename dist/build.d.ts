@@ -5,7 +5,10 @@ export declare const compile: ({ writeToHTML, pagesDirectory, outputDirectory, e
     environment: "production" | "development";
     pagesDirectory: string;
     outputDirectory: string;
-    publicDirectory?: string;
+    publicDirectory?: {
+        path: string;
+        method: "symlink" | "recursive-copy";
+    };
 }) => Promise<{
     shouldClientHardReload: boolean;
 }>;

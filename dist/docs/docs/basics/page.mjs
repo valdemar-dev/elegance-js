@@ -574,6 +574,28 @@ var Sidebar = () => nav(
         NavSubLink(
           "/docs/concepts#elements",
           "Elements"
+        ),
+        NavSubLink(
+          "/docs/concepts#object-attributes",
+          "Object Attributes"
+        )
+      )
+    ),
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "Page Files"
+      }),
+      ol(
+        {
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+        },
+        NavSubLink(
+          "/docs/page-files#load-hooks",
+          "Load Hooks"
         )
       )
     ),
@@ -592,24 +614,6 @@ var Sidebar = () => nav(
         NavSubLink(
           "/docs/compilation#options",
           "Compilation Options"
-        )
-      )
-    ),
-    li(
-      {
-        class: "flex flex-col gap-1"
-      },
-      h4({
-        class: "text-base font-medium",
-        innerText: "Page Files"
-      }),
-      ol(
-        {
-          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
-        },
-        NavSubLink(
-          "/docs/load-hooks",
-          "Load Hooks"
         )
       )
     )

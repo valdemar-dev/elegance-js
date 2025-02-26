@@ -818,10 +818,15 @@ var compile = async ({
   } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
   const pagesBuilt = performance.now();
   await buildClient(environment2, DIST_DIR, watch, watchServerPort);
-  if (publicDirectory) {
-    fs.symlinkSync(publicDirectory, path.join(DIST_DIR, "public"), "dir");
-  }
   const end = performance.now();
+  if (publicDirectory) {
+    const method = publicDirectory.method;
+    if (method === "symlink") {
+      fs.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
+    } else if (method === "recursive-copy") {
+      fs.cpSync(publicDirectory.path, path.join(DIST_DIR, "public"), { recursive: true });
+    }
+  }
   console.log(`${Math.round(projectFilesGathered - start)}ms to Gather Project Files`);
   console.log(`${Math.round(infoFilesBuilt - projectFilesGathered)}ms to Build info Files`);
   console.log(`${Math.round(compilationDirectionsGathered - infoFilesBuilt)}ms to Gather Compilation Directions`);
@@ -866,7 +871,10 @@ compile({
   outputDirectory: OUTPUT_DIR,
   environment,
   watchServerPort: 3001,
-  publicDirectory: PUBLIC_DIR,
+  publicDirectory: {
+    path: PUBLIC_DIR,
+    method: environment === "production" ? "recursive-copy" : "symlink"
+  },
   postCompile: async () => {
     execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify`);
   }

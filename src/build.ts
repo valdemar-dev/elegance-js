@@ -787,7 +787,10 @@ export const compile = async ({
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
-    publicDirectory?: string,
+    publicDirectory?: {
+        path: string,
+        method: "symlink" | "recursive-copy",
+    },
 }) => {
     const watch = environment === "development";
 
@@ -877,11 +880,17 @@ export const compile = async ({
 
     await buildClient(environment, DIST_DIR, watch, watchServerPort);
 
-    if (publicDirectory) {
-        fs.symlinkSync(publicDirectory, path.join(DIST_DIR, "public"), "dir");
-    }
-
     const end = performance.now();
+
+    if (publicDirectory) {
+        const method = publicDirectory.method;
+
+        if (method === "symlink") {
+            fs.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
+        } else if (method === "recursive-copy") {
+            fs.cpSync(publicDirectory.path, path.join(DIST_DIR, "public"), { recursive: true, });
+        }
+    }
 
     console.log(`${Math.round(projectFilesGathered-start)}ms to Gather Project Files`)
     console.log(`${Math.round(infoFilesBuilt-projectFilesGathered)}ms to Build info Files`)

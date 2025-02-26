@@ -1,3 +1,11 @@
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
+  {
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
+  },
+  ...children
+);
+
 // src/components/Breakpoint.ts
 var Breakpoint = (options, ...children) => {
   if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
@@ -445,6 +453,20 @@ var DocsLayout = (...children) => div(
     )
   )
 );
+
+// src/docs/docs/components/PageHeading.ts
+var PageHeading = (title, id) => h2({
+  class: "text-3xl font-semibold mb-4",
+  id,
+  innerText: title
+});
+
+// src/docs/docs/page-files/page.ts
+var page = RootLayout(
+  DocsLayout(
+    PageHeading("Load Hooks", "load-hooks")
+  )
+);
 export {
-  DocsLayout
+  page
 };

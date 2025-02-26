@@ -23,7 +23,10 @@ compile({
     outputDirectory: OUTPUT_DIR,
     environment: environment as "production" | "development",
     watchServerPort: 3001,
-    publicDirectory: PUBLIC_DIR,
+    publicDirectory: {
+        path: PUBLIC_DIR,
+        method: environment === "production" ? "recursive-copy" : "symlink",
+    },
     postCompile: async () => {
         execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify`)
     },

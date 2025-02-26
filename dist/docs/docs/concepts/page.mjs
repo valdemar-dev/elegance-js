@@ -567,6 +567,28 @@ var Sidebar = () => nav(
         NavSubLink(
           "/docs/concepts#elements",
           "Elements"
+        ),
+        NavSubLink(
+          "/docs/concepts#object-attributes",
+          "Object Attributes"
+        )
+      )
+    ),
+    li(
+      {
+        class: "flex flex-col gap-1"
+      },
+      h4({
+        class: "text-base font-medium",
+        innerText: "Page Files"
+      }),
+      ol(
+        {
+          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
+        },
+        NavSubLink(
+          "/docs/page-files#load-hooks",
+          "Load Hooks"
         )
       )
     ),
@@ -585,24 +607,6 @@ var Sidebar = () => nav(
         NavSubLink(
           "/docs/compilation#options",
           "Compilation Options"
-        )
-      )
-    ),
-    li(
-      {
-        class: "flex flex-col gap-1"
-      },
-      h4({
-        class: "text-base font-medium",
-        innerText: "Page Files"
-      }),
-      ol(
-        {
-          class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
-        },
-        NavSubLink(
-          "/docs/load-hooks",
-          "Load Hooks"
         )
       )
     )
@@ -653,6 +657,11 @@ var Paragraph = (...children) => p(
   ...children
 );
 
+// src/docs/docs/components/Separator.ts
+var Separator = () => div({
+  class: "my-20"
+}, []);
+
 // src/docs/docs/components/SubSeparator.ts
 var SubSeparator = () => div({
   class: "my-10"
@@ -695,6 +704,23 @@ div (
     ["Apple", "Banana"],
     ...someArray.map((value, index) => p(index)),
 )
+`;
+var exampleObjectAttributeType = `export enum ObjectAttributeType {
+    GENERIC = 0,
+    STATE = 1,
+    OBSERVER = 2,
+    EVENT_LISTENER = 3,
+    REFERENCE = 4,
+}`;
+var exampleObserveReturn = `{
+    type: ObjectAttributeType.OBSERVER,
+    initialValues: refs.map(ref => ref.value),
+    update: update,
+    refs: refs.map(ref => ({
+        id: ref.id,
+        bind: ref.bind,
+    })),
+};
 `;
 var page = RootLayout(
   DocsLayout(
@@ -791,7 +817,51 @@ var page = RootLayout(
       br(),
       "Strings, numbers, booleans, arrays, and other element calls, are all valid children."
     ),
-    CodeBlock(exampleAllowedChildren)
+    CodeBlock(exampleAllowedChildren),
+    Separator(),
+    PageHeading("Object Attributes", "object-attributes"),
+    Paragraph(
+      "Object attributes, simply put, are a type of option for elements.",
+      br(),
+      "Any Element Option with type ",
+      Mono("object"),
+      " is considered an Object Attribute.",
+      br(),
+      "They are used to tell the compiler to do special things with the option, instead of just serializing it.",
+      br(),
+      br(),
+      "For brevity, we sorten object attributes to [TYPE]OA.",
+      br(),
+      "So, a State Object Attribute -> SOA.",
+      br(),
+      br(),
+      "Object Attributes are required to specify a ",
+      Mono("type"),
+      " property."
+    ),
+    CodeBlock(exampleObjectAttributeType),
+    Paragraph(
+      "Now, 99% of the time, you won't craft OAs manually.",
+      br(),
+      "Instead, you'll use a helper function, which returns an OA of a specified type.",
+      br(),
+      br(),
+      "For example, the ",
+      Mono("observe()"),
+      " function, returns something like this."
+    ),
+    CodeBlock(exampleObserveReturn),
+    Paragraph(
+      "Then, the compiler; when it encounters an OA that is of type ",
+      Mono("ObjectAttributeType.OBSERVER"),
+      br(),
+      "Calls the update function, sets the return value as the attribute value, and puts the OOA into the page_data.",
+      br(),
+      br(),
+      "This is really all you need to know about OAs, they are just object values for attributes,",
+      br(),
+      "which the compiler treats differently."
+    )
   )
 );
 export {
