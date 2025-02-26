@@ -5,6 +5,7 @@ import { DocsLayout } from "../components/DocsLayout";
 import { Mono } from "../components/Mono";
 import { PageHeading } from "../components/PageHeading";
 import { Paragraph } from "../components/Paragraph";
+import { Separator } from "../components/Separator";
 import { SubHeading } from "../components/SubHeading";
 import { SubSeparator } from "../components/SubSeparator";
 import { Subtext } from "../components/Subtext";
@@ -51,8 +52,98 @@ createLoadHook({
 })
 `;
 
+const exampleStateCreation = `
+const superEpicState = createState("MMMMMMM STATE");
+`;
+
+const exampleStateCreationReturn = `
+{
+    type: ObjectAttributeType.STATE,
+    id: 0,
+    value: "MMMMMMM STATE", 
+    bind: undefined,
+}
+`;
+
+const exampleStateReference = `
+const isUsingDarkMode = createState(false);
+
+div ({
+    class: observe(
+        [isUsingDarkMode],
+        (value) => value ? "bg-black" : "bg-white",
+    ),
+})
+`;
+
 export const page = RootLayout (
     DocsLayout (
+        PageHeading("State", "state"),
+
+        Subtext("Available Via: elegance-js/server/state"),
+
+        Paragraph (
+            "State is, simply put, a collection of variables.",
+
+            br(),
+
+            "You initialize it on the server using the ", Mono("createState()"), " function.",
+        ),
+
+        CodeBlock(exampleStateCreation),
+
+        SubSeparator(),
+        SubHeading("Usage"),
+
+        Paragraph(
+            "The ", Mono("createState()"), " function takes in two values.",
+
+            br(),
+            
+            "The initial value of the state, and an options object.",
+
+            br(),
+
+            "The options object may currently only define a bind to the state (more on this later)",
+
+            br(),
+            br(),
+
+            "The function stores the created state in the servers current state store,",
+
+            br(),
+
+            "so that upon completion of compilation, it may be serialized into page_data.",
+        ),
+
+        SubSeparator(),
+        SubHeading("Return Value"),
+
+        Paragraph (
+            "The return value of ", Mono("createState()"),
+            " is a State ",
+
+            Link ({
+                href: "/docs/concepts#object-attributes",
+                class: "border-b-2",
+            },
+                "Object Attribute, ",
+            ),
+
+            br(),
+
+            "which you can use to refer back to the created state."
+        ),
+
+        CodeBlock(exampleStateCreationReturn),
+        CodeBlock(exampleStateReference),
+
+        Paragraph (
+            "Many functions like load hooks, event listeners, and observe, take in optional SOAs."
+        ),
+
+        Separator(),
+
         PageHeading("Load Hooks", "load-hooks"),
 
         Subtext (
@@ -124,7 +215,7 @@ export const page = RootLayout (
                 "Layout ID",
             ),
 
-            CodeBlock (exampleLoadHookBind),
+            CodeBlock(exampleLoadHookBind),
         ),
 
         SubSeparator(),
@@ -136,6 +227,7 @@ export const page = RootLayout (
             br(),
 
             b("browser land "), " not server land. Therefore the code is ", b("untrusted.")
-        )
+        ),
+
     ),
 )

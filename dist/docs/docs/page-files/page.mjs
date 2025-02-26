@@ -586,6 +586,10 @@ var Sidebar = () => nav(
           class: "pl-2 ml-2 border-l-[1px] border-background-600 flex flex-col gap-2"
         },
         NavSubLink(
+          "/docs/page-files#state",
+          "State"
+        ),
+        NavSubLink(
           "/docs/page-files#load-hooks",
           "Load Hooks"
         )
@@ -656,6 +660,11 @@ var Paragraph = (...children) => p(
   ...children
 );
 
+// src/docs/docs/components/Separator.ts
+var Separator = () => div({
+  class: "my-20"
+}, []);
+
 // src/docs/docs/components/SubHeading.ts
 var SubHeading = (content) => h3({
   class: "text-lg font-medium mb-1",
@@ -713,8 +722,77 @@ createLoadHook({
     },
 })
 `;
+var exampleStateCreation = `
+const superEpicState = createState("MMMMMMM STATE");
+`;
+var exampleStateCreationReturn = `
+{
+    type: ObjectAttributeType.STATE,
+    id: 0,
+    value: "MMMMMMM STATE", 
+    bind: undefined,
+}
+`;
+var exampleStateReference = `
+const isUsingDarkMode = createState(false);
+
+div ({
+    class: observe(
+        [isUsingDarkMode],
+        (value) => value ? "bg-black" : "bg-white",
+    ),
+})
+`;
 var page = RootLayout(
   DocsLayout(
+    PageHeading("State", "state"),
+    Subtext("Available Via: elegance-js/server/state"),
+    Paragraph(
+      "State is, simply put, a collection of variables.",
+      br(),
+      "You initialize it on the server using the ",
+      Mono("createState()"),
+      " function."
+    ),
+    CodeBlock(exampleStateCreation),
+    SubSeparator(),
+    SubHeading("Usage"),
+    Paragraph(
+      "The ",
+      Mono("createState()"),
+      " function takes in two values.",
+      br(),
+      "The initial value of the state, and an options object.",
+      br(),
+      "The options object may currently only define a bind to the state (more on this later)",
+      br(),
+      br(),
+      "The function stores the created state in the servers current state store,",
+      br(),
+      "so that upon completion of compilation, it may be serialized into page_data."
+    ),
+    SubSeparator(),
+    SubHeading("Return Value"),
+    Paragraph(
+      "The return value of ",
+      Mono("createState()"),
+      " is a State ",
+      Link(
+        {
+          href: "/docs/concepts#object-attributes",
+          class: "border-b-2"
+        },
+        "Object Attribute, "
+      ),
+      br(),
+      "which you can use to refer back to the created state."
+    ),
+    CodeBlock(exampleStateCreationReturn),
+    CodeBlock(exampleStateReference),
+    Paragraph(
+      "Many functions like load hooks, event listeners, and observe, take in optional SOAs."
+    ),
+    Separator(),
     PageHeading("Load Hooks", "load-hooks"),
     Subtext(
       "Available Via: elegance-js/server/loadHook"

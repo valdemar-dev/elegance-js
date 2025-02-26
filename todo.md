@@ -5,10 +5,8 @@ POTENTIAL:
         - onclick to 1, or wtv
 
 TODO:
+    - info.ts BE DEPRECATED NOW !
     - object state
-    - typescript autocopmlete and typings for elements, make options {} good-ier
-    - make non children elements, that take in children, actually work
-        - basically set element.children = null on childrenless elements so that they're rendered properly
     - scrollintoview when clicking on hash
     - code cleanup
     - rewrite client
@@ -18,6 +16,9 @@ TODO:
     - write documentation (OMEGALUL)
 
 DONE: 
+    - make non children elements, that take in children, actually work
+        - basically set element.children = null on childrenless elements so that they're rendered properly
+    - typescript autocopmlete and typings for elements, make options {} good-ier
     - fix links breaking on hot-reload
     - state signal self, not controller signals state
     - only send watch-mode code in watch-mode
