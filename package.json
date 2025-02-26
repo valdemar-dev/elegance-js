@@ -12,6 +12,7 @@
     "./*": {
       "types": "./dist/*.d.ts",
       "import": "./dist/*.mjs",
+
       "require": "./dist/*.mjs"
     }
   },
@@ -29,3 +30,4 @@
     "tailwindcss": "^4.0.3"
   }
 }
+

@@ -227,7 +227,6 @@ var tokenize = (input) => {
     "let",
     "var",
     "interface",
-    "type",
     "extends",
     "implements",
     "export",

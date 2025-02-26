@@ -36,7 +36,6 @@ const tokenize = (input: string): Token[] => {
         "let",
         "var",
         "interface",
-        "type",
         "extends",
         "implements",
         "export",

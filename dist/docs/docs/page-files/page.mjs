@@ -1,25 +1,3 @@
-// src/docs/components/RootLayout.ts
-var RootLayout = (...children) => body(
-  {
-    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
-  },
-  ...children
-);
-
-// src/components/Breakpoint.ts
-var Breakpoint = (options, ...children) => {
-  if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
-  const id = options.id;
-  delete options.id;
-  return div(
-    {
-      bp: id,
-      ...options
-    },
-    ...children
-  );
-};
-
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -142,51 +120,12 @@ var Link = (options, ...children) => {
   );
 };
 
-// src/docs/docs/components/Header.ts
-var Header = () => header(
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
   {
-    class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
   },
-  div(
-    {
-      class: "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"
-    },
-    div(
-      {
-        class: "max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
-      },
-      div(
-        {
-          class: "flex min-w-max w-full items-center z-10"
-        },
-        Link(
-          {
-            href: "/",
-            class: "flex items-center gap-1 h-full"
-          },
-          p({
-            class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
-            innerText: "Elegance"
-          }),
-          p({
-            innerText: "JS",
-            class: "font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"
-          })
-        )
-      ),
-      div(
-        {
-          class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
-        },
-        Link({
-          prefetch: "hover",
-          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
-          href: "/docs",
-          innerText: "Docs"
-        })
-      )
-    )
-  )
+  ...children
 );
 
 // src/server/observe.ts
@@ -201,6 +140,175 @@ var observe = (refs, update) => {
     }))
   };
   return returnValue;
+};
+
+// src/docs/utils/MEGALEXER.ts
+var tokenize = (input) => {
+  const tokens = [];
+  const length = input.length;
+  let index = 0;
+  const keywords = /* @__PURE__ */ new Set([
+    "if",
+    "else",
+    "for",
+    "while",
+    "function",
+    "return",
+    "class",
+    "const",
+    "let",
+    "var",
+    "interface",
+    "extends",
+    "implements",
+    "export",
+    "import",
+    "from"
+  ]);
+  const operatorChars = /* @__PURE__ */ new Set([
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "=",
+    ">",
+    "<",
+    "!",
+    "&",
+    "|",
+    "^",
+    "~",
+    "?",
+    ":"
+  ]);
+  const punctuationChars = /* @__PURE__ */ new Set([
+    ";",
+    ",",
+    ".",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]"
+  ]);
+  const peek = (offset = 1) => index + offset < length ? input[index + offset] : "";
+  const readWhile = (predicate) => {
+    const start = index;
+    while (index < length && predicate(input[index])) {
+      index++;
+    }
+    return input.slice(start, index);
+  };
+  const readString = (quoteType) => {
+    let value = input[index++];
+    while (index < length && input[index] !== quoteType) {
+      if (input[index] === "\\") {
+        value += input[index++];
+        if (index < length) {
+          value += input[index++];
+        }
+      } else {
+        value += input[index++];
+      }
+    }
+    if (index < length) {
+      value += input[index++];
+    }
+    return value;
+  };
+  const readLineComment = () => {
+    const start = index;
+    index += 2;
+    while (index < length && input[index] !== "\n") {
+      index++;
+    }
+    return input.slice(start, index);
+  };
+  const readBlockComment = () => {
+    const start = index;
+    index += 2;
+    while (index < length && !(input[index] === "*" && peek() === "/")) {
+      index++;
+    }
+    if (index < length) {
+      index += 2;
+    }
+    return input.slice(start, index);
+  };
+  while (index < length) {
+    const char = input[index];
+    const startPos = index;
+    if (/\s/.test(char)) {
+      const value = readWhile((c) => /\s/.test(c));
+      tokens.push({ type: "" /* Whitespace */, value, position: startPos });
+      continue;
+    }
+    if (char === "/") {
+      if (peek() === "/") {
+        const value = readLineComment();
+        tokens.push({ type: "text-gray-400" /* Comment */, value, position: startPos });
+        continue;
+      } else if (peek() === "*") {
+        const value = readBlockComment();
+        tokens.push({ type: "text-gray-400" /* Comment */, value, position: startPos });
+        continue;
+      }
+    }
+    if (char === '"' || char === "'") {
+      const value = readString(char);
+      tokens.push({ type: "text-green-200" /* String */, value, position: startPos });
+      continue;
+    }
+    if (/\d/.test(char)) {
+      const value = readWhile((c) => /[\d\.]/.test(c));
+      tokens.push({ type: "text-blue-400" /* Number */, value, position: startPos });
+      continue;
+    }
+    if (/[a-zA-Z_$]/.test(char)) {
+      const value = readWhile((c) => /[a-zA-Z0-9_$]/.test(c));
+      let type = "text-orange-300" /* Identifier */;
+      if (keywords.has(value)) {
+        type = "text-amber-100 font-semibold" /* Keyword */;
+      } else if (value === "true" || value === "false") {
+        type = "text-blue-200" /* Boolean */;
+      }
+      let tempIndex = index;
+      while (tempIndex < length && /\s/.test(input[tempIndex])) {
+        tempIndex++;
+      }
+      if (tempIndex < length && input[tempIndex] === "(") {
+        type = "text-red-300" /* FunctionCall */;
+      }
+      tokens.push({ type, value, position: startPos });
+      continue;
+    }
+    if (operatorChars.has(char)) {
+      let value = char;
+      index++;
+      if (index < length && operatorChars.has(input[index])) {
+        value += input[index++];
+      }
+      tokens.push({ type: "" /* Operator */, value, position: startPos });
+      continue;
+    }
+    if (punctuationChars.has(char)) {
+      tokens.push({ type: "text-gray-400" /* Punctuation */, value: char, position: startPos });
+      index++;
+      continue;
+    }
+    tokens.push({ type: "" /* Unknown */, value: char, position: startPos });
+    index++;
+  }
+  return tokens;
+};
+var escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+var highlightCode = (code) => {
+  const tokens = tokenize(code);
+  return tokens.map(
+    (token) => token.type === "" /* Whitespace */ ? token.value : `<span class="${token.type}">${escapeHtml(token.value)}</span>`
+  ).join("");
 };
 
 // src/docs/docs/components/CodeBlock.ts
@@ -256,6 +364,80 @@ var Toast = (bind) => {
     }, "copied to clipboard")
   );
 };
+var escapeHtml2 = (str) => {
+  const replaced = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  return replaced;
+};
+var CodeBlock = (value, parse = true) => div(
+  {
+    class: `bg-background-950 hover:cursor-pointer p-2 rounded-sm
+            border-[1px] border-background-800 w-max my-3 max-w-full
+            overflow-scroll`,
+    onClick: copyCode
+  },
+  pre({}, parse ? highlightCode(value) : escapeHtml2(value))
+);
+
+// src/components/Breakpoint.ts
+var Breakpoint = (options, ...children) => {
+  if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
+  const id = options.id;
+  delete options.id;
+  return div(
+    {
+      bp: id,
+      ...options
+    },
+    ...children
+  );
+};
+
+// src/docs/docs/components/Header.ts
+var Header = () => header(
+  {
+    class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
+  },
+  div(
+    {
+      class: "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 border-b-background-800 bg-background-950"
+    },
+    div(
+      {
+        class: "max-w-[1200px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(1200px+1rem)]:px-0"
+      },
+      div(
+        {
+          class: "flex min-w-max w-full items-center z-10"
+        },
+        Link(
+          {
+            href: "/",
+            class: "flex items-center gap-1 h-full"
+          },
+          p({
+            class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
+            innerText: "Elegance"
+          }),
+          p({
+            innerText: "JS",
+            class: "font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"
+          })
+        )
+      ),
+      div(
+        {
+          class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
+        },
+        Link({
+          prefetch: "hover",
+          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
+          href: "/docs",
+          innerText: "Docs"
+        })
+      )
+    )
+  )
+);
 
 // src/server/layout.ts
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
@@ -454,6 +636,11 @@ var DocsLayout = (...children) => div(
   )
 );
 
+// src/docs/docs/components/Mono.ts
+var Mono = (text) => span({
+  class: "font-mono select-text"
+}, text);
+
 // src/docs/docs/components/PageHeading.ts
 var PageHeading = (title, id) => h2({
   class: "text-3xl font-semibold mb-4",
@@ -461,10 +648,133 @@ var PageHeading = (title, id) => h2({
   innerText: title
 });
 
+// src/docs/docs/components/Paragraph.ts
+var Paragraph = (...children) => p(
+  {
+    class: "opacity-80"
+  },
+  ...children
+);
+
+// src/docs/docs/components/SubHeading.ts
+var SubHeading = (content) => h3({
+  class: "text-lg font-medium mb-1",
+  innerText: content
+});
+
+// src/docs/docs/components/SubSeparator.ts
+var SubSeparator = () => div({
+  class: "my-10"
+}, []);
+
+// src/docs/docs/components/Subtext.ts
+var Subtext = (text) => span({
+  class: "text-xs opacity-60",
+  innerText: text
+});
+
 // src/docs/docs/page-files/page.ts
+var exampleLoadHook = `
+createLoadHook({
+    fn: () => {
+        console.log("The page has loaded!");
+    },
+});
+`;
+var exampleCleanupFunction = `
+const counter = createState(0);
+
+createLoadHook({
+    deps: [counter],
+    fn: (state, counter) => {
+        const timer = setInterval(() => {
+            counter.value++;
+            counter.signal();
+        }, 100);
+
+        return () => {
+            // Begone, timer!
+            clearInterval(timer);
+        }
+    },
+});
+`;
+var exampleLoadHookBind = `
+const layout = createLayout("epic-layout");
+
+createLoadHook({
+    bind: layout,
+    fn: () => {
+        alert("epic layout was just rendered")
+
+        return () => {
+            alert ("epic layout is no longer with us :(")
+        };
+    },
+})
+`;
 var page = RootLayout(
   DocsLayout(
-    PageHeading("Load Hooks", "load-hooks")
+    PageHeading("Load Hooks", "load-hooks"),
+    Subtext(
+      "Available Via: elegance-js/server/loadHook"
+    ),
+    br(),
+    br(),
+    SubHeading("Basic Usage"),
+    Paragraph(
+      "Load hooks are functions that are called on the initial page load, and subsequent navigations.",
+      br(),
+      "A load hook is registered using the ",
+      Mono("createLoadHook()"),
+      " function."
+    ),
+    CodeBlock(exampleLoadHook),
+    SubSeparator(),
+    SubHeading("Cleanup Function"),
+    Paragraph(
+      "The return value of a load hook is referred to as a cleanup function.",
+      br(),
+      "It is called whenever the load hook goes out of scope.",
+      br(),
+      br(),
+      "You'll want to do things like ",
+      Mono("clearInterval() & element.removeEventListener()"),
+      br(),
+      " here, so you don't get any unintended/undefined behavior."
+    ),
+    CodeBlock(exampleCleanupFunction),
+    SubSeparator(),
+    SubHeading("Load Hook Scope"),
+    Paragraph(
+      "The scope of a load hook is either the page it is on, or the layout it is bound to.",
+      br(),
+      "If a load hook is bound to layout, it is called when that layout first appears.",
+      br(),
+      "Subsequently, its cleanup function will get called once it's bound layout no longer exists on the page.",
+      br(),
+      br(),
+      "To bind a load hook to a layout, use the ",
+      Mono("bind"),
+      " attribute, and pass in a ",
+      Link(
+        {
+          href: "/docs/page-files#layouts",
+          class: "border-b-2"
+        },
+        "Layout ID"
+      ),
+      CodeBlock(exampleLoadHookBind)
+    ),
+    SubSeparator(),
+    SubHeading("Important Considerations"),
+    Paragraph(
+      "It's important to note that the load hook function body exists in ",
+      br(),
+      b("browser land "),
+      " not server land. Therefore the code is ",
+      b("untrusted.")
+    )
   )
 );
 export {
