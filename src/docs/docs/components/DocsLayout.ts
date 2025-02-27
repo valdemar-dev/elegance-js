@@ -164,6 +164,16 @@ const Sidebar = () => nav ({
                     "/docs/page-files#load-hooks",
                     "Load Hooks",
                 ),
+
+                NavSubLink (
+                    "/docs/page-files#event-listeners",
+                    "Event Listeners",
+                ),
+
+                NavSubLink (
+                    "/docs/page-files#layouts",
+                    "Layouts",
+                ),
             ),
         ),
         
