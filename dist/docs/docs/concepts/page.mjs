@@ -841,7 +841,7 @@ var page = RootLayout(
       "They are used to tell the compiler to do special things with the option, instead of just serializing it.",
       br(),
       br(),
-      "For brevity, we sorten object attributes to [TYPE]OA.",
+      "For brevity, we shorten object attributes to [TYPE]OA.",
       br(),
       "So, a State Object Attribute -> SOA.",
       br(),

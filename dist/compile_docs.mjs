@@ -514,9 +514,9 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     clientPageJSText += `state:[`;
     for (const subject of nonBoundState) {
       if (typeof subject.value === "string") {
-        clientPageJSText += `{id:${subject.id},value:"${subject.value}"},`;
+        clientPageJSText += `{id:${subject.id},value:"${JSON.stringify(subject.value)}"},`;
       } else {
-        clientPageJSText += `{id:${subject.id},value:${subject.value}},`;
+        clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
       }
     }
     clientPageJSText += `],`;
@@ -539,9 +539,9 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
         clientPageJSText += `${bind}:[`;
         for (const subject of subjects) {
           if (typeof subject.value === "string") {
-            clientPageJSText += `{id:${subject.id},value:"${subject.value}"},`;
+            clientPageJSText += `{id:${subject.id},value:"${JSON.stringify(subject.value)}"},`;
           } else {
-            clientPageJSText += `{id:${subject.id},value:${subject.value}},`;
+            clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
           }
         }
         clientPageJSText += "]";

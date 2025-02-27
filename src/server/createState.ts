@@ -35,10 +35,11 @@ type Widen<T> =
     T extends number ? number :
     T extends string ? string :
     T extends boolean ? boolean :
+    T extends {} ? T & Record<string, any> :
     T;
 
 export const createState = <
-    U extends number | string | boolean,
+    U extends number | string | boolean | {},
 >(
     value: U,
     options?: {

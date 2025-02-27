@@ -197,7 +197,7 @@ export const page = RootLayout (
             br(),
             br(),
 
-            "For brevity, we sorten object attributes to [TYPE]OA.",
+            "For brevity, we shorten object attributes to [TYPE]OA.",
 
             br(),
 
