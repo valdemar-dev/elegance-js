@@ -3,16 +3,6 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
 }
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-var createState = (value, options) => {
-  const serverStateEntry = {
-    id: currentId++,
-    value,
-    type: 1 /* STATE */,
-    bind: options?.bind
-  };
-  globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
-  return serverStateEntry;
-};
 var createEventListener = ({
   eventListener,
   dependencies = [],
@@ -40,16 +30,23 @@ var createEventListener = ({
 };
 
 // src/docs/nullpage/page.ts
-var skibidi = createState({
-  skibidi: "sigmal,"
-});
 createEventListener({
-  dependencies: [skibidi],
-  eventListener: (params, skibidi2) => {
-    skibidi2.value.skibidi;
+  dependencies: [],
+  eventListener: (params) => {
   }
 });
-var page = body();
+var metadata = () => head(
+  {},
+  link({
+    rel: "stylesheet",
+    href: "/index.css"
+  }),
+  title("Hi There!")
+);
+var page = body({
+  class: "bg-green-400"
+});
 export {
+  metadata,
   page
 };

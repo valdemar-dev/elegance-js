@@ -47,9 +47,18 @@ compile({
     outputDirectory: "./.elegance",
     pagesDirectory: "./pages",
     writeToHTML: false,
-});`
+});`;
 
-const demoFirstPage = `export const page = body ("Greetings Traveller!");`
+const demoFirstPage = `export const page = body ("Greetings Traveller!");`;
+
+export const metadata = () => head ({
+},
+    link ({
+        rel: "stylesheet",
+        href: "/index.css"
+    }),
+    title ("Hi There!")
+)
 
 export const page = RootLayout (
     DocsLayout (

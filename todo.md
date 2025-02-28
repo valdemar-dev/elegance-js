@@ -6,16 +6,16 @@ POTENTIAL:
 
 TODO:
     - info.ts BE DEPRECATED NOW !
-    - object state
     - scrollintoview when clicking on hash
     - code cleanup
     - rewrite client
         - there's some weird shit with this, i need to make it more optimized
           no abstraction though, obviously
-    - make watch server url configurable.
     - write documentation (OMEGALUL)
 
 DONE: 
+    - object state
+    - make watch server url configurable.
     - make non children elements, that take in children, actually work
         - basically set element.children = null on childrenless elements so that they're rendered properly
     - typescript autocopmlete and typings for elements, make options {} good-ier

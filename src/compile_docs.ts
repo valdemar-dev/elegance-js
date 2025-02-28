@@ -1,6 +1,6 @@
 import { fileURLToPath } from "url";
 import { compile } from "./build";
-import { execSync } from "child_process";
+import { exec, execSync } from "child_process";
 
 import path from "path";
 
@@ -27,7 +27,14 @@ compile({
         path: PUBLIC_DIR,
         method: environment === "production" ? "recursive-copy" : "symlink",
     },
-    postCompile: async () => {
-        execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify`)
+
+    preCompile: async () => {
     },
+}).then(() => {
+    if (environment === "production") {
+        execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --minify`)
+    } else {
+        execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --watch=always`)
+    }
+
 });

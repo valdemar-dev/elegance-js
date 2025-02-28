@@ -222,6 +222,16 @@ var RootLayout = (...children) => body(
 );
 
 // src/docs/page.ts
+var metadata = () => {
+  return head(
+    {},
+    link({
+      rel: "stylesheet",
+      href: "/index.css"
+    }),
+    title("Hi There!")
+  );
+};
 var pageTemplateString = `
 const variables = createState({
     counter: 0,
@@ -388,5 +398,6 @@ var page = RootLayout(
   )
 );
 export {
+  metadata,
   page
 };

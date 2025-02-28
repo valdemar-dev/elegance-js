@@ -154,6 +154,15 @@ const SuperAwesomeLayout = (...children: Child[]) => div ({
 );
 `;
 
+export const metadata = () => head ({
+},
+    link ({
+        rel: "stylesheet",
+        href: "/index.css"
+    }),
+    title ("Hi There!")
+)
+
 export const page = RootLayout (
     DocsLayout (
         PageHeading("State", "state"),

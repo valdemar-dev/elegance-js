@@ -1,7 +1,8 @@
-export declare const compile: ({ writeToHTML, pagesDirectory, outputDirectory, environment, watchServerPort, postCompile, publicDirectory, }: {
+export declare const compile: (props: {
     writeToHTML?: boolean;
     watchServerPort?: number;
     postCompile?: () => any;
+    preCompile?: () => any;
     environment: "production" | "development";
     pagesDirectory: string;
     outputDirectory: string;
@@ -9,6 +10,4 @@ export declare const compile: ({ writeToHTML, pagesDirectory, outputDirectory, e
         path: string;
         method: "symlink" | "recursive-copy";
     };
-}) => Promise<{
-    shouldClientHardReload: boolean;
-}>;
+}) => Promise<void>;

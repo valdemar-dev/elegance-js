@@ -94,7 +94,6 @@ const getFile = (dir: Array<Dirent>, fileName: string) => {
 
 const getProjectFiles = (pagesDirectory: string,) => {
     const pageFiles = [];
-    const infoFiles = [];
 
     const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
 
@@ -105,25 +104,13 @@ const getProjectFiles = (pagesDirectory: string,) => {
             .filter(f => f.name.endsWith(".js") || f.name.endsWith(".ts"));
 
         const pageFileInSubdirectory = getFile(subdirectoryFiles, "page");
-        const infoFileInSubdirectory  = getFile(subdirectoryFiles, "info");
 
-        if (!pageFileInSubdirectory && !infoFileInSubdirectory) continue;
-        else if (!infoFileInSubdirectory) {
-            const name = (pageFileInSubdirectory as Dirent).name 
-            throw `/${subdirectory}/${name} is missing it's accompanying info.js/ts file.`;
-        } else if (!pageFileInSubdirectory) {
-            const name = (infoFileInSubdirectory as Dirent).name 
-            throw `/${subdirectory}/${name} is missing it's accompanying page.js/ts file.`;
-        }
+        if (!pageFileInSubdirectory) continue;
 
         pageFiles.push(pageFileInSubdirectory);
-        infoFiles.push(infoFileInSubdirectory);
     }
 
-    return {
-        pageFiles,
-        infoFiles,
-    }
+    return pageFiles;
 };
 
 const buildClient = async (
@@ -152,25 +139,6 @@ const buildClient = async (
         path.join(DIST_DIR, "/client.js"),
         transformedClient.code,
     );
-};
-
-const buildInfoFiles = async (infoFiles: Array<Dirent>, environment: "production" | "development", SERVER_DIR: string) => {
-    const mappedInfoFileNames = infoFiles.map(f => `${f.parentPath}/${f.name}`);
-
-    await esbuild.build({
-        minify: environment === "production",
-        drop: environment === "production" ? ["console", "debugger"] : undefined,
-        entryPoints: mappedInfoFileNames,
-        bundle: true,
-        outdir: SERVER_DIR,
-        loader: {
-            ".js": "js",
-            ".ts": "ts",
-        }, 
-        inject: [bindElementsPath],
-        format: "esm",
-        platform: "node",
-    });
 };
 
 const escapeHtml = (str: string): string => {
@@ -261,7 +229,10 @@ const processOptionAsObjectAttribute = (
     objectAttributes.push({ ...optionValue, key: key, attribute: optionFinal, });
 };
 
-const processPageElements = (element: Child, objectAttributes: Array<any>): Child => {
+const processPageElements = (
+    element: Child,
+    objectAttributes: Array<any>,
+): Child => {
     if (
         typeof element === "boolean" ||
         typeof element === "number" ||
@@ -382,7 +353,7 @@ const generateSuitablePageElements = async (
 
     if (!writeToHTML) {
         fs.writeFileSync(
-            path.join(DIST_DIR, pageLocation, "page.json"),
+            path.join(pageLocation, "page.json"),
             JSON.stringify(processedPageElements),
             "utf-8",
         )
@@ -396,14 +367,14 @@ const generateSuitablePageElements = async (
     );
 
     const template = generateHTMLTemplate({
-        pageURL: pageLocation,
+        pageURL: path.relative(DIST_DIR, pageLocation),
         head: metadata,
         addPageScriptTag: true,
     });
 
     const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
 
-    const htmlLocation = path.join(DIST_DIR, pageLocation, "index.html");
+    const htmlLocation = path.join(pageLocation, "index.html");
 
     fs.writeFileSync(
         htmlLocation,
@@ -413,12 +384,6 @@ const generateSuitablePageElements = async (
             flag: "w",
         }
     );
-
-    const infoLocation = path.join(DIST_DIR, pageLocation, "info.js");
-
-    if (fs.existsSync(infoLocation)) {
-        fs.unlinkSync(infoLocation)
-    }
 
     return objectAttributes;
 };
@@ -431,7 +396,9 @@ const generateClientPageData = async (
     pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
 ) => {
-    let clientPageJSText = `let url="${pageLocation === "" ? "/" : `/${pageLocation}`}";`;
+    const pageDiff = path.relative(DIST_DIR, pageLocation);
+
+    let clientPageJSText = `let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
 
     clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`
     clientPageJSText += `pd[url]={`;
@@ -548,20 +515,11 @@ const generateClientPageData = async (
     // close fully, NEVER REMOVE!!
     clientPageJSText += `}`;
 
-    const pageDataPath = path.join(DIST_DIR, pageLocation, "page_data.js");
+    const pageDataPath = path.join(pageLocation, "page_data.js");
 
     let sendHardReloadInstruction = false;
 
     const transformedResult = await esbuild.transform(clientPageJSText, { minify: true, })
-
-    // makes pages hard-reload when import things are changed - val feb 10 2025
-    if (fs.existsSync(pageDataPath)) {
-        const existingPageData = fs.readFileSync(pageDataPath, "utf-8")
-
-        if (existingPageData.toString() !== transformedResult.code) {
-            sendHardReloadInstruction = true;
-        }
-    }
 
     fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8",)
 
@@ -569,55 +527,45 @@ const generateClientPageData = async (
 };
 
 const buildPages = async (
-    pages: Array<{
-        metadata: () => BuiltElement<"head">,
-        executeOnServer: ExecuteOnServer | null,
-        generateMetadata: GenerateMetadata,
-        pageLocation: string,
-        pageFilepath: string, 
-    }>,
     DIST_DIR: string,
     writeToHTML: boolean,
-    watch: boolean
 ) => { 
+    resetLayouts();
+
+    const subdirectories = [...getAllSubdirectories(DIST_DIR), ""];
+
     let shouldClientHardReload = false;
 
-    for (const page of pages) {
-        if (!writeToHTML) {
-            if (page.generateMetadata === GenerateMetadata.ON_BUILD) {
-                const template = generateHTMLTemplate({
-                    pageURL: page.pageLocation,
-                    head: page.metadata,
-                    addPageScriptTag: true,
-                });
-
-                fs.writeFileSync(
-                    path.join(DIST_DIR, page.pageLocation, "metadata.html"),
-                    template,
-                    "utf-8",
-                );
-            }
-        }
-
-        const pagePath = path.resolve(path.join(DIST_DIR, page.pageLocation, "page.js"))
+    for (const directory of subdirectories) {
+        const pagePath = path.resolve(path.join(DIST_DIR, directory))
 
         initializeState();
         resetLoadHooks();
-        resetLayouts();
 
-        const { page: pageElements, } = await import(pagePath + `?${Date.now()}`);
+        const {
+            page: pageElements,
+            generateMetadata,
+            metadata,
+        } = await import(pagePath + "/page.js" + `?${Date.now()}`);
+
+        if (
+            !metadata ||
+            metadata && typeof metadata !== "function"
+        ) {
+            throw `${pagePath} is not exporting a metadata function.`;
+        }
+
+        if (!pageElements) {
+            throw `${pagePath} must export a const page, which is of type BuiltElement<"body">.`
+        }
 
         const state = getState();
         const pageLoadHooks = getLoadHooks();
 
-        if (!pageElements) {
-            throw `/${page.pageLocation}/page.js must export a const page, which is of type BuiltElement<"body">.`
-        }
-
         const objectAttributes = await generateSuitablePageElements(
-            page.pageLocation,
+            pagePath,
             pageElements,
-            page.metadata,
+            metadata,
             DIST_DIR,
             writeToHTML
         );
@@ -625,7 +573,7 @@ const buildPages = async (
         const {
             sendHardReloadInstruction,
         } = await generateClientPageData(
-            page.pageLocation,
+            pagePath,
             state || {},
             objectAttributes,
             pageLoadHooks || [],
@@ -640,150 +588,57 @@ const buildPages = async (
     };
 };
 
-const getPageCompilationDirections = async (pageFiles: Array<Dirent>, pagesDirectory: string, SERVER_DIR: string) => {
-    const builtInfoFiles = [...getAllSubdirectories(SERVER_DIR), ""];
-
-    const compilationDirections = [];
-
-    for (const builtInfoFile of builtInfoFiles) {
-        const absoluteFilePath = `${path.resolve(process.cwd(), path.join(SERVER_DIR, builtInfoFile, "/info.js"))}`;
-
-        const pagePath = path.join(pagesDirectory, builtInfoFile)
-        const pageFile = pageFiles.find(page => page.parentPath === pagePath);
-
-        // skipping empty directories
-        if (!pageFile) continue;
-
-        // hacky, skips cache
-        const infoFileExports = await import(absoluteFilePath + `?${Date.now()}`);
-
-        const {
-            metadata,
-            executeOnServer,
-            generateMetadata = GenerateMetadata.ON_BUILD,
-        }: {
-            metadata: () => BuiltElement<"head">,
-            executeOnServer?: ExecuteOnServer,
-            generateMetadata?: GenerateMetadata,
-        } = infoFileExports;
-
-        if (!metadata) {
-            throw `File ${builtInfoFile}/info.js does not export a function \`metadata\`. Info files must export a \`metadata\` function which resolves into a <head> element.`;
-        }
-
-        if (typeof metadata !== "function") {
-            throw `${builtInfoFile} The function \`metadata\` is not a function which resolves into a <head> element.`;
-        }
-
-        compilationDirections.push({
-            metadata,
-            executeOnServer: executeOnServer ?? null,
-            generateMetadata,
-            pageFilepath: `${pageFile.parentPath}/${pageFile.name}`,
-            pageLocation: builtInfoFile
-        });
-    }
-
-    return compilationDirections;
-};
-
-let doesHTTPWatchServerExist = false;
 let isTimedOut = false;
 let httpStream: ServerResponse<IncomingMessage> | null;
 
 const currentWatchers: FSWatcher[] = [];
 
-const rebuild = async (props: any) => {
-    try {
-        const {
-            shouldClientHardReload,
-        } = await compile({ ...props, });
-
-        if (shouldClientHardReload) {
-            console.log("Sending hard reload..");
-            httpStream?.write(`data: hard-reload\n\n`)
-        } else {
-            console.log("Sending soft reload..");
-            httpStream?.write(`data: reload\n\n`)
-        }
-    } catch(e) {
-        log(red(bold(`Build Failed at ${new Date().toLocaleTimeString()}`)))
-        console.error(e);
-    }
-
-    isTimedOut = false;
-};
-
 const registerListener = async (props: any) => {
-    if (!doesHTTPWatchServerExist) {
-        doesHTTPWatchServerExist = true;
+    const server = http.createServer((req, res) => {
+        if (req.url === '/events') {
+            log(white("Client listening for changes.."));
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                "Connection": "keep-alive",
+                "Transfer-Encoding": "chunked",
+                "X-Accel-Buffering": "no",
+                "Content-Encoding": "none",
+                'Access-Control-Allow-Origin': '*',
+                "Access-Control-Allow-Methods":  "*",
+                "Access-Control-Allow-Headers": "*",
+            });
 
-        const server = http.createServer((req, res) => {
-            if (req.url === '/events') {
-                log(white("Client listening for changes.."));
+            httpStream = res;
 
-                res.writeHead(200, {
-                    "X-Accel-Buffering": "no",
-                    'Content-Type': 'text/event-stream',
-                    'Cache-Control': 'no-cache',
-                    "Content-Encoding": "none",
-                    'Access-Control-Allow-Origin': '*',
-                    "Access-Control-Allow-Methods":  "*",
-                    "Access-Control-Allow-Headers": "*",
-                });
+            // makes weird buffering thing go away lol
+            httpStream.write(`data: ping\n\n`);
+        } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not Found');
+        }
+    });
 
-                httpStream = res;
-            } else {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('Not Found');
-            }
-        });
-
-        server.listen(props.watchServerPort, () => {
-            log(bold(green('Hot-Reload server online!')));
-        });
-    } 
-    
-    for (const watcher of currentWatchers) {
-        watcher.close();
-    }
-
-    const subdirectories = [...getAllSubdirectories(props.pagesDirectory), ""];
-
-    for (const directory of subdirectories) {
-        const fullPath = path.join(props.pagesDirectory, directory)
-
-        const watcher = fs.watch(
-            fullPath, 
-            async () => {
-                if (isTimedOut) return;
-                isTimedOut = true;
-
-                // clears term
-                process.stdout.write('\x1Bc');
-
-                setTimeout(async () => {
-                    await rebuild(props)
-                }, 100);
-            },
-        );
-
-        currentWatchers.push(watcher);
-    }
+    server.listen(props.watchServerPort, () => {
+        log(bold(green('Hot-Reload server online!')));
+    });
 };
 
-export const compile = async ({
+const build = async ({
     writeToHTML = false,
     pagesDirectory,
     outputDirectory,
     environment,
     watchServerPort = 3001,
     postCompile,
+    preCompile,
     publicDirectory,
+    DIST_DIR,
 }: {
     writeToHTML?: boolean,
     watchServerPort?: number
     postCompile?: () => any,
+    preCompile?: () => any,
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
@@ -791,37 +646,9 @@ export const compile = async ({
         path: string,
         method: "symlink" | "recursive-copy",
     },
+    DIST_DIR: string,
 }) => {
     const watch = environment === "development";
-
-    const BUILD_FLAG = path.join(outputDirectory, "ELEGANE_BUILD_FLAG");
-
-    if (fs.existsSync(outputDirectory)) {
-        if (!fs.existsSync(BUILD_FLAG)) {
-            throw `The output directory already exists, but is not an Elegance Build directory.`;
-        }
-
-        fs.rmSync(outputDirectory, { recursive: true, })
-    }
-
-    fs.mkdirSync(outputDirectory);
-
-    fs.writeFileSync(
-        path.join(BUILD_FLAG),
-        "This file just marks this directory as one containing an Elegance Build.",
-        "utf-8",
-    ); 
-
-    const DIST_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "dist");
-    const SERVER_DIR = writeToHTML ? outputDirectory : path.join(outputDirectory, "server")
-
-    if (!fs.existsSync(DIST_DIR)) {
-        fs.mkdirSync(DIST_DIR);
-    }
-
-    if (!fs.existsSync(SERVER_DIR)) {
-        fs.mkdirSync(SERVER_DIR);
-    }
 
     log(bold(yellow(" -- Elegance.JS -- ")));
     log(white(`Beginning build at ${new Date().toLocaleTimeString()}..`));
@@ -840,23 +667,28 @@ export const compile = async ({
         log("");
     }
 
+    if (preCompile) {
+        preCompile();
+    }
+
+    const pageFiles = getProjectFiles(pagesDirectory);
+    const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
+
+    // removes old pages that no longer-exist.
+    // more efficient thank nuking directory
+    for (const page of existingCompiledPages) {
+        const pageFile = pageFiles.find(dir => path.relative(pagesDirectory, dir.parentPath) === page);
+
+        if (!pageFile) {
+            fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })
+        }
+    }
+
     const start = performance.now();
-
-    const { pageFiles, infoFiles } = getProjectFiles(pagesDirectory);
-
-    const projectFilesGathered = performance.now();
-
-    await buildInfoFiles(infoFiles, environment, SERVER_DIR);
-
-    const infoFilesBuilt = performance.now();
-
-    const pages = await getPageCompilationDirections(pageFiles, pagesDirectory, SERVER_DIR);
-
-    const compilationDirectionsGathered = performance.now();
 
     await esbuild.build({
         entryPoints: [
-            ...pages.map(page => page.pageFilepath),
+            ...pageFiles.map(page => path.join(page.parentPath, page.name)),
         ],
         minify: environment === "production",
         drop: environment === "production" ? ["console", "debugger"] : undefined,
@@ -874,7 +706,7 @@ export const compile = async ({
 
     const {
         shouldClientHardReload
-    } = await buildPages(pages, DIST_DIR, writeToHTML, watch);
+    } = await buildPages(DIST_DIR, writeToHTML);
 
     const pagesBuilt = performance.now();
 
@@ -886,39 +718,119 @@ export const compile = async ({
         const method = publicDirectory.method;
 
         if (method === "symlink") {
-            fs.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
+            if (!fs.existsSync(path.join(DIST_DIR, "public"))) {
+                fs.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
+            } 
         } else if (method === "recursive-copy") {
-            fs.cpSync(publicDirectory.path, path.join(DIST_DIR, "public"), { recursive: true, });
+            if (!fs.existsSync(path.join(DIST_DIR, "public"))) {
+                fs.cpSync(publicDirectory.path, path.join(DIST_DIR, "public"), { recursive: true, });
+            }
         }
     }
 
-    console.log(`${Math.round(projectFilesGathered-start)}ms to Gather Project Files`)
-    console.log(`${Math.round(infoFilesBuilt-projectFilesGathered)}ms to Build info Files`)
-    console.log(`${Math.round(compilationDirectionsGathered-infoFilesBuilt)}ms to Gather Compilation Directions`)
-    console.log(`${Math.round(pagesTranspiled-compilationDirectionsGathered)} to Transpile Pages`)
+    console.log(`${Math.round(pagesTranspiled-start)}ms to Transpile Pages`)
     console.log(`${Math.round(pagesBuilt-pagesTranspiled)}ms to Build Pages`)
     console.log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
 
-    log(green(bold((`Created ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
-
-    if (watch) {
-        await registerListener({
-            writeToHTML,
-            pagesDirectory,
-            outputDirectory,
-            environment,
-            watch,
-            watchServerPort,
-            postCompile,
-            publicDirectory,
-        })
-    }
+    log(green(bold((`Compiled ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
 
     if (postCompile) {
         await postCompile();
     }
 
-    return {
-        shouldClientHardReload
+    if (!watch) return;
+
+    for (const watcher of currentWatchers) {
+        watcher.close();
     }
+
+    const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
+
+    const watcherFn = async () => {
+        if (isTimedOut) return;
+        isTimedOut = true;
+
+        // clears term
+        process.stdout.write('\x1Bc');
+
+        setTimeout(async () => {
+            await build({
+                writeToHTML,
+                pagesDirectory,
+                outputDirectory,
+                environment,
+                watchServerPort,
+                postCompile,
+                preCompile,
+                publicDirectory,
+                DIST_DIR,
+            })
+
+            isTimedOut = false;
+        }, 100);
+    };
+
+    for (const directory of subdirectories) {
+        const fullPath = path.join(pagesDirectory, directory)
+
+        const watcher = fs.watch(
+            fullPath,
+            {},
+            watcherFn,
+        );
+
+        currentWatchers.push(watcher);
+    }
+
+    if (shouldClientHardReload) {
+        console.log("Sending hard reload..");
+        httpStream?.write(`data: hard-reload\n\n`)
+    } else {
+        console.log("Sending soft reload..");
+        httpStream?.write(`data: reload\n\n`)
+    }
+};
+
+export const compile = async (props: {
+    writeToHTML?: boolean,
+    watchServerPort?: number
+    postCompile?: () => any,
+    preCompile?: () => any,
+    environment: "production" | "development",
+    pagesDirectory: string,
+    outputDirectory: string,
+    publicDirectory?: {
+        path: string,
+        method: "symlink" | "recursive-copy",
+    },
+}) => {
+    const watch = props.environment === "development";
+
+    const BUILD_FLAG = path.join(props.outputDirectory, "ELEGANE_BUILD_FLAG");
+
+    if (!fs.existsSync(props.outputDirectory)) {
+        fs.mkdirSync(props.outputDirectory);
+    }
+
+    if (!fs.existsSync(BUILD_FLAG)) {
+        throw `The output directory already exists, but is not an Elegance Build directory.`;
+    }
+
+    fs.writeFileSync(
+        path.join(BUILD_FLAG),
+        "This file just marks this directory as one containing an Elegance Build.",
+        "utf-8",
+    ); 
+
+    const DIST_DIR = props.writeToHTML ? props.outputDirectory : path.join(props.outputDirectory, "dist");
+
+    if (!fs.existsSync(DIST_DIR)) {
+        fs.mkdirSync(DIST_DIR);
+    }
+
+    if (watch) {
+        await registerListener(props)
+    }
+
+    await build({ ...props, DIST_DIR, });
 };

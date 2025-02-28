@@ -47,7 +47,6 @@ const createStateManager = (subjects: ClientSubject[]) => {
             if (bind) {
                 return pd[bind].get(id);
             }
-
             return state.subjects.find((s: ClientSubject) => s.id === id)
         },
 

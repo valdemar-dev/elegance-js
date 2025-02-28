@@ -7,10 +7,10 @@ var RootLayout = (...children) => body(
 );
 
 // src/docs/docs/components/PageHeading.ts
-var PageHeading = (title, id) => h2({
+var PageHeading = (title2, id) => h2({
   class: "text-3xl font-semibold mb-4",
   id,
-  innerText: title
+  innerText: title2
 });
 
 // src/components/Breakpoint.ts
@@ -707,6 +707,14 @@ compile({
     writeToHTML: false,
 });`;
 var demoFirstPage = `export const page = body ("Greetings Traveller!");`;
+var metadata = () => head(
+  {},
+  link({
+    rel: "stylesheet",
+    href: "/index.css"
+  }),
+  title("Hi There!")
+);
 var page = RootLayout(
   DocsLayout(
     PageHeading(
@@ -1170,5 +1178,6 @@ var page = RootLayout(
   )
 );
 export {
+  metadata,
   page
 };

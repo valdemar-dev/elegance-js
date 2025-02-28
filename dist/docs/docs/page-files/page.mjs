@@ -654,10 +654,10 @@ var Mono = (text) => span({
 }, text);
 
 // src/docs/docs/components/PageHeading.ts
-var PageHeading = (title, id) => h2({
+var PageHeading = (title2, id) => h2({
   class: "text-3xl font-semibold mb-4",
   id,
-  innerText: title
+  innerText: title2
 });
 
 // src/docs/docs/components/Paragraph.ts
@@ -821,6 +821,14 @@ const SuperAwesomeLayout = (...children: Child[]) => div ({
     ),
 );
 `;
+var metadata = () => head(
+  {},
+  link({
+    rel: "stylesheet",
+    href: "/index.css"
+  }),
+  title("Hi There!")
+);
 var page = RootLayout(
   DocsLayout(
     PageHeading("State", "state"),
@@ -1128,5 +1136,6 @@ var page = RootLayout(
   )
 );
 export {
+  metadata,
   page
 };

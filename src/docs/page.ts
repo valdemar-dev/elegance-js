@@ -1,8 +1,16 @@
 import { Link } from "../components/Link";
-import { 
-    Header,
-} from "./components/Header";
+import { Header, } from "./components/Header";
 import { RootLayout } from "./components/RootLayout";
+
+export const metadata = () => {
+    return head ({},
+        link ({
+            rel: "stylesheet",
+            href: "/index.css"
+        }),
+        title ("Hi There!")
+    )
+}
 
 const pageTemplateString = 
 `
