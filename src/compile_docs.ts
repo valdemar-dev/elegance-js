@@ -36,5 +36,4 @@ compile({
     } else {
         execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/index.css --watch=always`)
     }
-
 });

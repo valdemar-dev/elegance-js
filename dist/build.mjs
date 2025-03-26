@@ -687,15 +687,18 @@ var build = async ({
   await buildClient(environment, DIST_DIR, watch, watchServerPort);
   const end = performance.now();
   if (publicDirectory) {
-    const method = publicDirectory.method;
-    if (method === "symlink") {
+    if (environment === "development") {
+      console.log("Creating a symlink for the public directory.");
       if (!fs.existsSync(path.join(DIST_DIR, "public"))) {
         fs.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
       }
-    } else if (method === "recursive-copy") {
-      if (!fs.existsSync(path.join(DIST_DIR, "public"))) {
-        fs.cpSync(publicDirectory.path, path.join(DIST_DIR, "public"), { recursive: true });
+    } else if (environment === "production") {
+      console.log("Recursively copying public directory.. this may take a while.");
+      const src = path.relative(process.cwd(), publicDirectory.path);
+      if (fs.existsSync(path.join(DIST_DIR, "public"))) {
+        fs.rmSync(path.join(DIST_DIR, "public"), { recursive: true });
       }
+      await fs.promises.cp(src, path.join(DIST_DIR, "public"), { recursive: true });
     }
   }
   console.log(`${Math.round(pagesTranspiled - start)}ms to Transpile Pages`);
