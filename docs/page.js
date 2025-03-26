@@ -1,4 +1,238 @@
-globalThis.__SERVER_CURRENT_STATE_ID__||(globalThis.__SERVER_CURRENT_STATE_ID__=0);var d=globalThis.__SERVER_CURRENT_STATE_ID__;var u=(n,t)=>{let r={id:d++,value:n,type:1,bind:t?.bind};return globalThis.__SERVER_CURRENT_STATE__.push(r),r},x=({eventListener:n,dependencies:t=[],params:r})=>{let o=t.map(i=>({id:i.id,bind:i.bind})),e="[";for(let i of o)e+=`{id:${i.id}`,i.bind&&(e+=`,bind:${i.bind}`),e+="},";e+="]";let s={id:d++,type:1,value:new Function("state","event",`(${n.toString()})({ event, ...${JSON.stringify(r||{})} }, ...state.getAll(${e}))`)};return globalThis.__SERVER_CURRENT_STATE__.push(s),s};var c=n=>{let t=n.fn.toString(),r=(n.deps||[]).map(e=>({id:e.id,bind:e.bind})),o="[";for(let e of r)o+=`{id:${e.id}`,e.bind&&(o+=`,bind:${e.bind}`),o+="},";o+="]",globalThis.__SERVER_CURRENT_LOADHOOKS__.push({fn:`(state) => (${t})(state, ...state.getAll(${o}))`,bind:n.bind||""})};c({fn:()=>{let n=Array.from(document.querySelectorAll("a[prefetch]")),t=[];for(let r of n){let o=r.getAttribute("prefetch"),e=new URL(r.href);switch(o){case"load":client.fetchPage(e);break;case"hover":let s=()=>{client.fetchPage(e)};r.addEventListener("mouseenter",s),t.push({el:r,fn:s});break}}return()=>{for(let r of t)r.el.removeEventListener("mouseenter",r.fn)}}});var T=x({eventListener:n=>{let t=new URL(n.event.currentTarget.href),r=globalThis.client,o=r.sanitizePathname(t.pathname),e=r.sanitizePathname(window.location.pathname);if(o===e)return t.hash===window.location.hash?n.event.preventDefault():void 0;n.event.preventDefault(),r.navigateLocally(t.href)}}),l=(n,...t)=>{if(!n.href)throw"Link elements must have a HREF attribute set.";if(!n.href.startsWith("/"))throw'Link elements may only navigate to local pages. "/"';return a({...n,onClick:T},...t)};var b=(n,t)=>({type:2,initialValues:n.map(o=>o.value),update:t,refs:n.map(o=>({id:o.id,bind:o.bind}))});var f=u(!1);c({deps:[f],fn:(n,t)=>{let r=()=>{if({x:window.scrollX,y:window.scrollY}.y>20){if(t.value===!0)return;t.value=!0,t.signal()}else{if(t.value===!1)return;t.value=!1,t.signal()}};return window.addEventListener("scroll",r),()=>{window.removeEventListener("scroll",r)}}});var g=()=>header({class:"sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"},div({class:b([f],n=>{let t="group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 ";return n?t+"border-b-background-800 bg-background-950":t+"bg-background-900 border-b-transparent"})},div({class:"max-w-[900px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(900px+1rem)]:px-0"},div({class:"flex min-w-max w-full items-center z-10"},l({href:"/",class:"flex items-center gap-1 h-full"},p({class:"font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",innerText:"Elegance"}),p({innerText:"JS",class:"font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"}))),div({class:"flex py-2 sm:py-4 flex relative items-center justify-end w-full"},l({prefetch:"hover",class:"z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",href:"/docs",innerText:"Docs"})))));var m=(...n)=>body({class:"bg-background-900 text-text-50 font-inter select-none text-text-50"},...n);var W=()=>head({},link({rel:"stylesheet",href:"/index.css"}),title("Hi There!")),E=`
+// src/server/createState.ts
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
+var createState = (value, options) => {
+  const serverStateEntry = {
+    id: currentId++,
+    value,
+    type: 1 /* STATE */,
+    bind: options?.bind
+  };
+  globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+  return serverStateEntry;
+};
+var createEventListener = ({
+  eventListener,
+  dependencies = [],
+  params
+}) => {
+  const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
+  const value = {
+    id: currentId++,
+    type: 1 /* STATE */,
+    value: new Function(
+      "state",
+      "event",
+      `(${eventListener.toString()})({ event, ...${JSON.stringify(params || {})} }, ...state.getAll(${dependencyString}))`
+    )
+  };
+  globalThis.__SERVER_CURRENT_STATE__.push(value);
+  return value;
+};
+
+// src/server/loadHook.ts
+var createLoadHook = (options) => {
+  const stringFn = options.fn.toString();
+  const deps = (options.deps || []).map((dep) => ({
+    id: dep.id,
+    bind: dep.bind
+  }));
+  let dependencyString = "[";
+  for (const dep of deps) {
+    dependencyString += `{id:${dep.id}`;
+    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
+    dependencyString += `},`;
+  }
+  dependencyString += "]";
+  globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
+    fn: `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`,
+    bind: options.bind || ""
+  });
+};
+
+// src/components/Link.ts
+createLoadHook({
+  fn: () => {
+    const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
+    const elsToClear = [];
+    for (const anchor of anchors) {
+      const prefetch = anchor.getAttribute("prefetch");
+      const href = new URL(anchor.href);
+      switch (prefetch) {
+        case "load":
+          client.fetchPage(href);
+          break;
+        case "hover":
+          const fn = () => {
+            client.fetchPage(href);
+          };
+          anchor.addEventListener("mouseenter", fn);
+          elsToClear.push({
+            el: anchor,
+            fn
+          });
+          break;
+      }
+    }
+    return () => {
+      for (const listener of elsToClear) {
+        listener.el.removeEventListener("mouseenter", listener.fn);
+      }
+    };
+  }
+});
+var navigate = createEventListener({
+  eventListener: (params) => {
+    const target = new URL(params.event.currentTarget.href);
+    const client2 = globalThis.client;
+    const sanitizedTarget = client2.sanitizePathname(target.pathname);
+    const sanitizedCurrent = client2.sanitizePathname(window.location.pathname);
+    if (sanitizedTarget === sanitizedCurrent) {
+      if (target.hash === window.location.hash) return params.event.preventDefault();
+      return;
+    }
+    params.event.preventDefault();
+    client2.navigateLocally(target.href);
+  }
+});
+var Link = (options, ...children) => {
+  if (!options.href) {
+    throw `Link elements must have a HREF attribute set.`;
+  }
+  if (!options.href.startsWith("/")) {
+    throw `Link elements may only navigate to local pages. "/"`;
+  }
+  return a(
+    {
+      ...options,
+      onClick: navigate
+    },
+    ...children
+  );
+};
+
+// src/server/observe.ts
+var observe = (refs, update) => {
+  const returnValue = {
+    type: 2 /* OBSERVER */,
+    initialValues: refs.map((ref) => ref.value),
+    update,
+    refs: refs.map((ref) => ({
+      id: ref.id,
+      bind: ref.bind
+    }))
+  };
+  return returnValue;
+};
+
+// src/docs/components/Header.ts
+var hasUserScrolled = createState(false);
+createLoadHook({
+  deps: [hasUserScrolled],
+  fn: (state, hasUserScrolled2) => {
+    const handleScroll = () => {
+      const pos = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+      if (pos.y > 20) {
+        if (hasUserScrolled2.value === true) return;
+        hasUserScrolled2.value = true;
+        hasUserScrolled2.signal();
+      } else {
+        if (hasUserScrolled2.value === false) return;
+        hasUserScrolled2.value = false;
+        hasUserScrolled2.signal();
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }
+});
+var Header = () => header(
+  {
+    class: "sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"
+  },
+  div(
+    {
+      class: observe(
+        [hasUserScrolled],
+        (hasUserScrolled2) => {
+          const defaultClass = "group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 ";
+          if (hasUserScrolled2) return defaultClass + "border-b-background-800 bg-background-950";
+          return defaultClass + "bg-background-900 border-b-transparent";
+        }
+      )
+    },
+    div(
+      {
+        class: "max-w-[900px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(900px+1rem)]:px-0"
+      },
+      div(
+        {
+          class: "flex min-w-max w-full items-center z-10"
+        },
+        Link(
+          {
+            href: "/",
+            class: "flex items-center gap-1 h-full"
+          },
+          p({
+            class: "font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none",
+            innerText: "Elegance"
+          }),
+          p({
+            innerText: "JS",
+            class: "font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none"
+          })
+        )
+      ),
+      div(
+        {
+          class: "flex py-2 sm:py-4 flex relative items-center justify-end w-full"
+        },
+        Link({
+          prefetch: "hover",
+          class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
+          href: "/docs",
+          innerText: "Docs"
+        })
+      )
+    )
+  )
+);
+
+// src/docs/components/RootLayout.ts
+var RootLayout = (...children) => body(
+  {
+    class: "bg-background-900 text-text-50 font-inter select-none text-text-50"
+  },
+  ...children
+);
+
+// src/docs/page.ts
+var metadata = () => {
+  return head(
+    {},
+    link({
+      rel: "stylesheet",
+      href: "/index.css"
+    }),
+    title("Hi There!")
+  );
+};
+var pageTemplateString = `
 const variables = createState({
     counter: 0,
 });
@@ -29,4 +263,141 @@ export const page = body ({
         "Increment Counter",
     ),
 );
-`,h=n=>{let t={body:"text-orange-400",observe:"text-orange-400",createState:"text-orange-400",p:"text-orange-400",button:"text-orange-400",eventListener:"text-orange-400",signal:"text-orange-400",const:"text-orange-300",return:"text-orange-300",export:"text-red-400",import:"text-red-400",from:"text-red-400",onClick:"text-orange-200",innerText:"text-orange-200",class:"text-orange-200",increment:"text-orange-200",counter:"text-orange-200",event:"text-orange-200"},r=/(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|incrementobserve|createState|export|import|from|return|body|p|button|onClick|ids|update|event|innerText|counter|class|signal|eventListener)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;return n.replace(r,e=>{if(e.startsWith("//"))return`<span class="text-neutral-500">${e}</span>`;if(e.startsWith("${")&&e.endsWith("}"))return`<span class="text-purple-400">${e}</span>`;if(e.startsWith('"')&&e.endsWith('"'))return`<span class="text-green-400">${e}</span>`;if(e.startsWith("`")&&e.endsWith("`"))return`<span class="text-green-400">${e}</span>`;let s=t[e];return s?`<span class="${s}">${e}</span>`:e})},z=m(g(),div({class:"max-w-[900px] w-full mx-auto pt-4 px-2"},div({class:"text-center px-4 pt-8 mb-12 sm:mb-20"},div({class:"text-3xl md:text-4xl lg:text-5xl font-bold font-inter mb-4"},span({innerText:"Your site doesn't"}),span({innerText:" need "}),span({innerText:"to be slow."})),p({class:"text-xs sm:text-sm text-text-100",innerHTML:'Nor should you depend on <b class="hover:text-red-400">1314</b> packages to display <b>"Hello World"</b>.'})),p({class:"text-base sm:text-xl text-center"},span({innerText:"Elegance gives you"}),span({class:"bg-gradient-to-r font-bold from-red-400 to-orange-400 bg-clip-text text-transparent",innerText:" performance, "}),span({class:"bg-gradient-to-r font-bold from-blue-400 to-green-400 bg-clip-text text-transparent",innerText:"state-of-the-art features"}),span({innerText:" and "}),span({class:"font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent",innerText:"syntaxical sugar, "}),span({class:"",innerHTML:"whilst leaving <b>you</b> in full control of how your site works."})),div({class:"mt-6 bg-background-950 p-4 rounded-md mb-8 sm:mb-20"},div({},h2({class:"text-sm sm:text-base text-text-200",innerText:"/pages/page.ts"})),pre({class:"text-xs sm:text-sm font-mono select-text overflow-x-scroll w-full",innerHTML:h(E)}))),div({class:"max-w-[900px] w-full mx-auto px-4 pb-64 flex flex-col gap-4 items-start  sm:items-center sm:flex-row sm:justify-between"},div({},h2({class:"text-xl sm:text-3xl font-bold",innerText:"Learn More"}),p({},"Interested? ","Read our Docs on how Elegance works.")),l({class:"text-base sm:text-lg uppercase font-bold text-background-950 font-semibold px-5 sm:px-6 py-2 sm:py-3 rounded-full bg-accent-400",href:"/docs",innerText:"documentation"})));export{W as metadata,z as page};
+`;
+var convertToSpans = (inputString) => {
+  const tokenMap = {
+    "body": "text-orange-400",
+    "observe": "text-orange-400",
+    "createState": "text-orange-400",
+    "p": "text-orange-400",
+    "button": "text-orange-400",
+    "eventListener": "text-orange-400",
+    "signal": "text-orange-400",
+    "const": "text-orange-300",
+    "return": "text-orange-300",
+    "export": "text-red-400",
+    "import": "text-red-400",
+    "from": "text-red-400",
+    "onClick": "text-orange-200",
+    "innerText": "text-orange-200",
+    "class": "text-orange-200",
+    "increment": "text-orange-200",
+    "counter": "text-orange-200",
+    "event": "text-orange-200"
+  };
+  const regex = /(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)|\b(?:const|incrementobserve|createState|export|import|from|return|body|p|button|onClick|ids|update|event|innerText|counter|class|signal|eventListener)\b|"(?:\\.|[^"\\])*"|\${[^}]*}|`(?:\\.|[^`\\])*`/g;
+  const result = inputString.replace(regex, (match) => {
+    if (match.startsWith("//")) {
+      return `<span class="text-neutral-500">${match}</span>`;
+    } else if (match.startsWith("${") && match.endsWith("}")) {
+      return `<span class="text-purple-400">${match}</span>`;
+    } else if (match.startsWith('"') && match.endsWith('"')) {
+      return `<span class="text-green-400">${match}</span>`;
+    } else if (match.startsWith("`") && match.endsWith("`")) {
+      return `<span class="text-green-400">${match}</span>`;
+    }
+    const className = tokenMap[match];
+    return className ? `<span class="${className}">${match}</span>` : match;
+  });
+  return result;
+};
+var page = RootLayout(
+  Header(),
+  div(
+    {
+      class: "max-w-[900px] w-full mx-auto pt-4 px-2"
+    },
+    div(
+      {
+        class: "text-center px-4 pt-8 mb-12 sm:mb-20"
+      },
+      div(
+        {
+          class: "text-3xl md:text-4xl lg:text-5xl font-bold font-inter mb-4"
+        },
+        span({
+          innerText: "Your site doesn't"
+        }),
+        span({
+          innerText: " need "
+        }),
+        span({
+          innerText: "to be slow."
+        })
+      ),
+      p({
+        class: "text-xs sm:text-sm text-text-100",
+        innerHTML: 'Nor should you depend on <b class="hover:text-red-400">1314</b> packages to display <b>"Hello World"</b>.'
+      })
+    ),
+    p(
+      {
+        class: "text-base sm:text-xl text-center"
+      },
+      span({
+        innerText: "Elegance gives you"
+      }),
+      span({
+        class: "bg-gradient-to-r font-bold from-red-400 to-orange-400 bg-clip-text text-transparent",
+        innerText: " performance, "
+      }),
+      span({
+        class: "bg-gradient-to-r font-bold from-blue-400 to-green-400 bg-clip-text text-transparent",
+        innerText: "state-of-the-art features"
+      }),
+      span({
+        innerText: " and "
+      }),
+      span({
+        class: "font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent",
+        innerText: "syntaxical sugar, "
+      }),
+      span({
+        class: "",
+        innerHTML: "whilst leaving <b>you</b> in full control of how your site works."
+      })
+    ),
+    div(
+      {
+        class: "mt-6 bg-background-950 p-4 rounded-md mb-8 sm:mb-20"
+      },
+      div(
+        {},
+        h2({
+          class: "text-sm sm:text-base text-text-200",
+          innerText: "/pages/page.ts"
+        })
+      ),
+      pre({
+        class: "text-xs sm:text-sm font-mono select-text overflow-x-scroll w-full",
+        innerHTML: convertToSpans(pageTemplateString)
+      })
+    )
+  ),
+  div(
+    {
+      class: "max-w-[900px] w-full mx-auto px-4 pb-64 flex flex-col gap-4 items-start  sm:items-center sm:flex-row sm:justify-between"
+    },
+    div(
+      {},
+      h2({
+        class: "text-xl sm:text-3xl font-bold",
+        innerText: "Learn More"
+      }),
+      p(
+        {},
+        "Interested? ",
+        "Read our Docs on how Elegance works."
+      )
+    ),
+    Link({
+      class: "text-base sm:text-lg uppercase font-bold text-background-950 font-semibold px-5 sm:px-6 py-2 sm:py-3 rounded-full bg-accent-400",
+      href: "/docs",
+      innerText: "documentation"
+    })
+  )
+);
+export {
+  metadata,
+  page
+};

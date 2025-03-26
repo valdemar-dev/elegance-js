@@ -479,6 +479,8 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     for (const subject of nonBoundState) {
       if (typeof subject.value === "string") {
         clientPageJSText += `{id:${subject.id},value:"${JSON.stringify(subject.value)}"},`;
+      } else if (typeof subject.value === "function") {
+        clientPageJSText += `{id:${subject.id},value:${subject.value.toString()}},`;
       } else {
         clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
       }
