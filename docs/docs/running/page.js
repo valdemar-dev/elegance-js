@@ -1,7 +1,1 @@
-// src/docs/docs/running/page.ts
-var metadata = () => head({});
-var page = body({});
-export {
-  metadata,
-  page
-};
+var t=()=>head({}),a=body({});export{t as metadata,a as page};
