@@ -172,7 +172,7 @@ const processOptionAsObjectAttribute = (
     }
 
     if (!optionValue.type) {
-        throw `ObjectAttributeType is missing from object attribute.`;
+        throw `ObjectAttributeType is missing from object attribute. ${element.tag}: ${optionName}/${optionValue}`;
     }
 
     // TODO: jank lol - val 2025-02-17
@@ -245,29 +245,32 @@ const processPageElements = (
 
     const processElementOptionsAsChildAndReturn = () => {
         const children = element.children as Child[];
-
+        
         (element.children as Child[]) = [
             (element.options as Child),
             ...children
         ];
-
-        for (let child of children) {
+        
+        element.options = {};
+        
+        for (let i = 0; i < children.length+1; i++) {
+            const child = element.children![i];
+            
             const processedChild = processPageElements(child, objectAttributes)
-
-            child = processedChild;	
+            
+            element.children![i] = processedChild;
         }
-
-        return element;
+        
+        return {
+            ...element,
+            options: {},
+        }
     };
 
     if (typeof element.options !== "object") {
         return processElementOptionsAsChildAndReturn();
     }
-
-    // This is so we can check if uh
-    // the first param of a element creation call is a child
-    // instead of options.
-    // It's a syntag sugar thing, but causes headaches.
+    
     const {
         tag: elementTag,
         options: elementOptions,
@@ -319,11 +322,13 @@ const processPageElements = (
         processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
     }
 
-    if (element.children) {
-        for (let child of element.children) {
+    if (element.children) {    
+        for (let i = 0; i < element.children.length; i++) {
+            const child = element.children![i];
+            
             const processedChild = processPageElements(child, objectAttributes)
-
-            child = processedChild;	
+    
+            element.children![i] = processedChild;
         }
     }
 
@@ -348,7 +353,7 @@ const generateSuitablePageElements = async (
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes);
-
+    
     elementKey = 0;
 
     if (!writeToHTML) {
@@ -563,14 +568,28 @@ const buildPages = async (
 
         const state = getState();
         const pageLoadHooks = getLoadHooks();
-
-        const objectAttributes = await generateSuitablePageElements(
-            pagePath,
-            pageElements,
-            metadata,
-            DIST_DIR,
-            writeToHTML
-        );
+        
+        let objectAttributes = [];
+        
+        try {
+            objectAttributes = await generateSuitablePageElements(
+                pagePath,
+                pageElements,
+                metadata,
+                DIST_DIR,
+                writeToHTML,
+            )
+        } catch(error) {
+            console.error(
+                "Failed to generate suitable page elements.",
+                pagePath + "/page.js",
+                error,
+            )
+            
+            return {
+                shouldClientHardReload: false,
+            }
+        }
 
         const {
             sendHardReloadInstruction,

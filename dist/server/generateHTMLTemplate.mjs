@@ -154,7 +154,7 @@ var renderRecursively = (element) => {
   if (typeof element.options === "object") {
     for (const [attrName, attrValue] of Object.entries(element.options)) {
       if (typeof attrValue === "object") {
-        throw `Internal error, attr ${attrName} has obj type.`;
+        throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element)}`;
       }
       returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
     }
@@ -179,7 +179,7 @@ var generateHTMLTemplate = ({
   addPageScriptTag = true
 }) => {
   let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
-  HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">';
+  HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
   if (addPageScriptTag === true) {
     HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
   }

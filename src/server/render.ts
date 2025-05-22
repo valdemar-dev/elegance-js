@@ -21,7 +21,7 @@ export const renderRecursively = (element: Child) => {
     if (typeof element.options === "object") {
         for (const [attrName, attrValue] of Object.entries(element.options)) {
             if (typeof attrValue === "object") {
-                throw `Internal error, attr ${attrName} has obj type.`;
+                throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element)}`;
             }
 
             returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;

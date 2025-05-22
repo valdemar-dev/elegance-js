@@ -160,7 +160,7 @@ var renderRecursively = (element) => {
   if (typeof element.options === "object") {
     for (const [attrName, attrValue] of Object.entries(element.options)) {
       if (typeof attrValue === "object") {
-        throw `Internal error, attr ${attrName} has obj type.`;
+        throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element)}`;
       }
       returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
     }
@@ -194,7 +194,7 @@ var generateHTMLTemplate = ({
   addPageScriptTag = true
 }) => {
   let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
-  HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">';
+  HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
   if (addPageScriptTag === true) {
     HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
   }
@@ -331,7 +331,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
     options.key = key;
   }
   if (!optionValue.type) {
-    throw `ObjectAttributeType is missing from object attribute.`;
+    throw `ObjectAttributeType is missing from object attribute. ${element.tag}: ${optionName}/${optionValue}`;
   }
   let optionFinal = lcOptionName;
   switch (optionValue.type) {
@@ -378,11 +378,16 @@ var processPageElements = (element, objectAttributes) => {
       element.options,
       ...children
     ];
-    for (let child of children) {
+    element.options = {};
+    for (let i = 0; i < children.length + 1; i++) {
+      const child = element.children[i];
       const processedChild = processPageElements(child, objectAttributes);
-      child = processedChild;
+      element.children[i] = processedChild;
     }
-    return element;
+    return {
+      ...element,
+      options: {}
+    };
   };
   if (typeof element.options !== "object") {
     return processElementOptionsAsChildAndReturn();
@@ -422,9 +427,10 @@ var processPageElements = (element, objectAttributes) => {
     processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
   }
   if (element.children) {
-    for (let child of element.children) {
+    for (let i = 0; i < element.children.length; i++) {
+      const child = element.children[i];
       const processedChild = processPageElements(child, objectAttributes);
-      child = processedChild;
+      element.children[i] = processedChild;
     }
   }
   return element;
@@ -573,13 +579,25 @@ var buildPages = async (DIST_DIR, writeToHTML) => {
     }
     const state = getState();
     const pageLoadHooks = getLoadHooks();
-    const objectAttributes = await generateSuitablePageElements(
-      pagePath,
-      pageElements,
-      metadata,
-      DIST_DIR,
-      writeToHTML
-    );
+    let objectAttributes = [];
+    try {
+      objectAttributes = await generateSuitablePageElements(
+        pagePath,
+        pageElements,
+        metadata,
+        DIST_DIR,
+        writeToHTML
+      );
+    } catch (error) {
+      console.error(
+        "Failed to generate suitable page elements.",
+        pagePath + "/page.js",
+        error
+      );
+      return {
+        shouldClientHardReload: false
+      };
+    }
     const {
       sendHardReloadInstruction
     } = await generateClientPageData(
