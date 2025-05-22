@@ -46,7 +46,7 @@ compile({
     environment: "development",
     outputDirectory: "./.elegance",
     pagesDirectory: "./pages",
-    writeToHTML: false,
+    writeToHTML: true,
 });`;
 
 const demoFirstPage = `export const page = body ("Greetings Traveller!");`;
@@ -157,8 +157,6 @@ export const page = RootLayout (
 
             "We use filesystem routing, where each directory contains a ",
             Mono("page.ts"),
-            ", and an ",
-            Mono("info.ts"),
             " file.",
         ),
 
@@ -174,11 +172,20 @@ export const page = RootLayout (
         p ({
             class: "opacity-80",
         },
-            "The page.ts file has one requirement, it must export a ",
+            "The page.ts file has two requirements, it must export a ",
             Mono("page"), " object, which is of type ", Mono("EleganceElement<\"body\">"),
         ),
-
+        
         CodeBlock(demoPageTS),
+
+        p ({
+            class: "opacity-80",
+        },
+            "and it must also export a ",
+            Mono("metadata"), " function, which then resolves into an ", Mono("EleganceElement<\"head\">"),
+        ),
+        
+        CodeBlock(demoInfoTS),
 
         p ({
             class: "opacity-80",
@@ -222,25 +229,7 @@ export const page = RootLayout (
 
             "or dynamically server-rendered content."
         ),
-
-        div ({
-            class: "my-10",
-        }, []),
-
-        h3 ({
-            class: "text-lg font-medium mb-1",
-            innerText: "Info Files",
-        }),
-
-        p ({
-            class: "opacity-80",
-        },
-            "The info.ts file also has only one requirement, it must export a ",
-            Mono("metadata"), " function, which then resolves into an ", Mono("EleganceElement<\"head\">"),
-        ),
-
-        CodeBlock(demoInfoTS),
-
+                
         p ({
             class: "opacity-80",
         },
@@ -256,6 +245,7 @@ export const page = RootLayout (
             "where you may want need to fetch information about a post, and then display it in a nice rich embed."
         ),
 
+        
         div ({
             class: "my-10",
         }, []),
@@ -452,11 +442,11 @@ export const page = RootLayout (
         p ({
             class: "opacity-80",
         },
-            "Like we mentioned earlier, a page requires two files. ", Mono("info.ts & page.ts"),
+            "Like we mentioned earlier, a page requires just one file. ", Mono("page.ts"),
 
             br (),
 
-            "So, let's create those, shall we?",
+            "So, let's create that, shall we?",
 
             br (),
             br (),
@@ -478,13 +468,6 @@ export const page = RootLayout (
         ),
 
         CodeBlock(demoFirstPage),
-
-        p ({
-            class: "opacity-80",
-        },
-            "Next, create an ", Mono("info.ts"), " file, and again, put something simple into it."
-        ),
-        
         CodeBlock(demoInfoTS),
 
         div ({
@@ -619,10 +602,11 @@ export const page = RootLayout (
 
             br(),
 
-            "Simply issue the following command in your terminal.",
+            "Simply issue the following commands in your terminal.",
         ),
 
-        CodeBlock("npx tsx index.ts && cd .elegance && python3 -m http.server 3000", false),
+        CodeBlock("npx tsx index.ts", false),
+        CodeBlock("python3 -m http.server 3000 -d .elegance", false),
 
         p ({
             class: "opacity-80",
