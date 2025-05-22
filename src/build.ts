@@ -240,7 +240,7 @@ const processPageElements = (
     ) return element;
 
     if (typeof element === "string") {
-        return escapeHtml(element);
+        return (element);
     }
 
     const processElementOptionsAsChildAndReturn = () => {

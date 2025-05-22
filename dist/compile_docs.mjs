@@ -320,10 +320,6 @@ var buildClient = async (environment2, DIST_DIR, isInWatchMode, watchServerPort)
     transformedClient.code
   );
 };
-var escapeHtml = (str) => {
-  const replaced = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;").replace(/\r?\n|\r/g, "");
-  return replaced;
-};
 var elementKey = 0;
 var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
   const lcOptionName = optionName.toLowerCase();
@@ -373,7 +369,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
 var processPageElements = (element, objectAttributes) => {
   if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
   if (typeof element === "string") {
-    return escapeHtml(element);
+    return element;
   }
   const processElementOptionsAsChildAndReturn = () => {
     const children = element.children;
