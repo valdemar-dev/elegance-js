@@ -549,11 +549,26 @@ const buildPages = async (
         initializeState();
         resetLoadHooks();
 
+        const pageJSPath = pagePath + "/page.js";
+        const tempPath = pagePath + "/" + Date.now().toString() + ".js";
+        
+        /*
+        if (fs.existsSync(tempPath)) {
+            await fs.promises.rm(tempPath);
+        }
+        */
+        
+        await fs.promises.copyFile(pageJSPath, tempPath);
+        
         const {
             page: pageElements,
             generateMetadata,
             metadata,
-        } = await import(pagePath + "/page.js" + `?${Date.now()}`);
+        } = await import(tempPath);
+        
+        await fs.promises.rm(tempPath);
+        
+        console.log(pageElements, tempPath);
 
         if (
             !metadata ||
@@ -702,9 +717,9 @@ const build = async ({
 
         if (!pageFile) {
             fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })
+            
+            console.log("Deleted old file, ", pageFile);
         }
-        
-        console.log("Deleted old file, ", pageFile);
     }
 
     const start = performance.now();

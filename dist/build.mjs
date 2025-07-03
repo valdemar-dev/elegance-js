@@ -562,11 +562,16 @@ var buildPages = async (DIST_DIR, writeToHTML) => {
     const pagePath = path.resolve(path.join(DIST_DIR, directory));
     initializeState();
     resetLoadHooks();
+    const pageJSPath = pagePath + "/page.js";
+    const tempPath = pagePath + "/" + Date.now().toString() + ".js";
+    await fs.promises.copyFile(pageJSPath, tempPath);
     const {
       page: pageElements,
       generateMetadata,
       metadata
-    } = await import(pagePath + `/page.js?${Date.now()}`);
+    } = await import(tempPath);
+    await fs.promises.rm(tempPath);
+    console.log(pageElements, tempPath);
     if (!metadata || metadata && typeof metadata !== "function") {
       throw `${pagePath} is not exporting a metadata function.`;
     }
@@ -675,8 +680,8 @@ var build = async ({
     const pageFile = pageFiles.find((dir) => path.relative(pagesDirectory, dir.parentPath) === page);
     if (!pageFile) {
       fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true });
+      console.log("Deleted old file, ", pageFile);
     }
-    console.log("Deleted old file, ", pageFile);
   }
   const start = performance.now();
   await esbuild.build({
