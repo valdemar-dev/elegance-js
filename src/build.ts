@@ -703,6 +703,8 @@ const build = async ({
         if (!pageFile) {
             fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })
         }
+        
+        console.log("Deleted old file, ", pageFile);
     }
 
     const start = performance.now();
@@ -762,7 +764,7 @@ const build = async ({
     log(green(bold((`Compiled ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
 
     if (postCompile) {
-        await postCompile();
+        postCompile();
     }
 
     if (!watch) return;
@@ -833,25 +835,26 @@ export const compile = async (props: {
 }) => {
     const watch = props.environment === "development";
 
-    const BUILD_FLAG = path.join(props.outputDirectory, "ELEGANE_BUILD_FLAG");
+    const BUILD_FLAG = path.join(props.outputDirectory, "ELEGANCE_BUILD_FLAG");
 
     if (!fs.existsSync(props.outputDirectory)) {
         fs.mkdirSync(props.outputDirectory);
+        
+        fs.writeFileSync(
+            path.join(BUILD_FLAG),
+            "This file just marks this directory as one containing an Elegance Build.",
+            "utf-8",
+        );
+    } else {
+        if (!fs.existsSync(BUILD_FLAG)) {
+            throw `The output directory already exists, but is not an Elegance Build directory.`;
+        }
     }
-
-    if (!fs.existsSync(BUILD_FLAG)) {
-        throw `The output directory already exists, but is not an Elegance Build directory.`;
-    }
-
-    fs.writeFileSync(
-        path.join(BUILD_FLAG),
-        "This file just marks this directory as one containing an Elegance Build.",
-        "utf-8",
-    ); 
 
     const DIST_DIR = props.writeToHTML ? props.outputDirectory : path.join(props.outputDirectory, "dist");
 
     if (!fs.existsSync(DIST_DIR)) {
+        console.log("Made dist dir", DIST_DIR);
         fs.mkdirSync(DIST_DIR);
     }
 
