@@ -119,7 +119,8 @@ const buildClient = async (
     isInWatchMode: boolean,
     watchServerPort: number
 ) => {
-    let clientString = fs.readFileSync(clientPath, "utf-8");
+    let clientString = "window.__name = (func) => func; "
+    clientString += fs.readFileSync(clientPath, "utf-8");
 
     if (isInWatchMode) {
         clientString += `const watchServerPort = ${watchServerPort}`;
@@ -129,7 +130,7 @@ const buildClient = async (
     const transformedClient = await esbuild.transform(clientString, {
         minify: environment === "production",
         drop: environment === "production" ? ["console", "debugger"] : undefined,
-        keepNames: true,
+        keepNames: false,
         format: "iife",
         platform: "node", 
         loader: "ts",
@@ -738,6 +739,7 @@ const build = async ({
         }, 
         format: "esm",
         platform: "node",
+        keepNames: false,
     });
 
     const pagesTranspiled = performance.now();

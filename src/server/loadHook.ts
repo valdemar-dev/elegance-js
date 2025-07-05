@@ -39,6 +39,8 @@ export const getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
 
 export const createLoadHook = <T extends ServerSubject[]>(options: LoadHookOptions<T>) => {
     const stringFn = options.fn.toString();
+    
+    console.log(stringFn)
 
     const deps = (options.deps || []).map(dep => ({
         id: dep.id,

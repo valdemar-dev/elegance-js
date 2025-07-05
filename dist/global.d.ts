@@ -46,7 +46,21 @@ declare global {
         type: ObjectAttributeType;
     };
     type ElementOptions = {
-        [key: string]: string | number | boolean | ObjectAttribute<any>;
+        [key: string]: string | number | boolean | {
+            type: ObjectAttributeType;
+            id: string | number;
+            value: any;
+        } | {
+            type: ObjectAttributeType;
+            refs: {
+                id: number;
+                bind?: string;
+            }[];
+            initialValues: any[];
+            update: (...value: any) => any;
+        } | {
+            type: ObjectAttributeType;
+        };
     } & GlobalAttributes & EventHandlers;
     type EleganceElement<T> = (options?: ElementOptions | Child, ...children: ElementChildren) => BuiltElement<T>;
     type EleganceChildrenlessElement<T> = (options?: ElementOptions) => ChildrenLessBuiltElement<T>;

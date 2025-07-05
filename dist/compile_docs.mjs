@@ -302,7 +302,8 @@ var getProjectFiles = (pagesDirectory) => {
   return pageFiles;
 };
 var buildClient = async (environment2, DIST_DIR, isInWatchMode, watchServerPort) => {
-  let clientString = fs.readFileSync(clientPath, "utf-8");
+  let clientString = "window.__name = (func) => func; ";
+  clientString += fs.readFileSync(clientPath, "utf-8");
   if (isInWatchMode) {
     clientString += `const watchServerPort = ${watchServerPort}`;
     clientString += fs.readFileSync(watcherPath, "utf-8");
@@ -310,7 +311,7 @@ var buildClient = async (environment2, DIST_DIR, isInWatchMode, watchServerPort)
   const transformedClient = await esbuild.transform(clientString, {
     minify: environment2 === "production",
     drop: environment2 === "production" ? ["console", "debugger"] : void 0,
-    keepNames: true,
+    keepNames: false,
     format: "iife",
     platform: "node",
     loader: "ts"
@@ -700,7 +701,8 @@ var build = async ({
       ".ts": "ts"
     },
     format: "esm",
-    platform: "node"
+    platform: "node",
+    keepNames: false
   });
   const pagesTranspiled = performance.now();
   const {

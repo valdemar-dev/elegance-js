@@ -56,6 +56,7 @@ var createEventListener = ({
 // src/server/loadHook.ts
 var createLoadHook = (options) => {
   const stringFn = options.fn.toString();
+  console.log(stringFn);
   const deps = (options.deps || []).map((dep) => ({
     id: dep.id,
     bind: dep.bind

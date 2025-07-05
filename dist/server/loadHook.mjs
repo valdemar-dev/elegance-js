@@ -3,6 +3,7 @@ var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
 var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
 var createLoadHook = (options) => {
   const stringFn = options.fn.toString();
+  console.log(stringFn);
   const deps = (options.deps || []).map((dep) => ({
     id: dep.id,
     bind: dep.bind
