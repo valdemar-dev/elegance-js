@@ -72,8 +72,8 @@ declare global {
         [key: `data-${string}`]: string | undefined;
         [key: `aria-${string}`]: string | undefined;
     }
-    type ChildrenlessElementTags = "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "source" | "track";
-    type ElementTags = "a" | "address" | "article" | "aside" | "audio" | "blockquote" | "body" | "button" | "canvas" | "caption" | "colgroup" | "data" | "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" | "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" | "main" | "map" | "meter" | "menu" | "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" | "progress" | "q" | "script" | "search" | "section" | "select" | "slot" | "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | "time" | "tr" | "ul" | "video" | "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "title" | "u" | "wbr";
+    type ChildrenlessElementTags = "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "source" | "track" | "path" | "rect";
+    type ElementTags = "a" | "address" | "article" | "aside" | "audio" | "blockquote" | "body" | "button" | "canvas" | "caption" | "colgroup" | "data" | "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" | "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" | "main" | "map" | "meter" | "menu" | "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" | "progress" | "q" | "script" | "search" | "section" | "select" | "slot" | "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | "time" | "tr" | "ul" | "video" | "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "title" | "u" | "wbr" | "svg";
     var area: EleganceChildrenlessElement<"area">;
     var base: EleganceChildrenlessElement<"base">;
     var br: EleganceChildrenlessElement<"br">;
@@ -86,6 +86,9 @@ declare global {
     var meta: EleganceChildrenlessElement<"meta">;
     var source: EleganceChildrenlessElement<"source">;
     var track: EleganceChildrenlessElement<"track">;
+    var path: EleganceChildrenlessElement<"path">;
+    var rect: EleganceChildrenlessElement<"rect">;
+    var svg: EleganceElement<"svg">;
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;
     var article: EleganceElement<"article">;

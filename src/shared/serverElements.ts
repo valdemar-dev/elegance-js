@@ -39,7 +39,7 @@ const createChildrenlessBuildableElement = (tag: ChildrenlessElementTags) => {
 
 const childrenlessElementTags: Array<ChildrenlessElementTags> = [
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", 
-    "source", "track",
+    "source", "track", "path", "rect",
 ];
 
 const elementTags: Array<ElementTags> = [
@@ -53,7 +53,7 @@ const elementTags: Array<ElementTags> = [
     "td", "template", "textarea", "tfoot", "th", "thead", "time", "tr", 
     "ul", "video", "span", "script", "abbr", "b", "bdi", "bdo", "cite", "code", "dfn", "em", "i", "kbd", "mark", 
     "rp", "rt", "ruby", "s", "samp", "small", "strong", "sub", "sup", 
-    "u", "wbr", "title"
+    "u", "wbr", "title", "svg",
 ];
 
 const elements: { [key: string]: EleganceElement<ElementTags> } = {};

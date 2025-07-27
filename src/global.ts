@@ -87,7 +87,7 @@ declare global {
     }
 
     type ChildrenlessElementTags = | "area" | "base" | "br" | "col" | "embed" | "hr" | "img" |
-        "input" | "link" | "meta" | "source" | "track";
+        "input" | "link" | "meta" | "source" | "track" | "path" | "rect";
 
     type ElementTags = | "a" | "address" | "article" | "aside" | "audio" | "blockquote" |
         "body" | "button" | "canvas" | "caption" | "colgroup" | "data" |
@@ -102,7 +102,7 @@ declare global {
         "th" | "thead" | "time" | "tr" | "ul" | "video" | "abbr" | "b" | "bdi" |
         "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" |
         "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" |
-        "title" | "u" | "wbr";
+        "title" | "u" | "wbr" | "svg";
 
     var area: EleganceChildrenlessElement<"area">;
     var base: EleganceChildrenlessElement<"base">;
@@ -116,7 +116,10 @@ declare global {
     var meta: EleganceChildrenlessElement<"meta">;
     var source: EleganceChildrenlessElement<"source">;
     var track: EleganceChildrenlessElement<"track">;
+    var path: EleganceChildrenlessElement<"path">;
+    var rect: EleganceChildrenlessElement<"rect">;
 
+    var svg: EleganceElement<"svg">;
     var a: EleganceElement<"a">;
     var address: EleganceElement<"address">;
     var article: EleganceElement<"article">;

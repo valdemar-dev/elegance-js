@@ -25,7 +25,9 @@ var childrenlessElementTags = [
   "link",
   "meta",
   "source",
-  "track"
+  "track",
+  "path",
+  "rect"
 ];
 var elementTags = [
   "a",
@@ -122,7 +124,8 @@ var elementTags = [
   "sup",
   "u",
   "wbr",
-  "title"
+  "title",
+  "svg"
 ];
 var elements = {};
 var childrenlessElements = {};
