@@ -10,4 +10,9 @@ export declare const compile: (props: {
         path: string;
         method: "symlink" | "recursive-copy";
     };
+    server?: {
+        runServer: boolean;
+        root?: string;
+        port?: number;
+    };
 }) => Promise<void>;

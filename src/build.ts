@@ -12,6 +12,7 @@ import { getState, initializeState } from "./server/createState";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
 import { camelToKebabCase } from "./helpers/camelToKebab";
+import { startServer } from "./server/server";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,15 +95,28 @@ const getFile = (dir: Array<Dirent>, fileName: string) => {
 
 const getProjectFiles = (pagesDirectory: string,) => {
     const pageFiles = [];
+    const apiFiles = [];
 
     const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
 
     for (const subdirectory of subdirectories) {
+    
         const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
 
         const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
             .filter(f => f.name.endsWith(".js") || f.name.endsWith(".ts"));
-
+            
+        if (subdirectory.startsWith("api")) {            
+            const apiFileInSubdirectory = getFile(subdirectoryFiles, "route");
+    
+            if (!apiFileInSubdirectory) continue;
+    
+            apiFiles.push(apiFileInSubdirectory);
+            console.log(apiFileInSubdirectory)
+            
+            continue
+        }
+        
         const pageFileInSubdirectory = getFile(subdirectoryFiles, "page");
 
         if (!pageFileInSubdirectory) continue;
@@ -110,7 +124,10 @@ const getProjectFiles = (pagesDirectory: string,) => {
         pageFiles.push(pageFileInSubdirectory);
     }
 
-    return pageFiles;
+    return {
+        pageFiles,
+        apiFiles,
+    };
 };
 
 const buildClient = async (
@@ -313,9 +330,14 @@ const processPageElements = (
 
                 continue;
             }
-
+            
+            // why cant naming be consistent.
+            // this was made to make life easier, eg. dataTest, ariaLabel, into data-test, aria-label. BUt html BAD and they use incosistent casing.
+            // means this breaks stuff.
+            /*
             delete options[optionName];
             options[camelToKebabCase(optionName)] = optionValue;
+            */
             
             continue;
         };
@@ -545,6 +567,10 @@ const buildPages = async (
     let shouldClientHardReload = false;
 
     for (const directory of subdirectories) {
+        if (directory.startsWith("api")) {
+            continue
+        }
+        
         const pagePath = path.resolve(path.join(DIST_DIR, directory))
 
         initializeState();
@@ -567,7 +593,7 @@ const buildPages = async (
             metadata,
         } = await import(tempPath);
         
-        await fs.promises.rm(tempPath);
+        await fs.promises.rm(tempPath, { force: true, });
         
         console.log(pageElements, tempPath);
 
@@ -708,15 +734,16 @@ const build = async ({
         preCompile();
     }
 
-    const pageFiles = getProjectFiles(pagesDirectory);
+    const { pageFiles, apiFiles } = getProjectFiles(pagesDirectory);
     const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
 
     // removes old pages that no longer-exist.
     // more efficient thank nuking directory
     for (const page of existingCompiledPages) {
         const pageFile = pageFiles.find(dir => path.relative(pagesDirectory, dir.parentPath) === page);
+        const apiFile = apiFiles.find(dir => path.relative(pagesDirectory, dir.parentPath) === page);
 
-        if (!pageFile) {
+        if (!pageFile && !apiFile) {
             fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })
             
             console.log("Deleted old file, ", pageFile);
@@ -741,6 +768,25 @@ const build = async ({
         platform: "node",
         keepNames: false,
     });
+    
+    await esbuild.build({
+        entryPoints: [
+            ...apiFiles.map(route => path.join(route.parentPath, route.name)),
+        ],
+        minify: environment === "production",
+        drop: environment === "production" ? ["console", "debugger"] : undefined,
+        bundle: false,
+        outbase: path.join(pagesDirectory, "/api"),
+        outdir: path.join(DIST_DIR, "/api"),
+        loader: {
+            ".js": "js",
+            ".ts": "ts",
+        }, 
+        format: "esm",
+        platform: "node",
+        keepNames: false,
+    });
+
 
     const pagesTranspiled = performance.now();
 
@@ -849,6 +895,11 @@ export const compile = async (props: {
         path: string,
         method: "symlink" | "recursive-copy",
     },
+    server?: {
+        runServer: boolean,
+        root?: string,
+        port?: number,
+    },
 }) => {
     const watch = props.environment === "development";
 
@@ -871,7 +922,6 @@ export const compile = async (props: {
     const DIST_DIR = props.writeToHTML ? props.outputDirectory : path.join(props.outputDirectory, "dist");
 
     if (!fs.existsSync(DIST_DIR)) {
-        console.log("Made dist dir", DIST_DIR);
         fs.mkdirSync(DIST_DIR);
     }
 
@@ -880,4 +930,12 @@ export const compile = async (props: {
     }
 
     await build({ ...props, DIST_DIR, });
+    
+    if (props.server != undefined && props.server.runServer == true) {
+        startServer({
+            root: props.server.root ?? DIST_DIR,
+            environment: props.environment,
+            port: props.server.port ?? 3000,
+        })
+    }
 };

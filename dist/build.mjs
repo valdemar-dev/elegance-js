@@ -1,5 +1,5 @@
 // src/build.ts
-import fs from "fs";
+import fs2 from "fs";
 import path from "path";
 import esbuild from "esbuild";
 import { fileURLToPath } from "url";
@@ -235,10 +235,105 @@ var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
 var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 
-// src/helpers/camelToKebab.ts
-var camelToKebabCase = (input) => {
-  return input.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+// src/server/server.ts
+import { createServer } from "http";
+import { promises as fs } from "fs";
+import { join, normalize, extname } from "path";
+import { pathToFileURL } from "url";
+var MIME_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".txt": "text/plain; charset=utf-8"
 };
+function startServer({ root, port = 3e3, host = "localhost", environment = "production" }) {
+  if (!root) throw new Error("Root directory must be specified.");
+  const server = createServer(async (req, res) => {
+    try {
+      if (!req.url) {
+        res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Bad Request");
+        return;
+      }
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      if (url.pathname.startsWith("/api/")) {
+        await handleApiRequest(root, url.pathname, req, res);
+      } else {
+        await handleStaticRequest(root, url.pathname, res);
+      }
+      if (environment == "development") {
+        console.log(req.method, "::", req.url, "-", res.statusCode);
+      }
+    } catch (err) {
+      console.error(err);
+      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Internal Server Error");
+    }
+  });
+  server.listen(port, host, () => {
+    console.log(`Server running at http://${host}:${port}/`);
+  });
+  return server;
+}
+async function handleStaticRequest(root, pathname, res) {
+  let filePath = normalize(join(root, decodeURIComponent(pathname)));
+  root = normalize(root);
+  if (!filePath.startsWith(root)) {
+    res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Forbidden");
+    return;
+  }
+  try {
+    const stats = await fs.stat(filePath);
+    if (stats.isDirectory()) {
+      filePath = join(filePath, "index.html");
+    }
+  } catch (e) {
+  }
+  try {
+    const data = await fs.readFile(filePath);
+    const ext = extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    res.writeHead(200, { "Content-Type": contentType });
+    res.end(data);
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("404 Not Found");
+    } else {
+      throw err;
+    }
+  }
+}
+async function handleApiRequest(root, pathname, req, res) {
+  const routePath = join(root, pathname, "route.js");
+  try {
+    await fs.access(routePath);
+  } catch {
+    res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: "Not found" }));
+    return;
+  }
+  try {
+    const moduleUrl = pathToFileURL(routePath).href;
+    const routeModule = await import(moduleUrl);
+    if (typeof routeModule.route !== "function") {
+      throw new Error('API route module must export a "route" function.');
+    }
+    await routeModule.route(req, res);
+  } catch (err) {
+    console.error(err);
+    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: "Internal Server Error" }));
+  }
+}
 
 // src/build.ts
 var __filename = fileURLToPath(import.meta.url);
@@ -273,7 +368,7 @@ var log = (...text) => {
 };
 var getAllSubdirectories = (dir, baseDir = dir) => {
   let directories = [];
-  const items = fs.readdirSync(dir, { withFileTypes: true });
+  const items = fs2.readdirSync(dir, { withFileTypes: true });
   for (const item of items) {
     if (item.isDirectory()) {
       const fullPath = path.join(dir, item.name);
@@ -291,22 +386,33 @@ var getFile = (dir, fileName) => {
 };
 var getProjectFiles = (pagesDirectory) => {
   const pageFiles = [];
+  const apiFiles = [];
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   for (const subdirectory of subdirectories) {
     const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
-    const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true }).filter((f) => f.name.endsWith(".js") || f.name.endsWith(".ts"));
+    const subdirectoryFiles = fs2.readdirSync(absoluteDirectoryPath, { withFileTypes: true }).filter((f) => f.name.endsWith(".js") || f.name.endsWith(".ts"));
+    if (subdirectory.startsWith("api")) {
+      const apiFileInSubdirectory = getFile(subdirectoryFiles, "route");
+      if (!apiFileInSubdirectory) continue;
+      apiFiles.push(apiFileInSubdirectory);
+      console.log(apiFileInSubdirectory);
+      continue;
+    }
     const pageFileInSubdirectory = getFile(subdirectoryFiles, "page");
     if (!pageFileInSubdirectory) continue;
     pageFiles.push(pageFileInSubdirectory);
   }
-  return pageFiles;
+  return {
+    pageFiles,
+    apiFiles
+  };
 };
 var buildClient = async (environment, DIST_DIR, isInWatchMode, watchServerPort) => {
   let clientString = "window.__name = (func) => func; ";
-  clientString += fs.readFileSync(clientPath, "utf-8");
+  clientString += fs2.readFileSync(clientPath, "utf-8");
   if (isInWatchMode) {
     clientString += `const watchServerPort = ${watchServerPort}`;
-    clientString += fs.readFileSync(watcherPath, "utf-8");
+    clientString += fs2.readFileSync(watcherPath, "utf-8");
   }
   const transformedClient = await esbuild.transform(clientString, {
     minify: environment === "production",
@@ -316,7 +422,7 @@ var buildClient = async (environment, DIST_DIR, isInWatchMode, watchServerPort) 
     platform: "node",
     loader: "ts"
   });
-  fs.writeFileSync(
+  fs2.writeFileSync(
     path.join(DIST_DIR, "/client.js"),
     transformedClient.code
   );
@@ -419,8 +525,6 @@ var processPageElements = (element, objectAttributes) => {
         element.children = [optionValue];
         continue;
       }
-      delete options[optionName];
-      options[camelToKebabCase(optionName)] = optionValue;
       continue;
     }
     ;
@@ -443,7 +547,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   const processedPageElements = processPageElements(pageElements, objectAttributes);
   elementKey = 0;
   if (!writeToHTML) {
-    fs.writeFileSync(
+    fs2.writeFileSync(
       path.join(pageLocation, "page.json"),
       JSON.stringify(processedPageElements),
       "utf-8"
@@ -461,7 +565,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
   });
   const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
   const htmlLocation = path.join(pageLocation, "index.html");
-  fs.writeFileSync(
+  fs2.writeFileSync(
     htmlLocation,
     resultHTML,
     {
@@ -555,7 +659,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   const pageDataPath = path.join(pageLocation, "page_data.js");
   let sendHardReloadInstruction = false;
   const transformedResult = await esbuild.transform(clientPageJSText, { minify: true });
-  fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
+  fs2.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
 var buildPages = async (DIST_DIR, writeToHTML) => {
@@ -563,18 +667,21 @@ var buildPages = async (DIST_DIR, writeToHTML) => {
   const subdirectories = [...getAllSubdirectories(DIST_DIR), ""];
   let shouldClientHardReload = false;
   for (const directory of subdirectories) {
+    if (directory.startsWith("api")) {
+      continue;
+    }
     const pagePath = path.resolve(path.join(DIST_DIR, directory));
     initializeState();
     resetLoadHooks();
     const pageJSPath = pagePath + "/page.js";
     const tempPath = pagePath + "/" + Date.now().toString() + ".js";
-    await fs.promises.copyFile(pageJSPath, tempPath);
+    await fs2.promises.copyFile(pageJSPath, tempPath);
     const {
       page: pageElements,
       generateMetadata,
       metadata
     } = await import(tempPath);
-    await fs.promises.rm(tempPath);
+    await fs2.promises.rm(tempPath, { force: true });
     console.log(pageElements, tempPath);
     if (!metadata || metadata && typeof metadata !== "function") {
       throw `${pagePath} is not exporting a metadata function.`;
@@ -678,12 +785,13 @@ var build = async ({
   if (preCompile) {
     preCompile();
   }
-  const pageFiles = getProjectFiles(pagesDirectory);
+  const { pageFiles, apiFiles } = getProjectFiles(pagesDirectory);
   const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
   for (const page of existingCompiledPages) {
     const pageFile = pageFiles.find((dir) => path.relative(pagesDirectory, dir.parentPath) === page);
-    if (!pageFile) {
-      fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true });
+    const apiFile = apiFiles.find((dir) => path.relative(pagesDirectory, dir.parentPath) === page);
+    if (!pageFile && !apiFile) {
+      fs2.rmdirSync(path.join(DIST_DIR, page), { recursive: true });
       console.log("Deleted old file, ", pageFile);
     }
   }
@@ -704,6 +812,23 @@ var build = async ({
     platform: "node",
     keepNames: false
   });
+  await esbuild.build({
+    entryPoints: [
+      ...apiFiles.map((route) => path.join(route.parentPath, route.name))
+    ],
+    minify: environment === "production",
+    drop: environment === "production" ? ["console", "debugger"] : void 0,
+    bundle: false,
+    outbase: path.join(pagesDirectory, "/api"),
+    outdir: path.join(DIST_DIR, "/api"),
+    loader: {
+      ".js": "js",
+      ".ts": "ts"
+    },
+    format: "esm",
+    platform: "node",
+    keepNames: false
+  });
   const pagesTranspiled = performance.now();
   const {
     shouldClientHardReload
@@ -714,16 +839,16 @@ var build = async ({
   if (publicDirectory) {
     if (environment === "development") {
       console.log("Creating a symlink for the public directory.");
-      if (!fs.existsSync(path.join(DIST_DIR, "public"))) {
-        fs.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
+      if (!fs2.existsSync(path.join(DIST_DIR, "public"))) {
+        fs2.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
       }
     } else if (environment === "production") {
       console.log("Recursively copying public directory.. this may take a while.");
       const src = path.relative(process.cwd(), publicDirectory.path);
-      if (fs.existsSync(path.join(DIST_DIR, "public"))) {
-        fs.rmSync(path.join(DIST_DIR, "public"), { recursive: true });
+      if (fs2.existsSync(path.join(DIST_DIR, "public"))) {
+        fs2.rmSync(path.join(DIST_DIR, "public"), { recursive: true });
       }
-      await fs.promises.cp(src, path.join(DIST_DIR, "public"), { recursive: true });
+      await fs2.promises.cp(src, path.join(DIST_DIR, "public"), { recursive: true });
     }
   }
   console.log(`${Math.round(pagesTranspiled - start)}ms to Transpile Pages`);
@@ -759,7 +884,7 @@ var build = async ({
   };
   for (const directory of subdirectories) {
     const fullPath = path.join(pagesDirectory, directory);
-    const watcher = fs.watch(
+    const watcher = fs2.watch(
       fullPath,
       {},
       watcherFn
@@ -781,27 +906,33 @@ var build = async ({
 var compile = async (props) => {
   const watch = props.environment === "development";
   const BUILD_FLAG = path.join(props.outputDirectory, "ELEGANCE_BUILD_FLAG");
-  if (!fs.existsSync(props.outputDirectory)) {
-    fs.mkdirSync(props.outputDirectory);
-    fs.writeFileSync(
+  if (!fs2.existsSync(props.outputDirectory)) {
+    fs2.mkdirSync(props.outputDirectory);
+    fs2.writeFileSync(
       path.join(BUILD_FLAG),
       "This file just marks this directory as one containing an Elegance Build.",
       "utf-8"
     );
   } else {
-    if (!fs.existsSync(BUILD_FLAG)) {
+    if (!fs2.existsSync(BUILD_FLAG)) {
       throw `The output directory already exists, but is not an Elegance Build directory.`;
     }
   }
   const DIST_DIR = props.writeToHTML ? props.outputDirectory : path.join(props.outputDirectory, "dist");
-  if (!fs.existsSync(DIST_DIR)) {
-    console.log("Made dist dir", DIST_DIR);
-    fs.mkdirSync(DIST_DIR);
+  if (!fs2.existsSync(DIST_DIR)) {
+    fs2.mkdirSync(DIST_DIR);
   }
   if (watch) {
     await registerListener(props);
   }
   await build({ ...props, DIST_DIR });
+  if (props.server != void 0 && props.server.runServer == true) {
+    startServer({
+      root: props.server.root ?? DIST_DIR,
+      environment: props.environment,
+      port: props.server.port ?? 3e3
+    });
+  }
 };
 export {
   compile

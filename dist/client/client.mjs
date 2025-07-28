@@ -116,12 +116,25 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
       continue;
     }
     const fn = loadHook.fn;
-    const cleanupFunction = fn(state);
-    if (cleanupFunction) {
-      cleanupProcedures.push({
-        cleanupFunction,
-        bind: `${bind}`
+    let cleanupFunction;
+    if (fn.constructor.name === "AsyncFunction") {
+      const res = fn(state);
+      res.then((cleanupFunction2) => {
+        if (cleanupFunction2) {
+          cleanupProcedures.push({
+            cleanupFunction: cleanupFunction2,
+            bind: `${bind}`
+          });
+        }
       });
+    } else {
+      cleanupFunction = fn(state);
+      if (cleanupFunction) {
+        cleanupProcedures.push({
+          cleanupFunction,
+          bind: `${bind}`
+        });
+      }
     }
   }
   pageStringCache.set(

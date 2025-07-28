@@ -1,6 +1,7 @@
 import { RootLayout } from "../components/RootLayout";
 import { PageHeading } from "./components/PageHeading";
 import { DocsLayout } from "./components/DocsLayout";
+import { createLoadHook } from "../../server/loadHook";
 
 export const metadata = () => head ({
 },
@@ -11,8 +12,10 @@ export const metadata = () => head ({
     title ("Hi There!")
 )
 
-export const page = RootLayout (
-    DocsLayout (
-        PageHeading ("Getting Started", "#getting-started"), 
-    ),
-);
+createLoadHook({
+    fn: () => {
+        client.navigateLocally(window.location.href + "/basics", true)
+    },
+})
+
+export const page = RootLayout ();

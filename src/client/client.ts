@@ -13,7 +13,7 @@ const loc = window.location;
 const doc = document;
 
 let cleanupProcedures: Array<{
-    cleanupFunction: () => void,
+    cleanupFunction: () => void | Promise<void | (() => void)>,
     bind: string,
 }> = [];
 
@@ -171,13 +171,28 @@ const loadPage = (
         }
 
         const fn = loadHook.fn;
-        const cleanupFunction = fn(state);
-
-        if (cleanupFunction){
-            cleanupProcedures.push({ 
-                cleanupFunction,
-                bind: `${bind}`
-            });
+        
+        let cleanupFunction;
+        if (fn.constructor.name === 'AsyncFunction') {
+            const res = fn(state) as Promise<void | (() => void)>
+            
+            res.then((cleanupFunction) => {
+                if (cleanupFunction){
+                    cleanupProcedures.push({ 
+                        cleanupFunction,
+                        bind: `${bind}`
+                    });
+                }
+            })
+        } else {
+            cleanupFunction = fn(state) as (void | (() => void));
+            
+            if (cleanupFunction){
+                cleanupProcedures.push({
+                    cleanupFunction,
+                    bind: `${bind}`
+                });
+            }
         }
     }
 

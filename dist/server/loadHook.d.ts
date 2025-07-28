@@ -21,7 +21,7 @@ export type LoadHook = {
 };
 export type ClientLoadHook = {
     bind: number;
-    fn: (state: State) => (void | (() => void));
+    fn: (state: State) => (void | (() => void) | Promise<(void | (() => void))>);
 };
 export declare const resetLoadHooks: () => never[];
 export declare const getLoadHooks: () => any[];

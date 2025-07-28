@@ -71,7 +71,6 @@ var createEventListener = ({
 // src/server/loadHook.ts
 var createLoadHook = (options) => {
   const stringFn = options.fn.toString();
-  console.log(stringFn);
   const deps = (options.deps || []).map((dep) => ({
     id: dep.id,
     bind: dep.bind
@@ -83,8 +82,12 @@ var createLoadHook = (options) => {
     dependencyString += `},`;
   }
   dependencyString += "]";
+  const isAsync = options.fn.constructor.name === "AsyncFunction";
+  const wrapperFn = isAsync ? `async (state) => {
+            return await (${stringFn})(state, ...state.getAll(${dependencyString}));
+          }` : `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`;
   globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-    fn: `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`,
+    fn: wrapperFn,
     bind: options.bind || ""
   });
 };
