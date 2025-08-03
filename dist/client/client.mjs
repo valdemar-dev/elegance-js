@@ -21,7 +21,12 @@ var createStateManager = (subjects) => {
       };
       s.signal = () => {
         for (const observer of s.observers.values()) {
-          observer(s.value);
+          try {
+            observer(s.value);
+          } catch (e) {
+            console.error(e);
+            continue;
+          }
         }
       };
       return s;
@@ -92,19 +97,34 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
       values[subject.id] = subject.value;
       const updateFunction = (value) => {
         values[id] = value;
-        const newValue = ooa.update(...Object.values(values));
-        let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
-        el[attribute] = newValue;
+        try {
+          const newValue = ooa.update(...Object.values(values));
+          let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
+          el[attribute] = newValue;
+        } catch (e) {
+          console.error(e);
+          return;
+        }
       };
       updateFunction(subject.value);
-      state.observe(subject, updateFunction, ooa.key);
+      try {
+        state.observe(subject, updateFunction, ooa.key);
+      } catch (e) {
+        console.error(e);
+        return;
+      }
     }
   }
   for (const soa of pageData.soa || []) {
     const el = doc.querySelector(`[key="${soa.key}"]`);
     const subject = state.get(soa.id, soa.bind);
     if (typeof subject.value === "function") {
-      el[soa.attribute] = (event) => subject.value(state, event);
+      try {
+        el[soa.attribute] = (event) => subject.value(state, event);
+      } catch (e) {
+        console.error(e);
+        return;
+      }
     } else {
       el[soa.attribute] = subject.value;
     }
@@ -116,25 +136,30 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
       continue;
     }
     const fn = loadHook.fn;
-    let cleanupFunction;
-    if (fn.constructor.name === "AsyncFunction") {
-      const res = fn(state);
-      res.then((cleanupFunction2) => {
-        if (cleanupFunction2) {
+    try {
+      let cleanupFunction;
+      if (fn.constructor.name === "AsyncFunction") {
+        const res = fn(state);
+        res.then((cleanupFunction2) => {
+          if (cleanupFunction2) {
+            cleanupProcedures.push({
+              cleanupFunction: cleanupFunction2,
+              bind: `${bind}`
+            });
+          }
+        });
+      } else {
+        cleanupFunction = fn(state);
+        if (cleanupFunction) {
           cleanupProcedures.push({
-            cleanupFunction: cleanupFunction2,
+            cleanupFunction,
             bind: `${bind}`
           });
         }
-      });
-    } else {
-      cleanupFunction = fn(state);
-      if (cleanupFunction) {
-        cleanupProcedures.push({
-          cleanupFunction,
-          bind: `${bind}`
-        });
       }
+    } catch (e) {
+      console.error(e);
+      return;
     }
   }
   pageStringCache.set(
@@ -205,7 +230,12 @@ var navigateLocally = async (target, pushState = true) => {
   for (const cleanupProcedure of [...cleanupProcedures]) {
     const bind = cleanupProcedure.bind;
     if (bind.length < 1 || deprecatedBreakpoints.includes(bind)) {
-      cleanupProcedure.cleanupFunction();
+      try {
+        cleanupProcedure.cleanupFunction();
+      } catch (e) {
+        console.error(e);
+        return;
+      }
       cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
     }
   }
@@ -231,4 +261,8 @@ globalThis.client = {
   sanitizePathname,
   getReference: (id) => document.querySelector(`[ref="${id}"]`)
 };
-loadPage();
+try {
+  loadPage();
+} catch (e) {
+  console.error(e);
+}

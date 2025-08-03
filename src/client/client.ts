@@ -36,7 +36,13 @@ const createStateManager = (subjects: ClientSubject[]) => {
 
             s.signal = () => {
                 for (const observer of s.observers.values()) {
-                    observer(s.value);
+                    try {
+                        observer(s.value);
+                    } catch(e) {
+                        console.error(e);
+                        
+                        continue
+                    }
                 }
             }
 
@@ -133,15 +139,26 @@ const loadPage = (
             const updateFunction = (value: any) => {
                 values[id] = value;
 
-                const newValue = ooa.update(...Object.values(values));
-                let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
-
-                (el as any)[attribute] = newValue;
+                try {
+                    const newValue = ooa.update(...Object.values(values));
+                    let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
+    
+                    (el as any)[attribute] = newValue;
+                } catch(e) {
+                    console.error(e);
+                    
+                    return;
+                }
             };
 
             updateFunction(subject.value);
-
-            state.observe(subject, updateFunction, ooa.key);
+            
+            try {
+                state.observe(subject, updateFunction, ooa.key);
+            } catch(e) {
+                console.error(e);
+                return;
+            }
         }
     }
 
@@ -151,7 +168,13 @@ const loadPage = (
         const subject = state.get(soa.id, soa.bind);
 
         if (typeof subject.value === "function") {
-            el[soa.attribute] = (event: Event) => subject.value(state, event);
+            try {
+                el[soa.attribute] = (event: Event) => subject.value(state, event);
+            } catch(e) { 
+                console.error(e);
+                
+                return;
+            }
         } else {
             el[soa.attribute] = subject.value;
         }
@@ -172,27 +195,34 @@ const loadPage = (
 
         const fn = loadHook.fn;
         
-        let cleanupFunction;
-        if (fn.constructor.name === 'AsyncFunction') {
-            const res = fn(state) as Promise<void | (() => void)>
-            
-            res.then((cleanupFunction) => {
+        try {
+            let cleanupFunction;
+            if (fn.constructor.name === 'AsyncFunction') {
+                const res = fn(state) as Promise<void | (() => void)>
+                
+                res.then((cleanupFunction) => {
+                    if (cleanupFunction){
+                        cleanupProcedures.push({ 
+                            cleanupFunction,
+                            bind: `${bind}`
+                        });
+                    }
+                })
+            } else {
+                cleanupFunction = fn(state) as (void | (() => void));
+                
                 if (cleanupFunction){
-                    cleanupProcedures.push({ 
+                    cleanupProcedures.push({
                         cleanupFunction,
                         bind: `${bind}`
                     });
                 }
-            })
-        } else {
-            cleanupFunction = fn(state) as (void | (() => void));
-            
-            if (cleanupFunction){
-                cleanupProcedures.push({
-                    cleanupFunction,
-                    bind: `${bind}`
-                });
             }
+            
+        } catch(e) {
+            console.error(e);
+            
+            return;
         }
     }
 
@@ -306,7 +336,14 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
             bind.length < 1 || 
             deprecatedBreakpoints.includes(bind)
         ) {
-            cleanupProcedure.cleanupFunction();
+            try {
+                cleanupProcedure.cleanupFunction();
+            } catch(e) {
+                console.error(e);
+                
+                return;
+            }
+            
             cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
         }
     } 
@@ -342,4 +379,8 @@ globalThis.client = {
     getReference: (id: number) => document.querySelector(`[ref="${id}"]`)
 };
 
-loadPage();
+try {
+    loadPage();
+} catch(e) {
+    console.error(e);
+}

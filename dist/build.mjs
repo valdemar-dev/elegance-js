@@ -268,9 +268,12 @@ function startServer({ root, port = 3e3, host = "0.0.0.0", environment = "produc
       if (req.method === "OPTIONS") {
         res.writeHead(204);
         res.end();
+        if (environment === "development") {
+          console.log(req.method, "::", req.url, "-", res.statusCode);
+        }
         return;
       }
-      const url = new URL(req.url, `http://${req.headers.host}`);
+      const url = new URL(req.url, `https://${req.headers.host}`);
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(root, url.pathname, req, res);
       } else {
@@ -287,7 +290,7 @@ function startServer({ root, port = 3e3, host = "0.0.0.0", environment = "produc
   };
   let server = createHttpServer(requestHandler);
   server.listen(port, host, () => {
-    console.log(`Server running at http://${host}:${port}/`);
+    console.log(`Server running at https://${host}:${port}/`);
   });
   return server;
 }
