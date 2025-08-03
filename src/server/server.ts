@@ -1,5 +1,4 @@
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'http';
-import { createServer as createHttpsServer } from 'https';
 import { promises as fs, readFileSync } from 'fs';
 import { join, normalize, extname, dirname } from 'path';
 import { pathToFileURL } from 'url';
@@ -23,13 +22,9 @@ interface ServerOptions {
     port?: number;
     host?: string;
     environment?: 'production' | 'development';
-    https?: {
-        keyPath: string;
-        certPath: string;
-    };
 }
 
-export function startServer({ root, port = 3000, host = '0.0.0.0', environment = 'production', https }: ServerOptions) {
+export function startServer({ root, port = 3000, host = '0.0.0.0', environment = 'production' }: ServerOptions) {
     if (!root) throw new Error('Root directory must be specified.');
 
     const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
@@ -37,6 +32,21 @@ export function startServer({ root, port = 3000, host = '0.0.0.0', environment =
             if (!req.url) {
                 res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
                 res.end('Bad Request');
+                return;
+            }
+            
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+            
+            if (req.method === 'OPTIONS') {
+                res.writeHead(204);
+                res.end();
+                
+                if (environment === 'development') {
+                    console.log(req.method, '::', req.url, '-', res.statusCode);
+                }
+                
                 return;
             }
 
@@ -58,19 +68,10 @@ export function startServer({ root, port = 3000, host = '0.0.0.0', environment =
         }
     };
 
-    let server;
-    if (https && environment === 'production') {
-        const httpsOptions = {
-            key: readFileSync(https.keyPath),
-            cert: readFileSync(https.certPath),
-        };
-        server = createHttpsServer(httpsOptions, requestHandler);
-    } else {
-        server = createHttpServer(requestHandler);
-    }
+    let server = createHttpServer(requestHandler)
 
     server.listen(port, host, () => {
-        console.log(`Server running at http${https ? 's' : ''}://${host}:${port}/`);
+        console.log(`Server running at https://${host}:${port}/`);
     });
 
     return server;

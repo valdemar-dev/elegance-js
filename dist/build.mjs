@@ -237,8 +237,7 @@ var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 
 // src/server/server.ts
 import { createServer as createHttpServer } from "http";
-import { createServer as createHttpsServer } from "https";
-import { promises as fs, readFileSync } from "fs";
+import { promises as fs } from "fs";
 import { join, normalize, extname, dirname } from "path";
 import { pathToFileURL } from "url";
 var MIME_TYPES = {
@@ -254,7 +253,7 @@ var MIME_TYPES = {
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8"
 };
-function startServer({ root, port = 3e3, host = "0.0.0.0", environment = "production", https }) {
+function startServer({ root, port = 3e3, host = "0.0.0.0", environment = "production" }) {
   if (!root) throw new Error("Root directory must be specified.");
   const requestHandler = async (req, res) => {
     try {
@@ -263,7 +262,15 @@ function startServer({ root, port = 3e3, host = "0.0.0.0", environment = "produc
         res.end("Bad Request");
         return;
       }
-      const url = new URL(req.url, `https://${req.headers.host}`);
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+      const url = new URL(req.url, `http://${req.headers.host}`);
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(root, url.pathname, req, res);
       } else {
@@ -278,18 +285,9 @@ function startServer({ root, port = 3e3, host = "0.0.0.0", environment = "produc
       res.end("Internal Server Error");
     }
   };
-  let server;
-  if (https && environment === "production") {
-    const httpsOptions = {
-      key: readFileSync(https.keyPath),
-      cert: readFileSync(https.certPath)
-    };
-    server = createHttpsServer(httpsOptions, requestHandler);
-  } else {
-    server = createHttpServer(requestHandler);
-  }
+  let server = createHttpServer(requestHandler);
   server.listen(port, host, () => {
-    console.log(`Server running at http${https ? "s" : ""}://${host}:${port}/`);
+    console.log(`Server running at http://${host}:${port}/`);
   });
   return server;
 }
