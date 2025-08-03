@@ -46,7 +46,7 @@ declare global {
     type Page = AnyBuiltElement;
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
-        ? { type: ObjectAttributeType, id: string | number, value: any, }
+        ? { type: ObjectAttributeType, id: string | number, value: any, bind?: string, }
         : T extends ObjectAttributeType.OBSERVER
         ? { type: ObjectAttributeType, refs: { id: number, bind?: string, }[], initialValues: any[], update: (...value: any) => any }
         : { type: ObjectAttributeType, };

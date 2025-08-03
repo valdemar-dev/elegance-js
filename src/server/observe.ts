@@ -1,6 +1,6 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 
-export const observe = <T extends { type: ObjectAttributeType; value: unknown; id: number, bind?: string }[]>(
+export const observe = <T extends { type: ObjectAttributeType; value: unknown; id: string | number, bind?: string }[]>(
     refs: [...T], 
     update: (...values: { [K in keyof T]: T[K] extends { value: infer V } ? V : never }) => string
 ) => {

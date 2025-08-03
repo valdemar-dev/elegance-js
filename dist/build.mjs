@@ -238,7 +238,7 @@ var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 // src/server/server.ts
 import { createServer } from "http";
 import { promises as fs } from "fs";
-import { join, normalize, extname } from "path";
+import { join, normalize, extname, dirname } from "path";
 import { pathToFileURL } from "url";
 var MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -304,12 +304,7 @@ async function handleStaticRequest(root, pathname, res) {
     res.writeHead(200, { "Content-Type": contentType });
     res.end(data);
   } catch (err) {
-    if (err.code === "ENOENT") {
-      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end("404 Not Found");
-    } else {
-      throw err;
-    }
+    await respondWithErrorPage(root, pathname, 404, res);
   }
 }
 async function handleApiRequest(root, pathname, req, res) {
@@ -329,10 +324,47 @@ async function handleApiRequest(root, pathname, req, res) {
     }
     await routeModule.route(req, res);
   } catch (err) {
-    console.error(err);
-    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ error: "Internal Server Error" }));
+    await respondWithErrorPage(root, pathname, 404, res);
   }
+}
+async function respondWithErrorPage(root, pathname, code, res) {
+  let currentPath = normalize(join(root, decodeURIComponent(pathname)));
+  let tried = /* @__PURE__ */ new Set();
+  let errorFilePath = null;
+  while (currentPath.startsWith(root)) {
+    const candidate = join(currentPath, `${code}.html`);
+    if (!tried.has(candidate)) {
+      try {
+        await fs.access(candidate);
+        errorFilePath = candidate;
+        break;
+      } catch {
+      }
+      tried.add(candidate);
+    }
+    const parent = dirname(currentPath);
+    if (parent === currentPath) break;
+    currentPath = parent;
+  }
+  if (!errorFilePath) {
+    const fallback = join(root, `${code}.html`);
+    try {
+      await fs.access(fallback);
+      errorFilePath = fallback;
+    } catch {
+    }
+  }
+  if (errorFilePath) {
+    try {
+      const html = await fs.readFile(errorFilePath);
+      res.writeHead(code, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+      return;
+    } catch {
+    }
+  }
+  res.writeHead(code, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end(`${code} Error`);
 }
 
 // src/build.ts
@@ -398,9 +430,20 @@ var getProjectFiles = (pagesDirectory) => {
       console.log(apiFileInSubdirectory);
       continue;
     }
-    const pageFileInSubdirectory = getFile(subdirectoryFiles, "page");
-    if (!pageFileInSubdirectory) continue;
-    pageFiles.push(pageFileInSubdirectory);
+    for (const file of subdirectoryFiles) {
+      if (file.name == "page.ts") {
+        pageFiles.push(file);
+        continue;
+      }
+      const name = file.name.slice(0, file.name.length - 3);
+      const numberName = parseInt(name);
+      if (isNaN(numberName) === false) {
+        if (numberName >= 400 && numberName <= 599) {
+          pageFiles.push(file);
+          continue;
+        }
+      }
+    }
   }
   return {
     pageFiles,
@@ -585,7 +628,8 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     clientPageJSText += `state:[`;
     for (const subject of nonBoundState) {
       if (typeof subject.value === "string") {
-        clientPageJSText += `{id:${subject.id},value:"${JSON.stringify(subject.value)}"},`;
+        const stringified = JSON.stringify(subject.value);
+        clientPageJSText += `{id:${subject.id},value:${stringified}},`;
       } else if (typeof subject.value === "function") {
         clientPageJSText += `{id:${subject.id},value:${subject.value.toString()}},`;
       } else {
@@ -658,7 +702,10 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   clientPageJSText += `}`;
   const pageDataPath = path.join(pageLocation, "page_data.js");
   let sendHardReloadInstruction = false;
-  const transformedResult = await esbuild.transform(clientPageJSText, { minify: true });
+  const transformedResult = await esbuild.transform(clientPageJSText, { minify: true }).catch((error) => {
+    console.error("Failed to transform client page js!", error);
+  });
+  if (!transformedResult) return { sendHardReloadInstruction };
   fs2.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
@@ -673,7 +720,7 @@ var buildPages = async (DIST_DIR, writeToHTML) => {
     const pagePath = path.resolve(path.join(DIST_DIR, directory));
     initializeState();
     resetLoadHooks();
-    const pageJSPath = pagePath + "/page.js";
+    let pageJSPath = pagePath + "/page.js";
     const tempPath = pagePath + "/" + Date.now().toString() + ".js";
     await fs2.promises.copyFile(pageJSPath, tempPath);
     const {
@@ -682,7 +729,6 @@ var buildPages = async (DIST_DIR, writeToHTML) => {
       metadata
     } = await import(tempPath);
     await fs2.promises.rm(tempPath, { force: true });
-    console.log(pageElements, tempPath);
     if (!metadata || metadata && typeof metadata !== "function") {
       throw `${pagePath} is not exporting a metadata function.`;
     }
@@ -855,6 +901,12 @@ var build = async ({
   console.log(`${Math.round(pagesBuilt - pagesTranspiled)}ms to Build Pages`);
   console.log(`${Math.round(end - pagesBuilt)}ms to Build Client`);
   log(green(bold(`Compiled ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
+  for (const pageFile of pageFiles) {
+    console.log(
+      "- /" + path.relative(pagesDirectory, pageFile.parentPath),
+      "(Page)"
+    );
+  }
   if (postCompile) {
     postCompile();
   }
@@ -878,6 +930,9 @@ var build = async ({
         preCompile,
         publicDirectory,
         DIST_DIR
+      }).catch((error) => {
+        console.error(error);
+        console.log("Build Failed!");
       });
       isTimedOut = false;
     }, 100);
@@ -925,7 +980,10 @@ var compile = async (props) => {
   if (watch) {
     await registerListener(props);
   }
-  await build({ ...props, DIST_DIR });
+  await build({ ...props, DIST_DIR }).catch((error) => {
+    console.error(error);
+    console.log("Build Failed!");
+  });
   if (props.server != void 0 && props.server.runServer == true) {
     startServer({
       root: props.server.root ?? DIST_DIR,

@@ -117,11 +117,25 @@ const getProjectFiles = (pagesDirectory: string,) => {
             continue
         }
         
-        const pageFileInSubdirectory = getFile(subdirectoryFiles, "page");
-
-        if (!pageFileInSubdirectory) continue;
-
-        pageFiles.push(pageFileInSubdirectory);
+        for (const file of subdirectoryFiles) {
+            if (file.name == "page.ts") {
+                pageFiles.push(file);
+                
+                continue
+            }
+            
+            const name = file.name.slice(0, file.name.length - 3)
+            const numberName = parseInt(name)
+            
+            if (isNaN(numberName) === false) {
+                if (numberName >= 400 && numberName <= 599) {
+                    pageFiles.push(file);
+                    
+                    continue
+                }
+            }
+            
+        }
     }
 
     return {
@@ -438,7 +452,9 @@ const generateClientPageData = async (
 
         for (const subject of nonBoundState) {
             if (typeof subject.value === "string") {
-                clientPageJSText += `{id:${subject.id},value:"${JSON.stringify(subject.value)}"},`;
+                const stringified = JSON.stringify(subject.value)
+                
+                clientPageJSText += `{id:${subject.id},value:${stringified}},`;
             } else if (typeof subject.value === "function") {
                 clientPageJSText += `{id:${subject.id},value:${subject.value.toString()}},`;
             } else {
@@ -549,7 +565,11 @@ const generateClientPageData = async (
 
     let sendHardReloadInstruction = false;
 
-    const transformedResult = await esbuild.transform(clientPageJSText, { minify: true, })
+    const transformedResult = await esbuild.transform(clientPageJSText, { minify: true, }).catch((error) => {
+        console.error("Failed to transform client page js!", error)
+    })
+    
+    if (!transformedResult) return { sendHardReloadInstruction }
 
     fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8",)
 
@@ -575,15 +595,10 @@ const buildPages = async (
 
         initializeState();
         resetLoadHooks();
-
-        const pageJSPath = pagePath + "/page.js";
-        const tempPath = pagePath + "/" + Date.now().toString() + ".js";
         
-        /*
-        if (fs.existsSync(tempPath)) {
-            await fs.promises.rm(tempPath);
-        }
-        */
+        let pageJSPath = pagePath + "/page.js";
+        
+        const tempPath = pagePath + "/" + Date.now().toString() + ".js";
         
         await fs.promises.copyFile(pageJSPath, tempPath);
         
@@ -595,8 +610,6 @@ const buildPages = async (
         
         await fs.promises.rm(tempPath, { force: true, });
         
-        console.log(pageElements, tempPath);
-
         if (
             !metadata ||
             metadata && typeof metadata !== "function"
@@ -825,6 +838,12 @@ const build = async ({
     console.log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
 
     log(green(bold((`Compiled ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
+    
+    for (const pageFile of pageFiles) {
+        console.log(
+            "- /" + path.relative(pagesDirectory, pageFile.parentPath), "(Page)"
+        )
+    }
 
     if (postCompile) {
         postCompile();
@@ -856,6 +875,9 @@ const build = async ({
                 preCompile,
                 publicDirectory,
                 DIST_DIR,
+            }).catch((error) => {
+                console.error(error)
+                console.log("Build Failed!")
             })
 
             isTimedOut = false;
@@ -929,7 +951,10 @@ export const compile = async (props: {
         await registerListener(props)
     }
 
-    await build({ ...props, DIST_DIR, });
+    await build({ ...props, DIST_DIR, }).catch((error) => {
+        console.error(error)
+        console.log("Build Failed!")
+    });
     
     if (props.server != undefined && props.server.runServer == true) {
         startServer({

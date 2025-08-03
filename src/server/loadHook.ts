@@ -54,11 +54,9 @@ export const createLoadHook = <T extends ServerSubject[]>(options: LoadHookOptio
     dependencyString += "]";
 
     const isAsync = options.fn.constructor.name === "AsyncFunction";
-
+    
     const wrapperFn = isAsync
-        ? `async (state) => {
-            return await (${stringFn})(state, ...state.getAll(${dependencyString}));
-          }`
+        ? `async (state) => await (${stringFn})(state, ...state.getAll(${dependencyString}))`
         : `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`;
 
     globalThis.__SERVER_CURRENT_LOADHOOKS__.push({

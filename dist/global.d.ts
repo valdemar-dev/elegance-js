@@ -34,6 +34,7 @@ declare global {
         type: ObjectAttributeType;
         id: string | number;
         value: any;
+        bind?: string;
     } : T extends ObjectAttributeType.OBSERVER ? {
         type: ObjectAttributeType;
         refs: {

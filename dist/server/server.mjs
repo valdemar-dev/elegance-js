@@ -1,7 +1,7 @@
 // src/server/server.ts
 import { createServer } from "http";
 import { promises as fs } from "fs";
-import { join, normalize, extname } from "path";
+import { join, normalize, extname, dirname } from "path";
 import { pathToFileURL } from "url";
 var MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -67,12 +67,7 @@ async function handleStaticRequest(root, pathname, res) {
     res.writeHead(200, { "Content-Type": contentType });
     res.end(data);
   } catch (err) {
-    if (err.code === "ENOENT") {
-      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end("404 Not Found");
-    } else {
-      throw err;
-    }
+    await respondWithErrorPage(root, pathname, 404, res);
   }
 }
 async function handleApiRequest(root, pathname, req, res) {
@@ -92,10 +87,47 @@ async function handleApiRequest(root, pathname, req, res) {
     }
     await routeModule.route(req, res);
   } catch (err) {
-    console.error(err);
-    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ error: "Internal Server Error" }));
+    await respondWithErrorPage(root, pathname, 404, res);
   }
+}
+async function respondWithErrorPage(root, pathname, code, res) {
+  let currentPath = normalize(join(root, decodeURIComponent(pathname)));
+  let tried = /* @__PURE__ */ new Set();
+  let errorFilePath = null;
+  while (currentPath.startsWith(root)) {
+    const candidate = join(currentPath, `${code}.html`);
+    if (!tried.has(candidate)) {
+      try {
+        await fs.access(candidate);
+        errorFilePath = candidate;
+        break;
+      } catch {
+      }
+      tried.add(candidate);
+    }
+    const parent = dirname(currentPath);
+    if (parent === currentPath) break;
+    currentPath = parent;
+  }
+  if (!errorFilePath) {
+    const fallback = join(root, `${code}.html`);
+    try {
+      await fs.access(fallback);
+      errorFilePath = fallback;
+    } catch {
+    }
+  }
+  if (errorFilePath) {
+    try {
+      const html = await fs.readFile(errorFilePath);
+      res.writeHead(code, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+      return;
+    } catch {
+    }
+  }
+  res.writeHead(code, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end(`${code} Error`);
 }
 export {
   startServer
