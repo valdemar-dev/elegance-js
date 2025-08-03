@@ -1,5 +1,6 @@
-import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { promises as fs } from 'fs';
+import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'http';
+import { createServer as createHttpsServer } from 'https';
+import { promises as fs, readFileSync } from 'fs';
 import { join, normalize, extname, dirname } from 'path';
 import { pathToFileURL } from 'url';
 
@@ -21,13 +22,17 @@ interface ServerOptions {
     root: string;
     port?: number;
     host?: string;
-    environment?: "production" | "development"
+    environment?: 'production' | 'development';
+    https?: {
+        keyPath: string;
+        certPath: string;
+    };
 }
 
-export function startServer({ root, port = 3000, host = '0.0.0.0', environment = "production" }: ServerOptions) {
+export function startServer({ root, port = 3000, host = '0.0.0.0', environment = 'production', https }: ServerOptions) {
     if (!root) throw new Error('Root directory must be specified.');
 
-    const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
         try {
             if (!req.url) {
                 res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -35,26 +40,37 @@ export function startServer({ root, port = 3000, host = '0.0.0.0', environment =
                 return;
             }
 
-            const url = new URL(req.url, `http://${req.headers.host}`);
-            
+            const url = new URL(req.url, `https://${req.headers.host}`);
+
             if (url.pathname.startsWith('/api/')) {
                 await handleApiRequest(root, url.pathname, req, res);
             } else {
                 await handleStaticRequest(root, url.pathname, res);
             }
-            
-            if (environment == "development") {
-                console.log(req.method, "::", req.url, "-", res.statusCode)
+
+            if (environment === 'development') {
+                console.log(req.method, '::', req.url, '-', res.statusCode);
             }
         } catch (err) {
             console.error(err);
             res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
             res.end('Internal Server Error');
         }
-    });
+    };
+
+    let server;
+    if (https && environment === 'production') {
+        const httpsOptions = {
+            key: readFileSync(https.keyPath),
+            cert: readFileSync(https.certPath),
+        };
+        server = createHttpsServer(httpsOptions, requestHandler);
+    } else {
+        server = createHttpServer(requestHandler);
+    }
 
     server.listen(port, host, () => {
-        console.log(`Server running at http://${host}:${port}/`);
+        console.log(`Server running at http${https ? 's' : ''}://${host}:${port}/`);
     });
 
     return server;
@@ -62,8 +78,7 @@ export function startServer({ root, port = 3000, host = '0.0.0.0', environment =
 
 async function handleStaticRequest(root: string, pathname: string, res: ServerResponse) {
     let filePath = normalize(join(root, decodeURIComponent(pathname)));
-    
-    root = normalize(root)
+    root = normalize(root);
 
     if (!filePath.startsWith(root)) {
         res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -76,7 +91,7 @@ async function handleStaticRequest(root: string, pathname: string, res: ServerRe
         if (stats.isDirectory()) {
             filePath = join(filePath, 'index.html');
         }
-    } catch (e) {}
+    } catch {}
 
     try {
         const data = await fs.readFile(filePath);
@@ -84,7 +99,7 @@ async function handleStaticRequest(root: string, pathname: string, res: ServerRe
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
         res.writeHead(200, { 'Content-Type': contentType });
         res.end(data);
-    } catch (err: any) {
+    } catch {
         await respondWithErrorPage(root, pathname, 404, res);
     }
 }
@@ -106,7 +121,7 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
             throw new Error('API route module must export a "route" function.');
         }
         await routeModule.route(req, res);
-    } catch (err) {
+    } catch {
         await respondWithErrorPage(root, pathname, 404, res);
     }
 }

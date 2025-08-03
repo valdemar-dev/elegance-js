@@ -239,8 +239,9 @@ if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT
 var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 
 // src/server/server.ts
-import { createServer } from "http";
-import { promises as fs } from "fs";
+import { createServer as createHttpServer } from "http";
+import { createServer as createHttpsServer } from "https";
+import { promises as fs, readFileSync } from "fs";
 import { join, normalize, extname, dirname } from "path";
 import { pathToFileURL } from "url";
 var MIME_TYPES = {
@@ -256,22 +257,22 @@ var MIME_TYPES = {
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8"
 };
-function startServer({ root, port = 3e3, host = "0.0.0.0", environment: environment2 = "production" }) {
+function startServer({ root, port = 3e3, host = "0.0.0.0", environment: environment2 = "production", https }) {
   if (!root) throw new Error("Root directory must be specified.");
-  const server = createServer(async (req, res) => {
+  const requestHandler = async (req, res) => {
     try {
       if (!req.url) {
         res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
         res.end("Bad Request");
         return;
       }
-      const url = new URL(req.url, `http://${req.headers.host}`);
+      const url = new URL(req.url, `https://${req.headers.host}`);
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(root, url.pathname, req, res);
       } else {
         await handleStaticRequest(root, url.pathname, res);
       }
-      if (environment2 == "development") {
+      if (environment2 === "development") {
         console.log(req.method, "::", req.url, "-", res.statusCode);
       }
     } catch (err) {
@@ -279,9 +280,19 @@ function startServer({ root, port = 3e3, host = "0.0.0.0", environment: environm
       res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Internal Server Error");
     }
-  });
+  };
+  let server;
+  if (https && environment2 === "production") {
+    const httpsOptions = {
+      key: readFileSync(https.keyPath),
+      cert: readFileSync(https.certPath)
+    };
+    server = createHttpsServer(httpsOptions, requestHandler);
+  } else {
+    server = createHttpServer(requestHandler);
+  }
   server.listen(port, host, () => {
-    console.log(`Server running at http://${host}:${port}/`);
+    console.log(`Server running at http${https ? "s" : ""}://${host}:${port}/`);
   });
   return server;
 }
@@ -298,7 +309,7 @@ async function handleStaticRequest(root, pathname, res) {
     if (stats.isDirectory()) {
       filePath = join(filePath, "index.html");
     }
-  } catch (e) {
+  } catch {
   }
   try {
     const data = await fs.readFile(filePath);
@@ -306,7 +317,7 @@ async function handleStaticRequest(root, pathname, res) {
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
     res.writeHead(200, { "Content-Type": contentType });
     res.end(data);
-  } catch (err) {
+  } catch {
     await respondWithErrorPage(root, pathname, 404, res);
   }
 }
@@ -326,7 +337,7 @@ async function handleApiRequest(root, pathname, req, res) {
       throw new Error('API route module must export a "route" function.');
     }
     await routeModule.route(req, res);
-  } catch (err) {
+  } catch {
     await respondWithErrorPage(root, pathname, 404, res);
   }
 }
