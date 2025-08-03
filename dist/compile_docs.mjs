@@ -256,7 +256,7 @@ var MIME_TYPES = {
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8"
 };
-function startServer({ root, port = 3e3, host = "localhost", environment: environment2 = "production" }) {
+function startServer({ root, port = 3e3, host = "0.0.0.0", environment: environment2 = "production" }) {
   if (!root) throw new Error("Root directory must be specified.");
   const server = createServer(async (req, res) => {
     try {
