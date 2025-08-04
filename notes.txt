@@ -1,8 +1,4 @@
 ## Good to remember
-object-attributes are separated, to reduce the size of large page_data files. 
-if not separated, each one would have to specify a type: enum, which would be quite redundant and costly.
+doc.head.replaceWith() causes unflashed content in client side navigation.
 
-console.log() in observer will show in initial-render on the server.
-
-special characters: newline, etc, are escaped
-
+layouts are HORRENDOUSLY designed.

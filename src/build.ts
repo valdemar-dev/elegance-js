@@ -198,7 +198,7 @@ const processOptionAsObjectAttribute = (
     const options = element.options as ElementOptions;
 
     let key = options.key;
-    if (!key) {
+    if (key == undefined) {
         key = elementKey++;
         options.key = key;
     }
@@ -490,7 +490,7 @@ const generateClientPageData = async (
 
                 for (const subject of subjects) {
                     if (typeof subject.value === "string") {
-                        clientPageJSText += `{id:${subject.id},value:"${JSON.stringify(subject.value)}"},`;
+                        clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
                     } else {
                         clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
                     }
@@ -753,8 +753,8 @@ const build = async ({
     // removes old pages that no longer-exist.
     // more efficient thank nuking directory
     for (const page of existingCompiledPages) {
-        const pageFile = pageFiles.find(dir => path.relative(pagesDirectory, dir.parentPath) === page);
-        const apiFile = apiFiles.find(dir => path.relative(pagesDirectory, dir.parentPath) === page);
+        const pageFile = pageFiles.find(dir => path.relative(pagesDirectory, dir?.parentPath ?? "") === page);
+        const apiFile = apiFiles.find(dir => path.relative(pagesDirectory, dir?.parentPath ?? "") === page);
 
         if (!pageFile && !apiFile) {
             fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })

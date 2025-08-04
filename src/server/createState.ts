@@ -10,26 +10,6 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
 
 let currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 
-export const createStateOld = <T extends Record<string, any>>(augment: T) => {
-    const returnAugmentValue: Record<string, any> = {};
-
-    for (const [key, value] of Object.entries(augment)) {
-        const serverStateEntry = {
-            id: currentId++,
-            value: value as typeof value,
-            type: ObjectAttributeType.STATE,
-        };
-
-        globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
-
-        // make it so you can access stuff!!
-        returnAugmentValue[key] = serverStateEntry;
-    }
-
-    return returnAugmentValue as { 
-        [K in keyof T]: { value: T[K], id: number, type: ObjectAttributeType.STATE } 
-    };
-};
 
 type Widen<T> =
     T extends number ? number :
@@ -50,7 +30,7 @@ export const createState = <
     type ValueType = Widen<U>;
 
     const serverStateEntry = {
-        id: currentId++,
+        id: currentId += 1,
         value: value,
         type: ObjectAttributeType.STATE,
         bind: options?.bind,
@@ -110,7 +90,7 @@ export const createEventListener = <
     dependencyString += "]";
 
     const value = {
-        id: currentId++,
+        id: currentId += 1,
         type: ObjectAttributeType.STATE,
         value: new Function(
             "state",
