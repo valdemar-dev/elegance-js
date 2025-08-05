@@ -325,7 +325,7 @@ async function handleStaticRequest(root, pathname, res) {
   try {
     const stats = await fs.stat(filePath);
     if (stats.isDirectory()) {
-      filePath = join(filePath, "page.html");
+      filePath = join(filePath, "index.html");
     }
   } catch {
   }
@@ -623,7 +623,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     name: pageName
   });
   const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
-  const htmlLocation = path.join(pageLocation, pageName + ".html");
+  const htmlLocation = path.join(pageLocation, pageName === "page" ? "index" : pageName + ".html");
   fs2.writeFileSync(
     htmlLocation,
     resultHTML,

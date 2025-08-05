@@ -90,7 +90,7 @@ async function handleStaticRequest(root: string, pathname: string, res: ServerRe
     try {
         const stats = await fs.stat(filePath);
         if (stats.isDirectory()) {
-            filePath = join(filePath, 'page.html');
+            filePath = join(filePath, 'index.html');
         }
     } catch {}
 

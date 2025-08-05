@@ -68,7 +68,7 @@ async function handleStaticRequest(root, pathname, res) {
   try {
     const stats = await fs.stat(filePath);
     if (stats.isDirectory()) {
-      filePath = join(filePath, "page.html");
+      filePath = join(filePath, "index.html");
     }
   } catch {
   }
