@@ -398,7 +398,7 @@ const generateSuitablePageElements = async (
 
     const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
 
-    const htmlLocation = path.join(pageLocation, pageName === "page" ? "index" : pageName + ".html");
+    const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
 
     fs.writeFileSync(
         htmlLocation,
