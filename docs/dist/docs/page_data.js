@@ -1,0 +1,1 @@
+let a="/docs";export const data={state:[],lh:[{fn:l=>(()=>{client.navigateLocally(window.location.href+"/basics",!0)})(l,...l.getAll([])),bind:""}]};globalThis.pd||(globalThis.pd={},globalThis.pd[window.location.pathname]=data);

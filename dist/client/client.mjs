@@ -1,5 +1,6 @@
 // src/client/client.ts
 console.log("Elegance.JS is loading..");
+if (!globalThis.pd) globalThis.pd = {};
 var domParser = new DOMParser();
 var xmlSerializer = new XMLSerializer();
 var pageStringCache = /* @__PURE__ */ new Map();
@@ -56,8 +57,8 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
   const pathname = fixedUrl.pathname;
   history.replaceState(null, "", fixedUrl.href);
   let pageData = pd[pathname];
-  if (!pageData) {
-    console.error(`%cFailed to load! Missing "page_data.js" for page ${pathname}`, "font-size: 20px; font-weight: 600;");
+  if (pd === void 0) {
+    console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;");
     return;
   }
   ;
@@ -83,7 +84,7 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
   }
   let state = pageData.stateManager;
   if (!state) {
-    state = createStateManager(pageData.state);
+    state = createStateManager(pageData.state || []);
     pageData.stateManager = state;
   }
   for (const subject of state.subjects) {
@@ -182,7 +183,8 @@ var fetchPage = async (targetURL) => {
   const newDOM = domParser.parseFromString(await res.text(), "text/html");
   const pageDataScriptSrc = pathname === "/" ? pathname + "page_data.js" : pathname + "/page_data.js";
   if (!pd[pathname]) {
-    await import(pageDataScriptSrc);
+    const data = await import(pageDataScriptSrc);
+    pd[pathname] = data;
   }
   pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
   return newDOM;

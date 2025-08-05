@@ -15,6 +15,7 @@ var PageHeading = (title2, id) => h2({
 
 // src/components/Breakpoint.ts
 var Breakpoint = (options, ...children) => {
+  console.log("THIS IS ME: ", void 0);
   if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
   const id = options.id;
   delete options.id;
@@ -34,7 +35,7 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
 var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (value, options) => {
   const serverStateEntry = {
-    id: currentId++,
+    id: currentId += 1,
     value,
     type: 1 /* STATE */,
     bind: options?.bind
@@ -56,7 +57,7 @@ var createEventListener = ({
   }
   dependencyString += "]";
   const value = {
-    id: currentId++,
+    id: currentId += 1,
     type: 1 /* STATE */,
     value: new Function(
       "state",

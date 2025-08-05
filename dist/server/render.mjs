@@ -154,6 +154,25 @@ var renderRecursively = (element) => {
     return returnString + element.join(", ");
   }
   returnString += `<${element.tag}`;
+  const {
+    tag: elementTag,
+    options: elementOptions,
+    children: elementChildren
+  } = element.options;
+  if (elementTag && elementOptions && elementChildren) {
+    const children = element.children;
+    element.children = [
+      element.options,
+      ...children
+    ];
+    element.options = {};
+    for (let i = 0; i < children.length + 1; i++) {
+      const child = element.children[i];
+      returnString += renderRecursively(child);
+    }
+    returnString += `</${element.tag}>`;
+    return returnString;
+  }
   if (typeof element.options === "object") {
     for (const [attrName, attrValue] of Object.entries(element.options)) {
       if (typeof attrValue === "object") {

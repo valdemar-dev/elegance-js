@@ -18,17 +18,12 @@ const environment = environmentArg.split("=")[1];
 console.log(`Environment: ${environment}`);
 
 compile({
-    writeToHTML: true,
     pagesDirectory: PAGES_DIR,
     outputDirectory: OUTPUT_DIR,
     environment: environment as "production" | "development",
-    watchServerPort: 3001,
     publicDirectory: {
         path: PUBLIC_DIR,
         method: environment === "production" ? "recursive-copy" : "symlink",
-    },
-
-    preCompile: async () => {
     },
 }).then(() => {
     if (environment === "production") {

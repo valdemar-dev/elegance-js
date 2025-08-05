@@ -1,6 +1,4 @@
-export declare const compile: (props: {
-    writeToHTML?: boolean;
-    watchServerPort?: number;
+type CompilationOptions = {
     postCompile?: () => any;
     preCompile?: () => any;
     environment: "production" | "development";
@@ -15,4 +13,10 @@ export declare const compile: (props: {
         root?: string;
         port?: number;
     };
-}) => Promise<void>;
+    hotReload?: {
+        port: number;
+        hostname: string;
+    };
+};
+export declare const compile: (props: CompilationOptions) => Promise<void>;
+export {};

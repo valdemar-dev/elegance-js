@@ -17,7 +17,7 @@ var createEventListener = ({
   }
   dependencyString += "]";
   const value = {
-    id: currentId++,
+    id: currentId += 1,
     type: 1 /* STATE */,
     value: new Function(
       "state",

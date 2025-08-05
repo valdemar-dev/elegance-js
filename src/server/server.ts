@@ -1,6 +1,6 @@
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'http';
 import { promises as fs, readFileSync } from 'fs';
-import { join, normalize, extname, dirname } from 'path';
+import { join, normalize, extname, dirname, resolve } from 'path';
 import { pathToFileURL } from 'url';
 
 const MIME_TYPES: Record<string, string> = {
@@ -90,7 +90,7 @@ async function handleStaticRequest(root: string, pathname: string, res: ServerRe
     try {
         const stats = await fs.stat(filePath);
         if (stats.isDirectory()) {
-            filePath = join(filePath, 'index.html');
+            filePath = join(filePath, 'page.html');
         }
     } catch {}
 

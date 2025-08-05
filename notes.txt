@@ -2,3 +2,7 @@
 doc.head.replaceWith() causes unflashed content in client side navigation.
 
 layouts are HORRENDOUSLY designed.
+public directory should inherit name, or be enforced.
+same with calling pages pages
+
+no good way of doing index.css and stuff

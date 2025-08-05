@@ -154,6 +154,25 @@ var renderRecursively = (element) => {
     return returnString + element.join(", ");
   }
   returnString += `<${element.tag}`;
+  const {
+    tag: elementTag,
+    options: elementOptions,
+    children: elementChildren
+  } = element.options;
+  if (elementTag && elementOptions && elementChildren) {
+    const children = element.children;
+    element.children = [
+      element.options,
+      ...children
+    ];
+    element.options = {};
+    for (let i = 0; i < children.length + 1; i++) {
+      const child = element.children[i];
+      returnString += renderRecursively(child);
+    }
+    returnString += `</${element.tag}>`;
+    return returnString;
+  }
   if (typeof element.options === "object") {
     for (const [attrName, attrValue] of Object.entries(element.options)) {
       if (typeof attrValue === "object") {
@@ -179,12 +198,13 @@ var generateHTMLTemplate = ({
   pageURL,
   head,
   serverData = null,
-  addPageScriptTag = true
+  addPageScriptTag = true,
+  name
 }) => {
   let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
   if (addPageScriptTag === true) {
-    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/page_data.js" defer="true"></script>`;
+    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
   HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
   const builtHead = head();

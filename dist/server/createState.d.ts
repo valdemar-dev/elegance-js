@@ -2,11 +2,6 @@ import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
     value: T;
 };
-export declare const createStateOld: <T extends Record<string, any>>(augment: T) => { [K in keyof T]: {
-    value: T[K];
-    id: number;
-    type: ObjectAttributeType.STATE;
-}; };
 type Widen<T> = T extends number ? number : T extends string ? string : T extends boolean ? boolean : T extends {} ? T & Record<string, any> : T;
 export declare const createState: <U extends number | string | boolean | {}>(value: U, options?: {
     bind?: number;

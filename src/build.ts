@@ -106,19 +106,12 @@ const getProjectFiles = (pagesDirectory: string,) => {
         const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
             .filter(f => f.name.endsWith(".js") || f.name.endsWith(".ts"));
             
-        if (subdirectory.startsWith("api")) {            
-            const apiFileInSubdirectory = getFile(subdirectoryFiles, "route");
-    
-            if (!apiFileInSubdirectory) continue;
-    
-            apiFiles.push(apiFileInSubdirectory);
-            console.log(apiFileInSubdirectory)
-            
-            continue
-        }
-        
         for (const file of subdirectoryFiles) {
-            if (file.name == "page.ts") {
+            if (file.name === "route.ts" && subdirectory.startsWith("/api")) {
+                apiFiles.push(file);
+                
+                continue
+            } else if (file.name === "page.ts") {
                 pageFiles.push(file);
                 
                 continue
@@ -145,22 +138,19 @@ const getProjectFiles = (pagesDirectory: string,) => {
 };
 
 const buildClient = async (
-    environment: "production" | "development",
     DIST_DIR: string,
-    isInWatchMode: boolean,
-    watchServerPort: number
 ) => {
     let clientString = "window.__name = (func) => func; "
     clientString += fs.readFileSync(clientPath, "utf-8");
 
-    if (isInWatchMode) {
-        clientString += `const watchServerPort = ${watchServerPort}`;
+    if (options.hotReload !== undefined) {
+        clientString += `const watchServerPort = ${options.hotReload.port}`;
         clientString += fs.readFileSync(watcherPath, "utf-8");
     }
 
     const transformedClient = await esbuild.transform(clientString, {
-        minify: environment === "production",
-        drop: environment === "production" ? ["console", "debugger"] : undefined,
+        minify: options.environment === "production",
+        drop: options.environment === "production" ? ["console", "debugger"] : undefined,
         keepNames: false,
         format: "iife",
         platform: "node", 
@@ -199,7 +189,7 @@ const processOptionAsObjectAttribute = (
 
     let key = options.key;
     if (key == undefined) {
-        key = elementKey++;
+        key = elementKey += 1
         options.key = key;
     }
 
@@ -264,6 +254,7 @@ const processOptionAsObjectAttribute = (
 const processPageElements = (
     element: Child,
     objectAttributes: Array<any>,
+    parent: Child,
 ): Child => {
     if (
         typeof element === "boolean" ||
@@ -288,7 +279,7 @@ const processPageElements = (
         for (let i = 0; i < children.length+1; i++) {
             const child = element.children![i];
             
-            const processedChild = processPageElements(child, objectAttributes)
+            const processedChild = processPageElements(child, objectAttributes, element)
             
             element.children![i] = processedChild;
         }
@@ -363,7 +354,7 @@ const processPageElements = (
         for (let i = 0; i < element.children.length; i++) {
             const child = element.children![i];
             
-            const processedChild = processPageElements(child, objectAttributes)
+            const processedChild = processPageElements(child, objectAttributes, element)
     
             element.children![i] = processedChild;
         }
@@ -377,7 +368,7 @@ const generateSuitablePageElements = async (
     pageElements: Child,
     metadata: () => BuiltElement<"head">,
     DIST_DIR: string,
-    writeToHTML: boolean,
+    pageName: string,
 ) => {
     if (
         typeof pageElements === "string" ||
@@ -389,19 +380,9 @@ const generateSuitablePageElements = async (
     }
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
-    const processedPageElements = processPageElements(pageElements, objectAttributes);
+    const processedPageElements = processPageElements(pageElements, objectAttributes, []);
     
     elementKey = 0;
-
-    if (!writeToHTML) {
-        fs.writeFileSync(
-            path.join(pageLocation, "page.json"),
-            JSON.stringify(processedPageElements),
-            "utf-8",
-        )
-
-        return objectAttributes;
-    }
 
     const renderedPage = await serverSideRenderPage(
         processedPageElements as Page,
@@ -412,11 +393,12 @@ const generateSuitablePageElements = async (
         pageURL: path.relative(DIST_DIR, pageLocation),
         head: metadata,
         addPageScriptTag: true,
+        name: pageName,
     });
 
     const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
 
-    const htmlLocation = path.join(pageLocation, "index.html");
+    const htmlLocation = path.join(pageLocation, pageName + ".html");
 
     fs.writeFileSync(
         htmlLocation,
@@ -437,131 +419,136 @@ const generateClientPageData = async (
     objectAttributes: Array<ObjectAttribute<any>>,
     pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
+    pageName: string,
 ) => {
     const pageDiff = path.relative(DIST_DIR, pageLocation);
 
     let clientPageJSText = `let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
-
-    clientPageJSText += `if (!globalThis.pd) globalThis.pd = {};let pd=globalThis.pd;`
-    clientPageJSText += `pd[url]={`;
-
-    if (state) {
-        const nonBoundState = state.filter(subj => (subj.bind === undefined));        
-
-        clientPageJSText += `state:[`
-
-        for (const subject of nonBoundState) {
-            if (typeof subject.value === "string") {
-                const stringified = JSON.stringify(subject.value)
-                
-                clientPageJSText += `{id:${subject.id},value:${stringified}},`;
-            } else if (typeof subject.value === "function") {
-                clientPageJSText += `{id:${subject.id},value:${subject.value.toString()}},`;
-            } else {
-                clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-            }
-        }
-
-        clientPageJSText += `],`;
-
-        const formattedBoundState: Record<string, any> = {};
-
-        const stateBinds = state.map(subj => subj.bind).filter(bind => bind !== undefined);
-
-        for (const bind of stateBinds) {
-            formattedBoundState[bind] = [];
-        };
-
-        const boundState = state.filter(subj => (subj.bind !== undefined))
-        for (const subject of boundState) {
-            const bindingState = formattedBoundState[subject.bind!];
-
-            delete subject.bind;
-
-            bindingState.push(subject);
-        }
-
-        const bindSubjectPairing = Object.entries(formattedBoundState);
-        if (bindSubjectPairing.length > 0) {
-            clientPageJSText += "binds:{";
-
-            for (const [bind, subjects] of bindSubjectPairing) {
-                clientPageJSText += `${bind}:[`;
-
-                for (const subject of subjects) {
-                    if (typeof subject.value === "string") {
-                        clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-                    } else {
-                        clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-                    }
+    
+    // add in data
+    {
+        clientPageJSText += `export const data = {`;
+    
+        if (state) {
+            const nonBoundState = state.filter(subj => (subj.bind === undefined));        
+    
+            clientPageJSText += `state:[`
+    
+            for (const subject of nonBoundState) {
+                if (typeof subject.value === "string") {
+                    const stringified = JSON.stringify(subject.value)
+                    
+                    clientPageJSText += `{id:${subject.id},value:${stringified}},`;
+                } else if (typeof subject.value === "function") {
+                    clientPageJSText += `{id:${subject.id},value:${subject.value.toString()}},`;
+                } else {
+                    clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
                 }
-
-                clientPageJSText += "]";
             }
-
-            clientPageJSText += "},";
-        }
-    }
-
-    const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
-
-    if (stateObjectAttributes.length > 0) {
-        const processed = [...stateObjectAttributes].map((soa: any) => {
-            delete soa.type
-            return soa;
-        });
-
-        clientPageJSText += `soa:${JSON.stringify(processed)},`
-    }
-
-    const observerObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.OBSERVER);
-    if (observerObjectAttributes.length > 0) {
-        let observerObjectAttributeString = "ooa:[";
-
-        for (const observerObjectAttribute of observerObjectAttributes) {
-            const ooa = observerObjectAttribute as unknown as {
-                key: string,
-                refs: {
-                    id: number,
-                    bind: string | undefined,
-                }[],
-                attribute: string,
-                update: (...value: any) => any,
+    
+            clientPageJSText += `],`;
+    
+            const formattedBoundState: Record<string, any> = {};
+    
+            const stateBinds = state.map(subj => subj.bind).filter(bind => bind !== undefined);
+    
+            for (const bind of stateBinds) {
+                formattedBoundState[bind] = [];
             };
-
-            observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",update:${ooa.update.toString()},`;
-            observerObjectAttributeString += `refs:[`;
-
-            for (const ref of ooa.refs) {
-                observerObjectAttributeString += `{id:${ref.id}`;
-                if (ref.bind !== undefined) observerObjectAttributeString += `,bind:${ref.bind}`;
-
-                observerObjectAttributeString += "},";
+    
+            const boundState = state.filter(subj => (subj.bind !== undefined))
+            for (const subject of boundState) {
+                const bindingState = formattedBoundState[subject.bind!];
+    
+                delete subject.bind;
+    
+                bindingState.push(subject);
             }
-
-            observerObjectAttributeString += "]},";
+    
+            const bindSubjectPairing = Object.entries(formattedBoundState);
+            if (bindSubjectPairing.length > 0) {
+                clientPageJSText += "binds:{";
+    
+                for (const [bind, subjects] of bindSubjectPairing) {
+                    clientPageJSText += `${bind}:[`;
+    
+                    for (const subject of subjects) {
+                        if (typeof subject.value === "string") {
+                            clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
+                        } else {
+                            clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
+                        }
+                    }
+    
+                    clientPageJSText += "]";
+                }
+    
+                clientPageJSText += "},";
+            }
         }
-
-        observerObjectAttributeString += "],";
-        clientPageJSText += observerObjectAttributeString;
-    }
-
-    if (pageLoadHooks.length > 0) {
-        clientPageJSText += "lh:[";
-
-        for (const loadHook of pageLoadHooks) {
-            const key = loadHook.bind
-
-            clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
+    
+        const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
+    
+        if (stateObjectAttributes.length > 0) {
+            const processed = [...stateObjectAttributes].map((soa: any) => {
+                delete soa.type
+                return soa;
+            });
+    
+            clientPageJSText += `soa:${JSON.stringify(processed)},`
         }
-
-        clientPageJSText += "],";
+    
+        const observerObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.OBSERVER);
+        if (observerObjectAttributes.length > 0) {
+            let observerObjectAttributeString = "ooa:[";
+    
+            for (const observerObjectAttribute of observerObjectAttributes) {
+                const ooa = observerObjectAttribute as unknown as {
+                    key: string,
+                    refs: {
+                        id: number,
+                        bind: string | undefined,
+                    }[],
+                    attribute: string,
+                    update: (...value: any) => any,
+                };
+    
+                observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",update:${ooa.update.toString()},`;
+                observerObjectAttributeString += `refs:[`;
+    
+                for (const ref of ooa.refs) {
+                    observerObjectAttributeString += `{id:${ref.id}`;
+                    if (ref.bind !== undefined) observerObjectAttributeString += `,bind:${ref.bind}`;
+    
+                    observerObjectAttributeString += "},";
+                }
+    
+                observerObjectAttributeString += "]},";
+            }
+    
+            observerObjectAttributeString += "],";
+            clientPageJSText += observerObjectAttributeString;
+        }
+    
+        if (pageLoadHooks.length > 0) {
+            clientPageJSText += "lh:[";
+    
+            for (const loadHook of pageLoadHooks) {
+                const key = loadHook.bind
+    
+                clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
+            }
+    
+            clientPageJSText += "],";
+        }
+    
+        // close fully, NEVER REMOVE!!
+        clientPageJSText += `};`;
     }
+    
+    clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[window.location.pathname] = data}";
 
-    // close fully, NEVER REMOVE!!
-    clientPageJSText += `}`;
-
-    const pageDataPath = path.join(pageLocation, "page_data.js");
+    const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
 
     let sendHardReloadInstruction = false;
 
@@ -578,7 +565,6 @@ const generateClientPageData = async (
 
 const buildPages = async (
     DIST_DIR: string,
-    writeToHTML: boolean,
 ) => { 
     resetLayouts();
 
@@ -587,76 +573,90 @@ const buildPages = async (
     let shouldClientHardReload = false;
 
     for (const directory of subdirectories) {
-        if (directory.startsWith("api")) {
-            continue
-        }
+        const abs = path.resolve(path.join(DIST_DIR, directory))
         
-        const pagePath = path.resolve(path.join(DIST_DIR, directory))
-
-        initializeState();
-        resetLoadHooks();
+        const files = fs.readdirSync(abs, { withFileTypes: true, })
+            .filter(f => f.name.endsWith(".js"))
         
-        let pageJSPath = pagePath + "/page.js";
-        
-        const tempPath = pagePath + "/" + Date.now().toString() + ".js";
-        
-        await fs.promises.copyFile(pageJSPath, tempPath);
-        
-        const {
-            page: pageElements,
-            generateMetadata,
-            metadata,
-        } = await import(tempPath);
-        
-        await fs.promises.rm(tempPath, { force: true, });
-        
-        if (
-            !metadata ||
-            metadata && typeof metadata !== "function"
-        ) {
-            throw `${pagePath} is not exporting a metadata function.`;
-        }
-
-        if (!pageElements) {
-            throw `${pagePath} must export a const page, which is of type BuiltElement<"body">.`
-        }
-
-        const state = getState();
-        const pageLoadHooks = getLoadHooks();
-        
-        let objectAttributes = [];
-        
-        try {
-            objectAttributes = await generateSuitablePageElements(
-                pagePath,
-                pageElements,
-                metadata,
-                DIST_DIR,
-                writeToHTML,
-            )
-        } catch(error) {
-            console.error(
-                "Failed to generate suitable page elements.",
-                pagePath + "/page.js",
-                error,
-            )
+        for (const file of files) {
+            const filePath = path.join(file.parentPath, file.name);
             
-            return {
-                shouldClientHardReload: false,
+            const name = file.name.slice(0, file.name.length - 3);
+            
+            // hack to get around caching
+            const tempPath = file.parentPath + "/" + Date.now().toString() + ".mjs";
+            
+            await fs.promises.copyFile(filePath, tempPath);
+            
+            const bytes = fs.readFileSync(tempPath);
+            
+            const isPage = bytes.toString().startsWith("//__ELEGANCE_JS_PAGE_MARKER__")
+            
+            if (isPage == false) {
+                fs.rmSync(tempPath, { force: true, });
+                
+                continue;
             }
+            
+            fs.rmSync(filePath, { force: true, });
+
+            initializeState();
+            resetLoadHooks();
+            
+            let pageElements;
+            let metadata;
+            
+            try {
+                const {
+                    page,
+                    metadata: pageMetadata,
+                } = await import("file://" + tempPath);
+                
+                pageElements = page;
+                metadata = pageMetadata;
+            } catch(e) {
+                fs.rmSync(tempPath, { force: true, });
+                
+                throw `Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`;
+            }
+            
+            fs.rmSync(tempPath, { force: true, });
+            
+            if (
+                !metadata ||
+                metadata && typeof metadata !== "function"
+            ) {
+                console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
+            }
+    
+            if (!pageElements) {
+                console.warn(`WARNING: ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
+            }
+    
+            const state = getState();
+            const pageLoadHooks = getLoadHooks();
+            
+            const objectAttributes = await generateSuitablePageElements(
+                file.parentPath,
+                pageElements || (body()),
+                metadata ?? (() => head()),
+                DIST_DIR,
+                name,
+            )
+    
+            const {
+                sendHardReloadInstruction,
+            } = await generateClientPageData(
+                file.parentPath,
+                state || {},
+                objectAttributes,
+                pageLoadHooks || [],
+                DIST_DIR,
+                name,
+            );
+    
+            if (sendHardReloadInstruction === true) shouldClientHardReload = true;
         }
-
-        const {
-            sendHardReloadInstruction,
-        } = await generateClientPageData(
-            pagePath,
-            state || {},
-            objectAttributes,
-            pageLoadHooks || [],
-            DIST_DIR,
-        );
-
-        if (sendHardReloadInstruction === true) shouldClientHardReload = true;
     }
 
     return {
@@ -669,7 +669,7 @@ let httpStream: ServerResponse<IncomingMessage> | null;
 
 const currentWatchers: FSWatcher[] = [];
 
-const registerListener = async (props: any) => {
+const registerListener = async () => {
     const server = http.createServer((req, res) => {
         if (req.url === '/events') {
             log(white("Client listening for changes.."));
@@ -695,135 +695,127 @@ const registerListener = async (props: any) => {
         }
     });
 
-    server.listen(props.watchServerPort, () => {
+    server.listen(options.hotReload!.port, () => {
         log(bold(green('Hot-Reload server online!')));
     });
 };
 
-const build = async ({
-    writeToHTML = false,
-    pagesDirectory,
-    outputDirectory,
-    environment,
-    watchServerPort = 3001,
-    postCompile,
-    preCompile,
-    publicDirectory,
-    DIST_DIR,
-}: {
-    writeToHTML?: boolean,
-    watchServerPort?: number
-    postCompile?: () => any,
-    preCompile?: () => any,
-    environment: "production" | "development",
-    pagesDirectory: string,
-    outputDirectory: string,
-    publicDirectory?: {
-        path: string,
-        method: "symlink" | "recursive-copy",
-    },
-    DIST_DIR: string,
-}) => {
-    const watch = environment === "development";
-
-    log(bold(yellow(" -- Elegance.JS -- ")));
-    log(white(`Beginning build at ${new Date().toLocaleTimeString()}..`));
-
-    log("");
-
-    if (environment === "production") {
-        log(
-            " - ",
-            bgYellow(bold(black(" NOTE "))),
-            " : ", 
-            white("In production mode, no "), 
-            underline("console.log() "),
-            white("statements will be shown on the client, and all code will be minified."));
-
+const build = async (DIST_DIR: string): Promise<boolean> => {
+    try {
+    // log spam
+    { 
+        log(bold(yellow(" -- Elegance.JS -- ")));
+        log(white(`Beginning build at ${new Date().toLocaleTimeString()}..`));
+    
         log("");
+    
+        if (options.environment === "production") {
+            log(
+                " - ",
+                bgYellow(bold(black(" NOTE "))),
+                " : ", 
+                white("In production mode, no "), 
+                underline("console.log() "),
+                white("statements will be shown on the client, and all code will be minified."));
+    
+            log("");
+        }
     }
-
-    if (preCompile) {
-        preCompile();
+    
+    if (options.preCompile) {
+        log(
+            white("Calling pre-compile hook..")
+        )
+        
+        options.preCompile();
     }
-
-    const { pageFiles, apiFiles } = getProjectFiles(pagesDirectory);
-    const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
-
-    // removes old pages that no longer-exist.
-    // more efficient thank nuking directory
-    for (const page of existingCompiledPages) {
-        const pageFile = pageFiles.find(dir => path.relative(pagesDirectory, dir?.parentPath ?? "") === page);
-        const apiFile = apiFiles.find(dir => path.relative(pagesDirectory, dir?.parentPath ?? "") === page);
-
-        if (!pageFile && !apiFile) {
-            fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })
-            
-            console.log("Deleted old file, ", pageFile);
+    
+    const { pageFiles, apiFiles } = getProjectFiles(options.pagesDirectory);
+    
+    // perform cleanup from prev build
+    {
+        const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
+    
+        // removes old pages that no longer-exist.
+        // more efficient thank nuking directory
+        for (const page of existingCompiledPages) {
+            const pageFile = pageFiles.find(dir => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
+            const apiFile = apiFiles.find(dir => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
+    
+            if (!pageFile && !apiFile) {
+                fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })
+                
+                console.log("Deleted old file, ", pageFile);
+            }
         }
     }
 
     const start = performance.now();
 
-    await esbuild.build({
-        entryPoints: [
-            ...pageFiles.map(page => path.join(page.parentPath, page.name)),
-        ],
-        minify: environment === "production",
-        drop: environment === "production" ? ["console", "debugger"] : undefined,
-        bundle: true,
-        outdir: DIST_DIR,
-        loader: {
-            ".js": "js",
-            ".ts": "ts",
-        }, 
-        format: "esm",
-        platform: "node",
-        keepNames: false,
-    });
-    
-    await esbuild.build({
-        entryPoints: [
-            ...apiFiles.map(route => path.join(route.parentPath, route.name)),
-        ],
-        minify: environment === "production",
-        drop: environment === "production" ? ["console", "debugger"] : undefined,
-        bundle: false,
-        outbase: path.join(pagesDirectory, "/api"),
-        outdir: path.join(DIST_DIR, "/api"),
-        loader: {
-            ".js": "js",
-            ".ts": "ts",
-        }, 
-        format: "esm",
-        platform: "node",
-        keepNames: false,
-    });
-
+    // Transpile pages from stinky TS into based MJS.
+    {
+        await esbuild.build({
+            entryPoints: [
+                ...pageFiles.map(page => path.join(page.parentPath, page.name)),
+            ],
+            minify: options.environment === "production",
+            drop: options.environment === "production" ? ["console", "debugger"] : undefined,
+            bundle: true,
+            outdir: DIST_DIR,
+            loader: {
+                ".js": "js",
+                ".ts": "ts",
+            }, 
+            format: "esm",
+            platform: "node",
+            keepNames: false,
+            banner: {
+                js: "//__ELEGANCE_JS_PAGE_MARKER__",
+            }
+        });
+        
+        await esbuild.build({
+            entryPoints: [
+                ...apiFiles.map(route => path.join(route.parentPath, route.name)),
+            ],
+            minify: options.environment === "production",
+            drop: options.environment === "production" ? ["console", "debugger"] : undefined,
+            bundle: false,
+            outbase: path.join(options.pagesDirectory, "/api"),
+            outdir: path.join(DIST_DIR, "/api"),
+            loader: {
+                ".js": "js",
+                ".ts": "ts",
+            }, 
+            format: "esm",
+            platform: "node",
+            keepNames: false,
+        });
+    }
 
     const pagesTranspiled = performance.now();
-
+    
     const {
         shouldClientHardReload
-    } = await buildPages(DIST_DIR, writeToHTML);
-
+    } = await buildPages(DIST_DIR);
+    
     const pagesBuilt = performance.now();
 
-    await buildClient(environment, DIST_DIR, watch, watchServerPort);
+    await buildClient(DIST_DIR);
 
     const end = performance.now();
 
-    if (publicDirectory) {
-        if (environment === "development") {
+    if (options.publicDirectory) {
+        if (options.environment === "development") {
             console.log("Creating a symlink for the public directory.")
 
             if (!fs.existsSync(path.join(DIST_DIR, "public"))) {
-                fs.symlinkSync(publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
+                fs.symlinkSync(options.publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
             } 
-        } else if (environment === "production") {
+        } else if (options.environment === "production") {
             console.log("Recursively copying public directory.. this may take a while.")
 
-            const src = path.relative(process.cwd(),  publicDirectory.path)
+            const src = path.relative(process.cwd(),  options.publicDirectory.path)
 
             if (fs.existsSync(path.join(DIST_DIR, "public"))) {
                 fs.rmSync(path.join(DIST_DIR, "public"), { recursive: true, })
@@ -833,67 +825,30 @@ const build = async ({
         }
     }
 
-    console.log(`${Math.round(pagesTranspiled-start)}ms to Transpile Pages`)
-    console.log(`${Math.round(pagesBuilt-pagesTranspiled)}ms to Build Pages`)
-    console.log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
+    {
+        log(`${Math.round(pagesTranspiled-start)}ms to Transpile Pages`)
+        log(`${Math.round(pagesBuilt-pagesTranspiled)}ms to Build Pages`)
+        log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
+        
+        log(green(bold((`Compiled ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
+        
+        for (const pageFile of pageFiles) {
+            console.log(
+                "- /" + path.relative(options.pagesDirectory, pageFile.parentPath), "(Page)"
+            )
+        }
+        
+        for (const apiFile of apiFiles) {
+            "- /" + path.relative(options.pagesDirectory, apiFile.parentPath), "(API Route)"
+        }
+    }
 
-    log(green(bold((`Compiled ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
-    
-    for (const pageFile of pageFiles) {
-        console.log(
-            "- /" + path.relative(pagesDirectory, pageFile.parentPath), "(Page)"
+    if (options.postCompile) {
+        log(
+            white("Calling post-compile hook..")
         )
-    }
-
-    if (postCompile) {
-        postCompile();
-    }
-
-    if (!watch) return;
-
-    for (const watcher of currentWatchers) {
-        watcher.close();
-    }
-
-    const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
-
-    const watcherFn = async () => {
-        if (isTimedOut) return;
-        isTimedOut = true;
-
-        // clears term
-        process.stdout.write('\x1Bc');
-
-        setTimeout(async () => {
-            await build({
-                writeToHTML,
-                pagesDirectory,
-                outputDirectory,
-                environment,
-                watchServerPort,
-                postCompile,
-                preCompile,
-                publicDirectory,
-                DIST_DIR,
-            }).catch((error) => {
-                console.error(error)
-                console.log("Build Failed!")
-            })
-
-            isTimedOut = false;
-        }, 100);
-    };
-
-    for (const directory of subdirectories) {
-        const fullPath = path.join(pagesDirectory, directory)
-
-        const watcher = fs.watch(
-            fullPath,
-            {},
-            watcherFn,
-        );
-
-        currentWatchers.push(watcher);
+        
+        options.postCompile();
     }
 
     if (shouldClientHardReload) {
@@ -903,11 +858,18 @@ const build = async ({
         console.log("Sending soft reload..");
         httpStream?.write(`data: reload\n\n`)
     }
+    
+    } catch(e) {
+        console.error("Build Failed! Received Error:");
+        console.error(e);
+        
+        return false
+    }
+    
+    return true
 };
 
-export const compile = async (props: {
-    writeToHTML?: boolean,
-    watchServerPort?: number
+type CompilationOptions = {
     postCompile?: () => any,
     preCompile?: () => any,
     environment: "production" | "development",
@@ -922,13 +884,24 @@ export const compile = async (props: {
         root?: string,
         port?: number,
     },
-}) => {
-    const watch = props.environment === "development";
+    hotReload?: {
+        port: number,
+        hostname: string,
+    }
+}
 
-    const BUILD_FLAG = path.join(props.outputDirectory, "ELEGANCE_BUILD_FLAG");
+let options: CompilationOptions;
 
-    if (!fs.existsSync(props.outputDirectory)) {
-        fs.mkdirSync(props.outputDirectory);
+export const compile = async (props: CompilationOptions) => {
+    // makes it so we don't have to pass this stupid variable around everywhere
+    options = props;
+    
+    const watch = options.hotReload !== undefined;
+    
+    const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
+
+    if (!fs.existsSync(options.outputDirectory)) {
+        fs.mkdirSync(options.outputDirectory);
         
         fs.writeFileSync(
             path.join(BUILD_FLAG),
@@ -941,20 +914,11 @@ export const compile = async (props: {
         }
     }
 
-    const DIST_DIR = props.writeToHTML ? props.outputDirectory : path.join(props.outputDirectory, "dist");
+    const DIST_DIR = path.join(props.outputDirectory, "dist");
 
     if (!fs.existsSync(DIST_DIR)) {
         fs.mkdirSync(DIST_DIR);
     }
-
-    if (watch) {
-        await registerListener(props)
-    }
-
-    await build({ ...props, DIST_DIR, }).catch((error) => {
-        console.error(error)
-        console.log("Build Failed!")
-    });
     
     if (props.server != undefined && props.server.runServer == true) {
         startServer({
@@ -963,4 +927,45 @@ export const compile = async (props: {
             port: props.server.port ?? 3000,
         })
     }
+        
+    if (watch) {
+        await registerListener()
+    
+        for (const watcher of currentWatchers) {
+            watcher.close();
+        }
+    
+        const subdirectories = [...getAllSubdirectories(options.pagesDirectory), ""];
+        
+        log(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "))
+        
+        const watcherFn = async () => {
+            if (isTimedOut) return;
+            isTimedOut = true;
+    
+            // clears term
+            process.stdout.write('\x1Bc');
+    
+            setTimeout(async () => {
+                await build(DIST_DIR)
+                isTimedOut = false;
+            }, 100);
+        };
+    
+        for (const directory of subdirectories) {
+            const fullPath = path.join(options.pagesDirectory, directory)
+    
+            const watcher = fs.watch(
+                fullPath,
+                {},
+                watcherFn,
+            );
+    
+            currentWatchers.push(watcher);
+        }
+    }
+
+    const success = await build(DIST_DIR)
+    
+    if (!success) return;
 };
