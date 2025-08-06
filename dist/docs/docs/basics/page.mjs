@@ -766,7 +766,7 @@ var page = RootLayout(
       "of data!",
       img({
         class: "border-[1px] rounded-sm border-background-600 my-4",
-        src: "/public/nullpage_size.png"
+        src: "/nullpage_size.png"
       }),
       'For context, an "empty" (gzipped)  react app on average transfers roughly ',
       b("200-300kB "),
