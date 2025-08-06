@@ -207,7 +207,7 @@ var Header = () => header(
         Link({
           prefetch: "hover",
           class: "z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950",
-          href: "/docs",
+          href: "/docs/basics",
           innerText: "Docs"
         })
       )
@@ -394,7 +394,7 @@ var page = RootLayout(
     ),
     Link({
       class: "text-base sm:text-lg uppercase font-bold text-background-950 font-semibold px-5 sm:px-6 py-2 sm:py-3 rounded-full bg-accent-400",
-      href: "/docs",
+      href: "/docs/basics",
       innerText: "documentation"
     })
   )

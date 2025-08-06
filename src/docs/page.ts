@@ -202,7 +202,7 @@ export const page = RootLayout (
 
         Link ({
             class: "text-base sm:text-lg uppercase font-bold text-background-950 font-semibold px-5 sm:px-6 py-2 sm:py-3 rounded-full bg-accent-400",
-            href: "/docs",
+            href: "/docs/basics",
             innerText: "documentation"
         }),
     ),

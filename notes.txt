@@ -6,3 +6,6 @@ public directory should inherit name, or be enforced.
 same with calling pages pages
 
 no good way of doing index.css and stuff
+
+add into docs:
+    - rute needs to export *method*

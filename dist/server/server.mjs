@@ -93,11 +93,49 @@ async function handleApiRequest(root, pathname, req, res) {
   }
   try {
     const moduleUrl = pathToFileURL(routePath).href;
-    const routeModule = await import(moduleUrl);
-    if (typeof routeModule.route !== "function") {
+    const { GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS, TRACE, CONNECT } = await import(moduleUrl);
+    let fn;
+    switch (req.method) {
+      case "GET":
+        fn = GET;
+        break;
+      case "HEAD":
+        fn = HEAD;
+        break;
+      case "POST":
+        fn = POST;
+        break;
+      case "PUT":
+        fn = PUT;
+        break;
+      case "PATCH":
+        fn = PATCH;
+        break;
+      case "DELETE":
+        fn = DELETE;
+        break;
+      case "OPTIONS":
+        fn = OPTIONS;
+        break;
+      case "TRACE":
+        fn = TRACE;
+        break;
+      case "CONNECT":
+        fn = CONNECT;
+        break;
+      default:
+        fn = null;
+        return;
+    }
+    if (fn === null) {
+      res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Unsupported method for route." }));
+      return;
+    }
+    if (typeof fn !== "function") {
       throw new Error('API route module must export a "route" function.');
     }
-    await routeModule.route(req, res);
+    await fn(req, res);
   } catch {
     await respondWithErrorPage(root, pathname, 404, res);
   }

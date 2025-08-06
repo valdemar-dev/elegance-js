@@ -103,7 +103,7 @@ const getProjectFiles = (pagesDirectory: string,) => {
             .filter(f => f.name.endsWith(".js") || f.name.endsWith(".ts"));
             
         for (const file of subdirectoryFiles) {
-            if (file.name === "route.ts" && subdirectory.startsWith("/api")) {
+            if (file.name === "route.ts") {
                 apiFiles.push(file);
                 
                 continue
