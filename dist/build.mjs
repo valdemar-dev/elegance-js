@@ -219,7 +219,7 @@ var generateHTMLTemplate = ({
   let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
   if (addPageScriptTag === true) {
-    HTMLTemplate += `<script type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+    HTMLTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
   HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
   const builtHead = head2();
@@ -330,9 +330,9 @@ async function handleStaticRequest(root, pathname, res) {
   } catch {
   }
   try {
-    const data = await fs.readFile(filePath);
     const ext = extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    const data = await fs.readFile(filePath);
     res.writeHead(200, { "Content-Type": contentType });
     res.end(data);
   } catch {
@@ -405,7 +405,6 @@ var __dirname = path.dirname(__filename);
 var packageDir = path.resolve(__dirname, "..");
 var clientPath = path.resolve(packageDir, "./src/client/client.ts");
 var watcherPath = path.resolve(packageDir, "./src/client/watcher.ts");
-var bindElementsPath = path.resolve(packageDir, "./src/shared/bindServerElements.ts");
 var yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
 };
@@ -908,19 +907,9 @@ var build = async (DIST_DIR) => {
     await buildClient(DIST_DIR);
     const end = performance.now();
     if (options.publicDirectory) {
-      if (options.environment === "development") {
-        console.log("Creating a symlink for the public directory.");
-        if (!fs2.existsSync(path.join(DIST_DIR, "public"))) {
-          fs2.symlinkSync(options.publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
-        }
-      } else if (options.environment === "production") {
-        console.log("Recursively copying public directory.. this may take a while.");
-        const src = path.relative(process.cwd(), options.publicDirectory.path);
-        if (fs2.existsSync(path.join(DIST_DIR, "public"))) {
-          fs2.rmSync(path.join(DIST_DIR, "public"), { recursive: true });
-        }
-        await fs2.promises.cp(src, path.join(DIST_DIR, "public"), { recursive: true });
-      }
+      console.log("Recursively copying public directory.. this may take a while.");
+      const src = path.relative(process.cwd(), options.publicDirectory.path);
+      await fs2.promises.cp(src, path.join(DIST_DIR), { recursive: true });
     }
     {
       log(`${Math.round(pagesTranspiled - start)}ms to Transpile Pages`);

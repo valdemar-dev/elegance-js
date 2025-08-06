@@ -3,7 +3,6 @@ import path from "path";
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
-import { GenerateMetadata, } from "./types/Metadata";
 import http, { IncomingMessage, ServerResponse } from "http";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
@@ -11,7 +10,6 @@ import { serverSideRenderPage } from "./server/render";
 import { getState, initializeState } from "./server/createState";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
-import { camelToKebabCase } from "./helpers/camelToKebab";
 import { startServer } from "./server/server";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,8 +19,6 @@ const packageDir = path.resolve(__dirname, '..');
 
 const clientPath = path.resolve(packageDir, './src/client/client.ts');
 const watcherPath = path.resolve(packageDir, './src/client/watcher.ts');
-
-const bindElementsPath = path.resolve(packageDir, './src/shared/bindServerElements.ts');
 
 const yellow = (text: string) => {
     return `\u001b[38;2;238;184;68m${text}`;
@@ -806,23 +802,11 @@ const build = async (DIST_DIR: string): Promise<boolean> => {
     const end = performance.now();
 
     if (options.publicDirectory) {
-        if (options.environment === "development") {
-            console.log("Creating a symlink for the public directory.")
+        console.log("Recursively copying public directory.. this may take a while.")
 
-            if (!fs.existsSync(path.join(DIST_DIR, "public"))) {
-                fs.symlinkSync(options.publicDirectory.path, path.join(DIST_DIR, "public"), "dir");
-            } 
-        } else if (options.environment === "production") {
-            console.log("Recursively copying public directory.. this may take a while.")
+        const src = path.relative(process.cwd(), options.publicDirectory.path)
 
-            const src = path.relative(process.cwd(),  options.publicDirectory.path)
-
-            if (fs.existsSync(path.join(DIST_DIR, "public"))) {
-                fs.rmSync(path.join(DIST_DIR, "public"), { recursive: true, })
-            }
-
-            await fs.promises.cp(src, path.join(DIST_DIR, "public"), { recursive: true, });
-        }
+        await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true, });
     }
 
     {

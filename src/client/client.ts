@@ -251,16 +251,16 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
 
     const res = await fetch(targetURL);
 
-    if (!res.ok) return;
-
     const newDOM = domParser.parseFromString(await res.text(), "text/html");
-
-    const pageDataScriptSrc = pathname === "/" ?
-        pathname + "page_data.js" :
-        pathname + "/page_data.js";
+    
+    const pageDataScript = newDOM.querySelector('script[data-tag="true"]') as HTMLScriptElement
+    
+    if (!pageDataScript) {
+        return;
+    }
 
     if (!pd[pathname]) {
-        const data = await import(pageDataScriptSrc);
+        const { data } = await import(pageDataScript.src);
         
         pd[pathname] = data;
     }

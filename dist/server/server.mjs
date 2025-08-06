@@ -73,9 +73,9 @@ async function handleStaticRequest(root, pathname, res) {
   } catch {
   }
   try {
-    const data = await fs.readFile(filePath);
     const ext = extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    const data = await fs.readFile(filePath);
     res.writeHead(200, { "Content-Type": contentType });
     res.end(data);
   } catch {
