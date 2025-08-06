@@ -757,7 +757,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     }
     clientPageJSText += `};`;
   }
-  clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[window.location.pathname] = data}";
+  clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
   const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
   let sendHardReloadInstruction = false;
   const transformedResult = await esbuild.transform(clientPageJSText, { minify: true }).catch((error) => {
@@ -896,7 +896,11 @@ var build = async (DIST_DIR) => {
         const pageFile = pageFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
         const apiFile = apiFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
         if (!pageFile && !apiFile) {
-          fs2.rmdirSync(path.join(DIST_DIR, page), { recursive: true });
+          const dir = path.join(DIST_DIR, page);
+          if (fs2.existsSync(dir) === false) {
+            continue;
+          }
+          fs2.rmdirSync(dir, { recursive: true });
           console.log("Deleted old file, ", pageFile);
         }
       }

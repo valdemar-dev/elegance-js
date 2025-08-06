@@ -542,7 +542,7 @@ const generateClientPageData = async (
         clientPageJSText += `};`;
     }
     
-    clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[window.location.pathname] = data}";
+    clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
 
     const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
 
@@ -739,7 +739,13 @@ const build = async (DIST_DIR: string): Promise<boolean> => {
             const apiFile = apiFiles.find(dir => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
     
             if (!pageFile && !apiFile) {
-                fs.rmdirSync(path.join(DIST_DIR, page), { recursive: true, })
+                const dir = path.join(DIST_DIR, page);
+                
+                if (fs.existsSync(dir) === false) {
+                    continue;
+                }
+                
+                fs.rmdirSync(dir, { recursive: true, })
                 
                 console.log("Deleted old file, ", pageFile);
             }
