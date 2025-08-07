@@ -1,7 +1,6 @@
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 declare global {
     type NonVoid<T> = T extends void ? never : T;
-    type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
     var __ELEGANCE_SERVER_DATA__: any;
     var __SERVER_CURRENT_STATE_ID__: number;
     var __SERVER_CURRENT_REF_ID__: number;
@@ -25,11 +24,10 @@ declare global {
         children: null;
         options: Record<string, any> | Child;
     };
-    type ServerData = {
-        data: any;
+    type PageOptions = {
+        build: "once" | "interval" | "request";
     };
-    type ExecuteOnServer = (...args: any[]) => Promise<ServerData | void>;
-    type Page = AnyBuiltElement;
+    type Page = (AnyBuiltElement) | (() => AnyBuiltElement);
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE ? {
         type: ObjectAttributeType;
         id: string | number;

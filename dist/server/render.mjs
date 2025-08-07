@@ -196,6 +196,9 @@ var serverSideRenderPage = async (page, pathname) => {
   if (!page) {
     throw `No Page Provided.`;
   }
+  if (typeof page === "function") {
+    throw `Unbuilt page provided to ssr page.`;
+  }
   const bodyHTML = renderRecursively(page);
   return {
     bodyHTML

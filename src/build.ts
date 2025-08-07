@@ -628,6 +628,10 @@ const buildPages = async (
             if (!pageElements) {
                 console.warn(`WARNING: ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
             }
+            
+            if (typeof pageElements === "function") {
+                pageElements = pageElements();
+            }
     
             const state = getState();
             const pageLoadHooks = getLoadHooks();

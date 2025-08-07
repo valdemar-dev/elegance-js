@@ -205,6 +205,9 @@ var serverSideRenderPage = async (page, pathname) => {
   if (!page) {
     throw `No Page Provided.`;
   }
+  if (typeof page === "function") {
+    throw `Unbuilt page provided to ssr page.`;
+  }
   const bodyHTML = renderRecursively(page);
   return {
     bodyHTML
@@ -807,6 +810,9 @@ var buildPages = async (DIST_DIR) => {
       }
       if (!pageElements) {
         console.warn(`WARNING: ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
+      }
+      if (typeof pageElements === "function") {
+        pageElements = pageElements();
       }
       const state = getState();
       const pageLoadHooks = getLoadHooks();

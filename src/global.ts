@@ -3,7 +3,6 @@ import { CreateEventListenerOptions } from "./server/createState";
 
 declare global {
     type NonVoid<T> = T extends void ? never : T;
-    type ReturnTypeStrict<T extends ExecuteOnServer> = NonVoid<Awaited<ReturnType<T>>>;
 
     /*
      * The below is all magical server stuff.
@@ -40,10 +39,11 @@ declare global {
         options: Record<string, any> | Child;
     }
 
-    type ServerData = { data: any };
-    type ExecuteOnServer = (...args: any[]) => Promise<ServerData | void>;
+    type PageOptions = {
+        build: "once" | "interval" | "request",
+    }
 
-    type Page = AnyBuiltElement;
+    type Page = (AnyBuiltElement) | (() => AnyBuiltElement);
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
         ? { type: ObjectAttributeType, id: string | number, value: any, bind?: string, }

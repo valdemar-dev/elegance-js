@@ -6,12 +6,12 @@ export declare const observe: <T extends {
     bind?: string;
 }[]>(refs: [...T], update: (...values: { [K in keyof T]: T[K] extends {
     value: infer V;
-} ? V : never; }) => string) => {
+} ? V : never; }) => (string | number)) => {
     type: ObjectAttributeType;
     initialValues: unknown[];
     update: (...values: { [K in keyof T]: T[K] extends {
         value: infer V;
-    } ? V : never; }) => string;
+    } ? V : never; }) => (string | number);
     refs: {
         id: string | number;
         bind: string | undefined;
