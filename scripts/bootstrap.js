@@ -3,6 +3,10 @@
 import fs from "fs";
 import path from "path";
 
+import { execSync } from "node:child_process";
+
+execSync("npm install tailwindcss");
+
 const dirs = ["pages", "public"];
 dirs.forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -25,6 +29,11 @@ export const page = body({
 );
 
 export const metadata = () => head({},
+    link({
+        rel: "stylesheet",
+        href: "/index.css",
+    }),
+    
     title({},
         "Hello World!"
     ),
