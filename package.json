@@ -6,7 +6,8 @@
   "bin": {
     "dev": "./scripts/dev.js",
     "prod": "./scripts/prod.js",
-    "static": "./scripts/export.js"
+    "static": "./scripts/export.js",
+    "bootstrap": "./scripts/bootstrap.js"
   },
   "scripts": {
     "build": "esbuild --format=esm --platform=node --bundle --outdir=./dist --platform=node --external:esbuild --out-extension:.js=.mjs \"./src/**/*.ts\" && tsc",

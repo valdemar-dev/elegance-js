@@ -8,7 +8,7 @@ compile({
     outputDirectory: ".elegance",
     pagesDirectory: "./pages",
     publicDirectory: {
-        method:"recursive-copy",
+        method: "recursive-copy",
         path: "./public",
     },
     hotReload: {
