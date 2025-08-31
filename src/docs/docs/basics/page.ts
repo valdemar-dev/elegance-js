@@ -402,6 +402,8 @@ export const page = RootLayout (
             br(),
 
             "First, boostrap a ", Mono("tsconfig.json"), " so typescript works properly.",
+            
+            "Set the compiler target to ", Mono("esnext"), " and module to ", Mono("esnext"),
 
             br(),
 
@@ -418,7 +420,7 @@ export const page = RootLayout (
             "And put this inside of it.",
         ),
 
-        CodeBlock('/// <reference path="elegance-js/types/global" />', false),
+        CodeBlock('/// <reference path="elegance-js/global" />', false),
 
         p ({
             class: "opacity-80",

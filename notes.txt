@@ -5,7 +5,11 @@ layouts are HORRENDOUSLY designed.
 public directory should inherit name, or be enforced.
 same with calling pages pages
 
-no good way of doing index.css and stuff
+docs are out of date, need to change types/global to just /global
 
+add scripts:
+    - dev mode
+    - export mode
+    - prod server mode
 add into docs:
     - rute needs to export *method*
