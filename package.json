@@ -27,7 +27,7 @@
   "author": "vqldemar",
   "license": "MIT",
   "dependencies": {
-    "esbuild": "^0.24.2"
+    "esbuild": "^0.25.9"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.0.3",
