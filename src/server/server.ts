@@ -24,7 +24,7 @@ interface ServerOptions {
     environment?: 'production' | 'development';
 }
 
-export function startServer({ root, port = 3000, host = '0.0.0.0', environment = 'production' }: ServerOptions) {
+export function startServer({ root, port = 3000, host = 'localhost', environment = 'production' }: ServerOptions) {
     if (!root) throw new Error('Root directory must be specified.');
 
     const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {

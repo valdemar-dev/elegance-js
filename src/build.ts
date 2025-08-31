@@ -877,6 +877,7 @@ type CompilationOptions = {
         runServer: boolean,
         root?: string,
         port?: number,
+        host?: string,
     },
     hotReload?: {
         port: number,
@@ -919,6 +920,7 @@ export const compile = async (props: CompilationOptions) => {
             root: props.server.root ?? DIST_DIR,
             environment: props.environment,
             port: props.server.port ?? 3000,
+            host: props.server.host ?? "localhost",
         })
     }
         

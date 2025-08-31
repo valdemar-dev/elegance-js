@@ -12,6 +12,7 @@ type CompilationOptions = {
         runServer: boolean;
         root?: string;
         port?: number;
+        host?: string;
     };
     hotReload?: {
         port: number;
