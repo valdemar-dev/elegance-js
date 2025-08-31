@@ -19,7 +19,7 @@ const tsconfigPath = "tsconfig.json";
 
 const pageTsContent = `
 export const page = body({
-    class: "bg-black text-white flex items-center justify-center",
+    class: "bg-black text-white flex items-center justify-center p-48",
 },
     h1({
         class: "text-4xl",
@@ -61,4 +61,5 @@ fs.writeFileSync(indexCssPath, "", "utf8");
 fs.writeFileSync(envDtsPath, envDtsContent, "utf8");
 fs.writeFileSync(tsconfigPath, tsconfigContent, "utf8");
 
-console.log("Bootstrapped new project! Open ./pages/page.ts to get started.");
+console.log("Bootstrapped new project!");
+console.log("Run this project with: npx dev")
