@@ -17,8 +17,8 @@ const __dirname = path.dirname(__filename);
 
 const packageDir = path.resolve(__dirname, '..');
 
-const clientPath = path.resolve(packageDir, './src/client/client.ts');
-const watcherPath = path.resolve(packageDir, './src/client/watcher.ts');
+const clientPath = path.resolve(packageDir, './dist/client/client.mjs');
+const watcherPath = path.resolve(packageDir, './dist/client/watcher.mjs');
 
 const yellow = (text: string) => {
     return `\u001b[38;2;238;184;68m${text}`;

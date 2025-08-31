@@ -447,8 +447,8 @@ async function respondWithErrorPage(root, pathname, code, res) {
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var packageDir = path.resolve(__dirname, "..");
-var clientPath = path.resolve(packageDir, "./src/client/client.ts");
-var watcherPath = path.resolve(packageDir, "./src/client/watcher.ts");
+var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
+var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
 var yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
 };
