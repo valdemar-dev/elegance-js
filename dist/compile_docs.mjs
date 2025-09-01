@@ -1061,7 +1061,7 @@ var compile = async (props) => {
 };
 
 // src/compile_docs.ts
-import { execSync } from "child_process";
+import { exec, execSync } from "child_process";
 import path2 from "path";
 var __dirname2 = path2.dirname(fileURLToPath2(import.meta.url));
 var PAGES_DIR = path2.join(__dirname2, "../src/docs");
@@ -1078,11 +1078,14 @@ compile({
   publicDirectory: {
     path: PUBLIC_DIR,
     method: environment === "production" ? "recursive-copy" : "symlink"
+  },
+  server: {
+    runServer: environment === "development"
   }
 }).then(() => {
   if (environment === "production") {
     execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/dist/index.css --minify`);
   } else {
-    execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/dist/index.css --watch=always`);
+    exec(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/dist/index.css --watch=always`);
   }
 });
