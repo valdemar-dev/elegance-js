@@ -77,7 +77,7 @@ export const page = body ({
                 },
             }),
             
-            innerText: observe([counter], (counter) => `Counter: ${counter}`),
+            innerText: observe([counter], (counter) => \`Counter: ${counter}\`),
         },
             div ({
                 class: "blur-[50px] absolute group-hover:bg-zinc-200 inset-0 bg-transparent duration-200 pointer-events-none -z-10",
