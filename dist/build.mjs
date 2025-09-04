@@ -311,11 +311,21 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
       res.end("Internal Server Error");
     }
   };
-  let server = createHttpServer(requestHandler);
-  server.listen(port, host, () => {
-    console.log(`Server running at https://${host}:${port}/`);
-  });
-  return server;
+  function attemptListen(p) {
+    const server = createHttpServer(requestHandler);
+    server.on("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        attemptListen(p + 1);
+      } else {
+        console.error(err);
+      }
+    });
+    server.listen(p, host, () => {
+      console.log(`Server running at https://${host}:${p}/`);
+    });
+    return server;
+  }
+  return attemptListen(port);
 }
 async function handleStaticRequest(root, pathname, res) {
   let filePath = normalize(join(root, decodeURIComponent(pathname)));

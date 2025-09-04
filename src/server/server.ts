@@ -68,14 +68,27 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
         }
     };
 
-    let server = createHttpServer(requestHandler)
+    function attemptListen(p: number) {
+        const server = createHttpServer(requestHandler);
 
-    server.listen(port, host, () => {
-        console.log(`Server running at https://${host}:${port}/`);
-    });
+        server.on('error', (err: any) => {
+            if (err.code === 'EADDRINUSE') {
+                attemptListen(p + 1);
+            } else {
+                console.error(err);
+            }
+        });
 
-    return server;
+        server.listen(p, host, () => {
+            console.log(`Server running at https://${host}:${p}/`);
+        });
+
+        return server;
+    }
+
+    return attemptListen(port);
 }
+
 
 async function handleStaticRequest(root: string, pathname: string, res: ServerResponse) {
     let filePath = normalize(join(root, decodeURIComponent(pathname)));
