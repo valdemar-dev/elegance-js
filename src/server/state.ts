@@ -1,5 +1,4 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
-import { ShowDeprecationWarning } from "../internal/deprecate";
 
 type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
     value: T;
@@ -19,7 +18,7 @@ type Widen<T> =
     T extends {} ? T & Record<string, any> :
     T;
 
-export const createState = <
+export const state = <
     U extends number | string | boolean | {},
 >(
     value: U,
@@ -28,8 +27,6 @@ export const createState = <
         // ephemeral?: boolean;
     },
 ) => {
-    ShowDeprecationWarning("WARNING: The createState() and function is deprecated. Please use state() instead, from elegance-js/state.");
-    
     type ValueType = Widen<U>;
 
     const serverStateEntry = {
@@ -49,39 +46,23 @@ export const createState = <
     };
 };
 
-type Dependencies = { type: ObjectAttributeType; value: unknown; id: number; bind?: string, }[];
-type Parameters = {};
+type Dependencies = { type: ObjectAttributeType; value: unknown; id: number; bind?: string }[];
 
-export type SetEvent<E, CT> = Omit<Parameters, "event"> & {
-    event: Omit<E, "currentTarget"> & { currentTarget: CT }
-};
+export type SetEvent<Event, Target> =
+  Omit<Event, "currentTarget"> & { currentTarget: Target };
 
-export type CreateEventListenerOptions<
+export const eventListener = <
     D extends Dependencies,
-    P extends {} = {},
-> = {
-    dependencies?: [...D] | [], 
+    E extends Event,
+    T,
+>(
+    dependencies: [...D] | [],
     eventListener: (
-        params: P & {
-            event: Event,
-        },
+        event: SetEvent<E, T>,
         ...subjects: { [K in keyof D]: ClientSubjectGeneric<D[K]["value"]> }
-    ) => void,
-    params?: P | null
-}
-
-export const createEventListener = <
-    D extends Dependencies,
-    P extends Parameters,
->({
-    eventListener,
-    dependencies = [],
-    params,
-}: CreateEventListenerOptions<D,P>,
+    ) => void
 ) => {
-    ShowDeprecationWarning("WARNING: The createEventListener() and function is deprecated. Please use eventListener() instead, from elegance-js/state.");
-    
-    const deps = dependencies.map(dep => ({ id: dep.id, bind: dep.bind, }));
+    const deps = dependencies.map(dep => ({ id: dep.id, bind: dep.bind }));
 
     let dependencyString = "[";
     for (const dep of deps) {
@@ -100,7 +81,7 @@ export const createEventListener = <
         value: new Function(
             "state",
             "event",
-            `(${eventListener.toString()})({ event, ...${JSON.stringify(params || {})} }, ...state.getAll(${dependencyString}))`
+            `(${eventListener.toString()})(event, ...state.getAll(${dependencyString}))`
         ),
     };
 

@@ -1,3 +1,9 @@
+// src/internal/deprecate.ts
+var ShowDeprecationWarning = (msg) => {
+  console.warn("\x1B[31m", msg);
+  console.trace("Stack Trace:");
+};
+
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
@@ -8,6 +14,7 @@ var createEventListener = ({
   dependencies = [],
   params
 }) => {
+  ShowDeprecationWarning("WARNING: The createEventListener() and function is deprecated. Please use eventListener() instead, from elegance-js/state.");
   const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
   let dependencyString = "[";
   for (const dep of deps) {

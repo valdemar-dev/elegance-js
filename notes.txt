@@ -7,6 +7,8 @@ same with calling pages pages
 
 docs are out of date, need to change types/global to just /global
 
+add features:
+    - IS_DEV_BUILD variable that is defined for npx dev and prod
 add scripts:
     - dev mode
     - export mode

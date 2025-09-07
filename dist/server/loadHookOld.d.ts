@@ -9,15 +9,15 @@ type ServerSubject = {
     bind?: string;
 };
 type LoadHookOptions<T extends ServerSubject[]> = {
+    bind?: number | undefined;
+    deps?: [...T];
     fn: (state: State, ...subjects: {
         [K in keyof T]: ClientSubjectGeneric<T[K]["value"]>;
     }) => void;
-    deps?: [...T];
-    bind?: number | undefined;
 };
 export type LoadHook = {
     fn: string;
-    bind: number | string;
+    bind: number;
 };
 export type ClientLoadHook = {
     bind: number;
@@ -25,6 +25,5 @@ export type ClientLoadHook = {
 };
 export declare const resetLoadHooks: () => never[];
 export declare const getLoadHooks: () => any[];
-export declare const loadHook: <T extends ServerSubject[]>(deps: LoadHookOptions<T>["deps"], fn: LoadHookOptions<T>["fn"], bind?: LoadHookOptions<T>["bind"]) => void;
 export declare const createLoadHook: <T extends ServerSubject[]>(options: LoadHookOptions<T>) => void;
 export {};

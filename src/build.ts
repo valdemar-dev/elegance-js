@@ -777,7 +777,11 @@ const build = async (DIST_DIR: string): Promise<boolean> => {
             keepNames: false,
             banner: {
                 js: "//__ELEGANCE_JS_PAGE_MARKER__",
-            }
+            },
+            define: {
+                "DEV": options.environment === "development" ? "true" : "false",
+                "PROD": options.environment === "development" ? "false" : "true",
+            },
         });
         
         await esbuild.build({
@@ -796,6 +800,10 @@ const build = async (DIST_DIR: string): Promise<boolean> => {
             format: "esm",
             platform: "node",
             keepNames: false,
+            define: {
+                "DEV": options.environment === "development" ? "true" : "false",
+                "PROD": options.environment === "development" ? "false" : "true",
+            },
         });
     }
 
