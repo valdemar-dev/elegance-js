@@ -114,4 +114,9 @@ export const getState = () => {
     return globalThis.__SERVER_CURRENT_STATE__;
 }
 
+export const initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+export const getObjectAttributes = () => {
+    return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+};
+
 

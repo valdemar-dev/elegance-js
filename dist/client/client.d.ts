@@ -1,1 +1,1 @@
-export {};
+import "../shared/bindServerElements";

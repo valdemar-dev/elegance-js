@@ -7,7 +7,7 @@ import http, { IncomingMessage, ServerResponse } from "http";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
-import { getState, initializeState } from "./server/createState";
+import { getState, getObjectAttributes, initializeState, initializeObjectAttributes } from "./server/createState";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
 import { startServer } from "./server/server";
@@ -247,7 +247,7 @@ const processOptionAsObjectAttribute = (
     objectAttributes.push({ ...optionValue, key: key, attribute: optionFinal, });
 };
 
-const processPageElements = (
+export const processPageElements = (
     element: Child,
     objectAttributes: Array<any>,
     parent: Child,
@@ -548,7 +548,7 @@ const generateClientPageData = async (
 
     let sendHardReloadInstruction = false;
 
-    const transformedResult = await esbuild.transform(clientPageJSText, { minify: true, }).catch((error) => {
+    const transformedResult = await esbuild.transform(clientPageJSText, { minify: options.environment === "production", }).catch((error) => {
         console.error("Failed to transform client page js!", error)
     })
     
@@ -597,6 +597,7 @@ const buildPages = async (
             fs.rmSync(filePath, { force: true, });
 
             initializeState();
+            initializeObjectAttributes();
             resetLoadHooks();
             
             let pageElements;
@@ -613,7 +614,7 @@ const buildPages = async (
             } catch(e) {
                 fs.rmSync(tempPath, { force: true, });
                 
-                throw `Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`;
+                throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`);
             }
             
             fs.rmSync(tempPath, { force: true, });
@@ -635,8 +636,9 @@ const buildPages = async (
     
             const state = getState();
             const pageLoadHooks = getLoadHooks();
+            const objectAttributes = getObjectAttributes();
             
-            const objectAttributes = await generateSuitablePageElements(
+            const foundObjectAttributes = await generateSuitablePageElements(
                 file.parentPath,
                 pageElements || (body()),
                 metadata ?? (() => head()),
@@ -649,7 +651,7 @@ const buildPages = async (
             } = await generateClientPageData(
                 file.parentPath,
                 state || {},
-                objectAttributes,
+                [...objectAttributes, ...foundObjectAttributes],
                 pageLoadHooks || [],
                 DIST_DIR,
                 name,
@@ -782,6 +784,7 @@ const build = async (DIST_DIR: string): Promise<boolean> => {
                 "DEV": options.environment === "development" ? "true" : "false",
                 "PROD": options.environment === "development" ? "false" : "true",
             },
+            external: ["fs"],
         });
         
         await esbuild.build({

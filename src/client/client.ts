@@ -1,8 +1,43 @@
 import type { ClientLoadHook, } from "../server/loadHook";
+import "../shared/bindServerElements";
 
 console.log("Elegance.JS is loading..");
 
 if (!globalThis.pd) globalThis.pd = {};
+
+
+// stubs for reactiveMap
+Object.assign(window, {
+    observe: (subjects: ClientSubject[], updateCallback: () => any) => {
+        return {
+            subjects,
+            updateCallback,
+            isAttribute: true,
+        }
+
+    },
+    /*
+    observe: (subjects: ClientSubject[], updateCallback: () => any) => {
+        const pageData = pd[currentPage];
+        
+        const keys = [];
+        
+        for (const subject of subjects) {
+            const key = subject.id + Date.now();
+            
+            keys.push({
+                key: key,
+                subject: subject.id,
+            });
+            
+            pageData.stateManager.observe(subject, updateCallback, key);
+        }
+        
+        return { keys }
+    },
+    */
+    eventListener: () => {},
+})
 
 const domParser = new DOMParser();
 const xmlSerializer = new XMLSerializer();
@@ -50,6 +85,10 @@ const createStateManager = (subjects: ClientSubject[]) => {
 
             return s;
         }),
+        
+        destroy: (s: ClientSubject) => {
+            state.subjects.splice(state.subjects.indexOf(s), 1);
+        },
 
         get: (id: number, bind?: string | undefined) => {
             if (bind) {
@@ -69,7 +108,11 @@ const createStateManager = (subjects: ClientSubject[]) => {
         observe: (subject: ClientSubject, observer: (value: any) => any, key: string) => {
             subject.observers.delete(key);
             subject.observers.set(key, observer);
-        }
+        },
+        
+        unobserve: (subject: ClientSubject, key: string) => {
+            subject.observers.delete(key);
+        },
     }
 
     return state;
@@ -83,6 +126,7 @@ const loadPage = (
     fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
 
     const pathname = fixedUrl.pathname;
+    currentPage = pathname;
 
     history.replaceState(null, "", fixedUrl.href);
     
@@ -130,7 +174,8 @@ const loadPage = (
     }
 
     for (const ooa of pageData.ooa || []) {
-        const el = doc.querySelector(`[key="${ooa.key}"]`);
+        // do all, because reactive-maps all use the same key
+        const els = doc.querySelectorAll(`[key="${ooa.key}"]`);
 
         let values: Record<string, any> = {};
 
@@ -146,7 +191,9 @@ const loadPage = (
                     const newValue = ooa.update(...Object.values(values));
                     let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
     
-                    (el as any)[attribute] = newValue;
+                    for (const el of Array.from(els)) {
+                        (el as any)[attribute] = newValue;
+                    }
                 } catch(e) {
                     console.error(e);
                     
@@ -381,7 +428,7 @@ globalThis.client = {
     fetchPage,
     currentPage,
     sanitizePathname,
-    getReference: (id: number) => document.querySelector(`[ref="${id}"]`)
+    getReference: (id: number) => document.querySelector(`[ref="${id}"]`),
 };
 
 try {

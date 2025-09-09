@@ -10,7 +10,16 @@ export declare const state: <U extends number | string | boolean | {}>(value: U,
     value: Widen<U>;
     type: ObjectAttributeType.STATE;
     bind: string | undefined;
+    reactiveMap: U extends Array<any> ? ReactiveMap<U, any> : null;
 };
+type ReactiveMap<T extends any[], D extends Dependencies> = (this: {
+    id: number;
+    value: any;
+    type: ObjectAttributeType.STATE;
+    bind: string | undefined;
+}, template: (item: T[number], ...deps: {
+    [K in keyof D]: ClientSubjectGeneric<D[K]>["value"];
+}) => Child, deps: [...D]) => Child;
 type Dependencies = {
     type: ObjectAttributeType;
     value: unknown;

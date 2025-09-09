@@ -251,6 +251,10 @@ var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
+var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+var getObjectAttributes = () => {
+  return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+};
 
 // src/server/loadHook.ts
 var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
@@ -773,7 +777,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
   const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
   let sendHardReloadInstruction = false;
-  const transformedResult = await esbuild.transform(clientPageJSText, { minify: true }).catch((error) => {
+  const transformedResult = await esbuild.transform(clientPageJSText, { minify: options.environment === "production" }).catch((error) => {
     console.error("Failed to transform client page js!", error);
   });
   if (!transformedResult) return { sendHardReloadInstruction };
@@ -800,6 +804,7 @@ var buildPages = async (DIST_DIR) => {
       }
       fs2.rmSync(filePath, { force: true });
       initializeState();
+      initializeObjectAttributes();
       resetLoadHooks();
       let pageElements;
       let metadata;
@@ -812,7 +817,7 @@ var buildPages = async (DIST_DIR) => {
         metadata = pageMetadata;
       } catch (e) {
         fs2.rmSync(tempPath, { force: true });
-        throw `Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`;
+        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`);
       }
       fs2.rmSync(tempPath, { force: true });
       if (!metadata || metadata && typeof metadata !== "function") {
@@ -826,7 +831,8 @@ var buildPages = async (DIST_DIR) => {
       }
       const state = getState();
       const pageLoadHooks = getLoadHooks();
-      const objectAttributes = await generateSuitablePageElements(
+      const objectAttributes = getObjectAttributes();
+      const foundObjectAttributes = await generateSuitablePageElements(
         file.parentPath,
         pageElements || body(),
         metadata ?? (() => head()),
@@ -838,7 +844,7 @@ var buildPages = async (DIST_DIR) => {
       } = await generateClientPageData(
         file.parentPath,
         state || {},
-        objectAttributes,
+        [...objectAttributes, ...foundObjectAttributes],
         pageLoadHooks || [],
         DIST_DIR,
         name
@@ -944,7 +950,8 @@ var build = async (DIST_DIR) => {
         define: {
           "DEV": options.environment === "development" ? "true" : "false",
           "PROD": options.environment === "development" ? "false" : "true"
-        }
+        },
+        external: ["fs"]
       });
       await esbuild.build({
         entryPoints: [

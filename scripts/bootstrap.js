@@ -18,15 +18,15 @@ const envDtsPath = "env.d.ts";
 const tsconfigPath = "tsconfig.json";
 
 const pageTsContent = `
-import { createEventListener, createState } from "elegance-js/server/createState";
-import { createLoadHook } from "elegance-js/server/loadHook";
+import { eventListener, state } from "elegance-js/server/state";
+import { loadHook } from "elegance-js/server/loadHook";
 import { observe } from "elegance-js/server/observe";
 
-const counter = createState(0);
+const counter = state(0);
 
-createLoadHook({
-    deps: [counter],
-    fn: (_, counter) => {
+loadHook(
+    [counter],
+    (_, counter) => {
         const interval = setInterval(() => {
             counter.value++;
             counter.signal();
@@ -34,7 +34,7 @@ createLoadHook({
         
         return () => clearInterval(interval);
     },
-})
+)
 
 export const page = body ({
     class: "text-white flex min-h-screen items-start sm:justify-center p-4 bg-black flex-col gap-4 max-w-[500px] w-full mx-auto",
@@ -68,14 +68,14 @@ export const page = body ({
             
         button ({
             class: "hover:cursor-pointer px-4 py-2 rounded-md bg-zinc-200 text-black font-semibold relative group hover:scale-[1.05] duration-200",
-            onClick: createEventListener({
-                dependencies: [counter],
-                eventListener: (_, counter) => {
+            onClick: eventListener(
+                [counter],
+                (_, counter) => {
                     counter.value++;
                     
                     counter.signal();
                 },
-            }),
+            ),
             
             innerText: observe([counter], (counter) => \`Counter: \${counter}\`),
         },

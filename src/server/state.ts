@@ -1,4 +1,7 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
+import { processPageElements } from "../client/processPageElements";
+
+import { loadHook } from "./loadHook";
 
 type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
     value: T;
@@ -37,14 +40,226 @@ export const state = <
     };
 
     globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+    
+    // shimmy it in
+    if (Array.isArray(value)) {
+        (serverStateEntry as any).reactiveMap = reactiveMap
+    }
 
     return serverStateEntry as {
         id: number,
         value: ValueType,
         type: ObjectAttributeType.STATE,
         bind: string | undefined,
+        reactiveMap: U extends Array<any> ? ReactiveMap<U, any> : null,
     };
 };
+
+type ReactiveMap<
+    T extends any[],
+    D extends Dependencies,
+> = (
+    this: {
+        id: number;
+        value: any;
+        type: ObjectAttributeType.STATE;
+        bind: string | undefined;
+    },
+    template: (
+        item: T[number],
+        ...deps: { [K in keyof D]: ClientSubjectGeneric<D[K]>["value"] }
+    ) => Child,
+    deps: [...D],
+) => Child;
+
+const reactiveMap = function <
+    T extends any[],
+    D extends Dependencies
+>(
+    this: {
+        id: number;
+        value: any;
+        type: ObjectAttributeType.STATE;
+        bind: string | undefined;
+    },
+    template: (
+        item: T[number],
+        ...deps: { [K in keyof D]: ClientSubjectGeneric<D[K]>["value"] }
+    ) => AnyBuiltElement,
+    deps: [...D],
+): Child {
+    const subject = this;
+    
+    const dependencies = state(deps || []);
+    const templateFn = state(template);
+    
+    loadHook(
+        [subject, templateFn, dependencies],
+        (state, subject, templateFn, dependencies) => {
+            const el = document.querySelector(
+                `[map-id="${subject.id}"]`
+            ) as HTMLDivElement;
+            if (!el) return;
+            
+            const trackedElement = el.previousSibling as HTMLElement;
+            if (!trackedElement) return;
+            if (!trackedElement.parentElement) return;
+            
+            el.remove();
+            
+            const value = subject.value as Array<any>;
+            
+            const deps = state.getAll(dependencies.value.map(dep => ({ id: dep.id, bind: dep.bind })));
+            
+            const attributes: any[] = [];
+            const currentlyWatched: any[] = [];
+            
+            const createElements = () => {
+                const renderRecursively = (element: Child) => {
+                    if (typeof element === "boolean") {
+                        return null;
+                    }
+                
+                    if (typeof element === "number" || typeof element === "string") {
+                        return document.createTextNode(element.toString());
+                    }
+                
+                    if (Array.isArray(element)) {
+                        const fragment = document.createDocumentFragment();
+                        
+                        element.forEach(item => {
+                            const childNode = renderRecursively(item);
+                            if (childNode) fragment.appendChild(childNode);
+                        });
+                        
+                        return fragment;
+                    }
+                
+                    const domElement = document.createElement(element.tag);
+                
+                    if (typeof element.options === "object" && element.options !== null) {
+                        for (const [attrName, attrValue] of Object.entries(element.options)) {
+                            if (typeof attrValue === "object") {
+                                const { isAttribute } = attrValue;
+                                
+                                if (isAttribute === undefined || isAttribute === false) {
+                                    throw "Objects are not valid option property values.";
+                                }
+                                
+                                attributes.push({
+                                    ...attrValue,
+                                    field: attrName,
+                                });
+                                
+                                continue
+                            }
+                            
+                            domElement.setAttribute(attrName.toLowerCase(), attrValue);
+                        }
+                    }
+                
+                    if (element.children !== null) {
+                        if (Array.isArray(element.children)) {
+                            element.children.forEach(child => {
+                                const childNode = renderRecursively(child);
+                                if (childNode) domElement.appendChild(childNode);
+                            });
+                        } else {
+                            const childNode = renderRecursively(element.children);
+                            if (childNode) domElement.appendChild(childNode);
+                        }
+                    }
+                
+                    return domElement;
+                };
+                
+                const state = pd[client.currentPage].stateManager;
+                
+                for (let i = value.length-1; i >= 0; i -= 1) {
+                    const htmlElement = renderRecursively(templateFn.value(value[i], ...deps as any)) as HTMLElement;
+                    
+                    htmlElement.setAttribute("map-id", subject.id.toString())
+                    
+                    const elementKey = (i * -1).toString();
+                    htmlElement.setAttribute("key", elementKey);
+                    
+                    for (const attribute of attributes) {
+                        let values: Record<string, any> = {};
+                        
+                        const { field, subjects, updateCallback } = attribute;
+                         
+                        for (const reference of subjects) {
+                            const subject = state.get(reference.id, reference.bind);
+                            
+                            const updateFunction = (value: any) => {
+                                values[subject.id] = value;
+                
+                                try {
+                                    const newValue = updateCallback(...Object.values(values));
+                                    let attribute = field === "class" ? "className" : field;
+                    
+                                    (htmlElement as any)[attribute] = newValue;
+                                } catch(e) {
+                                    console.error(e);
+                                    
+                                    return;
+                                }
+                            };
+                
+                            updateFunction(subject.value);
+                            
+                            state.observe(subject, updateFunction, elementKey);
+                            
+                            console.log("observed");
+                            
+                            currentlyWatched.push({
+                                key: elementKey,
+                                subject,
+                            });
+                        }
+                    }
+                    
+                    trackedElement.parentElement!.insertBefore(htmlElement, trackedElement.nextSibling);
+                    
+                    attributes.splice(0, attributes.length)
+                }
+                
+            };
+            
+            const removeOldElements = () => {
+                const list = Array.from(document.querySelectorAll(`[map-id="${subject.id}"]`));
+                
+                for (const el of list) { el.remove(); }
+                
+                const pageData = pd[client.currentPage];
+                
+                const state = pageData.stateManager;
+                    
+                for (const watched of currentlyWatched) {                    
+                    state.unobserve(watched.subject, watched.key);
+                    
+                    console.log("unobserved");
+                }
+                
+                currentlyWatched.splice(0, currentlyWatched.length);
+            };
+            
+            createElements();
+            
+            const uniqueId = `${Date.now()}`;
+            
+            state.observe(subject, (value) => {
+                removeOldElements();
+                createElements();
+            }, uniqueId);
+        }
+    );
+
+    return globalThis.template({
+        "map-id": subject.id,
+    });
+};
+
 
 type Dependencies = { type: ObjectAttributeType; value: unknown; id: number; bind?: string }[];
 

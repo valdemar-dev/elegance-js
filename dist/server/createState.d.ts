@@ -44,4 +44,21 @@ export declare const getState: () => {
     id: number;
     bind?: number;
 }[];
+export declare const initializeObjectAttributes: () => never[];
+export declare const getObjectAttributes: () => ({
+    type: ObjectAttributeType;
+    id: string | number;
+    value: any;
+    bind?: string;
+} | {
+    type: ObjectAttributeType;
+    refs: {
+        id: number;
+        bind?: string;
+    }[];
+    initialValues: any[];
+    update: (...value: any) => any;
+} | {
+    type: ObjectAttributeType;
+})[];
 export {};

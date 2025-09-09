@@ -1,6 +1,183 @@
+// src/shared/serverElements.ts
+var createBuildableElement = (tag) => {
+  return (options, ...children) => ({
+    tag,
+    options: options || {},
+    children
+  });
+};
+var createChildrenlessBuildableElement = (tag) => {
+  return (options) => ({
+    tag,
+    options: options || {},
+    children: null
+  });
+};
+var childrenlessElementTags = [
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "source",
+  "track",
+  "path",
+  "rect"
+];
+var elementTags = [
+  "a",
+  "address",
+  "article",
+  "aside",
+  "audio",
+  "blockquote",
+  "body",
+  "button",
+  "canvas",
+  "caption",
+  "colgroup",
+  "data",
+  "datalist",
+  "dd",
+  "del",
+  "details",
+  "dialog",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "head",
+  "header",
+  "hgroup",
+  "html",
+  "iframe",
+  "ins",
+  "label",
+  "legend",
+  "li",
+  "main",
+  "map",
+  "meter",
+  "nav",
+  "noscript",
+  "object",
+  "ol",
+  "optgroup",
+  "option",
+  "output",
+  "p",
+  "picture",
+  "pre",
+  "progress",
+  "q",
+  "section",
+  "select",
+  "summary",
+  "table",
+  "tbody",
+  "td",
+  "template",
+  "textarea",
+  "tfoot",
+  "th",
+  "thead",
+  "time",
+  "tr",
+  "ul",
+  "video",
+  "span",
+  "script",
+  "abbr",
+  "b",
+  "bdi",
+  "bdo",
+  "cite",
+  "code",
+  "dfn",
+  "em",
+  "i",
+  "kbd",
+  "mark",
+  "rp",
+  "rt",
+  "ruby",
+  "s",
+  "samp",
+  "small",
+  "strong",
+  "sub",
+  "sup",
+  "u",
+  "wbr",
+  "title",
+  "svg"
+];
+var elements = {};
+var childrenlessElements = {};
+for (const element of elementTags) {
+  elements[element] = createBuildableElement(element);
+}
+for (const element of childrenlessElementTags) {
+  childrenlessElements[element] = createChildrenlessBuildableElement(element);
+}
+var allElements = {
+  ...elements,
+  ...childrenlessElements
+};
+
+// src/shared/bindServerElements.ts
+Object.assign(globalThis, elements);
+Object.assign(globalThis, childrenlessElements);
+
 // src/client/client.ts
 console.log("Elegance.JS is loading..");
 if (!globalThis.pd) globalThis.pd = {};
+Object.assign(window, {
+  observe: (subjects, updateCallback) => {
+    return {
+      subjects,
+      updateCallback,
+      isAttribute: true
+    };
+  },
+  /*
+  observe: (subjects: ClientSubject[], updateCallback: () => any) => {
+      const pageData = pd[currentPage];
+      
+      const keys = [];
+      
+      for (const subject of subjects) {
+          const key = subject.id + Date.now();
+          
+          keys.push({
+              key: key,
+              subject: subject.id,
+          });
+          
+          pageData.stateManager.observe(subject, updateCallback, key);
+      }
+      
+      return { keys }
+  },
+  */
+  eventListener: () => {
+  }
+});
 var domParser = new DOMParser();
 var xmlSerializer = new XMLSerializer();
 var pageStringCache = /* @__PURE__ */ new Map();
@@ -32,6 +209,9 @@ var createStateManager = (subjects) => {
       };
       return s;
     }),
+    destroy: (s) => {
+      state.subjects.splice(state.subjects.indexOf(s), 1);
+    },
     get: (id, bind) => {
       if (bind) {
         return pd[bind].get(id);
@@ -47,6 +227,9 @@ var createStateManager = (subjects) => {
     observe: (subject, observer, key) => {
       subject.observers.delete(key);
       subject.observers.set(key, observer);
+    },
+    unobserve: (subject, key) => {
+      subject.observers.delete(key);
     }
   };
   return state;
@@ -55,6 +238,7 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
   const fixedUrl = new URL(loc.href);
   fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
   const pathname = fixedUrl.pathname;
+  currentPage = pathname;
   history.replaceState(null, "", fixedUrl.href);
   let pageData = pd[pathname];
   if (pd === void 0) {
@@ -91,7 +275,7 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
     subject.observers = /* @__PURE__ */ new Map();
   }
   for (const ooa of pageData.ooa || []) {
-    const el = doc.querySelector(`[key="${ooa.key}"]`);
+    const els = doc.querySelectorAll(`[key="${ooa.key}"]`);
     let values = {};
     for (const { id, bind } of ooa.refs) {
       const subject = state.get(id, bind);
@@ -101,7 +285,9 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
         try {
           const newValue = ooa.update(...Object.values(values));
           let attribute = ooa.attribute === "class" ? "className" : ooa.attribute;
-          el[attribute] = newValue;
+          for (const el of Array.from(els)) {
+            el[attribute] = newValue;
+          }
         } catch (e) {
           console.error(e);
           return;

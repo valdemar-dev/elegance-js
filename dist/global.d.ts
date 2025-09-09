@@ -10,6 +10,7 @@ declare global {
         id: number;
         bind?: number;
     }>;
+    var __SERVER_CURRENT_OBJECT_ATTRIBUTES__: Array<ObjectAttribute<any>>;
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>;
     var __SERVER_CURRENT_LAYOUTS__: Map<string, number>;
     var __SERVER_CURRENT_LAYOUT_ID__: number;
@@ -283,8 +284,13 @@ declare global {
     };
     type State = {
         subjects: ClientSubject[];
-        get: (id: number) => ClientSubject | undefined;
-        observe: (subject: ClientSubject, observer: (value: any) => any) => void;
+        get: (id: number, bind?: string) => ClientSubject | undefined;
+        getAll: (refs: {
+            id: number;
+            bind?: string;
+        }[]) => [ClientSubject["value"]];
+        observe: (subject: ClientSubject, observer: (value: any) => any, subject_key: string) => void;
+        destroy: (subject: ClientSubject) => void;
     };
 }
 export {};
