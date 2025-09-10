@@ -152,7 +152,8 @@ Object.assign(window, {
     return {
       subjects,
       updateCallback,
-      isAttribute: true
+      isAttribute: true,
+      type: 2 /* OBSERVER */
     };
   },
   /*
@@ -175,7 +176,13 @@ Object.assign(window, {
       return { keys }
   },
   */
-  eventListener: () => {
+  eventListener: (subjects, eventListener) => {
+    return {
+      subjects,
+      eventListener,
+      isAttribute: true,
+      type: 1 /* STATE */
+    };
   }
 });
 var domParser = new DOMParser();
@@ -444,12 +451,65 @@ window.onpopstate = async (event) => {
   await navigateLocally(target.location.href, false);
   history.replaceState(null, "", target.location.href);
 };
+var renderRecursively = (element, attributes) => {
+  if (typeof element === "boolean") {
+    return null;
+  }
+  if (typeof element === "number" || typeof element === "string") {
+    return document.createTextNode(element.toString());
+  }
+  if (Array.isArray(element)) {
+    const fragment = document.createDocumentFragment();
+    element.forEach((item) => {
+      const childNode = renderRecursively(item, attributes);
+      if (childNode) fragment.appendChild(childNode);
+    });
+    return fragment;
+  }
+  const domElement = document.createElement(element.tag);
+  if (typeof element.options === "object" && element.options !== null) {
+    const { tag, options, children } = element.options;
+    if (tag !== void 0 && options !== void 0 && children !== void 0) {
+      const childNode = renderRecursively(element.options, attributes);
+      if (childNode) domElement.appendChild(childNode);
+    } else {
+      for (const [attrName, attrValue] of Object.entries(element.options)) {
+        if (typeof attrValue === "object") {
+          const { isAttribute } = attrValue;
+          if (isAttribute === void 0 || isAttribute === false) {
+            throw "Objects are not valid option property values.";
+          }
+          attributes.push({
+            ...attrValue,
+            field: attrName,
+            element: domElement
+          });
+          continue;
+        }
+        domElement.setAttribute(attrName.toLowerCase(), attrValue);
+      }
+    }
+  }
+  if (element.children !== null) {
+    if (Array.isArray(element.children)) {
+      element.children.forEach((child) => {
+        const childNode = renderRecursively(child, attributes);
+        if (childNode) domElement.appendChild(childNode);
+      });
+    } else {
+      const childNode = renderRecursively(element.children, attributes);
+      if (childNode) domElement.appendChild(childNode);
+    }
+  }
+  return domElement;
+};
 globalThis.client = {
   navigateLocally,
   fetchPage,
   currentPage,
   sanitizePathname,
-  getReference: (id) => document.querySelector(`[ref="${id}"]`)
+  getReference: (id) => document.querySelector(`[ref="${id}"]`),
+  renderRecursively
 };
 try {
   loadPage();

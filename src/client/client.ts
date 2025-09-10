@@ -1,6 +1,8 @@
 import type { ClientLoadHook, } from "../server/loadHook";
 import "../shared/bindServerElements";
 
+import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
+
 console.log("Elegance.JS is loading..");
 
 if (!globalThis.pd) globalThis.pd = {};
@@ -13,6 +15,7 @@ Object.assign(window, {
             subjects,
             updateCallback,
             isAttribute: true,
+            type: ObjectAttributeType.OBSERVER,
         }
 
     },
@@ -36,7 +39,14 @@ Object.assign(window, {
         return { keys }
     },
     */
-    eventListener: () => {},
+    eventListener: (subjects: ClientSubject[], eventListener: () => any) => {    
+        return {
+            subjects,
+            eventListener,
+            isAttribute: true,
+            type: ObjectAttributeType.STATE,
+        }
+    },
 })
 
 const domParser = new DOMParser();
@@ -423,12 +433,84 @@ window.onpopstate = async (event: PopStateEvent) => {
     history.replaceState(null, "", target.location.href);
 };
 
+const renderRecursively = (element: Child, attributes: any[]) => {
+    if (typeof element === "boolean") {
+        return null;
+    }
+
+    if (typeof element === "number" || typeof element === "string") {
+        return document.createTextNode(element.toString());
+    }
+
+    if (Array.isArray(element)) {
+        const fragment = document.createDocumentFragment();
+        
+        element.forEach(item => {
+            const childNode = renderRecursively(item, attributes);
+            if (childNode) fragment.appendChild(childNode);
+        });
+        
+        return fragment;
+    }
+
+    const domElement = document.createElement(element.tag);
+
+    if (typeof element.options === "object" && element.options !== null) {
+        const { tag, options, children } = element.options as Record<string, any>;
+        
+        if (
+            tag !== undefined && 
+            options !== undefined && 
+            children !== undefined
+        ) {
+            
+            const childNode = renderRecursively(element.options as AnyBuiltElement, attributes);
+            if (childNode) domElement.appendChild(childNode);
+        } else {
+            for (const [attrName, attrValue] of Object.entries(element.options)) {
+                if (typeof attrValue === "object") {
+                    const { isAttribute } = attrValue;
+                    
+                    if (isAttribute === undefined || isAttribute === false) {
+                        throw "Objects are not valid option property values.";
+                    }
+                    
+                    attributes.push({
+                        ...attrValue,
+                        field: attrName,
+                        element: domElement,
+                    });
+                    
+                    continue
+                }
+                
+                domElement.setAttribute(attrName.toLowerCase(), attrValue);
+            }
+        }
+    }
+
+    if (element.children !== null) {
+        if (Array.isArray(element.children)) {
+            element.children.forEach(child => {
+                const childNode = renderRecursively(child, attributes);
+                if (childNode) domElement.appendChild(childNode);
+            });
+        } else {
+            const childNode = renderRecursively(element.children, attributes);
+            if (childNode) domElement.appendChild(childNode);
+        }
+    }
+
+    return domElement;
+};
+
 globalThis.client = {
     navigateLocally,
     fetchPage,
     currentPage,
     sanitizePathname,
     getReference: (id: number) => document.querySelector(`[ref="${id}"]`),
+    renderRecursively,
 };
 
 try {

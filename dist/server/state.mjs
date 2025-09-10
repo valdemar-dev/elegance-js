@@ -48,93 +48,63 @@ var reactiveMap = function(template, deps) {
       const el = document.querySelector(
         `[map-id="${subject2.id}"]`
       );
-      if (!el) return;
-      const trackedElement = el.previousSibling;
-      if (!trackedElement) return;
-      if (!trackedElement.parentElement) return;
+      if (!el) throw new Error(`Couldn't find map tag with map-id=${subject2.id}`);
+      const parentElement = el.parentElement;
+      const nextSibling = el.nextSibling;
       el.remove();
       const value = subject2.value;
       const deps2 = state2.getAll(dependencies2.value.map((dep) => ({ id: dep.id, bind: dep.bind })));
       const attributes = [];
       const currentlyWatched = [];
       const createElements = () => {
-        const renderRecursively = (element) => {
-          if (typeof element === "boolean") {
-            return null;
-          }
-          if (typeof element === "number" || typeof element === "string") {
-            return document.createTextNode(element.toString());
-          }
-          if (Array.isArray(element)) {
-            const fragment = document.createDocumentFragment();
-            element.forEach((item) => {
-              const childNode = renderRecursively(item);
-              if (childNode) fragment.appendChild(childNode);
-            });
-            return fragment;
-          }
-          const domElement = document.createElement(element.tag);
-          if (typeof element.options === "object" && element.options !== null) {
-            for (const [attrName, attrValue] of Object.entries(element.options)) {
-              if (typeof attrValue === "object") {
-                const { isAttribute } = attrValue;
-                if (isAttribute === void 0 || isAttribute === false) {
-                  throw "Objects are not valid option property values.";
-                }
-                attributes.push({
-                  ...attrValue,
-                  field: attrName
-                });
-                continue;
-              }
-              domElement.setAttribute(attrName.toLowerCase(), attrValue);
-            }
-          }
-          if (element.children !== null) {
-            if (Array.isArray(element.children)) {
-              element.children.forEach((child) => {
-                const childNode = renderRecursively(child);
-                if (childNode) domElement.appendChild(childNode);
-              });
-            } else {
-              const childNode = renderRecursively(element.children);
-              if (childNode) domElement.appendChild(childNode);
-            }
-          }
-          return domElement;
-        };
         const state3 = pd[client.currentPage].stateManager;
-        for (let i = value.length - 1; i >= 0; i -= 1) {
-          const htmlElement = renderRecursively(templateFn2.value(value[i], ...deps2));
+        for (let i = 0; i < value.length; i += 1) {
+          const htmlElement = client.renderRecursively(templateFn2.value(value[i], i, ...deps2), attributes);
           htmlElement.setAttribute("map-id", subject2.id.toString());
-          const elementKey = (i * -1).toString();
+          const elementKey = ((i - 1) * -1).toString();
           htmlElement.setAttribute("key", elementKey);
           for (const attribute of attributes) {
             let values = {};
-            const { field, subjects, updateCallback } = attribute;
-            for (const reference of subjects) {
-              const subject3 = state3.get(reference.id, reference.bind);
-              const updateFunction = (value2) => {
-                values[subject3.id] = value2;
-                try {
-                  const newValue = updateCallback(...Object.values(values));
-                  let attribute2 = field === "class" ? "className" : field;
-                  htmlElement[attribute2] = newValue;
-                } catch (e) {
-                  console.error(e);
-                  return;
+            const type = attribute.type;
+            switch (type) {
+              case 2 /* OBSERVER */: {
+                const { field, subjects, updateCallback } = attribute;
+                for (const reference of subjects) {
+                  const subject3 = state3.get(reference.id, reference.bind);
+                  const updateFunction = (value2) => {
+                    values[subject3.id] = value2;
+                    try {
+                      const newValue = updateCallback(...Object.values(values));
+                      let attribute2 = field === "class" ? "className" : field;
+                      htmlElement[attribute2] = newValue;
+                    } catch (e) {
+                      console.error(e);
+                      return;
+                    }
+                  };
+                  updateFunction(subject3.value);
+                  state3.observe(subject3, updateFunction, elementKey);
+                  currentlyWatched.push({
+                    key: elementKey,
+                    subject: subject3
+                  });
                 }
-              };
-              updateFunction(subject3.value);
-              state3.observe(subject3, updateFunction, elementKey);
-              console.log("observed");
-              currentlyWatched.push({
-                key: elementKey,
-                subject: subject3
-              });
+                break;
+              }
+              case 1 /* STATE */: {
+                const { field, element, subjects, eventListener: eventListener2 } = attribute;
+                const lc = field.toLowerCase();
+                const state4 = pd[client.currentPage].stateManager;
+                const fn = (event) => {
+                  eventListener2(event, ...subjects);
+                };
+                console.log(element);
+                element[lc] = fn;
+                break;
+              }
             }
           }
-          trackedElement.parentElement.insertBefore(htmlElement, trackedElement.nextSibling);
+          parentElement.insertBefore(htmlElement, nextSibling);
           attributes.splice(0, attributes.length);
         }
       };
@@ -147,7 +117,6 @@ var reactiveMap = function(template, deps) {
         const state3 = pageData.stateManager;
         for (const watched of currentlyWatched) {
           state3.unobserve(watched.subject, watched.key);
-          console.log("unobserved");
         }
         currentlyWatched.splice(0, currentlyWatched.length);
       };

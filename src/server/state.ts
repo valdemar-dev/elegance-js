@@ -1,5 +1,4 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
-import { processPageElements } from "../client/processPageElements";
 
 import { loadHook } from "./loadHook";
 
@@ -67,6 +66,7 @@ type ReactiveMap<
     },
     template: (
         item: T[number],
+        index: number,
         ...deps: { [K in keyof D]: ClientSubjectGeneric<D[K]>["value"] }
     ) => Child,
     deps: [...D],
@@ -84,6 +84,7 @@ const reactiveMap = function <
     },
     template: (
         item: T[number],
+        index: number,
         ...deps: { [K in keyof D]: ClientSubjectGeneric<D[K]>["value"] }
     ) => AnyBuiltElement,
     deps: [...D],
@@ -99,11 +100,10 @@ const reactiveMap = function <
             const el = document.querySelector(
                 `[map-id="${subject.id}"]`
             ) as HTMLDivElement;
-            if (!el) return;
+            if (!el) throw new Error(`Couldn't find map tag with map-id=${subject.id}`);
             
-            const trackedElement = el.previousSibling as HTMLElement;
-            if (!trackedElement) return;
-            if (!trackedElement.parentElement) return;
+            const parentElement = el.parentElement as HTMLElement;
+            const nextSibling = el.nextSibling as HTMLElement;
             
             el.remove();
             
@@ -115,111 +115,75 @@ const reactiveMap = function <
             const currentlyWatched: any[] = [];
             
             const createElements = () => {
-                const renderRecursively = (element: Child) => {
-                    if (typeof element === "boolean") {
-                        return null;
-                    }
-                
-                    if (typeof element === "number" || typeof element === "string") {
-                        return document.createTextNode(element.toString());
-                    }
-                
-                    if (Array.isArray(element)) {
-                        const fragment = document.createDocumentFragment();
-                        
-                        element.forEach(item => {
-                            const childNode = renderRecursively(item);
-                            if (childNode) fragment.appendChild(childNode);
-                        });
-                        
-                        return fragment;
-                    }
-                
-                    const domElement = document.createElement(element.tag);
-                
-                    if (typeof element.options === "object" && element.options !== null) {
-                        for (const [attrName, attrValue] of Object.entries(element.options)) {
-                            if (typeof attrValue === "object") {
-                                const { isAttribute } = attrValue;
-                                
-                                if (isAttribute === undefined || isAttribute === false) {
-                                    throw "Objects are not valid option property values.";
-                                }
-                                
-                                attributes.push({
-                                    ...attrValue,
-                                    field: attrName,
-                                });
-                                
-                                continue
-                            }
-                            
-                            domElement.setAttribute(attrName.toLowerCase(), attrValue);
-                        }
-                    }
-                
-                    if (element.children !== null) {
-                        if (Array.isArray(element.children)) {
-                            element.children.forEach(child => {
-                                const childNode = renderRecursively(child);
-                                if (childNode) domElement.appendChild(childNode);
-                            });
-                        } else {
-                            const childNode = renderRecursively(element.children);
-                            if (childNode) domElement.appendChild(childNode);
-                        }
-                    }
-                
-                    return domElement;
-                };
-                
                 const state = pd[client.currentPage].stateManager;
                 
-                for (let i = value.length-1; i >= 0; i -= 1) {
-                    const htmlElement = renderRecursively(templateFn.value(value[i], ...deps as any)) as HTMLElement;
+                for (let i = 0; i < value.length; i += 1) {
+                    const htmlElement = client.renderRecursively(templateFn.value(value[i], i, ...deps as any), attributes) as HTMLElement;
                     
                     htmlElement.setAttribute("map-id", subject.id.toString())
                     
-                    const elementKey = (i * -1).toString();
+                    const elementKey = ((i-1) * -1).toString();
                     htmlElement.setAttribute("key", elementKey);
                     
                     for (const attribute of attributes) {
                         let values: Record<string, any> = {};
                         
-                        const { field, subjects, updateCallback } = attribute;
-                         
-                        for (const reference of subjects) {
-                            const subject = state.get(reference.id, reference.bind);
-                            
-                            const updateFunction = (value: any) => {
-                                values[subject.id] = value;
-                
-                                try {
-                                    const newValue = updateCallback(...Object.values(values));
-                                    let attribute = field === "class" ? "className" : field;
+                        const type = attribute.type;
+                        
+                        switch (type) {
+                        case ObjectAttributeType.OBSERVER: {
+                            const { field, subjects, updateCallback } = attribute;
+                             
+                            for (const reference of subjects) {
+                                const subject = state.get(reference.id, reference.bind);
+                                
+                                const updateFunction = (value: any) => {
+                                    values[subject.id] = value;
                     
-                                    (htmlElement as any)[attribute] = newValue;
-                                } catch(e) {
-                                    console.error(e);
-                                    
-                                    return;
-                                }
+                                    try {
+                                        const newValue = updateCallback(...Object.values(values));
+                                        let attribute = field === "class" ? "className" : field;
+                        
+                                        (htmlElement as any)[attribute] = newValue;
+                                    } catch(e) {
+                                        console.error(e);
+                                        
+                                        return;
+                                    }
+                                };
+                    
+                                updateFunction(subject.value);
+                                
+                                state.observe(subject, updateFunction, elementKey);
+                                
+                                currentlyWatched.push({
+                                    key: elementKey,
+                                    subject,
+                                });
+                            }
+                            break;
+                        }    
+                            
+                        case ObjectAttributeType.STATE: {
+                            const { field, element, subjects, eventListener } = attribute;
+                            
+                            const lc = field.toLowerCase();
+                            
+                            const state = pd[client.currentPage].stateManager;
+                            
+                            const fn = (event: Event) => {
+                                eventListener(event, ...subjects);
                             };
-                
-                            updateFunction(subject.value);
                             
-                            state.observe(subject, updateFunction, elementKey);
+                            console.log(element);
+                            (element as any)[lc] = fn;
                             
-                            console.log("observed");
-                            
-                            currentlyWatched.push({
-                                key: elementKey,
-                                subject,
-                            });
+                            break;
                         }
+                        }    
                     }
                     
-                    trackedElement.parentElement!.insertBefore(htmlElement, trackedElement.nextSibling);
+                    parentElement.insertBefore(htmlElement, nextSibling);
                     
                     attributes.splice(0, attributes.length)
                 }
@@ -237,8 +201,6 @@ const reactiveMap = function <
                     
                 for (const watched of currentlyWatched) {                    
                     state.unobserve(watched.subject, watched.key);
-                    
-                    console.log("unobserved");
                 }
                 
                 currentlyWatched.splice(0, currentlyWatched.length);

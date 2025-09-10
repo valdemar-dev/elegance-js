@@ -315,6 +315,7 @@ declare global {
         currentPage: string,
         sanitizePathname: (target: string) => string;
         getReference: (id: number) => HTMLElement | null;
+        renderRecursively: (element: Child, attributes: any[]) => HTMLElement | DocumentFragment | Text | null
     }
 
     type ClientSubject = {
