@@ -5,9 +5,7 @@ export const Breakpoint = (
         id?: number,
     },
     ...children: Child[]
-) => {
-    console.log("THIS IS ME: ", this);
-    
+) => {    
     if (options.id === undefined) throw `Breakpoints must set a name attribute.`;
     const id = options.id;
 

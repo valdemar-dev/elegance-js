@@ -1,9 +1,8 @@
-// src/build.ts
+// src/compile.ts
 import fs2 from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import child_process from "node:child_process";
-import http from "http";
 
 // src/server/server.ts
 import { createServer as createHttpServer } from "http";
@@ -197,92 +196,33 @@ async function respondWithErrorPage(root, pathname, code, res) {
   res.end(`${code} Error`);
 }
 
-// src/build.ts
+// src/compile.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var packageDir = path.resolve(__dirname, "..");
 var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
 var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
-var builderPath = path.resolve(packageDir, "./dist/page_compiler.mjs");
+var builderPath = path.resolve(packageDir, "./dist/build.mjs");
 var yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
-};
-var bold = (text) => {
-  return `\x1B[1m${text}`;
-};
-var white = (text) => {
-  return `\x1B[38;2;255;247;229m${text}`;
-};
-var green = (text) => {
-  return `\x1B[38;2;65;224;108m${text}`;
 };
 var log = (...text) => {
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
 var options = process.env.OPTIONS;
-var getAllSubdirectories = (dir, baseDir = dir) => {
-  let directories = [];
-  const items = fs2.readdirSync(dir, { withFileTypes: true });
-  for (const item of items) {
-    if (item.isDirectory()) {
-      const fullPath = path.join(dir, item.name);
-      const relativePath = path.relative(baseDir, fullPath);
-      directories.push(relativePath);
-      directories = directories.concat(getAllSubdirectories(fullPath, baseDir));
-    }
-  }
-  return directories;
-};
-var runBuild = (filepath, DIST_DIR) => {
+var runBuild = (filepath, ...params) => {
   const code = fs2.readFileSync(filepath).toString();
-  const optionsString = JSON.stringify(options);
+  const optionsString = JSON.stringify(params);
   const child = child_process.spawn("node", ["-e", code], {
-    stdio: ["inherit", "inherit", "inherit", "ipc"],
-    env: { ...process.env, DIST_DIR, OPTIONS: optionsString }
+    stdio: "inherit",
+    env: { ...process.env, OPTIONS: optionsString }
   });
   child.on("error", () => {
     console.error("Failed to start child process.");
   });
-  child.on("message", (data) => {
-    console.log("Received message from child", data);
-  });
-  child.on("exit", (code2, signal) => {
-    console.error(`Child process exited with code ${code2} or signal ${signal}`);
-  });
 };
 var build = (DIST_DIR) => {
-  runBuild(builderPath, DIST_DIR);
-};
-var isTimedOut = false;
-var currentWatchers = [];
-var httpStream;
-var registerListener = async () => {
-  const server = http.createServer((req, res) => {
-    if (req.url === "/events") {
-      log(white("Client listening for changes.."));
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "Transfer-Encoding": "chunked",
-        "X-Accel-Buffering": "no",
-        "Content-Encoding": "none",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*"
-      });
-      httpStream = res;
-      httpStream.write(`data: ping
-
-`);
-    } else {
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("Not Found");
-    }
-  });
-  server.listen(options.hotReload.port, () => {
-    log(bold(green("Hot-Reload server online!")));
-  });
+  runBuild(builderPath, options, DIST_DIR);
 };
 var compile = async (props) => {
   options = props;
