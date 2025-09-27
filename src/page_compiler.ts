@@ -849,10 +849,10 @@ const build = async (): Promise<boolean> => {
 
     if (shouldClientHardReload) {
         console.log("Sending hard reload..");
-        process.send!({ event: "hard-reload", data: "", })
+        process.send!({ event: "message", data: "hard-reload", })
     } else {
         console.log("Sending soft reload..");
-        process.send!({ event: "soft-reload", data: "", })
+        process.send!({ event: "message", data: "soft-reload", })
     }
     
     } catch(e) {

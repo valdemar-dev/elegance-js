@@ -243,7 +243,17 @@ var runBuild = (filepath, DIST_DIR) => {
   child.on("error", () => {
     console.error("Failed to start child process.");
   });
-  child.on("message", (data) => {
+  child.on("message", (message) => {
+    const { data, event } = message;
+    if (data === "hard-reload") {
+      httpStream?.write(`data: hard-reload
+
+`);
+    } else if (data === "soft-reload") {
+      httpStream?.write(`data: reload
+
+`);
+    }
     console.log("Received message from child", data);
   });
   child.on("exit", (code2, signal) => {

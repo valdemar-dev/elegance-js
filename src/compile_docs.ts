@@ -25,6 +25,10 @@ compile({
         path: PUBLIC_DIR,
         method: environment === "production" ? "recursive-copy" : "symlink",
     },
+    hotReload: environment === "development" ? {
+        port: 3001,
+        hostname: "localhost",
+    } : undefined,
     server: {
         runServer: environment === "development",
     },

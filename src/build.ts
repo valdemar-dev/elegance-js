@@ -121,7 +121,15 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         console.error("Failed to start child process.");
     });
     
-    child.on("message", (data) => {
+    child.on("message", (message) => {        
+        const { data, event } = message as any;
+        
+        if (data === "hard-reload") {
+            httpStream?.write(`data: hard-reload\n\n`);
+        } else if (data === "soft-reload") {
+            httpStream?.write(`data: reload\n\n`);
+        }
+        
         console.log("Received message from child", data);
     });
     
