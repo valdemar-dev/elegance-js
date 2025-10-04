@@ -20,6 +20,6 @@ compile({
         port: 3000,
     },
     postCompile: () => {
-        exec("npx @tailwindcss/cli -i ./pages/index.css -o .elegance/dist/index.css --watch")
+        exec("npx @tailwindcss/cli -i \"./pages/index.css\" -o \".elegance/dist/index.css\" --cwd \"./pages\" --watch")
     },
 })

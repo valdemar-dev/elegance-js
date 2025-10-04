@@ -5,7 +5,7 @@ import path from "path";
 
 import { execSync } from "node:child_process";
 
-execSync("npm install tailwindcss");
+execSync("npm install tailwindcss @tailwindcss/cli");
 
 const dirs = ["pages", "public"];
 dirs.forEach((dir) => {
