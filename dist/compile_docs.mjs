@@ -103,62 +103,89 @@ async function handleStaticRequest(root, pathname, res) {
   }
 }
 async function handleApiRequest(root, pathname, req, res) {
-  const routePath = join(root, pathname, "route.js");
+  const apiSubPath = pathname.slice("/api/".length);
+  const parts = apiSubPath.split("/").filter(Boolean);
+  const routeDir = join(root, pathname);
+  const routePath = join(routeDir, "route.js");
+  let hasRoute = false;
   try {
     await fs.access(routePath);
+    hasRoute = true;
   } catch {
-    res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ error: "Not found" }));
-    return;
   }
-  try {
-    const moduleUrl = pathToFileURL(routePath).href;
-    const { GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS, TRACE, CONNECT } = await import(moduleUrl);
-    let fn;
-    switch (req.method) {
-      case "GET":
-        fn = GET;
-        break;
-      case "HEAD":
-        fn = HEAD;
-        break;
-      case "POST":
-        fn = POST;
-        break;
-      case "PUT":
-        fn = PUT;
-        break;
-      case "PATCH":
-        fn = PATCH;
-        break;
-      case "DELETE":
-        fn = DELETE;
-        break;
-      case "OPTIONS":
-        fn = OPTIONS;
-        break;
-      case "TRACE":
-        fn = TRACE;
-        break;
-      case "CONNECT":
-        fn = CONNECT;
-        break;
-      default:
-        fn = null;
-        return;
+  let fn = null;
+  let module = null;
+  if (hasRoute) {
+    try {
+      const moduleUrl = pathToFileURL(routePath).href;
+      module = await import(moduleUrl);
+      fn = module[req.method];
+    } catch (err) {
+      console.error(err);
+      return respondWithJsonError(res, 500, "Internal Server Error");
     }
-    if (fn === null) {
-      res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: "Unsupported method for route." }));
-      return;
+  }
+  const middlewareDirs = [];
+  let current = join(root, "api");
+  middlewareDirs.push(current);
+  for (const part of parts) {
+    current = join(current, part);
+    middlewareDirs.push(current);
+  }
+  const middlewares = [];
+  for (const dir of middlewareDirs) {
+    const mwPath = join(dir, "middleware.js");
+    let mwModule;
+    try {
+      await fs.access(mwPath);
+      const url = pathToFileURL(mwPath).href;
+      mwModule = await import(url);
+    } catch {
+      continue;
+    }
+    const mwKeys = Object.keys(mwModule).sort();
+    for (const key of mwKeys) {
+      const f = mwModule[key];
+      if (typeof f === "function") {
+        middlewares.push(f);
+      }
+    }
+  }
+  const finalHandler = async (req2, res2) => {
+    if (!hasRoute) {
+      return respondWithJsonError(res2, 404, "Not Found");
     }
     if (typeof fn !== "function") {
-      throw new Error('API route module must export a "route" function.');
+      return respondWithJsonError(res2, 405, "Method Not Allowed");
     }
-    await fn(req, res);
-  } catch {
-    await respondWithErrorPage(root, pathname, 404, res);
-  }
+    await fn(req2, res2);
+  };
+  const composed = composeMiddlewares(middlewares, finalHandler);
+  await composed(req, res);
+}
+function composeMiddlewares(mws, final) {
+  return async function(req, res) {
+    let index = 0;
+    const dispatch = async (err) => {
+      if (err) {
+        return respondWithJsonError(res, 500, err.message || "Internal Server Error");
+      }
+      if (index >= mws.length) {
+        return await final(req, res);
+      }
+      const thisMw = mws[index++];
+      try {
+        await thisMw(req, res, dispatch);
+      } catch (error) {
+        await dispatch(error);
+      }
+    };
+    await dispatch();
+  };
+}
+function respondWithJsonError(res, code, message) {
+  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify({ error: message }));
 }
 async function respondWithErrorPage(root, pathname, code, res) {
   let currentPath = normalize(join(root, decodeURIComponent(pathname)));
@@ -241,7 +268,7 @@ var runBuild = (filepath, DIST_DIR) => {
   const optionsString = JSON.stringify(options);
   const child = child_process.spawn("node", ["-e", code], {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
-    env: { ...process.env, DIST_DIR, OPTIONS: optionsString }
+    env: { ...process.env, DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir }
   });
   child.on("error", () => {
     console.error("Failed to start child process.");
@@ -256,6 +283,13 @@ var runBuild = (filepath, DIST_DIR) => {
       httpStream?.write(`data: reload
 
 `);
+    } else if (data === "compile-finish") {
+      if (options.postCompile) {
+        log(
+          white("Calling post-compile hook..")
+        );
+        options.postCompile();
+      }
     }
     console.log("Received message from child", data);
   });

@@ -1,7 +1,1 @@
-async function GET(_, res) {
-  res.writeHead(302, { Location: "/new-path" });
-  res.end();
-}
-export {
-  GET
-};
+async function p(e,t){t.writeHead(302,{Location:"/new-path"}),t.end()}export{p as GET};

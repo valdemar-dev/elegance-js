@@ -262,7 +262,7 @@ var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 // src/page_compiler.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
-var packageDir = path.resolve(__dirname);
+var packageDir = process.env.PACKAGE_PATH;
 var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
 var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
 var yellow = (text) => {
@@ -307,16 +307,20 @@ var getAllSubdirectories = (dir, baseDir = dir) => {
 var getProjectFiles = (pagesDirectory) => {
   const pageFiles = [];
   const apiFiles = [];
+  const middlewareFiles = [];
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   for (const subdirectory of subdirectories) {
     const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
-    const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true }).filter((f) => f.name.endsWith(".js") || f.name.endsWith(".ts"));
+    const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
     for (const file of subdirectoryFiles) {
       if (file.name === "route.ts") {
         apiFiles.push(file);
         continue;
       } else if (file.name === "page.ts") {
         pageFiles.push(file);
+        continue;
+      } else if (file.name === "middleware.ts") {
+        middlewareFiles.push(file);
         continue;
       }
       const name = file.name.slice(0, file.name.length - 3);
@@ -331,7 +335,8 @@ var getProjectFiles = (pagesDirectory) => {
   }
   return {
     pageFiles,
-    apiFiles
+    apiFiles,
+    middlewareFiles
   };
 };
 var buildClient = async (DIST_DIR2) => {
@@ -684,13 +689,14 @@ var build = async () => {
       );
       options.preCompile();
     }
-    const { pageFiles, apiFiles } = getProjectFiles(options.pagesDirectory);
+    const { pageFiles, apiFiles, middlewareFiles } = getProjectFiles(options.pagesDirectory);
     {
       const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
       for (const page of existingCompiledPages) {
         const pageFile = pageFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
         const apiFile = apiFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
-        if (!pageFile && !apiFile) {
+        const middlewareFile = middlewareFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
+        if (!pageFile && !apiFile && !middlewareFile) {
           const dir = path.join(DIST_DIR, page);
           if (fs.existsSync(dir) === false) {
             continue;
@@ -747,6 +753,27 @@ var build = async () => {
           "PROD": options.environment === "development" ? "false" : "true"
         }
       });
+      await esbuild.build({
+        entryPoints: [
+          ...middlewareFiles.map((route) => path.join(route.parentPath, route.name))
+        ],
+        minify: options.environment === "production",
+        drop: options.environment === "production" ? ["console", "debugger"] : void 0,
+        bundle: false,
+        outbase: path.join(options.pagesDirectory, "/api"),
+        outdir: path.join(DIST_DIR, "/api"),
+        loader: {
+          ".js": "js",
+          ".ts": "ts"
+        },
+        format: "esm",
+        platform: "node",
+        keepNames: false,
+        define: {
+          "DEV": options.environment === "development" ? "true" : "false",
+          "PROD": options.environment === "development" ? "false" : "true"
+        }
+      });
     }
     const pagesTranspiled = performance.now();
     const {
@@ -775,12 +802,7 @@ var build = async () => {
         "- /" + path.relative(options.pagesDirectory, apiFile.parentPath), "(API Route)";
       }
     }
-    if (options.postCompile) {
-      log(
-        white("Calling post-compile hook..")
-      );
-      options.postCompile();
-    }
+    process.send({ event: "message", data: "compile-finish" });
     if (shouldClientHardReload) {
       console.log("Sending hard reload..");
       process.send({ event: "message", data: "hard-reload" });

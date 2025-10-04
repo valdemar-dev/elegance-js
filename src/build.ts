@@ -114,7 +114,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         
     const child = child_process.spawn("node", ["-e", code], { 
         stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
-        env: { ...process.env, DIST_DIR: DIST_DIR, OPTIONS: optionsString }
+        env: { ...process.env, DIST_DIR: DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir, }
     });
         
     child.on("error", () => {
@@ -128,6 +128,14 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
             httpStream?.write(`data: hard-reload\n\n`);
         } else if (data === "soft-reload") {
             httpStream?.write(`data: reload\n\n`);
+        } else if (data === "compile-finish") {
+            if (options.postCompile) {
+                log(
+                    white("Calling post-compile hook..")
+                )
+                
+                options.postCompile();
+            }
         }
         
         console.log("Received message from child", data);
@@ -251,6 +259,6 @@ export const compile = async (props: CompilationOptions) => {
             currentWatchers.push(watcher);
         }
     }
-
+        
     build(DIST_DIR);
 };
