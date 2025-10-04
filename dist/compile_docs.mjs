@@ -26,7 +26,7 @@ var MIME_TYPES = {
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8"
 };
-function startServer({ root, port = 3e3, host = "localhost", environment: environment2 = "production" }) {
+function startServer({ root, port = 3e3, host = "localhost", environment: environment2 = "production", quiet = false }) {
   if (!root) throw new Error("Root directory must be specified.");
   const requestHandler = async (req, res) => {
     try {
@@ -41,7 +41,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment: enviro
       if (req.method === "OPTIONS") {
         res.writeHead(204);
         res.end();
-        if (environment2 === "development") {
+        if (environment2 === "development" && quiet === false) {
           console.log(req.method, "::", req.url, "-", res.statusCode);
         }
         return;
@@ -52,7 +52,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment: enviro
       } else {
         await handleStaticRequest(root, url.pathname, res);
       }
-      if (environment2 === "development") {
+      if (environment2 === "development" && quiet === false) {
         console.log(req.method, "::", req.url, "-", res.statusCode);
       }
     } catch (err) {
@@ -349,7 +349,7 @@ var compile = async (props) => {
   const watch = options.hotReload !== void 0;
   const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
   if (!fs2.existsSync(options.outputDirectory)) {
-    fs2.mkdirSync(options.outputDirectory);
+    fs2.mkdirSync(options.outputDirectory, { recursive: true });
     fs2.writeFileSync(
       path.join(BUILD_FLAG),
       "This file just marks this directory as one containing an Elegance Build.",
@@ -362,14 +362,15 @@ var compile = async (props) => {
   }
   const DIST_DIR = path.join(props.outputDirectory, "dist");
   if (!fs2.existsSync(DIST_DIR)) {
-    fs2.mkdirSync(DIST_DIR);
+    fs2.mkdirSync(DIST_DIR, { recursive: true });
   }
   if (props.server != void 0 && props.server.runServer == true) {
     startServer({
       root: props.server.root ?? DIST_DIR,
       environment: props.environment,
       port: props.server.port ?? 3e3,
-      host: props.server.host ?? "localhost"
+      host: props.server.host ?? "localhost",
+      quiet: options.quiet
     });
   }
   if (watch) {

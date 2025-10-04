@@ -198,7 +198,7 @@ export const compile = async (props: CompilationOptions) => {
     const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
 
     if (!fs.existsSync(options.outputDirectory)) {
-        fs.mkdirSync(options.outputDirectory);
+        fs.mkdirSync(options.outputDirectory, { recursive: true, });
         
         fs.writeFileSync(
             path.join(BUILD_FLAG),
@@ -214,7 +214,7 @@ export const compile = async (props: CompilationOptions) => {
     const DIST_DIR = path.join(props.outputDirectory, "dist");
 
     if (!fs.existsSync(DIST_DIR)) {
-        fs.mkdirSync(DIST_DIR);
+        fs.mkdirSync(DIST_DIR, { recursive: true, });
     }
     
     if (props.server != undefined && props.server.runServer == true) {
@@ -223,6 +223,7 @@ export const compile = async (props: CompilationOptions) => {
             environment: props.environment,
             port: props.server.port ?? 3000,
             host: props.server.host ?? "localhost",
+            quiet: options.quiet,
         })
     }
         
