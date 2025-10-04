@@ -96,7 +96,7 @@ async function handleApiRequest(root, pathname, req, res) {
   const apiSubPath = pathname.slice("/api/".length);
   const parts = apiSubPath.split("/").filter(Boolean);
   const routeDir = join(root, pathname);
-  const routePath = join(routeDir, "route.js");
+  const routePath = join(routeDir, "route.mjs");
   let hasRoute = false;
   try {
     await fs.access(routePath);
@@ -124,7 +124,7 @@ async function handleApiRequest(root, pathname, req, res) {
   }
   const middlewares = [];
   for (const dir of middlewareDirs) {
-    const mwPath = join(dir, "middleware.js");
+    const mwPath = join(dir, "middleware.mjs");
     let mwModule;
     try {
       await fs.access(mwPath);
@@ -136,7 +136,7 @@ async function handleApiRequest(root, pathname, req, res) {
     const mwKeys = Object.keys(mwModule).sort();
     for (const key of mwKeys) {
       const f = mwModule[key];
-      if (typeof f === "function") {
+      if (typeof f === "function" && !middlewares.some((existing) => existing === f)) {
         middlewares.push(f);
       }
     }
@@ -156,7 +156,7 @@ async function handleApiRequest(root, pathname, req, res) {
 function composeMiddlewares(mws, final) {
   return async function(req, res) {
     let index = 0;
-    const dispatch = async (err) => {
+    async function dispatch(err) {
       if (err) {
         return respondWithJsonError(res, 500, err.message || "Internal Server Error");
       }
@@ -164,12 +164,24 @@ function composeMiddlewares(mws, final) {
         return await final(req, res);
       }
       const thisMw = mws[index++];
+      const next = (e) => dispatch(e);
+      const onceNext = (nextFn) => {
+        let called = false;
+        return async (e) => {
+          if (called) {
+            console.warn("next() called more than once");
+            return;
+          }
+          called = true;
+          await nextFn(e);
+        };
+      };
       try {
-        await thisMw(req, res, dispatch);
+        await thisMw(req, res, onceNext(next));
       } catch (error) {
         await dispatch(error);
       }
-    };
+    }
     await dispatch();
   };
 }

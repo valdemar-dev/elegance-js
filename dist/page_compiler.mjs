@@ -741,6 +741,7 @@ var build = async () => {
         bundle: false,
         outbase: path.join(options.pagesDirectory, "/api"),
         outdir: path.join(DIST_DIR, "/api"),
+        outExtension: { ".js": ".mjs" },
         loader: {
           ".js": "js",
           ".ts": "ts"
@@ -762,6 +763,7 @@ var build = async () => {
         bundle: false,
         outbase: path.join(options.pagesDirectory, "/api"),
         outdir: path.join(DIST_DIR, "/api"),
+        outExtension: { ".js": ".mjs" },
         loader: {
           ".js": "js",
           ".ts": "ts"
