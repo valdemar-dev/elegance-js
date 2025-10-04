@@ -64,6 +64,8 @@ const red = (text: string) => {
 };
 
 const log = (...text: string[]) => {
+    if (options.quiet === true) return;
+    
     return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
 };
 type CompilationOptions = {
@@ -72,6 +74,7 @@ type CompilationOptions = {
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
+    quiet?: boolean,
     publicDirectory?: {
         path: string,
         method: "symlink" | "recursive-copy",

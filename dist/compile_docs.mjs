@@ -259,6 +259,7 @@ var green = (text) => {
   return `\x1B[38;2;65;224;108m${text}`;
 };
 var log = (...text) => {
+  if (options.quiet === true) return;
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
 var options = process.env.OPTIONS;

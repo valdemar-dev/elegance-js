@@ -4,6 +4,7 @@ type CompilationOptions = {
     environment: "production" | "development";
     pagesDirectory: string;
     outputDirectory: string;
+    quiet?: boolean;
     publicDirectory?: {
         path: string;
         method: "symlink" | "recursive-copy";
