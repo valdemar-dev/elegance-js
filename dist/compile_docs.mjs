@@ -304,10 +304,6 @@ var runBuild = (filepath, DIST_DIR) => {
         options.postCompile();
       }
     }
-    console.log("Received message from child", data);
-  });
-  child.on("exit", (code2, signal) => {
-    console.error(`Child process exited with code ${code2} or signal ${signal}`);
   });
 };
 var build = (DIST_DIR) => {
@@ -427,7 +423,8 @@ compile({
   } : void 0,
   server: {
     runServer: environment === "development"
-  }
+  },
+  quiet: true
 }).then(() => {
   if (environment === "production") {
     execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/dist/index.css --minify`);

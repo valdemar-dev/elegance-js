@@ -287,6 +287,7 @@ var green = (text) => {
   return `\x1B[38;2;65;224;108m${text}`;
 };
 var log = (...text) => {
+  if (options.quiet) return;
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
 var options = JSON.parse(process.env.OPTIONS);
@@ -702,7 +703,7 @@ var build = async () => {
             continue;
           }
           fs.rmdirSync(dir, { recursive: true });
-          console.log("Deleted old page directory:", dir);
+          log("Deleted old page directory:", dir);
         }
       }
     }
@@ -785,7 +786,7 @@ var build = async () => {
     await buildClient(DIST_DIR);
     const end = performance.now();
     if (options.publicDirectory) {
-      console.log("Recursively copying public directory.. this may take a while.");
+      log("Recursively copying public directory.. this may take a while.");
       const src = path.relative(process.cwd(), options.publicDirectory.path);
       await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true });
     }
@@ -795,7 +796,7 @@ var build = async () => {
       log(`${Math.round(end - pagesBuilt)}ms to Build Client`);
       log(green(bold(`Compiled ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
       for (const pageFile of pageFiles) {
-        console.log(
+        log(
           "- /" + path.relative(options.pagesDirectory, pageFile.parentPath),
           "(Page)"
         );
@@ -806,10 +807,10 @@ var build = async () => {
     }
     process.send({ event: "message", data: "compile-finish" });
     if (shouldClientHardReload) {
-      console.log("Sending hard reload..");
+      log("Sending hard reload..");
       process.send({ event: "message", data: "hard-reload" });
     } else {
-      console.log("Sending soft reload..");
+      log("Sending soft reload..");
       process.send({ event: "message", data: "soft-reload" });
     }
   } catch (e) {

@@ -62,6 +62,8 @@ const red = (text: string) => {
 };
 
 const log = (...text: string[]) => {
+    if (options.quiet) return;
+    
     return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
 };
 
@@ -85,7 +87,8 @@ type CompilationOptions = {
     hotReload?: {
         port: number,
         hostname: string,
-    }
+    },
+    quiet: boolean;
 }
 
 let options: CompilationOptions = JSON.parse(process.env.OPTIONS as string);
@@ -751,7 +754,7 @@ const build = async (): Promise<boolean> => {
                 
                 fs.rmdirSync(dir, { recursive: true, })
                 
-                console.log("Deleted old page directory:", dir);
+                log("Deleted old page directory:", dir);
             }
         }
     }
@@ -845,7 +848,7 @@ const build = async (): Promise<boolean> => {
     const end = performance.now();
 
     if (options.publicDirectory) {
-        console.log("Recursively copying public directory.. this may take a while.")
+        log("Recursively copying public directory.. this may take a while.")
 
         const src = path.relative(process.cwd(), options.publicDirectory.path)
 
@@ -860,7 +863,7 @@ const build = async (): Promise<boolean> => {
         log(green(bold((`Compiled ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
         
         for (const pageFile of pageFiles) {
-            console.log(
+            log(
                 "- /" + path.relative(options.pagesDirectory, pageFile.parentPath), "(Page)"
             )
         }
@@ -873,10 +876,10 @@ const build = async (): Promise<boolean> => {
     process.send!({ event: "message", data: "compile-finish", });
 
     if (shouldClientHardReload) {
-        console.log("Sending hard reload..");
+        log("Sending hard reload..");
         process.send!({ event: "message", data: "hard-reload", })
     } else {
-        console.log("Sending soft reload..");
+        log("Sending soft reload..");
         process.send!({ event: "message", data: "soft-reload", })
     }
     

@@ -32,6 +32,7 @@ compile({
     server: {
         runServer: environment === "development",
     },
+    quiet: true,
 }).then(() => {
     if (environment === "production") {
         execSync(`npx @tailwindcss/cli -i ${PAGES_DIR}/index.css -o ${OUTPUT_DIR}/dist/index.css --minify`)

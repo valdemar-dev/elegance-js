@@ -140,12 +140,6 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
                 options.postCompile();
             }
         }
-        
-        console.log("Received message from child", data);
-    });
-    
-    child.on('exit', (code, signal) => {
-        console.error(`Child process exited with code ${code} or signal ${signal}`);
     });
 };
 
