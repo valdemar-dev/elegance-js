@@ -788,6 +788,10 @@ var build = async () => {
     if (options.publicDirectory) {
       log("Recursively copying public directory.. this may take a while.");
       const src = path.relative(process.cwd(), options.publicDirectory.path);
+      if (fs.existsSync(src) === false) {
+        console.warn("WARNING: Public directory not found, an attempt will be made create it..");
+        fs.mkdirSync(src, { recursive: true });
+      }
       await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true });
     }
     {

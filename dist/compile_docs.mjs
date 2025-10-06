@@ -414,8 +414,7 @@ compile({
   outputDirectory: OUTPUT_DIR,
   environment,
   publicDirectory: {
-    path: PUBLIC_DIR,
-    method: environment === "production" ? "recursive-copy" : "symlink"
+    path: PUBLIC_DIR
   },
   hotReload: environment === "development" ? {
     port: 3001,

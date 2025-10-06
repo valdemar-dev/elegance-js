@@ -23,7 +23,6 @@ compile({
     environment: environment as "production" | "development",
     publicDirectory: {
         path: PUBLIC_DIR,
-        method: environment === "production" ? "recursive-copy" : "symlink",
     },
     hotReload: environment === "development" ? {
         port: 3001,

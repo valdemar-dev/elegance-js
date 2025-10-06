@@ -7,7 +7,6 @@ type CompilationOptions = {
     quiet?: boolean;
     publicDirectory?: {
         path: string;
-        method: "symlink" | "recursive-copy";
     };
     server?: {
         runServer: boolean;
