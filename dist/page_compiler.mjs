@@ -666,19 +666,16 @@ var build = async () => {
       const externalPackagesPlugin = {
         name: "external-packages",
         setup(build2) {
-          build2.onResolve({ filter: /^[^./]/ }, async (args) => {
-            if (args.path[0] === "." || args.path[0] === "/") {
-              return;
-            }
-            const resolved = await build2.resolve(args.path, {
-              kind: args.kind,
-              resolveDir: args.resolveDir,
-              importer: args.importer
-            });
-            if (resolved.path && /\/node_modules\//.test(resolved.path)) {
+          build2.onResolve({ filter: /^[^./]/ }, (args) => {
+            const fileUrl = import.meta.resolve(args.path);
+            if (fileUrl.startsWith("node:")) {
               return { path: args.path, external: true };
             }
-            return resolved;
+            const resolvedPath = fileURLToPath(fileUrl);
+            if (resolvedPath.includes(`node_modules`)) {
+              return { path: resolvedPath, external: true };
+            }
+            return { path: resolvedPath };
           });
         }
       };
@@ -699,6 +696,7 @@ var build = async () => {
           "PROD": options.environment === "development" ? "false" : "true"
         }
       });
+      console.log("built files");
     }
     const pagesTranspiled = performance.now();
     const {
@@ -723,6 +721,7 @@ var build = async () => {
       log(green(bold(`Compiled ${projectFiles.length} files in ${Math.ceil(end - start)}ms!`)));
     }
     process.send({ event: "message", data: "compile-finish" });
+    console.log("BUILD FINISHED");
     if (shouldClientHardReload) {
       log("Sending hard reload..");
       process.send({ event: "message", data: "hard-reload" });

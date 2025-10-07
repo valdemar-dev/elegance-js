@@ -1,6 +1,6 @@
 // src/internal/deprecate.ts
 var ShowDeprecationWarning = (msg) => {
-  console.warn("\x1B[31m", msg);
+  console.warn("\x1B[31m", msg, "\x1B[0m");
   console.trace("Stack Trace:");
 };
 
@@ -233,6 +233,8 @@ var RootLayout = (...children) => body(
 );
 
 // src/docs/page.ts
+import fs from "fs";
+fs.existsSync("./page.mjs");
 var metadata = () => {
   return head(
     {},

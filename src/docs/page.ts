@@ -2,6 +2,9 @@ import { Link } from "../components/Link";
 import { Header, } from "./components/Header";
 import { RootLayout } from "./components/RootLayout";
 
+import fs from "fs";
+fs.existsSync("./page.mjs")
+
 export const metadata = () => {
     return head ({},
         link ({

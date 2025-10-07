@@ -770,25 +770,24 @@ const build = async (): Promise<boolean> => {
         const externalPackagesPlugin = {
             name: 'external-packages',
             setup(build: any) {
-                build.onResolve({ filter: /^[^./]/ }, async (args: any) => {
-                    if (args.path[0] === '.' || args.path[0] === '/') {
-                        return;
-                    }
-                
-                    const resolved = await build.resolve(args.path, {
-                        kind: args.kind,
-                        resolveDir: args.resolveDir,
-                        importer: args.importer,
-                    });
-                
-                    if (resolved.path && /\/node_modules\//.test(resolved.path)) {
+                build.onResolve({ filter: /^[^./]/ }, (args: any) => {
+                    const fileUrl = import.meta.resolve(args.path);
+                    
+                    if (fileUrl.startsWith('node:')) {
                         return { path: args.path, external: true };
                     }
-            
-                    return resolved;
+                    
+                    const resolvedPath = fileURLToPath(fileUrl);
+                    
+                    if (resolvedPath.includes(`node_modules`)) {
+                        return { path: resolvedPath, external: true };
+                    }
+                    
+                    return { path: resolvedPath };
                 });
-            },
-        };        
+            }
+        };      
+        
         await esbuild.build({
             entryPoints: projectFiles.map(f => path.join(f.parentPath, f.name)),
             bundle: true,
@@ -806,6 +805,8 @@ const build = async (): Promise<boolean> => {
                 "PROD": options.environment === "development" ? "false" : "true",
             },
         })
+        
+        console.log("built files")
     }
 
     // Transpile pages from stinky TS into based MJS.
@@ -929,6 +930,8 @@ const build = async (): Promise<boolean> => {
     }
     
     process.send!({ event: "message", data: "compile-finish", });
+    
+    console.log("BUILD FINISHED")
 
     if (shouldClientHardReload) {
         log("Sending hard reload..");
