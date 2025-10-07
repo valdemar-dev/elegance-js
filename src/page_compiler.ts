@@ -769,10 +769,10 @@ const build = async (): Promise<boolean> => {
     const recursionFlag = Symbol("external-node-modules-recursion");
     
     {
-        const externalPackagesPlugin = {
+        const externalPackagesPlugin: esbuild.Plugin = {
             name: 'external-packages',
             setup(build: esbuild.PluginBuild) {
-                build.onResolve({ filter: /^[^./]/ }, async (args: any) => {
+                build.onResolve({ filter: /^[^./]/ }, async (args) => {
                     if (args.pluginData?.[recursionFlag]) {
                         return;
                     }
@@ -780,21 +780,22 @@ const build = async (): Promise<boolean> => {
                     const result = await build.resolve(args.path, {
                         resolveDir: args.resolveDir,
                         kind: args.kind,
+                        importer: args.importer,
                         pluginData: { [recursionFlag]: true },
                     });
                 
                     if (result.errors.length > 0 || result.external || !result.path) {
-                        return result;
+                        return { path: args.path, external: true, };
                     }
                 
-                    const nodeModulesIndex = result.path.indexOf('/node_modules/');
+                    const nodeModulesIndex = result.path.indexOf('node_modules');
                     if (nodeModulesIndex === -1) {
                         return result;
                     }
                 
-                    const isNested = result.path.includes('/node_modules/', nodeModulesIndex + 14);
+                    const isNested = result.path.includes('node_modules', nodeModulesIndex + 14);
                     if (isNested) {
-                        return result;
+                        return { path: args.path, external: true, };
                     }
                     
                     return { path: args.path, external: true };

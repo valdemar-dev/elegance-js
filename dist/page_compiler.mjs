@@ -674,8 +674,9 @@ var build = async () => {
             const result = await build2.resolve(args.path, {
               resolveDir: args.resolveDir,
               kind: args.kind,
+              importer: args.importer,
               pluginData: { [recursionFlag]: true }
-            });
+            }).catch();
             if (result.errors.length > 0 || result.external || !result.path) {
               return result;
             }
