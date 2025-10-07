@@ -766,24 +766,38 @@ const build = async (): Promise<boolean> => {
 
     const start = performance.now();
     
+    const recursionFlag = Symbol("external-node-modules-recursion");
+    
     {
         const externalPackagesPlugin = {
             name: 'external-packages',
-            setup(build: any) {
-                build.onResolve({ filter: /^[^./]/ }, (args: any) => {
-                    const fileUrl = import.meta.resolve(args.path);
-                    
-                    if (fileUrl.startsWith('node:')) {
-                        return { path: args.path, external: true };
+            setup(build: esbuild.PluginBuild) {
+                build.onResolve({ filter: /^[^./]/ }, async (args: any) => {
+                    if (args.pluginData?.[recursionFlag]) {
+                        return;
+                    }
+                
+                    const result = await build.resolve(args.path, {
+                        resolveDir: args.resolveDir,
+                        kind: args.kind,
+                        pluginData: { [recursionFlag]: true },
+                    });
+                
+                    if (result.errors.length > 0 || result.external || !result.path) {
+                        return result;
+                    }
+                
+                    const nodeModulesIndex = result.path.indexOf('/node_modules/');
+                    if (nodeModulesIndex === -1) {
+                        return result;
+                    }
+                
+                    const isNested = result.path.includes('/node_modules/', nodeModulesIndex + 14);
+                    if (isNested) {
+                        return result;
                     }
                     
-                    const resolvedPath = fileURLToPath(fileUrl);
-                    
-                    if (resolvedPath.includes(`node_modules`)) {
-                        return { path: resolvedPath, external: true };
-                    }
-                    
-                    return { path: resolvedPath };
+                    return { path: args.path, external: true };
                 });
             }
         };      

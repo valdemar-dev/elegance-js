@@ -662,20 +662,32 @@ var build = async () => {
     }
     const projectFiles = getProjectFiles(options.pagesDirectory);
     const start = performance.now();
+    const recursionFlag = Symbol("external-node-modules-recursion");
     {
       const externalPackagesPlugin = {
         name: "external-packages",
         setup(build2) {
-          build2.onResolve({ filter: /^[^./]/ }, (args) => {
-            const fileUrl = import.meta.resolve(args.path);
-            if (fileUrl.startsWith("node:")) {
-              return { path: args.path, external: true };
+          build2.onResolve({ filter: /^[^./]/ }, async (args) => {
+            if (args.pluginData?.[recursionFlag]) {
+              return;
             }
-            const resolvedPath = fileURLToPath(fileUrl);
-            if (resolvedPath.includes(`node_modules`)) {
-              return { path: resolvedPath, external: true };
+            const result = await build2.resolve(args.path, {
+              resolveDir: args.resolveDir,
+              kind: args.kind,
+              pluginData: { [recursionFlag]: true }
+            });
+            if (result.errors.length > 0 || result.external || !result.path) {
+              return result;
             }
-            return { path: resolvedPath };
+            const nodeModulesIndex = result.path.indexOf("/node_modules/");
+            if (nodeModulesIndex === -1) {
+              return result;
+            }
+            const isNested = result.path.includes("/node_modules/", nodeModulesIndex + 14);
+            if (isNested) {
+              return result;
+            }
+            return { path: args.path, external: true };
           });
         }
       };
