@@ -50,7 +50,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment: enviro
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(root, url.pathname, req, res);
       } else {
-        await handleStaticRequest(root, url.pathname, res);
+        await handleStaticRequest(root, url.pathname, req, res);
       }
       if (environment2 === "development" && quiet === false) {
         console.log(req.method, "::", req.url, "-", res.statusCode);
@@ -77,7 +77,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment: enviro
   }
   return attemptListen(port);
 }
-async function handleStaticRequest(root, pathname, res) {
+async function handleStaticRequest(root, pathname, req, res) {
   let filePath = normalize(join(root, decodeURIComponent(pathname)));
   root = normalize(root);
   if (!filePath.startsWith(root)) {
@@ -85,22 +85,62 @@ async function handleStaticRequest(root, pathname, res) {
     res.end("Forbidden");
     return;
   }
+  let stats;
   try {
-    const stats = await fs.stat(filePath);
+    stats = await fs.stat(filePath);
     if (stats.isDirectory()) {
       filePath = join(filePath, "index.html");
     }
   } catch {
   }
+  let hasFile = false;
   try {
+    await fs.access(filePath);
+    hasFile = true;
+  } catch {
+  }
+  const pageDir = dirname(filePath);
+  const relDir = pageDir.slice(root.length).replace(/^[\/\\]+/, "");
+  const parts = relDir.split(/[\\/]/).filter(Boolean);
+  const middlewareDirs = [];
+  let current = root;
+  middlewareDirs.push(current);
+  for (const part of parts) {
+    current = join(current, part);
+    middlewareDirs.push(current);
+  }
+  const middlewares = [];
+  for (const dir of middlewareDirs) {
+    const mwPath = join(dir, "middleware.mjs");
+    let mwModule;
+    try {
+      await fs.access(mwPath);
+      const url = pathToFileURL(mwPath).href;
+      mwModule = await import(url);
+    } catch {
+      continue;
+    }
+    const mwKeys = Object.keys(mwModule).sort();
+    for (const key of mwKeys) {
+      const f = mwModule[key];
+      if (typeof f === "function" && !middlewares.some((existing) => existing === f)) {
+        middlewares.push(f);
+      }
+    }
+  }
+  const finalHandler = async (req2, res2) => {
+    if (!hasFile) {
+      await respondWithErrorPage(root, pathname, 404, res2);
+      return;
+    }
     const ext = extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
     const data = await fs.readFile(filePath);
-    res.writeHead(200, { "Content-Type": contentType });
-    res.end(data);
-  } catch {
-    await respondWithErrorPage(root, pathname, 404, res);
-  }
+    res2.writeHead(200, { "Content-Type": contentType });
+    res2.end(data);
+  };
+  const composed = composeMiddlewares(middlewares, finalHandler);
+  await composed(req, res);
 }
 async function handleApiRequest(root, pathname, req, res) {
   const apiSubPath = pathname.slice("/api/".length);

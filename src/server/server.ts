@@ -56,7 +56,7 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
             if (url.pathname.startsWith('/api/')) {
                 await handleApiRequest(root, url.pathname, req, res);
             } else {
-                await handleStaticRequest(root, url.pathname, res);
+                await handleStaticRequest(root, url.pathname, req, res);
             }
 
             if (environment === 'development' && quiet === false) {
@@ -91,7 +91,7 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
 }
 
 
-async function handleStaticRequest(root: string, pathname: string, res: ServerResponse) {
+async function handleStaticRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse) {
     let filePath = normalize(join(root, decodeURIComponent(pathname)));
     root = normalize(root);
 
@@ -101,61 +101,32 @@ async function handleStaticRequest(root: string, pathname: string, res: ServerRe
         return;
     }
 
+    let stats;
     try {
-        const stats = await fs.stat(filePath);
+        stats = await fs.stat(filePath);
         if (stats.isDirectory()) {
             filePath = join(filePath, 'index.html');
         }
     } catch {}
 
+    let hasFile = false;
     try {
-        const ext = extname(filePath).toLowerCase();
-        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-        
-        const data = await fs.readFile(filePath);
-        
-        res.writeHead(200, { 'Content-Type': contentType });
-        res.end(data);
-    } catch {
-        await respondWithErrorPage(root, pathname, 404, res);
-    }
-}
-
-async function handleApiRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse) {
-    const apiSubPath = pathname.slice('/api/'.length);
-    const parts = apiSubPath.split('/').filter(Boolean);
-    const routeDir = join(root, pathname);
-    const routePath = join(routeDir, 'route.mjs');
-
-    let hasRoute = false;
-    try {
-        await fs.access(routePath);
-        hasRoute = true;
+        await fs.access(filePath);
+        hasFile = true;
     } catch {}
 
-    let fn = null;
-    let module: any = null;
-    if (hasRoute) {
-        try {
-            const moduleUrl = pathToFileURL(routePath).href;
-            module = await import(moduleUrl);
-            fn = module[req.method as keyof typeof module];
-        } catch (err) {
-            console.error(err);
-            return respondWithJsonError(res, 500, 'Internal Server Error');
-        }
-    }
+    const pageDir = dirname(filePath);
+    const relDir = pageDir.slice(root.length).replace(/^[\/\\]+/, '');
+    const parts = relDir.split(/[\\/]/).filter(Boolean);
 
-    // Collect middleware directories from root api to the specific route dir
     const middlewareDirs: string[] = [];
-    let current = join(root, 'api');
+    let current = root;
     middlewareDirs.push(current);
     for (const part of parts) {
         current = join(current, part);
         middlewareDirs.push(current);
     }
 
-    // Collect all middleware functions
     const middlewares: ((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[] = [];
     for (const dir of middlewareDirs) {
         const mwPath = join(dir, 'middleware.mjs');
@@ -177,7 +148,86 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
         }
     }
 
-    // Define final handler
+    const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
+        if (!hasFile) {
+            await respondWithErrorPage(root, pathname, 404, res);
+            return;
+        }
+
+        const ext = extname(filePath).toLowerCase();
+        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+        
+        const data = await fs.readFile(filePath);
+        
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(data);
+    };
+
+    const composed = composeMiddlewares(middlewares, finalHandler);
+    await composed(req, res);
+}
+
+async function handleApiRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse) {
+    const apiSubPath = pathname.slice('/api/'.length);
+    const parts = apiSubPath.split('/').filter(Boolean);
+    const routeDir = join(root, pathname);
+    const routePath = join(routeDir, 'route.mjs');
+
+    let hasRoute = false;
+    
+    try {
+        await fs.access(routePath);
+        
+        hasRoute = true;
+    } catch {}
+
+    let fn = null;
+    let module: any = null;
+    
+    if (hasRoute) {
+        try {
+            const moduleUrl = pathToFileURL(routePath).href;
+            
+            module = await import(moduleUrl);
+            fn = module[req.method as keyof typeof module];
+        } catch (err) {
+            console.error(err);
+            
+            return respondWithJsonError(res, 500, 'Internal Server Error');
+        }
+    }
+    
+    const middlewareDirs: string[] = [];
+    let current = join(root, 'api');
+    
+    middlewareDirs.push(current);
+    
+    for (const part of parts) {
+        current = join(current, part);
+        middlewareDirs.push(current);
+    }
+
+    const middlewares: ((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[] = [];
+    for (const dir of middlewareDirs) {
+        const mwPath = join(dir, 'middleware.mjs');
+        let mwModule;
+        try {
+            await fs.access(mwPath);
+            const url = pathToFileURL(mwPath).href;
+            mwModule = await import(url);
+        } catch {
+            continue;
+        }
+
+        const mwKeys = Object.keys(mwModule).sort();
+        for (const key of mwKeys) {
+            const f = mwModule[key];
+            if (typeof f === 'function' && !middlewares.some(existing => existing === f)) {
+                middlewares.push(f);
+            }
+        }
+    }
+
     const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
         if (!hasRoute) {
             return respondWithJsonError(res, 404, 'Not Found');
@@ -188,7 +238,6 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
         await fn(req, res);
     };
 
-    // Compose and run middlewares
     const composed = composeMiddlewares(middlewares, finalHandler);
     await composed(req, res);
 }
