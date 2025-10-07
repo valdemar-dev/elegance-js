@@ -119,6 +119,7 @@ const getFile = (dir: Array<Dirent>, fileName: string) => {
 }
 
 const getProjectFiles = (pagesDirectory: string,) => {
+    /*
     const pageFiles = [];
     const apiFiles = [];
     const middlewareFiles = [];
@@ -133,7 +134,7 @@ const getProjectFiles = (pagesDirectory: string,) => {
             .filter(f => f.name.endsWith(".ts"));
             
         for (const file of subdirectoryFiles) {
-            if (file.name === "route.ts") {
+            if (file.name === "route.ts" || subdirectory.startsWith("/api")) {
                 apiFiles.push(file);
                 
                 continue
@@ -166,6 +167,25 @@ const getProjectFiles = (pagesDirectory: string,) => {
         apiFiles,
         middlewareFiles,
     };
+    */
+    
+    const files = [];
+    
+    const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
+
+    for (const subdirectory of subdirectories) {
+    
+        const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
+
+        const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
+            .filter(f => f.name.endsWith(".ts"));
+            
+        for (const file of subdirectoryFiles) {
+            files.push(file);
+        }
+    }
+    
+    return files;
 };
 
 const buildClient = async (
@@ -607,29 +627,18 @@ const buildPages = async (
         const abs = path.resolve(path.join(DIST_DIR, directory))
         
         const files = fs.readdirSync(abs, { withFileTypes: true, })
-            .filter(f => f.name.endsWith(".js"))
+            .filter(f => f.name.endsWith(".mjs"))
         
         for (const file of files) {
             const filePath = path.join(file.parentPath, file.name);
             
-            const name = file.name.slice(0, file.name.length - 3);
+            const name = file.name.slice(0, file.name.length - 4);
             
-            // hack to get around caching
-            const tempPath = file.parentPath + "/" + Date.now().toString() + ".mjs";
+            const isPage = file.name.includes("page");
             
-            await fs.promises.copyFile(filePath, tempPath);
-            
-            const bytes = fs.readFileSync(tempPath);
-            
-            const isPage = bytes.toString().startsWith("//__ELEGANCE_JS_PAGE_MARKER__")
-            
-            if (isPage == false) {
-                fs.rmSync(tempPath, { force: true, });
-                
+            if (isPage == false) {                
                 continue;
-            }
-            
-            fs.rmSync(filePath, { force: true, });
+            }            
 
             initializeState();
             initializeObjectAttributes();
@@ -642,17 +651,13 @@ const buildPages = async (
                 const {
                     page,
                     metadata: pageMetadata,
-                } = await import("file://" + tempPath);
+                } = await import("file://" + filePath);
                 
                 pageElements = page;
                 metadata = pageMetadata;
             } catch(e) {
-                fs.rmSync(tempPath, { force: true, });
-                
                 throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`);
             }
-            
-            fs.rmSync(tempPath, { force: true, });
             
             if (
                 !metadata ||
@@ -731,10 +736,11 @@ const build = async (): Promise<boolean> => {
         options.preCompile();
     }
     
-    const { pageFiles, apiFiles, middlewareFiles } = getProjectFiles(options.pagesDirectory);
+    const projectFiles = getProjectFiles(options.pagesDirectory);
     
     // perform cleanup from prev build
-    {
+    // todo: re-implement this.
+    /*{
         const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
     
         // removes old pages that no longer-exist.
@@ -756,12 +762,42 @@ const build = async (): Promise<boolean> => {
                 log("Deleted old page directory:", dir);
             }
         }
-    }
+    }*/
 
     const start = performance.now();
+    
+    {
+        const externalBareImportsPlugin = {
+            name: "external-bare-imports",
+            setup(build: any) {
+                build.onResolve({ filter: /^[^./]/ }, (args: any) => {
+                    return { path: args.path, external: true };
+                });
+            },
+        };
+        
+        await esbuild.build({
+            entryPoints: projectFiles.map(f => path.join(f.parentPath, f.name)),
+            bundle: true,
+            outdir: DIST_DIR,
+            outExtension: { ".js": ".mjs", },
+            plugins: [externalBareImportsPlugin],
+            loader: {
+                ".ts": "ts",
+            },
+            format: "esm",
+            platform: "node",
+            keepNames: false,
+            define: {
+                "DEV": options.environment === "development" ? "true" : "false",
+                "PROD": options.environment === "development" ? "false" : "true",
+            },
+        })
+    }
 
     // Transpile pages from stinky TS into based MJS.
-    {
+    // this is old, don't touch it.
+    /*{
         await esbuild.build({
             entryPoints: [
                 ...pageFiles.map(page => path.join(page.parentPath, page.name)),
@@ -770,6 +806,7 @@ const build = async (): Promise<boolean> => {
             drop: options.environment === "production" ? ["console", "debugger"] : undefined,
             bundle: true,
             outdir: DIST_DIR,
+            outExtension: { ".js": ".mjs", },
             loader: {
                 ".js": "js",
                 ".ts": "ts",
@@ -832,7 +869,7 @@ const build = async (): Promise<boolean> => {
                 "PROD": options.environment === "development" ? "false" : "true",
             },
         });
-    }
+    }*/
 
     const pagesTranspiled = performance.now();
     
@@ -863,8 +900,9 @@ const build = async (): Promise<boolean> => {
         log(`${Math.round(pagesBuilt-pagesTranspiled)}ms to Build Pages`)
         log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
         
-        log(green(bold((`Compiled ${pageFiles.length} pages in ${Math.ceil(end-start)}ms!`))));
+        log(green(bold((`Compiled ${projectFiles.length} files in ${Math.ceil(end-start)}ms!`))));
         
+        /*
         for (const pageFile of pageFiles) {
             log(
                 "- /" + path.relative(options.pagesDirectory, pageFile.parentPath), "(Page)"
@@ -874,6 +912,7 @@ const build = async (): Promise<boolean> => {
         for (const apiFile of apiFiles) {
             "- /" + path.relative(options.pagesDirectory, apiFile.parentPath), "(API Route)"
         }
+        */
     }
     
     process.send!({ event: "message", data: "compile-finish", });

@@ -1,0 +1,32 @@
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8"><script data-tag="true" type="module" src="/page._data.js" defer="true"></script><script stype="module" src="/client.js" defer="true"></script><link rel="stylesheet" href="/index.css"/><title></title></head><body class="bg-background-900 text-text-50 font-inter select-none text-text-50"><header class="sticky z-10 lef-0 right-0 top-0 text-text-50 font-inter overflow-hidden duration-300 border-b-[1px] border-b-transparent"><div key="1" class="group duration-300 border-b-[1px] hover:border-b-transparent pointer-fine:hover:bg-accent-400 bg-background-900 border-b-transparent"><div class="max-w-[900px] w-full mx-auto flex pr-2 px-3 sm:px-5 sm:min-[calc(900px+1rem)]:px-0"><div class="flex min-w-max w-full items-center z-10"><a href="/" class="flex items-center gap-1 h-full" key="2"><p class="font-niconne pointer-fine:group-hover:text-background-950 font-bold text-xl sm:text-3xl relative top-0 z-20 duration-300 pointer-events-none">Elegance</p><p class="font-bold pointer-fine:group-hover:text-background-950 relative top-0 text-xl sm:text-3xl z-10 text-accent-400 duration-300 pointer-events-none">JS</p></a></div><div class="flex py-2 sm:py-4 flex relative items-center justify-end w-full"><a prefetch="hover" class="z-10 text-xs uppercase font-bold px-4 py-2 rounded-full duration-300 bg-accent-400 text-primary-900 pointer-fine:group-hover:bg-background-950 pointer-fine:group-hover:text-accent-400 group-hover:hover:bg-text-50 group-hover:hover:text-background-950" href="/docs/basics" key="3">Docs</a></div></div></div></header><div class="max-w-[900px] w-full mx-auto pt-4 px-2"><div class="text-center px-4 pt-8 mb-12 sm:mb-20"><div class="text-3xl md:text-4xl lg:text-5xl font-bold font-inter mb-4"><span>Your site doesn't</span><span> need </span><span>to be slow.</span></div><p class="text-xs sm:text-sm text-text-100">Nor should you depend on <b class="hover:text-red-400">1314</b> packages to display <b>"Hello World"</b>.</p></div><p class="text-base sm:text-xl text-center"><span>Elegance gives you</span><span class="bg-gradient-to-r font-bold from-red-400 to-orange-400 bg-clip-text text-transparent"> performance, </span><span class="bg-gradient-to-r font-bold from-blue-400 to-green-400 bg-clip-text text-transparent">state-of-the-art features</span><span> and </span><span class="font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">syntaxical sugar, </span><span class="">whilst leaving <b>you</b> in full control of how your site works.</span></p><div class="mt-6 bg-background-950 p-4 rounded-md mb-8 sm:mb-20"><div><h2 class="text-sm sm:text-base text-text-200">/pages/page.ts</h2></div><pre class="text-xs sm:text-sm font-mono select-text overflow-x-scroll w-full">
+<span class="text-orange-300">const</span> variables = <span class="text-orange-400">createState</span>({
+    <span class="text-orange-200">counter</span>: 0,
+});
+
+<span class="text-orange-300">const</span> functions = <span class="text-orange-400">createState</span>({
+    increment: <span class="text-orange-400">eventListener</span>(
+        [variables.<span class="text-orange-200">counter</span>],
+        (<span class="text-orange-200">event</span>, <span class="text-orange-200">counter</span>) => {
+            <span class="text-orange-200">counter</span>.value++;
+            <span class="text-orange-200">counter</span>.<span class="text-orange-400">signal</span>();
+        }
+    ),
+});
+
+<span class="text-red-400">export</span> <span class="text-orange-300">const</span> page = <span class="text-orange-400">body</span> ({
+    <span class="text-orange-200">class</span>: <span class="text-green-400">"bg-black text-white"</span>,
+},
+    <span class="text-orange-400">p</span> ({
+        <span class="text-orange-200">innerText</span>: observe(
+            [variables.<span class="text-orange-200">counter</span>],
+            (value) => <span class="text-green-400">`The Counter is at: ${value}`</span>,
+        )
+    }),
+
+    <span class="text-orange-400">button</span> ({
+        <span class="text-orange-200">onClick</span>: functions.increment,
+    },
+        <span class="text-green-400">"Increment Counter"</span>,
+    ),
+);
+</pre></div></div><div class="max-w-[900px] w-full mx-auto px-4 pb-64 flex flex-col gap-4 items-start  sm:items-center sm:flex-row sm:justify-between"><div><h2 class="text-xl sm:text-3xl font-bold">Learn More</h2><p>Interested? Read our Docs on how Elegance works.</p></div><a class="text-base sm:text-lg uppercase font-bold text-background-950 font-semibold px-5 sm:px-6 py-2 sm:py-3 rounded-full bg-accent-400" href="/docs/basics" key="4">documentation</a></div></body></html>

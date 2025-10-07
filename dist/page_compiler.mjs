@@ -306,39 +306,16 @@ var getAllSubdirectories = (dir, baseDir = dir) => {
   return directories;
 };
 var getProjectFiles = (pagesDirectory) => {
-  const pageFiles = [];
-  const apiFiles = [];
-  const middlewareFiles = [];
+  const files = [];
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   for (const subdirectory of subdirectories) {
     const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
     const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
     for (const file of subdirectoryFiles) {
-      if (file.name === "route.ts") {
-        apiFiles.push(file);
-        continue;
-      } else if (file.name === "page.ts") {
-        pageFiles.push(file);
-        continue;
-      } else if (file.name === "middleware.ts") {
-        middlewareFiles.push(file);
-        continue;
-      }
-      const name = file.name.slice(0, file.name.length - 3);
-      const numberName = parseInt(name);
-      if (isNaN(numberName) === false) {
-        if (numberName >= 400 && numberName <= 599) {
-          pageFiles.push(file);
-          continue;
-        }
-      }
+      files.push(file);
     }
   }
-  return {
-    pageFiles,
-    apiFiles,
-    middlewareFiles
-  };
+  return files;
 };
 var buildClient = async (DIST_DIR2) => {
   let clientString = "window.__name = (func) => func; ";
@@ -600,19 +577,14 @@ var buildPages = async (DIST_DIR2) => {
   let shouldClientHardReload = false;
   for (const directory of subdirectories) {
     const abs = path.resolve(path.join(DIST_DIR2, directory));
-    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".js"));
+    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".mjs"));
     for (const file of files) {
       const filePath = path.join(file.parentPath, file.name);
-      const name = file.name.slice(0, file.name.length - 3);
-      const tempPath = file.parentPath + "/" + Date.now().toString() + ".mjs";
-      await fs.promises.copyFile(filePath, tempPath);
-      const bytes = fs.readFileSync(tempPath);
-      const isPage = bytes.toString().startsWith("//__ELEGANCE_JS_PAGE_MARKER__");
+      const name = file.name.slice(0, file.name.length - 4);
+      const isPage = file.name.includes("page");
       if (isPage == false) {
-        fs.rmSync(tempPath, { force: true });
         continue;
       }
-      fs.rmSync(filePath, { force: true });
       initializeState();
       initializeObjectAttributes();
       resetLoadHooks();
@@ -622,14 +594,12 @@ var buildPages = async (DIST_DIR2) => {
         const {
           page,
           metadata: pageMetadata
-        } = await import("file://" + tempPath);
+        } = await import("file://" + filePath);
         pageElements = page;
         metadata = pageMetadata;
       } catch (e) {
-        fs.rmSync(tempPath, { force: true });
         throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`);
       }
-      fs.rmSync(tempPath, { force: true });
       if (!metadata || metadata && typeof metadata !== "function") {
         console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
       }
@@ -690,83 +660,24 @@ var build = async () => {
       );
       options.preCompile();
     }
-    const { pageFiles, apiFiles, middlewareFiles } = getProjectFiles(options.pagesDirectory);
-    {
-      const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
-      for (const page of existingCompiledPages) {
-        const pageFile = pageFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
-        const apiFile = apiFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
-        const middlewareFile = middlewareFiles.find((dir) => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
-        if (!pageFile && !apiFile && !middlewareFile) {
-          const dir = path.join(DIST_DIR, page);
-          if (fs.existsSync(dir) === false) {
-            continue;
-          }
-          fs.rmdirSync(dir, { recursive: true });
-          log("Deleted old page directory:", dir);
-        }
-      }
-    }
+    const projectFiles = getProjectFiles(options.pagesDirectory);
     const start = performance.now();
     {
+      const externalBareImportsPlugin = {
+        name: "external-bare-imports",
+        setup(build2) {
+          build2.onResolve({ filter: /^[^./]/ }, (args) => {
+            return { path: args.path, external: true };
+          });
+        }
+      };
       await esbuild.build({
-        entryPoints: [
-          ...pageFiles.map((page) => path.join(page.parentPath, page.name))
-        ],
-        minify: options.environment === "production",
-        drop: options.environment === "production" ? ["console", "debugger"] : void 0,
+        entryPoints: projectFiles.map((f) => path.join(f.parentPath, f.name)),
         bundle: true,
         outdir: DIST_DIR,
-        loader: {
-          ".js": "js",
-          ".ts": "ts"
-        },
-        format: "esm",
-        platform: "node",
-        keepNames: false,
-        banner: {
-          js: "//__ELEGANCE_JS_PAGE_MARKER__"
-        },
-        define: {
-          "DEV": options.environment === "development" ? "true" : "false",
-          "PROD": options.environment === "development" ? "false" : "true"
-        },
-        external: ["fs"]
-      });
-      await esbuild.build({
-        entryPoints: [
-          ...apiFiles.map((route) => path.join(route.parentPath, route.name))
-        ],
-        minify: options.environment === "production",
-        drop: options.environment === "production" ? ["console", "debugger"] : void 0,
-        bundle: false,
-        outbase: path.join(options.pagesDirectory, "/api"),
-        outdir: path.join(DIST_DIR, "/api"),
         outExtension: { ".js": ".mjs" },
+        plugins: [externalBareImportsPlugin],
         loader: {
-          ".js": "js",
-          ".ts": "ts"
-        },
-        format: "esm",
-        platform: "node",
-        keepNames: false,
-        define: {
-          "DEV": options.environment === "development" ? "true" : "false",
-          "PROD": options.environment === "development" ? "false" : "true"
-        }
-      });
-      await esbuild.build({
-        entryPoints: [
-          ...middlewareFiles.map((route) => path.join(route.parentPath, route.name))
-        ],
-        minify: options.environment === "production",
-        drop: options.environment === "production" ? ["console", "debugger"] : void 0,
-        bundle: false,
-        outbase: path.join(options.pagesDirectory, "/api"),
-        outdir: path.join(DIST_DIR, "/api"),
-        outExtension: { ".js": ".mjs" },
-        loader: {
-          ".js": "js",
           ".ts": "ts"
         },
         format: "esm",
@@ -798,16 +709,7 @@ var build = async () => {
       log(`${Math.round(pagesTranspiled - start)}ms to Transpile Pages`);
       log(`${Math.round(pagesBuilt - pagesTranspiled)}ms to Build Pages`);
       log(`${Math.round(end - pagesBuilt)}ms to Build Client`);
-      log(green(bold(`Compiled ${pageFiles.length} pages in ${Math.ceil(end - start)}ms!`)));
-      for (const pageFile of pageFiles) {
-        log(
-          "- /" + path.relative(options.pagesDirectory, pageFile.parentPath),
-          "(Page)"
-        );
-      }
-      for (const apiFile of apiFiles) {
-        "- /" + path.relative(options.pagesDirectory, apiFile.parentPath), "(API Route)";
-      }
+      log(green(bold(`Compiled ${projectFiles.length} files in ${Math.ceil(end - start)}ms!`)));
     }
     process.send({ event: "message", data: "compile-finish" });
     if (shouldClientHardReload) {
