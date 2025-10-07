@@ -767,21 +767,34 @@ const build = async (): Promise<boolean> => {
     const start = performance.now();
     
     {
-        const externalBareImportsPlugin = {
-            name: "external-bare-imports",
+        const externalPackagesPlugin = {
+            name: 'external-packages',
             setup(build: any) {
-                build.onResolve({ filter: /^[^./]/ }, (args: any) => {
-                    return { path: args.path, external: true };
+                build.onResolve({ filter: /^[^./]/ }, async (args: any) => {
+                    if (args.path[0] === '.' || args.path[0] === '/') {
+                        return;
+                    }
+                
+                    const resolved = await build.resolve(args.path, {
+                        kind: args.kind,
+                        resolveDir: args.resolveDir,
+                        importer: args.importer,
+                    });
+                
+                    if (resolved.path && /\/node_modules\//.test(resolved.path)) {
+                        return { path: args.path, external: true };
+                    }
+            
+                    return resolved;
                 });
             },
-        };
-        
+        };        
         await esbuild.build({
             entryPoints: projectFiles.map(f => path.join(f.parentPath, f.name)),
             bundle: true,
             outdir: DIST_DIR,
             outExtension: { ".js": ".mjs", },
-            plugins: [externalBareImportsPlugin],
+            plugins: [externalPackagesPlugin],
             loader: {
                 ".ts": "ts",
             },
