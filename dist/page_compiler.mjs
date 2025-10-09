@@ -2,7 +2,6 @@
 import fs from "fs";
 import path from "path";
 import esbuild from "esbuild";
-import { fileURLToPath } from "url";
 
 // src/shared/serverElements.ts
 var createBuildableElement = (tag) => {
@@ -260,8 +259,6 @@ if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT
 var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 
 // src/page_compiler.ts
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
 var packageDir = process.env.PACKAGE_PATH;
 var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
 var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");

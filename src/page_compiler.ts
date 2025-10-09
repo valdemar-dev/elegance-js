@@ -1,20 +1,14 @@
-import fs, { Dirent, FSWatcher } from "fs";
+import fs, { Dirent } from "fs";
 import path from "path";
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
-import child_process from "node:child_process";
-import http, { IncomingMessage, ServerResponse } from "http";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
 import { getState, getObjectAttributes, initializeState, initializeObjectAttributes } from "./server/createState";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
-import { startServer } from "./server/server";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const packageDir = process.env.PACKAGE_PATH!;
 
@@ -33,10 +27,6 @@ const bgYellow = (text: string) => {
     return `\u001b[48;2;238;184;68m${text}`;
 };
 
-const bgBlack = (text: string) => {
-    return `\u001b[48;2;0;0;0m${text}`;
-};
-
 const bold = (text: string) => {
     return `\u001b[1m${text}`;
 };
@@ -49,16 +39,8 @@ const white = (text: string) => {
     return `\u001b[38;2;255;247;229m${text}`;
 };
 
-const white_100 = (text: string) => {
-    return `\u001b[38;2;255;239;204m${text}`;
-};
-
 const green = (text: string) => {
     return `\u001b[38;2;65;224;108m${text}`;
-};
-
-const red = (text: string) => {
-    return `\u001b[38;2;255;100;103m${text}`
 };
 
 const log = (...text: string[]) => {
