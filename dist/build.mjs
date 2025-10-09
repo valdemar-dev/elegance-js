@@ -359,7 +359,7 @@ var runBuild = (filepath, DIST_DIR) => {
     child.kill("SIGKILL");
   }
   child = child_process.spawn("node", [filepath], {
-    stdio: ["inherit", "inherit", "inherit", "ipc"],
+    stdio: ["pipe", "pipe", "pipe", "ipc"],
     env: { ...process.env, DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir }
   });
   child.on("error", () => {
@@ -367,6 +367,7 @@ var runBuild = (filepath, DIST_DIR) => {
   });
   child.on("exit", () => {
     isBuilding = false;
+    log.info("Builder process complete");
   });
   child.on("message", (message) => {
     const { data } = message;

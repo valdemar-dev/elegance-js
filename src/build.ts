@@ -93,7 +93,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
     }
         
     child = child_process.spawn("node", [filepath], { 
-        stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
         env: { ...process.env, DIST_DIR: DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir, }
     });
         
@@ -101,9 +101,10 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         log.error("Failed to start child process.");
     });
     
-    
     child.on("exit", () => {
         isBuilding = false;
+        
+        log.info("Builder process complete");
     });
     
     child.on("message", (message) => {        
