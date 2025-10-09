@@ -79,11 +79,17 @@ const getAllSubdirectories = (dir: string, baseDir = dir) => {
 };
 
 let child: child_process.ChildProcess | undefined = undefined;
+let isBuilding = false;
 const runBuild = (filepath: string, DIST_DIR: string) => {
     const optionsString = JSON.stringify(options);
     
+    if (isBuilding) {
+        return;
+    }
+    
     if (child !== undefined) {
-        child.kill();
+        child.removeAllListeners();
+        child.kill('SIGKILL');
     }
         
     child = child_process.spawn("node", [filepath], { 
@@ -95,6 +101,11 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         log.error("Failed to start child process.");
     });
     
+    
+    child.on("exit", () => {
+        isBuilding = false;
+    });
+    
     child.on("message", (message) => {        
         const { data } = message as any;
         
@@ -103,6 +114,8 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         } else if (data === "soft-reload") {
             httpStream?.write(`data: reload\n\n`);
         } else if (data === "compile-finish") {
+            isBuilding = false;
+            
             if (options.postCompile) {
                 finishLog(
                     white("Calling post-compile hook..")

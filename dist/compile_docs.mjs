@@ -351,10 +351,15 @@ var getAllSubdirectories = (dir, baseDir = dir) => {
   return directories;
 };
 var child = void 0;
+var isBuilding = false;
 var runBuild = (filepath, DIST_DIR) => {
   const optionsString = JSON.stringify(options);
+  if (isBuilding) {
+    return;
+  }
   if (child !== void 0) {
-    child.kill();
+    child.removeAllListeners();
+    child.kill("SIGKILL");
   }
   child = child_process.spawn("node", [filepath], {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
@@ -362,6 +367,9 @@ var runBuild = (filepath, DIST_DIR) => {
   });
   child.on("error", () => {
     log.error("Failed to start child process.");
+  });
+  child.on("exit", () => {
+    isBuilding = false;
   });
   child.on("message", (message) => {
     const { data } = message;
@@ -374,6 +382,7 @@ var runBuild = (filepath, DIST_DIR) => {
 
 `);
     } else if (data === "compile-finish") {
+      isBuilding = false;
       if (options.postCompile) {
         finishLog(
           white("Calling post-compile hook..")
