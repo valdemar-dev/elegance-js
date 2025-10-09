@@ -202,12 +202,18 @@ export const compile = async (props: CompilationOptions) => {
             
             if (dirs.length !== 0) {
                 for (const dir of dirs) {
-                    extra.push(...getAllSubdirectories(dir))
+                    const subdirs = getAllSubdirectories(dir)
+                        .map(f => path.join(dir, f));
+                        
+                    extra.push(...subdirs);
                 }
             }
         }
         
-        const subdirectories = [...getAllSubdirectories(options.pagesDirectory), "", ...extra];
+        const pagesSubDirs = getAllSubdirectories(options.pagesDirectory)
+            .map(f => path.join(options.pagesDirectory, f))
+        
+        const subdirectories = [...pagesSubDirs, options.pagesDirectory, ...extra];
         
         finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "))
         
@@ -225,10 +231,8 @@ export const compile = async (props: CompilationOptions) => {
         };
     
         for (const directory of subdirectories) {
-            const fullPath = path.join(options.pagesDirectory, directory)
-    
             const watcher = fs.watch(
-                fullPath,
+                directory,
                 {},
                 watcherFn,
             );

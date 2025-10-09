@@ -453,11 +453,13 @@ var compile = async (props) => {
       const dirs = options.hotReload?.extraWatchDirectories ?? [];
       if (dirs.length !== 0) {
         for (const dir of dirs) {
-          extra.push(...getAllSubdirectories(dir));
+          const subdirs = getAllSubdirectories(dir).map((f) => path.join(dir, f));
+          extra.push(...subdirs);
         }
       }
     }
-    const subdirectories = [...getAllSubdirectories(options.pagesDirectory), "", ...extra];
+    const pagesSubDirs = getAllSubdirectories(options.pagesDirectory).map((f) => path.join(options.pagesDirectory, f));
+    const subdirectories = [...pagesSubDirs, options.pagesDirectory, ...extra];
     finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "));
     const watcherFn = async () => {
       if (isTimedOut) return;
@@ -469,9 +471,8 @@ var compile = async (props) => {
       }, 100);
     };
     for (const directory of subdirectories) {
-      const fullPath = path.join(options.pagesDirectory, directory);
       const watcher = fs2.watch(
-        fullPath,
+        directory,
         {},
         watcherFn
       );
