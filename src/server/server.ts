@@ -22,10 +22,9 @@ interface ServerOptions {
     port?: number;
     host?: string;
     environment?: 'production' | 'development';
-    quiet?: boolean;
 }
 
-export function startServer({ root, port = 3000, host = 'localhost', environment = 'production', quiet = false, }: ServerOptions) {
+export function startServer({ root, port = 3000, host = 'localhost', environment = 'production', }: ServerOptions) {
     if (!root) throw new Error('Root directory must be specified.');
 
     const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
@@ -44,7 +43,7 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
                 res.writeHead(204);
                 res.end();
                 
-                if (environment === 'development' && quiet === false) {
+                if (environment === 'development') {
                     console.log(req.method, '::', req.url, '-', res.statusCode);
                 }
                 
@@ -59,7 +58,7 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
                 await handleStaticRequest(root, url.pathname, req, res);
             }
 
-            if (environment === 'development' && quiet === false) {
+            if (environment === 'development') {
                 console.log(req.method, '::', req.url, '-', res.statusCode);
             }
         } catch (err) {

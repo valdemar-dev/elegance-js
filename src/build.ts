@@ -64,8 +64,6 @@ const red = (text: string) => {
 };
 
 const log = (...text: string[]) => {
-    if (options.quiet === true) return;
-    
     return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
 };
 type CompilationOptions = {
@@ -186,6 +184,12 @@ export const compile = async (props: CompilationOptions) => {
     // makes it so we don't have to pass this stupid variable around everywhere
     options = props;
     
+    if (options.quiet === true) {
+        console.log = function() {};
+        console.error = function() {};
+        console.warn = function() {};
+    }
+    
     const watch = options.hotReload !== undefined;
     
     const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
@@ -216,7 +220,6 @@ export const compile = async (props: CompilationOptions) => {
             environment: props.environment,
             port: props.server.port ?? 3000,
             host: props.server.host ?? "localhost",
-            quiet: options.quiet,
         })
     }
         

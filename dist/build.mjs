@@ -23,7 +23,7 @@ var MIME_TYPES = {
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8"
 };
-function startServer({ root, port = 3e3, host = "localhost", environment = "production", quiet = false }) {
+function startServer({ root, port = 3e3, host = "localhost", environment = "production" }) {
   if (!root) throw new Error("Root directory must be specified.");
   const requestHandler = async (req, res) => {
     try {
@@ -38,7 +38,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
       if (req.method === "OPTIONS") {
         res.writeHead(204);
         res.end();
-        if (environment === "development" && quiet === false) {
+        if (environment === "development") {
           console.log(req.method, "::", req.url, "-", res.statusCode);
         }
         return;
@@ -49,7 +49,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
       } else {
         await handleStaticRequest(root, url.pathname, req, res);
       }
-      if (environment === "development" && quiet === false) {
+      if (environment === "development") {
         console.log(req.method, "::", req.url, "-", res.statusCode);
       }
     } catch (err) {
@@ -296,7 +296,6 @@ var green = (text) => {
   return `\x1B[38;2;65;224;108m${text}`;
 };
 var log = (...text) => {
-  if (options.quiet === true) return;
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
 var options = process.env.OPTIONS;
@@ -379,6 +378,14 @@ var registerListener = async () => {
 };
 var compile = async (props) => {
   options = props;
+  if (options.quiet === true) {
+    console.log = function() {
+    };
+    console.error = function() {
+    };
+    console.warn = function() {
+    };
+  }
   const watch = options.hotReload !== void 0;
   const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
   if (!fs2.existsSync(options.outputDirectory)) {
@@ -402,8 +409,7 @@ var compile = async (props) => {
       root: props.server.root ?? DIST_DIR,
       environment: props.environment,
       port: props.server.port ?? 3e3,
-      host: props.server.host ?? "localhost",
-      quiet: options.quiet
+      host: props.server.host ?? "localhost"
     });
   }
   if (watch) {

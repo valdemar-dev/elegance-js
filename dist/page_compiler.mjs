@@ -637,6 +637,14 @@ var buildPages = async (DIST_DIR2) => {
   };
 };
 var build = async () => {
+  if (options.quiet === true) {
+    console.log = function() {
+    };
+    console.error = function() {
+    };
+    console.warn = function() {
+    };
+  }
   try {
     {
       log(bold(yellow(" -- Elegance.JS -- ")));
@@ -676,17 +684,17 @@ var build = async () => {
               kind: args.kind,
               importer: args.importer,
               pluginData: { [recursionFlag]: true }
-            }).catch();
+            });
             if (result.errors.length > 0 || result.external || !result.path) {
-              return result;
+              return { path: args.path, external: true };
             }
-            const nodeModulesIndex = result.path.indexOf("/node_modules/");
+            const nodeModulesIndex = result.path.indexOf("node_modules");
             if (nodeModulesIndex === -1) {
               return result;
             }
-            const isNested = result.path.includes("/node_modules/", nodeModulesIndex + 14);
+            const isNested = result.path.includes("node_modules", nodeModulesIndex + 14);
             if (isNested) {
-              return result;
+              return { path: args.path, external: true };
             }
             return { path: args.path, external: true };
           });
@@ -734,7 +742,6 @@ var build = async () => {
       log(green(bold(`Compiled ${projectFiles.length} files in ${Math.ceil(end - start)}ms!`)));
     }
     process.send({ event: "message", data: "compile-finish" });
-    console.log("BUILD FINISHED");
     if (shouldClientHardReload) {
       log("Sending hard reload..");
       process.send({ event: "message", data: "hard-reload" });

@@ -67,7 +67,6 @@ const log = (...text: string[]) => {
     return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
 };
 
-
 type CompilationOptions = {
     postCompile?: () => any,
     preCompile?: () => any,
@@ -707,6 +706,12 @@ const buildPages = async (
 };
 
 const build = async (): Promise<boolean> => {
+    if (options.quiet === true) {
+        console.log = function() {};
+        console.error = function() {};
+        console.warn = function() {};
+    }
+    
     try {
     // log spam
     { 
@@ -737,32 +742,6 @@ const build = async (): Promise<boolean> => {
     }
     
     const projectFiles = getProjectFiles(options.pagesDirectory);
-    
-    // perform cleanup from prev build
-    // todo: re-implement this.
-    /*{
-        const existingCompiledPages = [...getAllSubdirectories(DIST_DIR), ""];
-    
-        // removes old pages that no longer-exist.
-        // more efficient thank nuking directory
-        for (const page of existingCompiledPages) {
-            const pageFile = pageFiles.find(dir => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
-            const apiFile = apiFiles.find(dir => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
-            const middlewareFile = middlewareFiles.find(dir => path.relative(options.pagesDirectory, dir?.parentPath ?? "") === page);
-    
-            if (!pageFile && !apiFile && !middlewareFile) {
-                const dir = path.join(DIST_DIR, page);
-                
-                if (fs.existsSync(dir) === false) {
-                    continue;
-                }
-                
-                fs.rmdirSync(dir, { recursive: true, })
-                
-                log("Deleted old page directory:", dir);
-            }
-        }
-    }*/
 
     const start = performance.now();
     
@@ -823,83 +802,7 @@ const build = async (): Promise<boolean> => {
         
         console.log("built files")
     }
-
-    // Transpile pages from stinky TS into based MJS.
-    // this is old, don't touch it.
-    /*{
-        await esbuild.build({
-            entryPoints: [
-                ...pageFiles.map(page => path.join(page.parentPath, page.name)),
-            ],
-            minify: options.environment === "production",
-            drop: options.environment === "production" ? ["console", "debugger"] : undefined,
-            bundle: true,
-            outdir: DIST_DIR,
-            outExtension: { ".js": ".mjs", },
-            loader: {
-                ".js": "js",
-                ".ts": "ts",
-            }, 
-            format: "esm",
-            platform: "node",
-            keepNames: false,
-            banner: {
-                js: "//__ELEGANCE_JS_PAGE_MARKER__",
-            },
-            define: {
-                "DEV": options.environment === "development" ? "true" : "false",
-                "PROD": options.environment === "development" ? "false" : "true",
-            },
-            external: ["fs"],
-        });
-        
-        await esbuild.build({
-            entryPoints: [
-                ...apiFiles.map(route => path.join(route.parentPath, route.name)),
-            ],
-            minify: options.environment === "production",
-            drop: options.environment === "production" ? ["console", "debugger"] : undefined,
-            bundle: false,
-            outbase: path.join(options.pagesDirectory, "/api"),
-            outdir: path.join(DIST_DIR, "/api"),
-            outExtension: { ".js": ".mjs", },
-            loader: {
-                ".js": "js",
-                ".ts": "ts",
-            }, 
-            format: "esm",
-            platform: "node",
-            keepNames: false,
-            define: {
-                "DEV": options.environment === "development" ? "true" : "false",
-                "PROD": options.environment === "development" ? "false" : "true",
-            },
-        });
-        
-        await esbuild.build({
-            entryPoints: [
-                ...middlewareFiles.map(route => path.join(route.parentPath, route.name)),
-            ],
-            minify: options.environment === "production",
-            drop: options.environment === "production" ? ["console", "debugger"] : undefined,
-            bundle: false,
-            outbase: path.join(options.pagesDirectory, "/api"),
-            outdir: path.join(DIST_DIR, "/api"),
-            outExtension: { ".js": ".mjs", },
-            loader: {
-                ".js": "js",
-                ".ts": "ts",
-            }, 
-            format: "esm",
-            platform: "node",
-            keepNames: false,
-            define: {
-                "DEV": options.environment === "development" ? "true" : "false",
-                "PROD": options.environment === "development" ? "false" : "true",
-            },
-        });
-    }*/
-
+   
     const pagesTranspiled = performance.now();
     
     const {
@@ -946,8 +849,6 @@ const build = async (): Promise<boolean> => {
     
     process.send!({ event: "message", data: "compile-finish", });
     
-    console.log("BUILD FINISHED")
-
     if (shouldClientHardReload) {
         log("Sending hard reload..");
         process.send!({ event: "message", data: "hard-reload", })

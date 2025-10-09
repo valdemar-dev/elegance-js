@@ -16,7 +16,7 @@ var MIME_TYPES = {
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8"
 };
-function startServer({ root, port = 3e3, host = "localhost", environment = "production", quiet = false }) {
+function startServer({ root, port = 3e3, host = "localhost", environment = "production" }) {
   if (!root) throw new Error("Root directory must be specified.");
   const requestHandler = async (req, res) => {
     try {
@@ -31,7 +31,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
       if (req.method === "OPTIONS") {
         res.writeHead(204);
         res.end();
-        if (environment === "development" && quiet === false) {
+        if (environment === "development") {
           console.log(req.method, "::", req.url, "-", res.statusCode);
         }
         return;
@@ -42,7 +42,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
       } else {
         await handleStaticRequest(root, url.pathname, req, res);
       }
-      if (environment === "development" && quiet === false) {
+      if (environment === "development") {
         console.log(req.method, "::", req.url, "-", res.statusCode);
       }
     } catch (err) {
