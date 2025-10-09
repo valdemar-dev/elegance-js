@@ -350,15 +350,18 @@ var getAllSubdirectories = (dir, baseDir = dir) => {
   }
   return directories;
 };
+var child = void 0;
 var runBuild = (filepath, DIST_DIR) => {
-  const code = fs2.readFileSync(filepath).toString();
   const optionsString = JSON.stringify(options);
-  const child = child_process.spawn("node", ["-e", code], {
+  if (child !== void 0) {
+    child.kill();
+  }
+  child = child_process.spawn("node", [filepath], {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
     env: { ...process.env, DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir }
   });
   child.on("error", () => {
-    console.error("Failed to start child process.");
+    log.error("Failed to start child process.");
   });
   child.on("message", (message) => {
     const { data } = message;

@@ -781,8 +781,6 @@ const build = async (): Promise<boolean> => {
                 "PROD": options.environment === "development" ? "false" : "true",
             },
         })
-        
-        console.log("built files")
     }
    
     const pagesTranspiled = performance.now();
@@ -810,23 +808,11 @@ const build = async (): Promise<boolean> => {
     }
 
     {
-        log(`${Math.round(pagesTranspiled-start)}ms to Transpile Pages`)
+        log(`${Math.round(pagesTranspiled-start)}ms to Transpile Fales`)
         log(`${Math.round(pagesBuilt-pagesTranspiled)}ms to Build Pages`)
         log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
         
         log(green(bold((`Compiled ${projectFiles.length} files in ${Math.ceil(end-start)}ms!`))));
-        
-        /*
-        for (const pageFile of pageFiles) {
-            log(
-                "- /" + path.relative(options.pagesDirectory, pageFile.parentPath), "(Page)"
-            )
-        }
-        
-        for (const apiFile of apiFiles) {
-            "- /" + path.relative(options.pagesDirectory, apiFile.parentPath), "(API Route)"
-        }
-        */
     }
     
     process.send!({ event: "message", data: "compile-finish", });
