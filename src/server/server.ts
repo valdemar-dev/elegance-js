@@ -2,6 +2,7 @@ import { createServer as createHttpServer, IncomingMessage, ServerResponse } fro
 import { promises as fs, readFileSync } from 'fs';
 import { join, normalize, extname, dirname, resolve } from 'path';
 import { pathToFileURL } from 'url';
+import { log } from "../log";
 
 const MIME_TYPES: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
@@ -44,7 +45,7 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
                 res.end();
                 
                 if (environment === 'development') {
-                    console.log(req.method, '::', req.url, '-', res.statusCode);
+                    log.info(req.method, '::', req.url, '-', res.statusCode);
                 }
                 
                 return;
@@ -59,10 +60,10 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
             }
 
             if (environment === 'development') {
-                console.log(req.method, '::', req.url, '-', res.statusCode);
+                log.info(req.method, '::', req.url, '-', res.statusCode);
             }
         } catch (err) {
-            console.error(err);
+            log.error(err);
             res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
             res.end('Internal Server Error');
         }
@@ -80,7 +81,7 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
         });
 
         server.listen(p, host, () => {
-            console.log(`Server running at https://${host}:${p}/`);
+            log.info(`Server running at https://${host}:${p}/`);
         });
 
         return server;
@@ -265,7 +266,7 @@ function composeMiddlewares(
                 let called = false;
                 return async (e?: any) => {
                     if (called) {
-                        console.warn('next() called more than once');
+                        log.warn('next() was called in a middleware more than once.');
                         return;
                     }
                     called = true;

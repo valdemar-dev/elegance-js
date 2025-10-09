@@ -8,6 +8,43 @@ import { fileURLToPath } from "url";
 import child_process from "node:child_process";
 import http from "http";
 
+// src/log.ts
+var quiet = false;
+function setQuiet(value) {
+  quiet = value;
+}
+function getTimestamp() {
+  const now = /* @__PURE__ */ new Date();
+  return now.toLocaleString(void 0, {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
+function color(text, code) {
+  return `\x1B[${code}m${text}\x1B[0m`;
+}
+function logInfo(...args) {
+  if (quiet) return;
+  console.info(`${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
+}
+function logWarn(...args) {
+  if (quiet) return;
+  console.warn(`${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
+}
+function logError(...args) {
+  if (quiet) return;
+  console.error(`${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
+}
+var log = {
+  info: logInfo,
+  warn: logWarn,
+  error: logError
+};
+
 // src/server/server.ts
 import { createServer as createHttpServer } from "http";
 import { promises as fs } from "fs";
@@ -42,7 +79,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment: enviro
         res.writeHead(204);
         res.end();
         if (environment2 === "development") {
-          console.log(req.method, "::", req.url, "-", res.statusCode);
+          log.info(req.method, "::", req.url, "-", res.statusCode);
         }
         return;
       }
@@ -53,10 +90,10 @@ function startServer({ root, port = 3e3, host = "localhost", environment: enviro
         await handleStaticRequest(root, url.pathname, req, res);
       }
       if (environment2 === "development") {
-        console.log(req.method, "::", req.url, "-", res.statusCode);
+        log.info(req.method, "::", req.url, "-", res.statusCode);
       }
     } catch (err) {
-      console.error(err);
+      log.error(err);
       res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Internal Server Error");
     }
@@ -71,7 +108,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment: enviro
       }
     });
     server.listen(p, host, () => {
-      console.log(`Server running at https://${host}:${p}/`);
+      log.info(`Server running at https://${host}:${p}/`);
     });
     return server;
   }
@@ -219,7 +256,7 @@ function composeMiddlewares(mws, final) {
         let called = false;
         return async (e) => {
           if (called) {
-            console.warn("next() called more than once");
+            log.warn("next() was called in a middleware more than once.");
             return;
           }
           called = true;
@@ -283,8 +320,6 @@ async function respondWithErrorPage(root, pathname, code, res) {
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var packageDir = path.resolve(__dirname, "..");
-var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
-var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
 var builderPath = path.resolve(packageDir, "./dist/page_compiler.mjs");
 var yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
@@ -298,8 +333,8 @@ var white = (text) => {
 var green = (text) => {
   return `\x1B[38;2;65;224;108m${text}`;
 };
-var log = (...text) => {
-  return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
+var finishLog = (...text) => {
+  log.info(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
 var options = process.env.OPTIONS;
 var getAllSubdirectories = (dir, baseDir = dir) => {
@@ -326,7 +361,7 @@ var runBuild = (filepath, DIST_DIR) => {
     console.error("Failed to start child process.");
   });
   child.on("message", (message) => {
-    const { data, event } = message;
+    const { data } = message;
     if (data === "hard-reload") {
       httpStream?.write(`data: hard-reload
 
@@ -337,7 +372,7 @@ var runBuild = (filepath, DIST_DIR) => {
 `);
     } else if (data === "compile-finish") {
       if (options.postCompile) {
-        log(
+        finishLog(
           white("Calling post-compile hook..")
         );
         options.postCompile();
@@ -354,7 +389,7 @@ var httpStream;
 var registerListener = async () => {
   const server = http.createServer((req, res) => {
     if (req.url === "/events") {
-      log(white("Client listening for changes.."));
+      finishLog(white("Client listening for changes.."));
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -376,19 +411,12 @@ var registerListener = async () => {
     }
   });
   server.listen(options.hotReload.port, () => {
-    log(bold(green("Hot-Reload server online!")));
+    finishLog(bold(green("Hot-Reload server online!")));
   });
 };
 var compile = async (props) => {
   options = props;
-  if (options.quiet === true) {
-    console.log = function() {
-    };
-    console.error = function() {
-    };
-    console.warn = function() {
-    };
-  }
+  setQuiet(options.quiet ?? false);
   const watch = options.hotReload !== void 0;
   const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
   if (!fs2.existsSync(options.outputDirectory)) {
@@ -421,7 +449,7 @@ var compile = async (props) => {
       watcher.close();
     }
     const subdirectories = [...getAllSubdirectories(options.pagesDirectory), ""];
-    log(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "));
+    finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "));
     const watcherFn = async () => {
       if (isTimedOut) return;
       isTimedOut = true;

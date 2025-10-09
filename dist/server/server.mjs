@@ -3,6 +3,42 @@ import { createServer as createHttpServer } from "http";
 import { promises as fs } from "fs";
 import { join, normalize, extname, dirname } from "path";
 import { pathToFileURL } from "url";
+
+// src/log.ts
+var quiet = false;
+function getTimestamp() {
+  const now = /* @__PURE__ */ new Date();
+  return now.toLocaleString(void 0, {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
+function color(text, code) {
+  return `\x1B[${code}m${text}\x1B[0m`;
+}
+function logInfo(...args) {
+  if (quiet) return;
+  console.info(`${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
+}
+function logWarn(...args) {
+  if (quiet) return;
+  console.warn(`${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
+}
+function logError(...args) {
+  if (quiet) return;
+  console.error(`${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
+}
+var log = {
+  info: logInfo,
+  warn: logWarn,
+  error: logError
+};
+
+// src/server/server.ts
 var MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -32,7 +68,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
         res.writeHead(204);
         res.end();
         if (environment === "development") {
-          console.log(req.method, "::", req.url, "-", res.statusCode);
+          log.info(req.method, "::", req.url, "-", res.statusCode);
         }
         return;
       }
@@ -43,10 +79,10 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
         await handleStaticRequest(root, url.pathname, req, res);
       }
       if (environment === "development") {
-        console.log(req.method, "::", req.url, "-", res.statusCode);
+        log.info(req.method, "::", req.url, "-", res.statusCode);
       }
     } catch (err) {
-      console.error(err);
+      log.error(err);
       res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Internal Server Error");
     }
@@ -61,7 +97,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
       }
     });
     server.listen(p, host, () => {
-      console.log(`Server running at https://${host}:${p}/`);
+      log.info(`Server running at https://${host}:${p}/`);
     });
     return server;
   }
@@ -209,7 +245,7 @@ function composeMiddlewares(mws, final) {
         let called = false;
         return async (e) => {
           if (called) {
-            console.warn("next() called more than once");
+            log.warn("next() was called in a middleware more than once.");
             return;
           }
           called = true;

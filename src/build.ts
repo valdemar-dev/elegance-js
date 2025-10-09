@@ -1,16 +1,10 @@
-import fs, { Dirent, FSWatcher } from "fs";
+import fs, { FSWatcher } from "fs";
 import path from "path";
-import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
-import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
 import child_process from "node:child_process";
 import http, { IncomingMessage, ServerResponse } from "http";
 
-import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
-import { serverSideRenderPage } from "./server/render";
-import { getState, getObjectAttributes, initializeState, initializeObjectAttributes } from "./server/createState";
-import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
-import { resetLayouts } from "./server/layout";
+import { log, setQuiet } from "./log";
 import { startServer } from "./server/server";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,54 +12,27 @@ const __dirname = path.dirname(__filename);
 
 const packageDir = path.resolve(__dirname, '..');
 
-const clientPath = path.resolve(packageDir, './dist/client/client.mjs');
-const watcherPath = path.resolve(packageDir, './dist/client/watcher.mjs');
-
 const builderPath = path.resolve(packageDir, './dist/page_compiler.mjs');
 
 const yellow = (text: string) => {
     return `\u001b[38;2;238;184;68m${text}`;
 };
 
-const black = (text: string) => {
-    return `\u001b[38;2;0;0;0m${text}`;
-};
-
-const bgYellow = (text: string) => {
-    return `\u001b[48;2;238;184;68m${text}`;
-};
-
-const bgBlack = (text: string) => {
-    return `\u001b[48;2;0;0;0m${text}`;
-};
-
 const bold = (text: string) => {
     return `\u001b[1m${text}`;
 };
-
-const underline = (text: string) => {
-    return `\u001b[4m${text}`;
-};
-
 const white = (text: string) => {
     return `\u001b[38;2;255;247;229m${text}`;
-};
-
-const white_100 = (text: string) => {
-    return `\u001b[38;2;255;239;204m${text}`;
 };
 
 const green = (text: string) => {
     return `\u001b[38;2;65;224;108m${text}`;
 };
 
-const red = (text: string) => {
-    return `\u001b[38;2;255;100;103m${text}`
+const finishLog = (...text: string[]) => {
+    log.info(text.map((text) => `${text}\u001b[0m`).join(""))
 };
 
-const log = (...text: string[]) => {
-    return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
-};
 type CompilationOptions = {
     postCompile?: () => any,
     preCompile?: () => any,
@@ -122,7 +89,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
     });
     
     child.on("message", (message) => {        
-        const { data, event } = message as any;
+        const { data } = message as any;
         
         if (data === "hard-reload") {
             httpStream?.write(`data: hard-reload\n\n`);
@@ -130,7 +97,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
             httpStream?.write(`data: reload\n\n`);
         } else if (data === "compile-finish") {
             if (options.postCompile) {
-                log(
+                finishLog(
                     white("Calling post-compile hook..")
                 )
                 
@@ -151,7 +118,7 @@ let httpStream: ServerResponse<IncomingMessage> | null;
 const registerListener = async () => {
     const server = http.createServer((req, res) => {
         if (req.url === '/events') {
-            log(white("Client listening for changes.."));
+            finishLog(white("Client listening for changes.."));
             res.writeHead(200, {
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
@@ -175,7 +142,7 @@ const registerListener = async () => {
     });
 
     server.listen(options.hotReload!.port, () => {
-        log(bold(green('Hot-Reload server online!')));
+        finishLog(bold(green('Hot-Reload server online!')));
     });
 };
 
@@ -184,12 +151,8 @@ export const compile = async (props: CompilationOptions) => {
     // makes it so we don't have to pass this stupid variable around everywhere
     options = props;
     
-    if (options.quiet === true) {
-        console.log = function() {};
-        console.error = function() {};
-        console.warn = function() {};
-    }
-    
+    setQuiet(options.quiet ?? false);
+
     const watch = options.hotReload !== undefined;
     
     const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
@@ -232,7 +195,7 @@ export const compile = async (props: CompilationOptions) => {
     
         const subdirectories = [...getAllSubdirectories(options.pagesDirectory), ""];
         
-        log(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "))
+        finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "))
         
         const watcherFn = async () => {
             if (isTimedOut) return;
