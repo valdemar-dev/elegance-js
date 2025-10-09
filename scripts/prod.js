@@ -20,7 +20,7 @@ compile({
             child.kill('SIGKILL');
         }
         
-        const { child: childProcess} = exec("npx @tailwindcss/cli -i \"./pages/index.css\" -o \".elegance/dist/index.css\" --cwd \"./pages\" --minidy=true")
+        const childProcess = exec("npx @tailwindcss/cli -i \"./pages/index.css\" -o \".elegance/dist/index.css\" --cwd \"./pages\" --minidy=true")
         
         child = childProcess;
     },
