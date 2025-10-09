@@ -445,7 +445,16 @@ var compile = async (props) => {
     for (const watcher of currentWatchers) {
       watcher.close();
     }
-    const subdirectories = [...getAllSubdirectories(options.pagesDirectory), ""];
+    let extra = [];
+    if (options.hotReload?.extraWatchDirectories) {
+      const dirs = options.hotReload?.extraWatchDirectories ?? [];
+      if (dirs.length !== 0) {
+        for (const dir of dirs) {
+          extra.push(...getAllSubdirectories(dir));
+        }
+      }
+    }
+    const subdirectories = [...getAllSubdirectories(options.pagesDirectory), "", ...extra];
     finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "));
     const watcherFn = async () => {
       if (isTimedOut) return;

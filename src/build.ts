@@ -39,6 +39,7 @@ type CompilationOptions = {
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
+    /** Suppress native elegance logs. */
     quiet?: boolean,
     publicDirectory?: {
         path: string,
@@ -52,6 +53,8 @@ type CompilationOptions = {
     hotReload?: {
         port: number,
         hostname: string,
+        /** Directories to watch for hot-reloading other than just the pagesDirectory. */
+        extraWatchDirectories?: string[],
     }
 }
 
@@ -193,7 +196,18 @@ export const compile = async (props: CompilationOptions) => {
             watcher.close();
         }
     
-        const subdirectories = [...getAllSubdirectories(options.pagesDirectory), ""];
+        let extra = [];
+        if (options.hotReload?.extraWatchDirectories) {
+            const dirs = options.hotReload?.extraWatchDirectories ?? [];
+            
+            if (dirs.length !== 0) {
+                for (const dir of dirs) {
+                    extra.push(...getAllSubdirectories(dir))
+                }
+            }
+        }
+        
+        const subdirectories = [...getAllSubdirectories(options.pagesDirectory), "", ...extra];
         
         finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "))
         
