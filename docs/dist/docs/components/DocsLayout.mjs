@@ -167,7 +167,7 @@ var Link = (options, ...children) => {
 
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
 var currentId2 = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (value, options) => {

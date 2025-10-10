@@ -6,7 +6,7 @@ type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
 };
 
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-    globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+    globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
 
 let currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
