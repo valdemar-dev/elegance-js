@@ -792,6 +792,7 @@ var build = async () => {
       log(`${Math.round(end - pagesBuilt)}ms to Build Client`);
       log(green(bold(`Compiled ${projectFiles.length} files in ${Math.ceil(end - start)}ms!`)));
     }
+    process.send({ event: "message", data: "set-layouts", layouts: JSON.stringify(__SERVER_CURRENT_LAYOUTS__) });
     process.send({ event: "message", data: "compile-finish" });
     if (shouldClientHardReload) {
       log("Sending hard reload..");

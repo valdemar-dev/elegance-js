@@ -456,7 +456,7 @@ var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 var createLayout = (name) => {
   const layouts = globalThis.__SERVER_CURRENT_LAYOUTS__;
   if (layouts.has(name)) return layouts.get(name);
-  const id = layoutId++;
+  const id = layoutId += 1;
   layouts.set(name, id);
   return id;
 };

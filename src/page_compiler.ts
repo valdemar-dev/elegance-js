@@ -897,6 +897,7 @@ const build = async (): Promise<boolean> => {
         log(green(bold((`Compiled ${projectFiles.length} files in ${Math.ceil(end-start)}ms!`))));
     }
     
+    process.send!({ event: "message", data: "set-layouts", layouts: JSON.stringify(__SERVER_CURRENT_LAYOUTS__), });
     process.send!({ event: "message", data: "compile-finish", });
     
     if (shouldClientHardReload) {

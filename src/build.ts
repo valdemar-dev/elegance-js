@@ -107,8 +107,8 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         log.info("Builder process complete");
     });
     
-    child.on("message", (message) => {        
-        const { data } = message as any;
+    child.on("message", (message: any) => {        
+        const { data } = message;
         
         if (data === "hard-reload") {
             httpStream?.write(`data: hard-reload\n\n`);
@@ -124,6 +124,8 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
                 
                 options.postCompile();
             }
+        } else if (data === "set-layouts") {
+            globalThis.__SERVER_CURRENT_LAYOUTS__ = JSON.parse(message.layouts);
         }
     });
 };

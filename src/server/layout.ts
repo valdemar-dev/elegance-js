@@ -9,7 +9,7 @@ export const createLayout = (name: string) => {
 
     if (layouts.has(name)) return layouts.get(name);
 
-    const id =layoutId++;
+    const id = layoutId += 1;
 
     layouts.set(name, id);
 

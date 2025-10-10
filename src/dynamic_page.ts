@@ -409,7 +409,6 @@ export const buildDynamicPage = async (
     let metadata;
     
     try {
-        
         const {
             construct
         } = await import("file://" + filePath);

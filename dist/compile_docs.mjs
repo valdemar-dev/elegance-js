@@ -981,6 +981,8 @@ var runBuild = (filepath, DIST_DIR) => {
         );
         options.postCompile();
       }
+    } else if (data === "set-layouts") {
+      globalThis.__SERVER_CURRENT_LAYOUTS__ = JSON.parse(message.layouts);
     }
   });
 };
