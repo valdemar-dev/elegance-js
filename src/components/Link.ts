@@ -1,8 +1,7 @@
-import { createEventListener, createState, SetEvent } from "../server/createState";
-import { createLoadHook } from "../server/loadHook";
-
-createLoadHook({
-    fn: () => {
+import { loadHook, state, SetEvent, eventListener } from "../index";
+loadHook(
+    [],
+    () => {
         const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
 
         const elsToClear: Array<{
@@ -41,11 +40,12 @@ createLoadHook({
             }
         }
     },
-})
+)
 
-const navigate = createEventListener({
-    eventListener: (params: SetEvent<MouseEvent, HTMLLinkElement>) => {
-        const target = new URL(params.event.currentTarget.href);
+const navigate = eventListener(
+    [],
+    (event: SetEvent<MouseEvent, HTMLLinkElement>) => {
+        const target = new URL(event.currentTarget.href);
 
         const client = globalThis.client;
 
@@ -53,15 +53,15 @@ const navigate = createEventListener({
         const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
 
         if (sanitizedTarget === sanitizedCurrent) {
-            if (target.hash === window.location.hash) return params.event.preventDefault();
+            if (target.hash === window.location.hash) return event.preventDefault();
             return;
         }
 
-        params.event.preventDefault();
+        event.preventDefault();
 
         client.navigateLocally(target.href);
     }
-});
+);
 
 export const Link = (options: Record<string, any>, ...children: Child[]
 ) => {    
