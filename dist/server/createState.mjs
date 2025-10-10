@@ -8,11 +8,10 @@ var ShowDeprecationWarning = (msg) => {
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
-var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var createState = (value, options) => {
   ShowDeprecationWarning("WARNING: The createState() and function is deprecated. Please use state() instead, from elegance-js/state.");
   const serverStateEntry = {
-    id: currentId += 1,
+    id: __SERVER_CURRENT_STATE_ID__ += 1,
     value,
     type: 1 /* STATE */,
     bind: options?.bind
@@ -35,7 +34,7 @@ var createEventListener = ({
   }
   dependencyString += "]";
   const value = {
-    id: currentId += 1,
+    id: __SERVER_CURRENT_STATE_ID__ += 1,
     type: 1 /* STATE */,
     value: new Function(
       "state",

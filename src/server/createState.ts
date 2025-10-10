@@ -9,9 +9,6 @@ if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
     globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
 
-let currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-
-
 type Widen<T> =
     T extends number ? number :
     T extends string ? string :
@@ -33,7 +30,7 @@ export const createState = <
     type ValueType = Widen<U>;
 
     const serverStateEntry = {
-        id: currentId += 1,
+        id: __SERVER_CURRENT_STATE_ID__ += 1,
         value: value,
         type: ObjectAttributeType.STATE,
         bind: options?.bind,
@@ -95,7 +92,7 @@ export const createEventListener = <
     dependencyString += "]";
 
     const value = {
-        id: currentId += 1,
+        id: __SERVER_CURRENT_STATE_ID__ += 1,
         type: ObjectAttributeType.STATE,
         value: new Function(
             "state",

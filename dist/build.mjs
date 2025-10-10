@@ -284,7 +284,6 @@ var generateHTMLTemplate = ({
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
-var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
