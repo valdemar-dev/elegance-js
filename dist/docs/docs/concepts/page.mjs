@@ -49,9 +49,8 @@ var createLoadHook = (options) => {
 
 // src/server/state.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
-var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
 var eventListener = (dependencies, eventListener2) => {
   const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
   let dependencyString = "[";
@@ -62,7 +61,7 @@ var eventListener = (dependencies, eventListener2) => {
   }
   dependencyString += "]";
   const value = {
-    id: currentId += 1,
+    id: __SERVER_CURRENT_STATE_ID__ += 1,
     type: 1 /* STATE */,
     value: new Function(
       "state",

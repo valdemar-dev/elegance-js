@@ -7,11 +7,8 @@ type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
 };
 
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-    globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+    globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
-
-let currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
-
 
 type Widen<T> =
     T extends number ? number :
@@ -32,7 +29,7 @@ export const state = <
     type ValueType = Widen<U>;
 
     const serverStateEntry = {
-        id: currentId += 1,
+        id: __SERVER_CURRENT_STATE_ID__ += 1,
         value: value,
         type: ObjectAttributeType.STATE,
         bind: options?.bind,
@@ -253,7 +250,7 @@ export const eventListener = <
     dependencyString += "]";
 
     const value = {
-        id: currentId += 1,
+        id: __SERVER_CURRENT_STATE_ID__ += 1,
         type: ObjectAttributeType.STATE,
         value: new Function(
             "state",

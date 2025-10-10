@@ -1,4 +1,5 @@
 import { loadHook, state, SetEvent, eventListener } from "../index";
+
 loadHook(
     [],
     () => {
