@@ -3,6 +3,8 @@
 import { compile } from "elegance-js/build"
 import { exec, execSync } from "node:child_process";
 
+let child = undefined;
+
 compile({
     environment: "production",
     outputDirectory: ".elegance",
@@ -20,7 +22,7 @@ compile({
             child.kill('SIGKILL');
         }
         
-        const childProcess = exec("npx @tailwindcss/cli -i \"./pages/index.css\" -o \".elegance/dist/index.css\" --cwd \"./pages\" --minidy=true")
+        const childProcess = execSync("npx @tailwindcss/cli -i \"./index.css\" -o \"../.elegance/dist/index.css\" --cwd \"./pages\" --minify=true")
         
         child = childProcess;
     },

@@ -4,6 +4,7 @@ interface ServerOptions {
     port?: number;
     host?: string;
     environment?: 'production' | 'development';
+    DIST_DIR: string;
 }
-export declare function startServer({ root, port, host, environment, }: ServerOptions): import("http").Server<typeof IncomingMessage, typeof ServerResponse>;
+export declare function startServer({ root, port, host, environment, DIST_DIR }: ServerOptions): import("http").Server<typeof IncomingMessage, typeof ServerResponse>;
 export {};

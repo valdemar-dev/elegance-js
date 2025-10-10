@@ -1,7 +1,7 @@
 // src/build.ts
-import fs2 from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import fs3 from "fs";
+import path2 from "path";
+import { fileURLToPath as fileURLToPath3 } from "url";
 import child_process from "node:child_process";
 import http from "http";
 
@@ -42,10 +42,554 @@ var log = {
   error: logError
 };
 
+// src/dynamic_page.ts
+import fs from "fs";
+import path from "path";
+import esbuild from "esbuild";
+import { fileURLToPath } from "url";
+
+// src/shared/serverElements.ts
+var createBuildableElement = (tag) => {
+  return (options2, ...children) => ({
+    tag,
+    options: options2 || {},
+    children
+  });
+};
+var createChildrenlessBuildableElement = (tag) => {
+  return (options2) => ({
+    tag,
+    options: options2 || {},
+    children: null
+  });
+};
+var childrenlessElementTags = [
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "source",
+  "track",
+  "path",
+  "rect"
+];
+var elementTags = [
+  "a",
+  "address",
+  "article",
+  "aside",
+  "audio",
+  "blockquote",
+  "body",
+  "button",
+  "canvas",
+  "caption",
+  "colgroup",
+  "data",
+  "datalist",
+  "dd",
+  "del",
+  "details",
+  "dialog",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "head",
+  "header",
+  "hgroup",
+  "html",
+  "iframe",
+  "ins",
+  "label",
+  "legend",
+  "li",
+  "main",
+  "map",
+  "meter",
+  "nav",
+  "noscript",
+  "object",
+  "ol",
+  "optgroup",
+  "option",
+  "output",
+  "p",
+  "picture",
+  "pre",
+  "progress",
+  "q",
+  "section",
+  "select",
+  "summary",
+  "table",
+  "tbody",
+  "td",
+  "template",
+  "textarea",
+  "tfoot",
+  "th",
+  "thead",
+  "time",
+  "tr",
+  "ul",
+  "video",
+  "span",
+  "script",
+  "abbr",
+  "b",
+  "bdi",
+  "bdo",
+  "cite",
+  "code",
+  "dfn",
+  "em",
+  "i",
+  "kbd",
+  "mark",
+  "rp",
+  "rt",
+  "ruby",
+  "s",
+  "samp",
+  "small",
+  "strong",
+  "sub",
+  "sup",
+  "u",
+  "wbr",
+  "title",
+  "svg"
+];
+var elements = {};
+var childrenlessElements = {};
+for (const element of elementTags) {
+  elements[element] = createBuildableElement(element);
+}
+for (const element of childrenlessElementTags) {
+  childrenlessElements[element] = createChildrenlessBuildableElement(element);
+}
+var allElements = {
+  ...elements,
+  ...childrenlessElements
+};
+
+// src/shared/bindServerElements.ts
+Object.assign(globalThis, elements);
+Object.assign(globalThis, childrenlessElements);
+
+// src/server/render.ts
+var renderRecursively = (element) => {
+  let returnString = "";
+  if (typeof element === "boolean") return returnString;
+  else if (typeof element === "number" || typeof element === "string") {
+    return returnString + element;
+  } else if (Array.isArray(element)) {
+    return returnString + element.join(", ");
+  }
+  returnString += `<${element.tag}`;
+  const {
+    tag: elementTag,
+    options: elementOptions,
+    children: elementChildren
+  } = element.options;
+  if (elementTag && elementOptions && elementChildren) {
+    const children = element.children;
+    element.children = [
+      element.options,
+      ...children
+    ];
+    element.options = {};
+    for (let i = 0; i < children.length + 1; i++) {
+      const child2 = element.children[i];
+      returnString += renderRecursively(child2);
+    }
+    returnString += `</${element.tag}>`;
+    return returnString;
+  }
+  if (typeof element.options === "object") {
+    for (const [attrName, attrValue] of Object.entries(element.options)) {
+      if (typeof attrValue === "object") {
+        throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element)}`;
+      }
+      returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
+    }
+  }
+  if (element.children === null) {
+    returnString += "/>";
+    return returnString;
+  }
+  returnString += ">";
+  for (const child2 of element.children) {
+    returnString += renderRecursively(child2);
+  }
+  returnString += `</${element.tag}>`;
+  return returnString;
+};
+var serverSideRenderPage = async (page, pathname) => {
+  if (!page) {
+    throw `No Page Provided.`;
+  }
+  if (typeof page === "function") {
+    throw `Unbuilt page provided to ssr page.`;
+  }
+  const bodyHTML = renderRecursively(page);
+  return {
+    bodyHTML
+  };
+};
+
+// src/server/generateHTMLTemplate.ts
+var generateHTMLTemplate = ({
+  pageURL,
+  head: head2,
+  serverData = null,
+  addPageScriptTag = true,
+  name
+}) => {
+  let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
+  HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
+  if (addPageScriptTag === true) {
+    HTMLTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+  }
+  HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
+  const builtHead = head2();
+  for (const child2 of builtHead.children) {
+    HTMLTemplate += renderRecursively(child2);
+  }
+  if (serverData) {
+    HTMLTemplate += serverData;
+  }
+  HTMLTemplate += "</head>";
+  return HTMLTemplate;
+};
+
+// src/server/createState.ts
+if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 0;
+}
+var currentId = globalThis.__SERVER_CURRENT_STATE_ID__;
+var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
+var getState = () => {
+  return globalThis.__SERVER_CURRENT_STATE__;
+};
+var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+var getObjectAttributes = () => {
+  return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+};
+
+// src/server/loadHook.ts
+var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
+var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
+
+// src/dynamic_page.ts
+var packageDir = process.env.PACKAGE_PATH;
+if (packageDir === void 0) {
+  const __filename2 = fileURLToPath(import.meta.url);
+  const __dirname2 = path.dirname(__filename2);
+  packageDir = path.resolve(__dirname2, "..");
+}
+var elementKey = 0;
+var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
+  const lcOptionName = optionName.toLowerCase();
+  const options2 = element.options;
+  let key = options2.key;
+  if (key == void 0) {
+    key = elementKey += 1;
+    options2.key = key;
+  }
+  if (!optionValue.type) {
+    throw `ObjectAttributeType is missing from object attribute. ${element.tag}: ${optionName}/${optionValue}`;
+  }
+  let optionFinal = lcOptionName;
+  switch (optionValue.type) {
+    case 1 /* STATE */:
+      const SOA = optionValue;
+      if (typeof SOA.value === "function") {
+        delete options2[optionName];
+        break;
+      }
+      if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
+        element.children = [SOA.value];
+        delete options2[optionName];
+      } else {
+        delete options2[optionName];
+        options2[lcOptionName] = SOA.value;
+      }
+      break;
+    case 2 /* OBSERVER */:
+      const OOA = optionValue;
+      const firstValue = OOA.update(...OOA.initialValues);
+      if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
+        element.children = [firstValue];
+        delete options2[optionName];
+      } else {
+        delete options2[optionName];
+        options2[lcOptionName] = firstValue;
+      }
+      optionFinal = optionName;
+      break;
+    case 4 /* REFERENCE */:
+      options2["ref"] = optionValue.value;
+      break;
+  }
+  objectAttributes.push({ ...optionValue, key, attribute: optionFinal });
+};
+var processPageElements = (element, objectAttributes, parent) => {
+  if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
+  if (typeof element === "string") {
+    return element;
+  }
+  const processElementOptionsAsChildAndReturn = () => {
+    const children = element.children;
+    element.children = [
+      element.options,
+      ...children
+    ];
+    element.options = {};
+    for (let i = 0; i < children.length + 1; i++) {
+      const child2 = element.children[i];
+      const processedChild = processPageElements(child2, objectAttributes, element);
+      element.children[i] = processedChild;
+    }
+    return {
+      ...element,
+      options: {}
+    };
+  };
+  if (typeof element.options !== "object") {
+    return processElementOptionsAsChildAndReturn();
+  }
+  const {
+    tag: elementTag,
+    options: elementOptions,
+    children: elementChildren
+  } = element.options;
+  if (elementTag && elementOptions && elementChildren) {
+    return processElementOptionsAsChildAndReturn();
+  }
+  const options2 = element.options;
+  for (const [optionName, optionValue] of Object.entries(options2)) {
+    const lcOptionName = optionName.toLowerCase();
+    if (typeof optionValue !== "object") {
+      if (lcOptionName === "innertext") {
+        delete options2[optionName];
+        if (element.children === null) {
+          throw `Cannot use innerText or innerHTML on childrenless elements.`;
+        }
+        element.children = [optionValue, ...element.children];
+        continue;
+      } else if (lcOptionName === "innerhtml") {
+        if (element.children === null) {
+          throw `Cannot use innerText or innerHTML on childrenless elements.`;
+        }
+        delete options2[optionName];
+        element.children = [optionValue];
+        continue;
+      }
+      continue;
+    }
+    ;
+    processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
+  }
+  if (element.children) {
+    for (let i = 0; i < element.children.length; i++) {
+      const child2 = element.children[i];
+      const processedChild = processPageElements(child2, objectAttributes, element);
+      element.children[i] = processedChild;
+    }
+  }
+  return element;
+};
+var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR, pageName) => {
+  if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
+    return [];
+  }
+  const objectAttributes = [];
+  const processedPageElements = processPageElements(pageElements, objectAttributes, []);
+  elementKey = 0;
+  const renderedPage = await serverSideRenderPage(
+    processedPageElements,
+    pageLocation
+  );
+  const template = generateHTMLTemplate({
+    pageURL: path.relative(DIST_DIR, pageLocation),
+    head: metadata,
+    addPageScriptTag: true,
+    name: pageName
+  });
+  const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
+  return {
+    objectAttributes,
+    resultHTML
+  };
+};
+var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR, pageName) => {
+  const pageDiff = path.relative(DIST_DIR, pageLocation);
+  let clientPageJSText = `let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
+  {
+    clientPageJSText += `export const data = {`;
+    if (state) {
+      const nonBoundState = state.filter((subj) => subj.bind === void 0);
+      clientPageJSText += `state:[`;
+      for (const subject of nonBoundState) {
+        if (typeof subject.value === "string") {
+          const stringified = JSON.stringify(subject.value);
+          clientPageJSText += `{id:${subject.id},value:${stringified}},`;
+        } else if (typeof subject.value === "function") {
+          clientPageJSText += `{id:${subject.id},value:${subject.value.toString()}},`;
+        } else {
+          clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
+        }
+      }
+      clientPageJSText += `],`;
+      const formattedBoundState = {};
+      const stateBinds = state.map((subj) => subj.bind).filter((bind) => bind !== void 0);
+      for (const bind of stateBinds) {
+        formattedBoundState[bind] = [];
+      }
+      ;
+      const boundState = state.filter((subj) => subj.bind !== void 0);
+      for (const subject of boundState) {
+        const bindingState = formattedBoundState[subject.bind];
+        delete subject.bind;
+        bindingState.push(subject);
+      }
+      const bindSubjectPairing = Object.entries(formattedBoundState);
+      if (bindSubjectPairing.length > 0) {
+        clientPageJSText += "binds:{";
+        for (const [bind, subjects] of bindSubjectPairing) {
+          clientPageJSText += `${bind}:[`;
+          for (const subject of subjects) {
+            if (typeof subject.value === "string") {
+              clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
+            } else {
+              clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
+            }
+          }
+          clientPageJSText += "]";
+        }
+        clientPageJSText += "},";
+      }
+    }
+    const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
+    if (stateObjectAttributes.length > 0) {
+      const processed = [...stateObjectAttributes].map((soa) => {
+        delete soa.type;
+        return soa;
+      });
+      clientPageJSText += `soa:${JSON.stringify(processed)},`;
+    }
+    const observerObjectAttributes = objectAttributes.filter((oa) => oa.type === 2 /* OBSERVER */);
+    if (observerObjectAttributes.length > 0) {
+      let observerObjectAttributeString = "ooa:[";
+      for (const observerObjectAttribute of observerObjectAttributes) {
+        const ooa = observerObjectAttribute;
+        observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",update:${ooa.update.toString()},`;
+        observerObjectAttributeString += `refs:[`;
+        for (const ref of ooa.refs) {
+          observerObjectAttributeString += `{id:${ref.id}`;
+          if (ref.bind !== void 0) observerObjectAttributeString += `,bind:${ref.bind}`;
+          observerObjectAttributeString += "},";
+        }
+        observerObjectAttributeString += "]},";
+      }
+      observerObjectAttributeString += "],";
+      clientPageJSText += observerObjectAttributeString;
+    }
+    if (pageLoadHooks.length > 0) {
+      clientPageJSText += "lh:[";
+      for (const loadHook of pageLoadHooks) {
+        const key = loadHook.bind;
+        clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
+      }
+      clientPageJSText += "],";
+    }
+    clientPageJSText += `};`;
+  }
+  clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
+  const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
+  let sendHardReloadInstruction = false;
+  const transformedResult = await esbuild.transform(clientPageJSText, { minify: true }).catch((error) => {
+    console.error("Failed to transform client page js!", error);
+  });
+  if (!transformedResult) return { sendHardReloadInstruction };
+  fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
+  return { sendHardReloadInstruction };
+};
+var buildDynamicPage = async (filePath, DIST_DIR) => {
+  initializeState();
+  initializeObjectAttributes();
+  resetLoadHooks();
+  let pageElements;
+  let metadata;
+  try {
+    const {
+      construct
+    } = await import("file://" + filePath);
+    const {
+      page,
+      metadata: pageMetadata,
+      isDynamicPage
+    } = construct();
+    pageElements = page;
+    metadata = pageMetadata;
+    if (isDynamicPage === false) {
+      throw new Error("Cannot dynamically render a non-dynamic page.");
+    }
+  } catch (e) {
+    throw new Error(`Error in Dynamic Page: ${filePath} - ${e}`);
+  }
+  if (!metadata || metadata && typeof metadata !== "function") {
+    console.warn(`WARNING: Dynamic ${filePath} does not export a metadata function. This is *highly* recommended.`);
+  }
+  if (!pageElements) {
+    console.warn(`WARNING: Dynamic ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
+  }
+  if (typeof pageElements === "function") {
+    pageElements = pageElements();
+  }
+  const state = getState();
+  const pageLoadHooks = getLoadHooks();
+  const objectAttributes = getObjectAttributes();
+  const foundObjectAttributes = await generateSuitablePageElements(
+    path.dirname(filePath),
+    pageElements || body(),
+    metadata ?? (() => head()),
+    DIST_DIR,
+    "page"
+  );
+  await generateClientPageData(
+    path.dirname(filePath),
+    state || {},
+    [...objectAttributes, ...foundObjectAttributes.objectAttributes],
+    pageLoadHooks || [],
+    DIST_DIR,
+    "page"
+  );
+  return foundObjectAttributes.resultHTML;
+};
+
 // src/server/server.ts
 import { createServer as createHttpServer } from "http";
-import { promises as fs } from "fs";
-import { join, normalize, extname, dirname } from "path";
+import { promises as fs2 } from "fs";
+import { join, normalize, extname, dirname, resolve } from "path";
 import { pathToFileURL } from "url";
 var MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -60,8 +604,15 @@ var MIME_TYPES = {
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8"
 };
-function startServer({ root, port = 3e3, host = "localhost", environment = "production" }) {
+function startServer({
+  root,
+  port = 3e3,
+  host = "localhost",
+  environment = "production",
+  DIST_DIR
+}) {
   if (!root) throw new Error("Root directory must be specified.");
+  root = normalize(root).replace(/[\\/]+$/, "");
   const requestHandler = async (req, res) => {
     try {
       if (!req.url) {
@@ -84,7 +635,7 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(root, url.pathname, req, res);
       } else {
-        await handleStaticRequest(root, url.pathname, req, res);
+        await handleStaticRequest(root, url.pathname, req, res, DIST_DIR);
       }
       if (environment === "development") {
         log.info(req.method, "::", req.url, "-", res.statusCode);
@@ -111,9 +662,9 @@ function startServer({ root, port = 3e3, host = "localhost", environment = "prod
   }
   return attemptListen(port);
 }
-async function handleStaticRequest(root, pathname, req, res) {
-  let filePath = normalize(join(root, decodeURIComponent(pathname)));
-  root = normalize(root);
+async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
+  const originalPathname = pathname;
+  let filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, "");
   if (!filePath.startsWith(root)) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Forbidden");
@@ -121,19 +672,23 @@ async function handleStaticRequest(root, pathname, req, res) {
   }
   let stats;
   try {
-    stats = await fs.stat(filePath);
+    stats = await fs2.stat(filePath);
+  } catch {
+  }
+  let pageDir;
+  if (stats) {
     if (stats.isDirectory()) {
-      filePath = join(filePath, "index.html");
+      pageDir = filePath;
+    } else {
+      pageDir = dirname(filePath);
     }
-  } catch {
+  } else {
+    if (originalPathname.endsWith("/")) {
+      pageDir = filePath;
+    } else {
+      pageDir = dirname(filePath);
+    }
   }
-  let hasFile = false;
-  try {
-    await fs.access(filePath);
-    hasFile = true;
-  } catch {
-  }
-  const pageDir = dirname(filePath);
   const relDir = pageDir.slice(root.length).replace(/^[\/\\]+/, "");
   const parts = relDir.split(/[\\/]/).filter(Boolean);
   const middlewareDirs = [];
@@ -148,7 +703,7 @@ async function handleStaticRequest(root, pathname, req, res) {
     const mwPath = join(dir, "middleware.mjs");
     let mwModule;
     try {
-      await fs.access(mwPath);
+      await fs2.access(mwPath);
       const url = pathToFileURL(mwPath).href;
       mwModule = await import(url);
     } catch {
@@ -162,18 +717,50 @@ async function handleStaticRequest(root, pathname, req, res) {
       }
     }
   }
+  let isDynamic = false;
+  let handlerPath = filePath;
+  if (stats && stats.isDirectory()) {
+    const pageMjsPath = join(filePath, "page.mjs");
+    try {
+      await fs2.access(pageMjsPath);
+      handlerPath = pageMjsPath;
+      isDynamic = true;
+    } catch {
+      handlerPath = join(filePath, "index.html");
+      isDynamic = false;
+    }
+  } else {
+    handlerPath = filePath;
+    isDynamic = false;
+  }
+  let hasHandler = false;
+  try {
+    await fs2.access(handlerPath);
+    hasHandler = true;
+  } catch {
+  }
   const finalHandler = async (req2, res2) => {
-    if (!hasFile) {
+    if (!hasHandler) {
       await respondWithErrorPage(root, pathname, 404, res2);
       return;
     }
-    const ext = extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || "application/octet-stream";
-    const data = await fs.readFile(filePath);
-    res2.writeHead(200, { "Content-Type": contentType });
-    res2.end(data);
+    if (isDynamic) {
+      try {
+        const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR);
+        res2.writeHead(200, { "Content-Type": MIME_TYPES[".html"] });
+        res2.end(resultHTML);
+      } catch (err) {
+        log.error("Error building dynamic page -", err);
+      }
+    } else {
+      const ext = extname(handlerPath).toLowerCase();
+      const contentType = MIME_TYPES[ext] || "application/octet-stream";
+      const data = await fs2.readFile(handlerPath);
+      res2.writeHead(200, { "Content-Type": contentType });
+      res2.end(data);
+    }
   };
-  const composed = composeMiddlewares(middlewares, finalHandler);
+  const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
   await composed(req, res);
 }
 async function handleApiRequest(root, pathname, req, res) {
@@ -183,7 +770,7 @@ async function handleApiRequest(root, pathname, req, res) {
   const routePath = join(routeDir, "route.mjs");
   let hasRoute = false;
   try {
-    await fs.access(routePath);
+    await fs2.access(routePath);
     hasRoute = true;
   } catch {
   }
@@ -211,7 +798,7 @@ async function handleApiRequest(root, pathname, req, res) {
     const mwPath = join(dir, "middleware.mjs");
     let mwModule;
     try {
-      await fs.access(mwPath);
+      await fs2.access(mwPath);
       const url = pathToFileURL(mwPath).href;
       mwModule = await import(url);
     } catch {
@@ -234,15 +821,19 @@ async function handleApiRequest(root, pathname, req, res) {
     }
     await fn(req2, res2);
   };
-  const composed = composeMiddlewares(middlewares, finalHandler);
+  const composed = composeMiddlewares(middlewares, finalHandler, { isApi: true });
   await composed(req, res);
 }
-function composeMiddlewares(mws, final) {
+function composeMiddlewares(mws, final, options2) {
   return async function(req, res) {
     let index = 0;
     async function dispatch(err) {
       if (err) {
-        return respondWithJsonError(res, 500, err.message || "Internal Server Error");
+        if (options2.isApi) {
+          return respondWithJsonError(res, 500, err.message || "Internal Server Error");
+        } else {
+          return await respondWithErrorPage(options2.root, options2.pathname, 500, res);
+        }
       }
       if (index >= mws.length) {
         return await final(req, res);
@@ -281,7 +872,7 @@ async function respondWithErrorPage(root, pathname, code, res) {
     const candidate = join(currentPath, `${code}.html`);
     if (!tried.has(candidate)) {
       try {
-        await fs.access(candidate);
+        await fs2.access(candidate);
         errorFilePath = candidate;
         break;
       } catch {
@@ -295,14 +886,14 @@ async function respondWithErrorPage(root, pathname, code, res) {
   if (!errorFilePath) {
     const fallback = join(root, `${code}.html`);
     try {
-      await fs.access(fallback);
+      await fs2.access(fallback);
       errorFilePath = fallback;
     } catch {
     }
   }
   if (errorFilePath) {
     try {
-      const html = await fs.readFile(errorFilePath);
+      const html = await fs2.readFile(errorFilePath);
       res.writeHead(code, { "Content-Type": "text/html; charset=utf-8" });
       res.end(html);
       return;
@@ -314,10 +905,10 @@ async function respondWithErrorPage(root, pathname, code, res) {
 }
 
 // src/build.ts
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
-var packageDir = path.resolve(__dirname, "..");
-var builderPath = path.resolve(packageDir, "./dist/page_compiler.mjs");
+var __filename = fileURLToPath3(import.meta.url);
+var __dirname = path2.dirname(__filename);
+var packageDir2 = path2.resolve(__dirname, "..");
+var builderPath = path2.resolve(packageDir2, "./dist/page_compiler.mjs");
 var yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
 };
@@ -336,11 +927,11 @@ var finishLog = (...text) => {
 var options = process.env.OPTIONS;
 var getAllSubdirectories = (dir, baseDir = dir) => {
   let directories = [];
-  const items = fs2.readdirSync(dir, { withFileTypes: true });
+  const items = fs3.readdirSync(dir, { withFileTypes: true });
   for (const item of items) {
     if (item.isDirectory()) {
-      const fullPath = path.join(dir, item.name);
-      const relativePath = path.relative(baseDir, fullPath);
+      const fullPath = path2.join(dir, item.name);
+      const relativePath = path2.relative(baseDir, fullPath);
       directories.push(relativePath);
       directories = directories.concat(getAllSubdirectories(fullPath, baseDir));
     }
@@ -360,7 +951,7 @@ var runBuild = (filepath, DIST_DIR) => {
   }
   child = child_process.spawn("node", [filepath], {
     stdio: ["pipe", "pipe", "pipe", "ipc"],
-    env: { ...process.env, DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir }
+    env: { ...process.env, DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir2 }
   });
   child.on("error", () => {
     log.error("Failed to start child process.");
@@ -428,29 +1019,30 @@ var compile = async (props) => {
   options = props;
   setQuiet(options.quiet ?? false);
   const watch = options.hotReload !== void 0;
-  const BUILD_FLAG = path.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
-  if (!fs2.existsSync(options.outputDirectory)) {
-    fs2.mkdirSync(options.outputDirectory, { recursive: true });
-    fs2.writeFileSync(
-      path.join(BUILD_FLAG),
+  const BUILD_FLAG = path2.join(options.outputDirectory, "ELEGANCE_BUILD_FLAG");
+  if (!fs3.existsSync(options.outputDirectory)) {
+    fs3.mkdirSync(options.outputDirectory, { recursive: true });
+    fs3.writeFileSync(
+      path2.join(BUILD_FLAG),
       "This file just marks this directory as one containing an Elegance Build.",
       "utf-8"
     );
   } else {
-    if (!fs2.existsSync(BUILD_FLAG)) {
+    if (!fs3.existsSync(BUILD_FLAG)) {
       throw `The output directory already exists, but is not an Elegance Build directory.`;
     }
   }
-  const DIST_DIR = path.join(props.outputDirectory, "dist");
-  if (!fs2.existsSync(DIST_DIR)) {
-    fs2.mkdirSync(DIST_DIR, { recursive: true });
+  const DIST_DIR = path2.join(props.outputDirectory, "dist");
+  if (!fs3.existsSync(DIST_DIR)) {
+    fs3.mkdirSync(DIST_DIR, { recursive: true });
   }
   if (props.server != void 0 && props.server.runServer == true) {
     startServer({
       root: props.server.root ?? DIST_DIR,
       environment: props.environment,
       port: props.server.port ?? 3e3,
-      host: props.server.host ?? "localhost"
+      host: props.server.host ?? "localhost",
+      DIST_DIR
     });
   }
   if (watch) {
@@ -463,12 +1055,12 @@ var compile = async (props) => {
       const dirs = options.hotReload?.extraWatchDirectories ?? [];
       if (dirs.length !== 0) {
         for (const dir of dirs) {
-          const subdirs = getAllSubdirectories(dir).map((f) => path.join(dir, f));
+          const subdirs = getAllSubdirectories(dir).map((f) => path2.join(dir, f));
           extra.push(...subdirs);
         }
       }
     }
-    const pagesSubDirs = getAllSubdirectories(options.pagesDirectory).map((f) => path.join(options.pagesDirectory, f));
+    const pagesSubDirs = getAllSubdirectories(options.pagesDirectory).map((f) => path2.join(options.pagesDirectory, f));
     const subdirectories = [...pagesSubDirs, options.pagesDirectory, ...extra];
     finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "));
     const watcherFn = async () => {
@@ -481,7 +1073,7 @@ var compile = async (props) => {
       }, 100);
     };
     for (const directory of subdirectories) {
-      const watcher = fs2.watch(
+      const watcher = fs3.watch(
         directory,
         {},
         watcherFn

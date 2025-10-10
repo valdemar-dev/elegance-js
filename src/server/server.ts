@@ -1,8 +1,10 @@
+import { buildDynamicPage } from "../dynamic_page";
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'http';
 import { promises as fs, readFileSync } from 'fs';
-import { join, normalize, extname, dirname, resolve } from 'path';
-import { pathToFileURL } from 'url';
+import { join, normalize, extname, dirname, resolve, relative } from 'path';
+import { pathToFileURL, fileURLToPath } from 'url';
 import { log } from "../log";
+
 
 const MIME_TYPES: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
@@ -23,10 +25,19 @@ interface ServerOptions {
     port?: number;
     host?: string;
     environment?: 'production' | 'development';
+    DIST_DIR: string,
 }
 
-export function startServer({ root, port = 3000, host = 'localhost', environment = 'production', }: ServerOptions) {
+export function startServer({ 
+    root, 
+    port = 3000, 
+    host = 'localhost', 
+    environment = 'production',
+    DIST_DIR
+}: ServerOptions) {
     if (!root) throw new Error('Root directory must be specified.');
+
+    root = normalize(root).replace(/[\\/]+$/, '');
 
     const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
         try {
@@ -56,7 +67,7 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
             if (url.pathname.startsWith('/api/')) {
                 await handleApiRequest(root, url.pathname, req, res);
             } else {
-                await handleStaticRequest(root, url.pathname, req, res);
+                await handleStaticRequest(root, url.pathname, req, res, DIST_DIR);
             }
 
             if (environment === 'development') {
@@ -91,10 +102,9 @@ export function startServer({ root, port = 3000, host = 'localhost', environment
 }
 
 
-async function handleStaticRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse) {
-    let filePath = normalize(join(root, decodeURIComponent(pathname)));
-    root = normalize(root);
-
+async function handleStaticRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse, DIST_DIR: string) {
+    const originalPathname = pathname;
+    let filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, '');
     if (!filePath.startsWith(root)) {
         res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('Forbidden');
@@ -104,18 +114,23 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
     let stats;
     try {
         stats = await fs.stat(filePath);
+    } catch {}
+
+    let pageDir: string;
+    if (stats) {
         if (stats.isDirectory()) {
-            filePath = join(filePath, 'index.html');
+            pageDir = filePath;
+        } else {
+            pageDir = dirname(filePath);
         }
-    } catch {}
+    } else {
+        if (originalPathname.endsWith('/')) {
+            pageDir = filePath;
+        } else {
+            pageDir = dirname(filePath);
+        }
+    }
 
-    let hasFile = false;
-    try {
-        await fs.access(filePath);
-        hasFile = true;
-    } catch {}
-
-    const pageDir = dirname(filePath);
     const relDir = pageDir.slice(root.length).replace(/^[\/\\]+/, '');
     const parts = relDir.split(/[\\/]/).filter(Boolean);
 
@@ -148,22 +163,57 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
         }
     }
 
+    let isDynamic = false;
+    let handlerPath = filePath;
+    if (stats && stats.isDirectory()) {
+        const pageMjsPath = join(filePath, 'page.mjs');
+        try {
+            await fs.access(pageMjsPath);
+            handlerPath = pageMjsPath;
+            isDynamic = true;
+        } catch {
+            handlerPath = join(filePath, 'index.html');
+            isDynamic = false;
+        }
+    } else {
+        handlerPath = filePath;
+        isDynamic = false;
+    }
+
+    let hasHandler = false;
+    try {
+        await fs.access(handlerPath);
+        hasHandler = true;
+    } catch {}
+
     const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
-        if (!hasFile) {
+        if (!hasHandler) {
             await respondWithErrorPage(root, pathname, 404, res);
             return;
         }
 
-        const ext = extname(filePath).toLowerCase();
-        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-        
-        const data = await fs.readFile(filePath);
-        
-        res.writeHead(200, { 'Content-Type': contentType });
-        res.end(data);
+        if (isDynamic) {
+            try {
+                const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR);
+                
+                res.writeHead(200, { 'Content-Type': MIME_TYPES[".html"] });
+                res.end(resultHTML);
+            } catch(err) {
+                log.error("Error building dynamic page -", err);
+            }
+            
+        } else {
+            const ext = extname(handlerPath).toLowerCase();
+            const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+            
+            const data = await fs.readFile(handlerPath);
+            
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(data);
+        }
     };
 
-    const composed = composeMiddlewares(middlewares, finalHandler);
+    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
     await composed(req, res);
 }
 
@@ -238,20 +288,31 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
         await fn(req, res);
     };
 
-    const composed = composeMiddlewares(middlewares, finalHandler);
+    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: true });
     await composed(req, res);
+}
+
+interface ComposeOptions {
+    isApi: boolean;
+    root?: string;
+    pathname?: string;
 }
 
 function composeMiddlewares(
     mws: ((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[],
-    final: (req: IncomingMessage, res: ServerResponse) => Promise<void>
+    final: (req: IncomingMessage, res: ServerResponse) => Promise<void>,
+    options: ComposeOptions
 ) {
     return async function (req: IncomingMessage, res: ServerResponse) {
         let index = 0;
 
         async function dispatch(err?: any): Promise<void> {
             if (err) {
-                return respondWithJsonError(res, 500, err.message || 'Internal Server Error');
+                if (options.isApi) {
+                    return respondWithJsonError(res, 500, err.message || 'Internal Server Error');
+                } else {
+                    return await respondWithErrorPage(options.root!, options.pathname!, 500, res);
+                }
             }
 
             if (index >= mws.length) {

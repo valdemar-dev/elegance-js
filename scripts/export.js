@@ -15,6 +15,6 @@ compile({
         runServer: false,
     },
     postCompile: () => {
-        exec("npx @tailwindcss/cli -i \"./pages/index.css\" -o \".elegance/dist/index.css\" --cwd \"./pages\" --minify=true")
+        exec("npx @tailwindcss/cli -i \"./index.css\" -o \"../.elegance/dist/index.css\" --cwd \"./pages\" --minify=true")
     },
 })

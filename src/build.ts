@@ -204,6 +204,7 @@ export const compile = async (props: CompilationOptions) => {
             environment: props.environment,
             port: props.server.port ?? 3000,
             host: props.server.host ?? "localhost",
+            DIST_DIR,
         })
     }
         

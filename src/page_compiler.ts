@@ -10,7 +10,13 @@ import { getState, getObjectAttributes, initializeState, initializeObjectAttribu
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
 
-const packageDir = process.env.PACKAGE_PATH!;
+let packageDir = process.env.PACKAGE_PATH;
+if (packageDir === undefined) {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    
+    packageDir = path.resolve(__dirname, '..');
+}
 
 const clientPath = path.resolve(packageDir, './dist/client/client.mjs');
 const watcherPath = path.resolve(packageDir, './dist/client/watcher.mjs');
@@ -401,6 +407,7 @@ const generateSuitablePageElements = async (
     metadata: () => BuiltElement<"head">,
     DIST_DIR: string,
     pageName: string,
+    doWrite: boolean = true,
 ) => {
     if (
         typeof pageElements === "string" ||
@@ -431,17 +438,25 @@ const generateSuitablePageElements = async (
     const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
 
     const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
-
-    fs.writeFileSync(
-        htmlLocation,
-        resultHTML,
-        {
-            encoding: "utf-8",
-            flag: "w",
+    
+    if (doWrite) {
+        fs.writeFileSync(
+            htmlLocation,
+            resultHTML,
+            {
+                encoding: "utf-8",
+                flag: "w",
+            }
+        );
+    
+        return objectAttributes;
+    } else {
+        return {
+            objectAttributes,
+            resultHTML,
         }
-    );
+    }
 
-    return objectAttributes;
 };
 
 // TODO: REWRITE THIS SHITTY FUNCTION
@@ -595,6 +610,7 @@ const generateClientPageData = async (
     return { sendHardReloadInstruction, }
 };
 
+
 const buildPages = async (
     DIST_DIR: string,
 ) => { 
@@ -621,70 +637,136 @@ const buildPages = async (
                 continue;
             }            
 
-            initializeState();
-            initializeObjectAttributes();
-            resetLoadHooks();
+            const hardReloadForPage = await buildPage(DIST_DIR, directory, filePath, name);
             
-            let pageElements;
-            let metadata;
-            
-            try {
-                const {
-                    page,
-                    metadata: pageMetadata,
-                } = await import("file://" + filePath);
-                
-                pageElements = page;
-                metadata = pageMetadata;
-            } catch(e) {
-                throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${file.name} - ${e}`);
+            if (hardReloadForPage) {
+                shouldClientHardReload = true;
             }
-            
-            if (
-                !metadata ||
-                metadata && typeof metadata !== "function"
-            ) {
-                console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
-            }
-    
-            if (!pageElements) {
-                console.warn(`WARNING: ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
-            }
-            
-            if (typeof pageElements === "function") {
-                pageElements = pageElements();
-            }
-    
-            const state = getState();
-            const pageLoadHooks = getLoadHooks();
-            const objectAttributes = getObjectAttributes();
-            
-            const foundObjectAttributes = await generateSuitablePageElements(
-                file.parentPath,
-                pageElements || (body()),
-                metadata ?? (() => head()),
-                DIST_DIR,
-                name,
-            )
-    
-            const {
-                sendHardReloadInstruction,
-            } = await generateClientPageData(
-                file.parentPath,
-                state || {},
-                [...objectAttributes, ...foundObjectAttributes],
-                pageLoadHooks || [],
-                DIST_DIR,
-                name,
-            );
-    
-            if (sendHardReloadInstruction === true) shouldClientHardReload = true;
         }
     }
 
     return {
         shouldClientHardReload,
     };
+};
+
+const buildPage = async (
+    DIST_DIR: string,
+    directory: string,
+    filePath: string,
+    name: string,
+) => {
+    initializeState();
+    initializeObjectAttributes();
+    resetLoadHooks();
+    
+    let pageElements;
+    let metadata;
+    
+    try {
+        const {
+            page,
+            metadata: pageMetadata,
+            isDynamicPage,
+        } = await import("file://" + filePath);
+        
+        pageElements = page;
+        metadata = pageMetadata;
+        
+        // wrap dynamic page
+        // this requires a bit of an explanation cause it's kind of weird.
+        // dynamic pages are built on each request.
+        // as such, we want to "re-call" a module multiple times, which is not normally possible (at least in node).
+        // we also don't want to use cache-busting methods, since this incurs a memory leak.
+        // we *also* don't want to bother doing *another* child process to build *one* page.
+        // instead, a cheaper and faster option is this.
+        // we re-build the dynamic page, and wrap a *function* around it.
+        // this function, when called, will *execute* the page (re-evaluating things like top-level variables and such)
+        // then, the function will return module.exports, and the page will be none the wiser.
+        // these are then used to compile the page later on per-request.
+        if (isDynamicPage === true) {
+            await esbuild.build({
+                entryPoints: [filePath],
+                outfile: filePath,
+                // necessary because we're mutilating the original
+                allowOverwrite: true,
+                bundle: true,
+                format: "cjs", // Important
+                plugins: [
+                    {
+                    name: "wrap-cjs",
+                    setup(build: any) {
+                        build.onEnd(async () => {
+                        const fs = await import("fs/promises");
+                        const code = await fs.readFile(build.initialOptions.outfile, "utf8");
+                
+                        const wrapped = `\
+export function construct() {
+    const exports = {};
+    const module = { exports };
+    (function(exports, module) {
+        ${code
+        .split("\n")
+        .map((l) => "    " + l)
+        .join("\n")}
+    })(exports, module);
+    
+    return module.exports;
+}
+`;
+                        await fs.writeFile(build.initialOptions.outfile, wrapped);
+                        });
+                    },
+                    },
+                ],
+            });
+            return false;
+        }
+        
+        fs.rmSync(filePath, { force: true, })
+    } catch(e) {
+        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.mjs - ${e}`);
+    }
+    
+    if (
+        !metadata ||
+        metadata && typeof metadata !== "function"
+    ) {
+        console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
+    }
+
+    if (!pageElements) {
+        console.warn(`WARNING: ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
+    }
+    
+    if (typeof pageElements === "function") {
+        pageElements = pageElements();
+    }
+
+    const state = getState();
+    const pageLoadHooks = getLoadHooks();
+    const objectAttributes = getObjectAttributes();
+    
+    const foundObjectAttributes = await generateSuitablePageElements(
+        path.dirname(filePath),
+        pageElements || (body()),
+        metadata ?? (() => head()),
+        DIST_DIR,
+        name,
+    )
+
+    const {
+        sendHardReloadInstruction,
+    } = await generateClientPageData(
+        path.dirname(filePath),
+        state || {},
+        [...objectAttributes, ...foundObjectAttributes as any[]],
+        pageLoadHooks || [],
+        DIST_DIR,
+        name,
+    );
+
+    return sendHardReloadInstruction === true;
 };
 
 const build = async (): Promise<boolean> => {
