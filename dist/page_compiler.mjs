@@ -594,9 +594,14 @@ var buildPages = async (DIST_DIR2) => {
       if (isPage == false) {
         continue;
       }
-      const hardReloadForPage = await buildPage(DIST_DIR2, directory, filePath, name);
-      if (hardReloadForPage) {
-        shouldClientHardReload = true;
+      try {
+        const hardReloadForPage = await buildPage(DIST_DIR2, directory, filePath, name);
+        if (hardReloadForPage) {
+          shouldClientHardReload = true;
+        }
+      } catch (e) {
+        console.error("Failed to build page, received an error: ", e);
+        continue;
       }
     }
   }
