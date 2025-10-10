@@ -16,6 +16,11 @@
     "prepare": "npm run build && node ./dist/compile_docs.mjs --environment=production"
   },
   "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.mjs"
+    },
     "./*": {
       "types": "./dist/*.d.ts",
       "import": "./dist/*.mjs",
