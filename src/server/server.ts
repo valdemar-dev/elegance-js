@@ -194,7 +194,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
 
         if (isDynamic) {
             try {
-                const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR);
+                const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR, req);
                 
                 res.writeHead(200, { 'Content-Type': MIME_TYPES[".html"] });
                 res.end(resultHTML);

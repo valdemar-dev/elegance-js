@@ -400,11 +400,8 @@ const generateClientPageData = async (
 export const buildDynamicPage = async (
     filePath: string,
     DIST_DIR: string,
-) => {
-    initializeState();
-    initializeObjectAttributes();
-    resetLoadHooks();
-    
+    req: any,
+) => {    
     let pageElements;
     let metadata;
     
@@ -413,11 +410,20 @@ export const buildDynamicPage = async (
             construct
         } = await import("file://" + filePath);
         
+        initializeState();
+        initializeObjectAttributes();
+        resetLoadHooks();
+
         const {
             page,
             metadata: pageMetadata,
             isDynamicPage,
+            requestHook,
         } = construct()
+        
+        if (typeof requestHook === "function") {
+            requestHook(req);
+        }
         
         pageElements = page;
         metadata = pageMetadata;

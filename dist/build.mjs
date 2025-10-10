@@ -532,21 +532,25 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
-var buildDynamicPage = async (filePath, DIST_DIR) => {
-  initializeState();
-  initializeObjectAttributes();
-  resetLoadHooks();
+var buildDynamicPage = async (filePath, DIST_DIR, req) => {
   let pageElements;
   let metadata;
   try {
     const {
       construct
     } = await import("file://" + filePath);
+    initializeState();
+    initializeObjectAttributes();
+    resetLoadHooks();
     const {
       page,
       metadata: pageMetadata,
-      isDynamicPage
+      isDynamicPage,
+      requestHook
     } = construct();
+    if (typeof requestHook === "function") {
+      requestHook(req);
+    }
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === false) {
@@ -745,7 +749,7 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
     }
     if (isDynamic) {
       try {
-        const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR);
+        const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR, req2);
         res2.writeHead(200, { "Content-Type": MIME_TYPES[".html"] });
         res2.end(resultHTML);
       } catch (err) {

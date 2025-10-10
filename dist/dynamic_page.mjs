@@ -488,21 +488,25 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
-var buildDynamicPage = async (filePath, DIST_DIR) => {
-  initializeState();
-  initializeObjectAttributes();
-  resetLoadHooks();
+var buildDynamicPage = async (filePath, DIST_DIR, req) => {
   let pageElements;
   let metadata;
   try {
     const {
       construct
     } = await import("file://" + filePath);
+    initializeState();
+    initializeObjectAttributes();
+    resetLoadHooks();
     const {
       page,
       metadata: pageMetadata,
-      isDynamicPage
+      isDynamicPage,
+      requestHook
     } = construct();
+    if (typeof requestHook === "function") {
+      requestHook(req);
+    }
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === false) {
