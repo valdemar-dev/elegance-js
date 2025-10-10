@@ -979,7 +979,8 @@ var runBuild = (filepath, DIST_DIR) => {
         options.postCompile();
       }
     } else if (data === "set-layouts") {
-      globalThis.__SERVER_CURRENT_LAYOUTS__ = JSON.parse(message.layouts);
+      globalThis.__SERVER_CURRENT_LAYOUTS__ = new Map(JSON.parse(message.layouts));
+      globalThis.__SERVER_CURRENT_LAYOUT_ID__ = parseInt(message.currentLayoutId);
     }
   });
 };
