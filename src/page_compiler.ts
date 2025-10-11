@@ -707,6 +707,7 @@ const buildPage = async (
                 allowOverwrite: true,
                 bundle: true,
                 format: "cjs", 
+                platform: "node",
                 plugins: [
                     {
                     name: "wrap-cjs",

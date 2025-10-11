@@ -693,6 +693,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
         allowOverwrite: true,
         bundle: true,
         format: "cjs",
+        platform: "node",
         plugins: [
           {
             name: "wrap-cjs",
