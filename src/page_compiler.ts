@@ -221,37 +221,41 @@ const processOptionAsObjectAttribute = (
 };
 
 function buildTrace(stack: any[], indent = 4): string {
-    if (stack.length === 0) {
-        return '[]';
-    }
-
-    let traceObj = JSON.parse(JSON.stringify(stack[stack.length - 1] ?? "NO STACK"));
-    traceObj._error = "This is the element where the error occurred";
-
-    for (let i = stack.length - 2; i >= 0; i--) {
-        const parent = stack[i];
-        const child = stack[i + 1];
-
-        let index = -1;
-        if (parent.children && Array.isArray(parent.children)) {
-            index = parent.children.findIndex((c: any) => c === child);
+    try {
+        if (stack.length === 0) {
+            return '[]';
         }
-
-        const parentClone = JSON.parse(JSON.stringify(parent));
-        
-        if (index !== -1) {
-            parentClone.children = parentClone.children.slice(0, index + 1);
-            parentClone.children[index] = traceObj;
-        } else {
-            parentClone._errorChild = traceObj;
-        }
-
-        traceObj = parentClone;
-    }
-
-    const json = JSON.stringify(traceObj, null, indent);
     
-    return json.replace(/^/gm, " ".repeat(indent));
+        let traceObj = JSON.parse(JSON.stringify(stack[stack.length - 1] ?? "NO STACK"));
+        traceObj._error = "This is the element where the error occurred";
+    
+        for (let i = stack.length - 2; i >= 0; i--) {
+            const parent = stack[i];
+            const child = stack[i + 1];
+    
+            let index = -1;
+            if (parent.children && Array.isArray(parent.children)) {
+                index = parent.children.findIndex((c: any) => c === child);
+            }
+    
+            const parentClone = JSON.parse(JSON.stringify(parent) ?? "NO PARENT");
+            
+            if (index !== -1) {
+                parentClone.children = parentClone.children.slice(0, index + 1);
+                parentClone.children[index] = traceObj;
+            } else {
+                parentClone._errorChild = traceObj;
+            }
+    
+            traceObj = parentClone;
+        }
+    
+        const json = JSON.stringify(traceObj, null, indent);
+        
+        return json.replace(/^/gm, " ".repeat(indent));
+    } catch(e) {
+        return "Could not build stack-trace.";
+    }
 }
 
 export const processPageElements = (
