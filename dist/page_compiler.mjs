@@ -691,26 +691,30 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
         entryPoints: [filePath],
         outfile: filePath,
         allowOverwrite: true,
-        bundle: false,
-        format: "esm",
+        bundle: true,
+        format: "cjs",
         plugins: [
           {
-            name: "wrap-esm",
+            name: "wrap-cjs",
             setup(build2) {
               build2.onEnd(async () => {
                 const fs2 = await import("fs/promises");
                 const code = await fs2.readFile(build2.initialOptions.outfile, "utf8");
-                const wrapped = `export async function construct() {
+                const wrapped = `export function construct() {
     const exports = {};
-    ${code.replace(/export\s+(const|let|var|function|class)\s+(\w+)/g, "exports.$2 = $2; $1 $2").split("\n").map((l) => "    " + l).join("\n")}
+    const module = { exports };
+    (function(exports, module) {
+        ${code.split("\n").map((l) => "    " + l).join("\n")}
+    })(exports, module);
     
-    return exports;
+    return module.exports;
 }
 `;
                 await fs2.writeFile(build2.initialOptions.outfile, wrapped);
               });
             }
-          }
+          },
+          externalPackagesPlugin
         ]
       });
       return false;
@@ -754,6 +758,35 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   );
   return sendHardReloadInstruction === true;
 };
+var recursionFlag = Symbol("external-node-modules-recursion");
+var externalPackagesPlugin = {
+  name: "external-packages",
+  setup(build2) {
+    build2.onResolve({ filter: /^[^./]/ }, async (args) => {
+      if (args.pluginData?.[recursionFlag]) {
+        return;
+      }
+      const result = await build2.resolve(args.path, {
+        resolveDir: args.resolveDir,
+        kind: args.kind,
+        importer: args.importer,
+        pluginData: { [recursionFlag]: true }
+      });
+      if (result.errors.length > 0 || result.external || !result.path) {
+        return { path: args.path, external: true };
+      }
+      const nodeModulesIndex = result.path.indexOf("node_modules");
+      if (nodeModulesIndex === -1) {
+        return result;
+      }
+      const isNested = result.path.includes("node_modules", nodeModulesIndex + 14);
+      if (isNested) {
+        return { path: args.path, external: true };
+      }
+      return { path: args.path, external: true };
+    });
+  }
+};
 var build = async () => {
   if (options.quiet === true) {
     console.log = function() {
@@ -788,36 +821,7 @@ var build = async () => {
     }
     const projectFiles = getProjectFiles(options.pagesDirectory);
     const start = performance.now();
-    const recursionFlag = Symbol("external-node-modules-recursion");
     {
-      const externalPackagesPlugin = {
-        name: "external-packages",
-        setup(build2) {
-          build2.onResolve({ filter: /^[^./]/ }, async (args) => {
-            if (args.pluginData?.[recursionFlag]) {
-              return;
-            }
-            const result = await build2.resolve(args.path, {
-              resolveDir: args.resolveDir,
-              kind: args.kind,
-              importer: args.importer,
-              pluginData: { [recursionFlag]: true }
-            });
-            if (result.errors.length > 0 || result.external || !result.path) {
-              return { path: args.path, external: true };
-            }
-            const nodeModulesIndex = result.path.indexOf("node_modules");
-            if (nodeModulesIndex === -1) {
-              return result;
-            }
-            const isNested = result.path.includes("node_modules", nodeModulesIndex + 14);
-            if (isNested) {
-              return { path: args.path, external: true };
-            }
-            return { path: args.path, external: true };
-          });
-        }
-      };
       await esbuild.build({
         entryPoints: projectFiles.map((f) => path.join(f.parentPath, f.name)),
         bundle: true,
