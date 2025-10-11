@@ -687,31 +687,24 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === true) {
-      const parsed = path.parse(filePath);
       await esbuild.build({
         entryPoints: [filePath],
-        outfile: path.join(parsed.dir, parsed.name + ".cjs"),
-        // necessary because we're mutilating the original
+        outfile: filePath,
         allowOverwrite: true,
-        // dont bundle because the origina build handles moduleresolution
         bundle: false,
-        format: "cjs",
-        // Important
+        format: "esm",
         plugins: [
           {
-            name: "wrap-cjs",
+            name: "wrap-esm",
             setup(build2) {
               build2.onEnd(async () => {
                 const fs2 = await import("fs/promises");
                 const code = await fs2.readFile(build2.initialOptions.outfile, "utf8");
-                const wrapped = `export function construct() {
+                const wrapped = `export async function construct() {
     const exports = {};
-    const module = { exports };
-    (function(exports, module) {
-        ${code.split("\n").map((l) => "    " + l).join("\n")}
-    })(exports, module);
+    ${code.replace(/export\s+(const|let|var|function|class)\s+(\w+)/g, "exports.$2 = $2; $1 $2").split("\n").map((l) => "    " + l).join("\n")}
     
-    return module.exports;
+    return exports;
 }
 `;
                 await fs2.writeFile(build2.initialOptions.outfile, wrapped);

@@ -701,24 +701,35 @@ const buildPage = async (
         // then, the function will return module.exports, and the page will be none the wiser.
         // these are then used to compile the page later on per-request.
         if (isDynamicPage === true) {
-            const parsed = path.parse(filePath);
-            
             await esbuild.build({
                 entryPoints: [filePath],
-                outfile: path.join(parsed.dir, parsed.name + ".cjs"),
-                // necessary because we're mutilating the original
+                outfile: filePath,
                 allowOverwrite: true,
-                // dont bundle because the origina build handles moduleresolution
                 bundle: false,
-                format: "cjs", // Important
+                format: "esm", 
                 plugins: [
                     {
-                    name: "wrap-cjs",
+                    name: "wrap-esm",
                     setup(build: any) {
                         build.onEnd(async () => {
                         const fs = await import("fs/promises");
                         const code = await fs.readFile(build.initialOptions.outfile, "utf8");
-                
+                        
+                        const wrapped = `\
+export async function construct() {
+    const exports = {};
+    ${code
+      .replace(/export\s+(const|let|var|function|class)\s+(\w+)/g, "exports.$2 = $2; $1 $2")
+      .split("\n")
+      .map((l) => "    " + l)
+      .join("\n")}
+    
+    return exports;
+}
+`;
+
+// old cjs variant
+/*                
                         const wrapped = `\
 export function construct() {
     const exports = {};
@@ -733,6 +744,7 @@ export function construct() {
     return module.exports;
 }
 `;
+*/
                         await fs.writeFile(build.initialOptions.outfile, wrapped);
                         });
                     },
