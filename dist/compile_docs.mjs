@@ -726,7 +726,7 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
   let isDynamic = false;
   let handlerPath = filePath;
   if (stats && stats.isDirectory()) {
-    const pageMjsPath = join(filePath, "page.cjs");
+    const pageMjsPath = join(filePath, "page.mjs");
     try {
       await fs2.access(pageMjsPath);
       handlerPath = pageMjsPath;
