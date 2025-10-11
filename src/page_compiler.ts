@@ -291,7 +291,7 @@ export const processPageElements = (
                 for (let i = 0; i < children.length+1; i++) {
                     const child = element.children![i];
                     
-                    const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1)
+                    const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1, stack)
                     
                     element.children![i] = processedChild;
                 }
@@ -413,7 +413,8 @@ const generateSuitablePageElements = async (
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
 
-    const processedPageElements = processPageElements(pageElements, objectAttributes, 0);
+    const stack: any[] = [];
+    const processedPageElements = processPageElements(pageElements, objectAttributes, 0, stack);
     
     elementKey = 0;
 

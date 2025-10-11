@@ -431,7 +431,7 @@ var processPageElements = (element, objectAttributes, recursionLevel, stack = []
         element.options = {};
         for (let i = 0; i < children.length + 1; i++) {
           const child = element.children[i];
-          const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1);
+          const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1, stack);
           element.children[i] = processedChild;
         }
         return {
@@ -508,7 +508,8 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     return [];
   }
   const objectAttributes = [];
-  const processedPageElements = processPageElements(pageElements, objectAttributes, 0);
+  const stack = [];
+  const processedPageElements = processPageElements(pageElements, objectAttributes, 0, stack);
   elementKey = 0;
   const renderedPage = await serverSideRenderPage(
     processedPageElements,
