@@ -687,37 +687,24 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === true) {
-      await esbuild.build({
+      const result = await esbuild.build({
         entryPoints: [filePath],
-        outfile: filePath,
-        allowOverwrite: true,
-        bundle: true,
-        format: "cjs",
+        bundle: false,
+        format: "iife",
+        globalName: "__exports",
+        write: false,
         platform: "node",
-        plugins: [
-          {
-            name: "wrap-cjs",
-            setup(build2) {
-              build2.onEnd(async () => {
-                const fs2 = await import("fs/promises");
-                const code = await fs2.readFile(build2.initialOptions.outfile, "utf8");
-                const wrapped = `export function construct() {
-    const exports = {};
-    const module = { exports };
-    (function(exports, module) {
-        ${code.split("\n").map((l) => "    " + l).join("\n")}
-    })(exports, module);
-    
-    return module.exports;
-}
-`;
-                await fs2.writeFile(build2.initialOptions.outfile, wrapped);
-              });
-            }
-          },
-          externalPackagesPlugin
-        ]
+        plugins: [externalPackagesPlugin]
       });
+      let iifeCode = result.outputFiles[0].text;
+      iifeCode = iifeCode.replace(/^var __exports = /, "");
+      const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+export function construct() {
+  ${iifeCode} 
+return __exports
+}`;
+      fs.writeFileSync(filePath, wrappedCode);
       return false;
     }
     fs.rmSync(filePath, { force: true });

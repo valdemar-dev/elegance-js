@@ -701,42 +701,24 @@ const buildPage = async (
         // then, the function will return module.exports, and the page will be none the wiser.
         // these are then used to compile the page later on per-request.
         if (isDynamicPage === true) {
-            await esbuild.build({
+            const result = await esbuild.build({
                 entryPoints: [filePath],
-                outfile: filePath,
-                allowOverwrite: true,
-                bundle: true,
-                format: "cjs", 
-                platform: "node",
-                plugins: [
-                    {
-                    name: "wrap-cjs",
-                    setup(build: any) {
-                        build.onEnd(async () => {
-                        const fs = await import("fs/promises");
-                        const code = await fs.readFile(build.initialOptions.outfile, "utf8");
-                        
-                        const wrapped = `\
-export function construct() {
-    const exports = {};
-    const module = { exports };
-    (function(exports, module) {
-        ${code
-        .split("\n")
-        .map((l) => "    " + l)
-        .join("\n")}
-    })(exports, module);
-    
-    return module.exports;
-}
-`;
-                        await fs.writeFile(build.initialOptions.outfile, wrapped);
-                        });
-                    },
-                    },
-                    externalPackagesPlugin,
-                ],
+                bundle: false,
+                format: 'iife',
+                globalName: '__exports',
+                write: false,
+                platform: 'node',
+                plugins: [externalPackagesPlugin],
             });
+            
+            let iifeCode = result.outputFiles![0].text;
+            
+            iifeCode = iifeCode.replace(/^var __exports = /, '');
+            
+            const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);\n\nexport function construct() {\n  ${iifeCode} \nreturn __exports\n}`;
+            
+            fs.writeFileSync(filePath, wrappedCode);
+            
             return false;
         }
         
