@@ -225,7 +225,7 @@ function buildTrace(stack: any[], indent = 4): string {
         return '[]';
     }
 
-    let traceObj = JSON.parse(JSON.stringify(stack[stack.length - 1]));
+    let traceObj = JSON.parse(JSON.stringify(stack[stack.length - 1] ?? "NO STACK"));
     traceObj._error = "This is the element where the error occurred";
 
     for (let i = stack.length - 2; i >= 0; i--) {
