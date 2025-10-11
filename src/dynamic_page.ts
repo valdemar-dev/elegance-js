@@ -405,15 +405,15 @@ export const buildDynamicPage = async (
     let pageElements;
     let metadata;
     
+    initializeState();
+    initializeObjectAttributes();
+    resetLoadHooks();
+
     try {
         const {
             construct
         } = await import("file://" + filePath);
         
-        initializeState();
-        initializeObjectAttributes();
-        resetLoadHooks();
-
         const {
             page,
             metadata: pageMetadata,

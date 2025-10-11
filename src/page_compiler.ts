@@ -790,7 +790,7 @@ const externalPackagesPlugin: esbuild.Plugin = {
             });
         
             if (result.errors.length > 0 || result.external || !result.path) {
-                return { path: args.path, external: true, };
+                return { path: args.path, external: true };
             }
         
             const nodeModulesIndex = result.path.indexOf('node_modules');
@@ -799,10 +799,18 @@ const externalPackagesPlugin: esbuild.Plugin = {
             }
         
             const isNested = result.path.includes('node_modules', nodeModulesIndex + 14);
-            if (isNested) {
-                return { path: args.path, external: true, };
+        
+            // we want to bundle things like the built-in components
+            // so that dynamic pages when constructed()
+            // will re-call loadHook, state, etc.
+            if (args.path.startsWith('elegance-js')) {
+                return result;
             }
-            
+        
+            if (isNested) {
+                return { path: args.path, external: true };
+            }
+        
             return { path: args.path, external: true };
         });
     }

@@ -768,6 +768,9 @@ var externalPackagesPlugin = {
         return result;
       }
       const isNested = result.path.includes("node_modules", nodeModulesIndex + 14);
+      if (args.path.startsWith("elegance-js")) {
+        return result;
+      }
       if (isNested) {
         return { path: args.path, external: true };
       }
