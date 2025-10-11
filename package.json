@@ -1,6 +1,6 @@
 {
   "name": "elegance-js",
-  "version": "1.11.10",
+  "version": "1.11.11",
   "description": "Web-Framework",
   "type": "module",
   "bin": {
