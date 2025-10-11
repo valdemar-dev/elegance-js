@@ -490,7 +490,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
-var buildDynamicPage = async (filePath, DIST_DIR, req) => {
+var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
   let pageElements;
   let metadata;
   initializeState();
@@ -508,7 +508,17 @@ var buildDynamicPage = async (filePath, DIST_DIR, req) => {
       requestHook
     } = construct();
     if (typeof requestHook === "function") {
-      requestHook(req);
+      if (requestHook.constructor.name === "AsyncFunction") {
+        const doProcessRequest = await requestHook(req, res);
+        if (doProcessRequest !== void 0 == doProcessRequest === false) {
+          return false;
+        }
+      } else {
+        const doProcessRequest = requestHook(req, res);
+        if (doProcessRequest !== void 0 == doProcessRequest === false) {
+          return false;
+        }
+      }
     }
     pageElements = page;
     metadata = pageMetadata;

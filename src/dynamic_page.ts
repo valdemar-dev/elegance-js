@@ -401,6 +401,7 @@ export const buildDynamicPage = async (
     filePath: string,
     DIST_DIR: string,
     req: any,
+    res: any,
 ) => {    
     let pageElements;
     let metadata;
@@ -424,7 +425,19 @@ export const buildDynamicPage = async (
         } = construct()
         
         if (typeof requestHook === "function") {
-            requestHook(req);
+            if (requestHook.constructor.name === "AsyncFunction") {
+                const doProcessRequest = await requestHook(req, res);
+                
+                if (doProcessRequest !== undefined == doProcessRequest === false) {
+                    return false;
+                }
+            } else {
+                const doProcessRequest = requestHook(req, res);
+                
+                if (doProcessRequest !== undefined == doProcessRequest === false) {
+                    return false;
+                }
+            }
         }
         
         pageElements = page;

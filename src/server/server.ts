@@ -194,7 +194,14 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
 
         if (isDynamic) {
             try {
-                const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR, req);
+                const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR, req, res);
+                
+                // builddynamicpage has access to req,res, which the requestHook function within a page might call
+                // if they decide to do something with it, we need to stop
+                // (hence a false return). i believe this is cleaner than a throw catch in this specific scenario
+                if (resultHTML === false) {
+                    return;
+                }
                 
                 res.writeHead(200, { 'Content-Type': MIME_TYPES[".html"] });
                 res.end(resultHTML);
