@@ -600,7 +600,7 @@ var buildPages = async (DIST_DIR2) => {
           shouldClientHardReload = true;
         }
       } catch (e) {
-        console.error("Failed to build page, received an error: ", e);
+        console.error(e);
         continue;
       }
     }
@@ -629,7 +629,8 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
         outfile: filePath,
         // necessary because we're mutilating the original
         allowOverwrite: true,
-        bundle: true,
+        // dont bundle because the origina build handles moduleresolution
+        bundle: false,
         format: "cjs",
         // Important
         plugins: [
@@ -665,10 +666,14 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
   }
   if (!pageElements) {
-    console.warn(`WARNING: ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
+    console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
   }
   if (typeof pageElements === "function") {
-    pageElements = pageElements();
+    if (pageElements.constructor.name === "AsyncFunctino") {
+      pageElements = await pageElements();
+    } else {
+      pageElements = pageElements;
+    }
   }
   const state = getState();
   const pageLoadHooks = getLoadHooks();

@@ -98,64 +98,7 @@ const getAllSubdirectories = (dir: string, baseDir = dir) => {
     return directories;
 };
 
-const getFile = (dir: Array<Dirent>, fileName: string) => {
-    const dirent = dir.find(dirent => path.parse(dirent.name).name === fileName);
-
-    if (dirent) return dirent;
-    return false;
-}
-
 const getProjectFiles = (pagesDirectory: string,) => {
-    /*
-    const pageFiles = [];
-    const apiFiles = [];
-    const middlewareFiles = [];
-
-    const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
-
-    for (const subdirectory of subdirectories) {
-    
-        const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
-
-        const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
-            .filter(f => f.name.endsWith(".ts"));
-            
-        for (const file of subdirectoryFiles) {
-            if (file.name === "route.ts" || subdirectory.startsWith("/api")) {
-                apiFiles.push(file);
-                
-                continue
-            } else if (file.name === "page.ts") {
-                pageFiles.push(file);
-                
-                continue
-            } else if (file.name === "middleware.ts") {
-                middlewareFiles.push(file);
-                
-                continue;
-            }
-            
-            const name = file.name.slice(0, file.name.length - 3)
-            const numberName = parseInt(name)
-            
-            if (isNaN(numberName) === false) {
-                if (numberName >= 400 && numberName <= 599) {
-                    pageFiles.push(file);
-                    
-                    continue
-                }
-            }
-            
-        }
-    }
-
-    return {
-        pageFiles,
-        apiFiles,
-        middlewareFiles,
-    };
-    */
-    
     const files = [];
     
     const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
@@ -199,18 +142,6 @@ const buildClient = async (
         path.join(DIST_DIR, "/client.js"),
         transformedClient.code,
     );
-};
-
-const escapeHtml = (str: string): string => {
-    const replaced = str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&apos;")
-        .replace(/\r?\n|\r/g, "");
-
-    return replaced;
 };
 
 let elementKey = 0;
@@ -645,8 +576,9 @@ const buildPages = async (
                 }
 
             } catch(e) {
-                console.error("Failed to build page, received an error: ", e)
-                continue
+                console.error(e);
+                
+                continue;
             }
         }
     }
@@ -696,7 +628,8 @@ const buildPage = async (
                 outfile: filePath,
                 // necessary because we're mutilating the original
                 allowOverwrite: true,
-                bundle: true,
+                // dont bundle because the origina build handles moduleresolution
+                bundle: false,
                 format: "cjs", // Important
                 plugins: [
                     {
@@ -742,11 +675,15 @@ export function construct() {
     }
 
     if (!pageElements) {
-        console.warn(`WARNING: ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
+        console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
     }
     
     if (typeof pageElements === "function") {
-        pageElements = pageElements();
+        if (pageElements.constructor.name === "AsyncFunctino") {
+            pageElements = await pageElements();
+        } else {
+            pageElements = pageElements;
+        }
     }
 
     const state = getState();

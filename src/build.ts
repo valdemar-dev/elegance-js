@@ -93,7 +93,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
     }
         
     child = child_process.spawn("node", [filepath], { 
-        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+        stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
         env: { ...process.env, DIST_DIR: DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir, }
     });
         

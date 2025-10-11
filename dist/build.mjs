@@ -953,7 +953,7 @@ var runBuild = (filepath, DIST_DIR) => {
     child.kill("SIGKILL");
   }
   child = child_process.spawn("node", [filepath], {
-    stdio: ["pipe", "pipe", "pipe", "ipc"],
+    stdio: ["inherit", "inherit", "inherit", "ipc"],
     env: { ...process.env, DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir2 }
   });
   child.on("error", () => {
