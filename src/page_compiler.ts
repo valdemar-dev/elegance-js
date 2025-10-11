@@ -705,7 +705,7 @@ const buildPage = async (
                 entryPoints: [filePath],
                 outfile: filePath,
                 outExtension: {
-                    ".mjs": ".cjs",
+                    ".js": ".cjs",
                 },
                 // necessary because we're mutilating the original
                 allowOverwrite: true,

@@ -691,7 +691,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
         entryPoints: [filePath],
         outfile: filePath,
         outExtension: {
-          ".mjs": ".cjs"
+          ".js": ".cjs"
         },
         // necessary because we're mutilating the original
         allowOverwrite: true,
