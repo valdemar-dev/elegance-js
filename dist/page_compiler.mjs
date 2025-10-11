@@ -258,7 +258,6 @@ var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
 // src/server/layout.ts
 var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
-var layoutId = globalThis.__SERVER_CURRENT_LAYOUT_ID__;
 
 // src/page_compiler.ts
 var packageDir = process.env.PACKAGE_PATH;
