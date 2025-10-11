@@ -535,6 +535,9 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
     console.warn(`WARNING: Dynamic ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
   }
   if (typeof pageElements === "function") {
+    if (pageElements.constructor.name === "AsyncFunction") {
+      pageElements = await pageElements();
+    }
     pageElements = pageElements();
   }
   const state = getState();

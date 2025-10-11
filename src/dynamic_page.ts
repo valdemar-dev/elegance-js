@@ -463,6 +463,10 @@ export const buildDynamicPage = async (
     }
     
     if (typeof pageElements === "function") {
+        if (pageElements.constructor.name === "AsyncFunction") {
+            pageElements = await pageElements();
+        }
+        
         pageElements = pageElements();
     }
 
