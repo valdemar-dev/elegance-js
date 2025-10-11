@@ -760,7 +760,7 @@ export function construct() {
         if (pageElements.constructor.name === "AsyncFunctino") {
             pageElements = await pageElements();
         } else {
-            pageElements = pageElements;
+            pageElements = pageElements();
         }
     }
 

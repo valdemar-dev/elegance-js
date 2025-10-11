@@ -735,7 +735,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     if (pageElements.constructor.name === "AsyncFunctino") {
       pageElements = await pageElements();
     } else {
-      pageElements = pageElements;
+      pageElements = pageElements();
     }
   }
   const state = getState();
