@@ -18,7 +18,7 @@ type Widen<T> =
     T;
 
 export const state = <
-    U extends number | string | boolean | {},
+    U extends number | string | boolean | {} | undefined | null | Array<any>,
 >(
     value: U,
     options?: {
