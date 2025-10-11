@@ -29,7 +29,7 @@ export type LoadHook = {
 }
 
 export type ClientLoadHook = {
-    bind: number,
+    bind: string,
     fn: (
         state: State,
     ) => (void | (() => void) | Promise<(void | (() => void))>),

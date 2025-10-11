@@ -20,7 +20,7 @@ export type LoadHook = {
     bind: number | string;
 };
 export type ClientLoadHook = {
-    bind: number;
+    bind: string;
     fn: (state: State) => (void | (() => void) | Promise<(void | (() => void))>);
 };
 export declare const resetLoadHooks: () => never[];

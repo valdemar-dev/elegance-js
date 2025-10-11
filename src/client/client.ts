@@ -243,10 +243,12 @@ const loadPage = (
     const loadHooks = pageData.lh as Array<ClientLoadHook>;
 
     for (const loadHook of loadHooks || []) {
-        const bind = loadHook.bind;
+        const bind: any = (loadHook.bind as any ?? "");
 
         if (
-            bind !== undefined &&
+            // generateClientPageData makes undefined binds into empty strings
+            // so that the page_data.js is *smaller*
+            bind !== "" &&
             newBreakpoints &&
             (!newBreakpoints.includes(`${bind}`))
         ) {

@@ -325,8 +325,12 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
   }
   const loadHooks = pageData.lh;
   for (const loadHook of loadHooks || []) {
-    const bind = loadHook.bind;
-    if (bind !== void 0 && newBreakpoints && !newBreakpoints.includes(`${bind}`)) {
+    const bind = loadHook.bind ?? "";
+    if (
+      // generateClientPageData makes undefined binds into empty strings
+      // so that the page_data.js is *smaller*
+      bind !== "" && newBreakpoints && !newBreakpoints.includes(`${bind}`)
+    ) {
       continue;
     }
     const fn = loadHook.fn;
