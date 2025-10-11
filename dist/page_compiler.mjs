@@ -687,9 +687,10 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === true) {
+      const parsed = path.parse(filePath);
       await esbuild.build({
         entryPoints: [filePath],
-        outfile: path.parse(filePath).name + ".cjs",
+        outfile: path.join(parsed.dir, parsed.name + ".cjs"),
         // necessary because we're mutilating the original
         allowOverwrite: true,
         // dont bundle because the origina build handles moduleresolution

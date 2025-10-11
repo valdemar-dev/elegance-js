@@ -701,9 +701,11 @@ const buildPage = async (
         // then, the function will return module.exports, and the page will be none the wiser.
         // these are then used to compile the page later on per-request.
         if (isDynamicPage === true) {
+            const parsed = path.parse(filePath);
+            
             await esbuild.build({
                 entryPoints: [filePath],
-                outfile: path.parse(filePath).name + ".cjs",
+                outfile: path.join(parsed.dir, parsed.name + ".cjs"),
                 // necessary because we're mutilating the original
                 allowOverwrite: true,
                 // dont bundle because the origina build handles moduleresolution
