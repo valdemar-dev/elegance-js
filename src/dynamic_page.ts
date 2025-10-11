@@ -408,7 +408,9 @@ export const buildDynamicPage = async (
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
-
+    
+    globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
+    
     try {
         const {
             construct

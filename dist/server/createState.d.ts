@@ -37,7 +37,7 @@ export declare const createEventListener: <D extends Dependencies, P extends Par
     type: ObjectAttributeType;
     value: Function;
 };
-export declare const initializeState: () => never[];
+export declare const initializeState: () => void;
 export declare const getState: () => {
     value: unknown;
     type: ObjectAttributeType;

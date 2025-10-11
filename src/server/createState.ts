@@ -106,7 +106,10 @@ export const createEventListener = <
     return value;
 };
 
-export const initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
+export const initializeState = () => {
+    globalThis.__SERVER_CURRENT_STATE__ = [];
+}
+
 export const getState = () => {
     return globalThis.__SERVER_CURRENT_STATE__;
 }

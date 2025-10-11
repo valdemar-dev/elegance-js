@@ -45,7 +45,9 @@ var createEventListener = ({
   globalThis.__SERVER_CURRENT_STATE__.push(value);
   return value;
 };
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
+var initializeState = () => {
+  globalThis.__SERVER_CURRENT_STATE__ = [];
+};
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };

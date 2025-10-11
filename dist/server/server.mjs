@@ -240,7 +240,9 @@ var generateHTMLTemplate = ({
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
+var initializeState = () => {
+  globalThis.__SERVER_CURRENT_STATE__ = [];
+};
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
@@ -494,6 +496,7 @@ var buildDynamicPage = async (filePath, DIST_DIR, req) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
+  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
   try {
     const {
       construct
