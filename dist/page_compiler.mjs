@@ -690,6 +690,9 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
       await esbuild.build({
         entryPoints: [filePath],
         outfile: filePath,
+        outExtension: {
+          ".mjs": ".cjs"
+        },
         // necessary because we're mutilating the original
         allowOverwrite: true,
         // dont bundle because the origina build handles moduleresolution
