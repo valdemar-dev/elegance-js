@@ -385,78 +385,130 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
   }
   objectAttributes.push({ ...optionValue, key, attribute: optionFinal });
 };
-var processPageElements = (element, objectAttributes, parent) => {
-  if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
-  if (typeof element === "string") {
-    return element;
+function buildTrace(stack, indent = 4) {
+  if (stack.length === 0) {
+    return "[]";
   }
-  const processElementOptionsAsChildAndReturn = () => {
-    const children = element.children;
-    element.children = [
-      element.options,
-      ...children
-    ];
-    element.options = {};
-    for (let i = 0; i < children.length + 1; i++) {
-      const child = element.children[i];
-      const processedChild = processPageElements(child, objectAttributes, element);
-      element.children[i] = processedChild;
+  let traceObj = JSON.parse(JSON.stringify(stack[stack.length - 1]));
+  traceObj._error = "This is the element where the error occurred";
+  for (let i = stack.length - 2; i >= 0; i--) {
+    const parent = stack[i];
+    const child = stack[i + 1];
+    let index = -1;
+    if (parent.children && Array.isArray(parent.children)) {
+      index = parent.children.findIndex((c) => c === child);
     }
-    return {
-      ...element,
-      options: {}
+    const parentClone = JSON.parse(JSON.stringify(parent));
+    if (index !== -1) {
+      parentClone.children = parentClone.children.slice(0, index + 1);
+      parentClone.children[index] = traceObj;
+    } else {
+      parentClone._errorChild = traceObj;
+    }
+    traceObj = parentClone;
+  }
+  const json = JSON.stringify(traceObj, null, indent);
+  return json.replace(/^/gm, " ".repeat(indent));
+}
+var processPageElements = (element, objectAttributes, recursionLevel, stack = []) => {
+  stack.push(element);
+  try {
+    if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) {
+      stack.pop();
+      return element;
+    }
+    if (typeof element === "string") {
+      stack.pop();
+      return element;
+    }
+    const processElementOptionsAsChildAndReturn = () => {
+      try {
+        const children = element.children;
+        element.children = [
+          element.options,
+          ...children
+        ];
+        element.options = {};
+        for (let i = 0; i < children.length + 1; i++) {
+          const child = element.children[i];
+          const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1);
+          element.children[i] = processedChild;
+        }
+        return {
+          ...element,
+          options: {}
+        };
+      } catch (e) {
+        const errorString = `Could not process element options as a child. ${e}.`;
+        throw new Error(errorString);
+      }
     };
-  };
-  if (typeof element.options !== "object") {
-    return processElementOptionsAsChildAndReturn();
-  }
-  const {
-    tag: elementTag,
-    options: elementOptions,
-    children: elementChildren
-  } = element.options;
-  if (elementTag && elementOptions && elementChildren) {
-    return processElementOptionsAsChildAndReturn();
-  }
-  const options2 = element.options;
-  for (const [optionName, optionValue] of Object.entries(options2)) {
-    const lcOptionName = optionName.toLowerCase();
-    if (typeof optionValue !== "object") {
-      if (lcOptionName === "innertext") {
-        delete options2[optionName];
-        if (element.children === null) {
-          throw `Cannot use innerText or innerHTML on childrenless elements.`;
+    if (typeof element.options !== "object") {
+      const result = processElementOptionsAsChildAndReturn();
+      stack.pop();
+      return result;
+    }
+    const {
+      tag: elementTag,
+      options: elementOptions,
+      children: elementChildren
+    } = element.options;
+    if (elementTag && elementOptions && elementChildren) {
+      const result = processElementOptionsAsChildAndReturn();
+      stack.pop();
+      return result;
+    }
+    const options2 = element.options;
+    for (const [optionName, optionValue] of Object.entries(options2)) {
+      const lcOptionName = optionName.toLowerCase();
+      if (typeof optionValue !== "object") {
+        if (lcOptionName === "innertext") {
+          delete options2[optionName];
+          if (element.children === null) {
+            throw `Cannot use innerText or innerHTML on childrenless elements.`;
+          }
+          element.children = [optionValue, ...element.children];
+          continue;
+        } else if (lcOptionName === "innerhtml") {
+          if (element.children === null) {
+            throw `Cannot use innerText or innerHTML on childrenless elements.`;
+          }
+          delete options2[optionName];
+          element.children = [optionValue];
+          continue;
         }
-        element.children = [optionValue, ...element.children];
-        continue;
-      } else if (lcOptionName === "innerhtml") {
-        if (element.children === null) {
-          throw `Cannot use innerText or innerHTML on childrenless elements.`;
-        }
-        delete options2[optionName];
-        element.children = [optionValue];
         continue;
       }
-      continue;
+      ;
+      processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
     }
-    ;
-    processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
-  }
-  if (element.children) {
-    for (let i = 0; i < element.children.length; i++) {
-      const child = element.children[i];
-      const processedChild = processPageElements(child, objectAttributes, element);
-      element.children[i] = processedChild;
+    if (element.children) {
+      for (let i = 0; i < element.children.length; i++) {
+        const child = element.children[i];
+        const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1, stack);
+        element.children[i] = processedChild;
+      }
+    }
+    stack.pop();
+    return element;
+  } catch (e) {
+    const trace = buildTrace(stack);
+    if (recursionLevel === 0) {
+      throw new Error(`${e}
+
+Trace:
+${trace}`);
+    } else {
+      throw e;
     }
   }
-  return element;
 };
 var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true) => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
     return [];
   }
   const objectAttributes = [];
-  const processedPageElements = processPageElements(pageElements, objectAttributes, []);
+  const processedPageElements = processPageElements(pageElements, objectAttributes, 0);
   elementKey = 0;
   const renderedPage = await serverSideRenderPage(
     processedPageElements,

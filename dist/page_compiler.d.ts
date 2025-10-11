@@ -1,1 +1,1 @@
-export declare const processPageElements: (element: Child, objectAttributes: Array<any>, parent: Child) => Child;
+export declare const processPageElements: (element: Child, objectAttributes: Array<any>, recursionLevel: number, stack?: any[]) => Child;

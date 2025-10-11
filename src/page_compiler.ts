@@ -220,116 +220,178 @@ const processOptionAsObjectAttribute = (
     objectAttributes.push({ ...optionValue, key: key, attribute: optionFinal, });
 };
 
+function buildTrace(stack: any[], indent = 4): string {
+    if (stack.length === 0) {
+        return '[]';
+    }
+
+    let traceObj = JSON.parse(JSON.stringify(stack[stack.length - 1]));
+    traceObj._error = "This is the element where the error occurred";
+
+    for (let i = stack.length - 2; i >= 0; i--) {
+        const parent = stack[i];
+        const child = stack[i + 1];
+
+        let index = -1;
+        if (parent.children && Array.isArray(parent.children)) {
+            index = parent.children.findIndex((c: any) => c === child);
+        }
+
+        const parentClone = JSON.parse(JSON.stringify(parent));
+        
+        if (index !== -1) {
+            parentClone.children = parentClone.children.slice(0, index + 1);
+            parentClone.children[index] = traceObj;
+        } else {
+            parentClone._errorChild = traceObj;
+        }
+
+        traceObj = parentClone;
+    }
+
+    const json = JSON.stringify(traceObj, null, indent);
+    
+    return json.replace(/^/gm, " ".repeat(indent));
+}
+
 export const processPageElements = (
     element: Child,
     objectAttributes: Array<any>,
-    parent: Child,
+    recursionLevel: number,
+    stack: any[] = [],
 ): Child => {
-    if (
-        typeof element === "boolean" ||
-        typeof element === "number" ||
-        Array.isArray(element)
-    ) return element;
-
-    if (typeof element === "string") {
-        return (element);
-    }
-
-    const processElementOptionsAsChildAndReturn = () => {
-        const children = element.children as Child[];
-        
-        (element.children as Child[]) = [
-            (element.options as Child),
-            ...children
-        ];
-        
-        element.options = {};
-        
-        for (let i = 0; i < children.length+1; i++) {
-            const child = element.children![i];
-            
-            const processedChild = processPageElements(child, objectAttributes, element)
-            
-            element.children![i] = processedChild;
-        }
-        
-        return {
-            ...element,
-            options: {},
-        }
-    };
-
-    if (typeof element.options !== "object") {
-        return processElementOptionsAsChildAndReturn();
-    }
+    stack.push(element);
     
-    const {
-        tag: elementTag,
-        options: elementOptions,
-        children: elementChildren
-    } = (element.options as AnyBuiltElement);
-
-    if (
-        elementTag &&
-        elementOptions &&
-        elementChildren
-    ) {
-        return processElementOptionsAsChildAndReturn();
-    }
-
-    const options = element.options as ElementOptions;
-
-    for (const [optionName, optionValue] of Object.entries(options)) {
-        const lcOptionName = optionName.toLowerCase();
-
-        if (typeof optionValue !== "object") {
-            if (lcOptionName === "innertext") {
-                delete options[optionName];
-
-                if (element.children === null) {
-                    throw `Cannot use innerText or innerHTML on childrenless elements.`;
+    try {
+        if (
+            typeof element === "boolean" ||
+            typeof element === "number" ||
+            Array.isArray(element)
+        ) {
+            stack.pop();
+            return element;
+        }
+    
+        if (typeof element === "string") {
+            stack.pop();
+            return (element);
+        }
+    
+        const processElementOptionsAsChildAndReturn = () => {
+            try {
+                const children = element.children as Child[];
+                
+                (element.children as Child[]) = [
+                    (element.options as Child),
+                    ...children
+                ];
+                
+                element.options = {};
+                
+                for (let i = 0; i < children.length+1; i++) {
+                    const child = element.children![i];
+                    
+                    const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1)
+                    
+                    element.children![i] = processedChild;
                 }
-                element.children = [optionValue, ...(element.children as Child[])];
-
-                continue;
-            }
-
-            else if (lcOptionName === "innerhtml") {
-                if (element.children === null) {
-                    throw `Cannot use innerText or innerHTML on childrenless elements.`;
+                
+                return {
+                    ...element,
+                    options: {},
                 }
-
-                delete options[optionName];
-                element.children = [optionValue];
-
-                continue;
+            } catch(e) {
+                const errorString = `Could not process element options as a child. ${e}.`;
+                
+                throw new Error(errorString);
             }
-            
-            // why cant naming be consistent.
-            // this was made to make life easier, eg. dataTest, ariaLabel, into data-test, aria-label. BUt html BAD and they use incosistent casing.
-            // means this breaks stuff.
-            /*
-            delete options[optionName];
-            options[camelToKebabCase(optionName)] = optionValue;
-            */
-            
-            continue;
         };
-
-        processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
-    }
-
-    if (element.children) {    
-        for (let i = 0; i < element.children.length; i++) {
-            const child = element.children![i];
-            
-            const processedChild = processPageElements(child, objectAttributes, element)
     
-            element.children![i] = processedChild;
+        if (typeof element.options !== "object") {
+            const result = processElementOptionsAsChildAndReturn();
+            stack.pop();
+            return result;
+        }
+        
+        const {
+            tag: elementTag,
+            options: elementOptions,
+            children: elementChildren
+        } = (element.options as AnyBuiltElement);
+    
+        if (
+            elementTag &&
+            elementOptions &&
+            elementChildren
+        ) {
+            const result = processElementOptionsAsChildAndReturn();
+            stack.pop();
+            return result;
+        }
+    
+        const options = element.options as ElementOptions;
+    
+        for (const [optionName, optionValue] of Object.entries(options)) {
+            const lcOptionName = optionName.toLowerCase();
+    
+            if (typeof optionValue !== "object") {
+                if (lcOptionName === "innertext") {
+                    delete options[optionName];
+    
+                    if (element.children === null) {
+                        throw `Cannot use innerText or innerHTML on childrenless elements.`;
+                    }
+                    element.children = [optionValue, ...(element.children as Child[])];
+    
+                    continue;
+                }
+    
+                else if (lcOptionName === "innerhtml") {
+                    if (element.children === null) {
+                        throw `Cannot use innerText or innerHTML on childrenless elements.`;
+                    }
+    
+                    delete options[optionName];
+                    element.children = [optionValue];
+    
+                    continue;
+                }
+                
+                // why cant naming be consistent.
+                // this was made to make life easier, eg. dataTest, ariaLabel, into data-test, aria-label. BUt html BAD and they use incosistent casing.
+                // means this breaks stuff.
+                /*
+                delete options[optionName];
+                options[camelToKebabCase(optionName)] = optionValue;
+                */
+                
+                continue;
+            };
+    
+            processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
+        }
+    
+        if (element.children) {    
+            for (let i = 0; i < element.children.length; i++) {
+                const child = element.children![i];
+                
+                const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1, stack)
+        
+                element.children![i] = processedChild;
+            }
+        }
+    
+        stack.pop();
+        return element;
+    
+    } catch(e) {
+        const trace = buildTrace(stack);
+        if (recursionLevel === 0) {
+            throw new Error(`${e}\n\nTrace:\n${trace}`);
+        } else {
+            throw e;
         }
     }
-
-    return element;
 };
 
 const generateSuitablePageElements = async (
@@ -350,7 +412,8 @@ const generateSuitablePageElements = async (
     }
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
-    const processedPageElements = processPageElements(pageElements, objectAttributes, []);
+
+    const processedPageElements = processPageElements(pageElements, objectAttributes, 0);
     
     elementKey = 0;
 
