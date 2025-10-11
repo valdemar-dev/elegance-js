@@ -387,20 +387,27 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
 };
 function buildTrace(stack, indent = 4) {
   try {
-    if (stack.length === 0) {
-      return "[]";
-    }
-    let traceObj = JSON.parse(JSON.stringify(stack[stack.length - 1] ?? "NO STACK"));
+    if (!stack || stack.length === 0) return "[]";
+    let traceObj = stack[stack.length - 1] && typeof stack[stack.length - 1] === "object" ? JSON.parse(JSON.stringify(stack[stack.length - 1])) : { value: stack[stack.length - 1] };
     traceObj._error = "This is the element where the error occurred";
     for (let i = stack.length - 2; i >= 0; i--) {
       const parent = stack[i];
       const child = stack[i + 1];
-      let index = -1;
-      if (parent.children && Array.isArray(parent.children)) {
-        index = parent.children.findIndex((c) => c === child);
+      if (!parent || typeof parent !== "object") {
+        traceObj = { value: parent, _errorChild: traceObj };
+        continue;
       }
-      const parentClone = JSON.parse(JSON.stringify(parent) ?? "NO PARENT");
-      if (index !== -1) {
+      let parentClone;
+      try {
+        parentClone = JSON.parse(JSON.stringify(parent));
+      } catch {
+        parentClone = { value: parent };
+      }
+      let index = -1;
+      if (Array.isArray(parentClone.children)) {
+        index = parentClone.children.findIndex((c) => c === child);
+      }
+      if (index !== -1 && parentClone.children) {
         parentClone.children = parentClone.children.slice(0, index + 1);
         parentClone.children[index] = traceObj;
       } else {
@@ -408,9 +415,8 @@ function buildTrace(stack, indent = 4) {
       }
       traceObj = parentClone;
     }
-    const json = JSON.stringify(traceObj, null, indent);
-    return json.replace(/^/gm, " ".repeat(indent));
-  } catch (e) {
+    return JSON.stringify(traceObj, null, indent).replace(/^/gm, " ".repeat(indent));
+  } catch {
     return "Could not build stack-trace.";
   }
 }
