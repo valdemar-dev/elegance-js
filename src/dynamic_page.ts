@@ -94,11 +94,11 @@ const processOptionAsObjectAttribute = (
     objectAttributes.push({ ...optionValue, key: key, attribute: optionFinal, });
 };
 
-export const processPageElements = (
+export const processPageElements = async (
     element: Child,
     objectAttributes: Array<any>,
     parent: Child,
-): Child => {
+): Promise<Child> => {
     if (
         typeof element === "boolean" ||
         typeof element === "number" ||
@@ -106,10 +106,10 @@ export const processPageElements = (
     ) return element;
 
     if (typeof element === "string") {
-        return (element);
+        return element;
     }
 
-    const processElementOptionsAsChildAndReturn = () => {
+    const processElementOptionsAsChildAndReturn = async () => {
         const children = element.children as Child[];
         
         (element.children as Child[]) = [
@@ -122,7 +122,7 @@ export const processPageElements = (
         for (let i = 0; i < children.length+1; i++) {
             const child = element.children![i];
             
-            const processedChild = processPageElements(child, objectAttributes, element)
+            const processedChild = await processPageElements(child, objectAttributes, element)
             
             element.children![i] = processedChild;
         }
@@ -134,7 +134,7 @@ export const processPageElements = (
     };
 
     if (typeof element.options !== "object") {
-        return processElementOptionsAsChildAndReturn();
+        return await processElementOptionsAsChildAndReturn();
     }
     
     const {
@@ -148,7 +148,7 @@ export const processPageElements = (
         elementOptions &&
         elementChildren
     ) {
-        return processElementOptionsAsChildAndReturn();
+        return await processElementOptionsAsChildAndReturn();
     }
 
     const options = element.options as ElementOptions;
@@ -197,7 +197,7 @@ export const processPageElements = (
         for (let i = 0; i < element.children.length; i++) {
             const child = element.children![i];
             
-            const processedChild = processPageElements(child, objectAttributes, element)
+            const processedChild = await processPageElements(child, objectAttributes, element)
     
             element.children![i] = processedChild;
         }
@@ -223,7 +223,7 @@ const generateSuitablePageElements = async (
     }
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
-    const processedPageElements = processPageElements(pageElements, objectAttributes, []);
+    const processedPageElements = await processPageElements(pageElements, objectAttributes, []);
     
     elementKey = 0;
 

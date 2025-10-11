@@ -308,12 +308,12 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
   }
   objectAttributes.push({ ...optionValue, key, attribute: optionFinal });
 };
-var processPageElements = (element, objectAttributes, parent) => {
+var processPageElements = async (element, objectAttributes, parent) => {
   if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
   if (typeof element === "string") {
     return element;
   }
-  const processElementOptionsAsChildAndReturn = () => {
+  const processElementOptionsAsChildAndReturn = async () => {
     const children = element.children;
     element.children = [
       element.options,
@@ -322,7 +322,7 @@ var processPageElements = (element, objectAttributes, parent) => {
     element.options = {};
     for (let i = 0; i < children.length + 1; i++) {
       const child = element.children[i];
-      const processedChild = processPageElements(child, objectAttributes, element);
+      const processedChild = await processPageElements(child, objectAttributes, element);
       element.children[i] = processedChild;
     }
     return {
@@ -331,7 +331,7 @@ var processPageElements = (element, objectAttributes, parent) => {
     };
   };
   if (typeof element.options !== "object") {
-    return processElementOptionsAsChildAndReturn();
+    return await processElementOptionsAsChildAndReturn();
   }
   const {
     tag: elementTag,
@@ -339,7 +339,7 @@ var processPageElements = (element, objectAttributes, parent) => {
     children: elementChildren
   } = element.options;
   if (elementTag && elementOptions && elementChildren) {
-    return processElementOptionsAsChildAndReturn();
+    return await processElementOptionsAsChildAndReturn();
   }
   const options = element.options;
   for (const [optionName, optionValue] of Object.entries(options)) {
@@ -368,7 +368,7 @@ var processPageElements = (element, objectAttributes, parent) => {
   if (element.children) {
     for (let i = 0; i < element.children.length; i++) {
       const child = element.children[i];
-      const processedChild = processPageElements(child, objectAttributes, element);
+      const processedChild = await processPageElements(child, objectAttributes, element);
       element.children[i] = processedChild;
     }
   }
@@ -379,7 +379,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     return [];
   }
   const objectAttributes = [];
-  const processedPageElements = processPageElements(pageElements, objectAttributes, []);
+  const processedPageElements = await processPageElements(pageElements, objectAttributes, []);
   elementKey = 0;
   const renderedPage = await serverSideRenderPage(
     processedPageElements,
