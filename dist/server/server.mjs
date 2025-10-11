@@ -537,8 +537,9 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
   if (typeof pageElements === "function") {
     if (pageElements.constructor.name === "AsyncFunction") {
       pageElements = await pageElements();
+    } else {
+      pageElements = pageElements();
     }
-    pageElements = pageElements();
   }
   const state = getState();
   const pageLoadHooks = getLoadHooks();
