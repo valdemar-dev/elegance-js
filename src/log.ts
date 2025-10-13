@@ -22,17 +22,18 @@ function color(text: string, code: number): string {
 
 function logInfo(...args: unknown[]) {
     if (quiet) return;
-    console.info(`${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
+    console.info(`Elegance.JS: ${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
 }
 
 function logWarn(...args: unknown[]) {
     if (quiet) return;
-    console.warn(`${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
+    console.warn(`Elegance.JS: ${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
 }
 
 function logError(...args: unknown[]) {
-    if (quiet) return;
-    console.error(`${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
+    // make errors always log
+    //if (quiet) return;
+    console.error(`Elegance.JS: ${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
 }
 
 const log = {

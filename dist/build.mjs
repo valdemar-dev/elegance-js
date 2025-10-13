@@ -26,15 +26,14 @@ function color(text, code) {
 }
 function logInfo(...args) {
   if (quiet) return;
-  console.info(`${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
+  console.info(`Elegance.JS: ${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
 }
 function logWarn(...args) {
   if (quiet) return;
-  console.warn(`${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
+  console.warn(`Elegance.JS: ${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
 }
 function logError(...args) {
-  if (quiet) return;
-  console.error(`${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
+  console.error(`Elegance.JS: ${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
 }
 var log = {
   info: logInfo,
