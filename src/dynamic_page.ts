@@ -258,7 +258,7 @@ const generateClientPageData = async (
 ) => {
     const pageDiff = path.relative(DIST_DIR, pageLocation);
 
-    let clientPageJSText = `let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
+    let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}\n/*ELEGANCE_JS*/\nlet url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
     
     // add in data
     {
@@ -410,6 +410,8 @@ export const buildDynamicPage = async (
     initializeObjectAttributes();
     resetLoadHooks();
     
+    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
+
     globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
     
     try {
@@ -448,7 +450,7 @@ export const buildDynamicPage = async (
             throw new Error("Cannot dynamically render a non-dynamic page.");
         }
     } catch(e) {
-        throw new Error(`Error in Dynamic Page: ${filePath} - ${e}`);
+        throw `${filePath} - ${e}\n${(e as any)?.stack ?? "No stack."}\n\n`;
     }
     
     if (

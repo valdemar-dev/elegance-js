@@ -479,7 +479,7 @@ const generateClientPageData = async (
 ) => {
     const pageDiff = path.relative(DIST_DIR, pageLocation);
 
-    let clientPageJSText = `let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
+    let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
     
     // add in data
     {
@@ -675,6 +675,8 @@ const buildPage = async (
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
+    
+    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
     
     let pageElements;
     let metadata;

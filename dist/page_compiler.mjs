@@ -553,7 +553,7 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
 };
 var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName) => {
   const pageDiff = path.relative(DIST_DIR2, pageLocation);
-  let clientPageJSText = `let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
+  let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
   {
     clientPageJSText += `export const data = {`;
     if (state) {
@@ -677,6 +677,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
+  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   let pageElements;
   let metadata;
   try {

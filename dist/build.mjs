@@ -443,7 +443,9 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
 };
 var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR, pageName) => {
   const pageDiff = path.relative(DIST_DIR, pageLocation);
-  let clientPageJSText = `let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
+  let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}
+/*ELEGANCE_JS*/
+let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
   {
     clientPageJSText += `export const data = {`;
     if (state) {
@@ -540,6 +542,7 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
+  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
   try {
     const {
@@ -570,7 +573,10 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
       throw new Error("Cannot dynamically render a non-dynamic page.");
     }
   } catch (e) {
-    throw new Error(`Error in Dynamic Page: ${filePath} - ${e}`);
+    throw `${filePath} - ${e}
+${e?.stack ?? "No stack."}
+
+`;
   }
   if (!metadata || metadata && typeof metadata !== "function") {
     console.warn(`WARNING: Dynamic ${filePath} does not export a metadata function. This is *highly* recommended.`);
