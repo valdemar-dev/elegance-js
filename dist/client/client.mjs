@@ -156,26 +156,6 @@ Object.assign(window, {
       type: 2 /* OBSERVER */
     };
   },
-  /*
-  observe: (subjects: ClientSubject[], updateCallback: () => any) => {
-      const pageData = pd[currentPage];
-      
-      const keys = [];
-      
-      for (const subject of subjects) {
-          const key = subject.id + Date.now();
-          
-          keys.push({
-              key: key,
-              subject: subject.id,
-          });
-          
-          pageData.stateManager.observe(subject, updateCallback, key);
-      }
-      
-      return { keys }
-  },
-  */
   eventListener: (subjects, eventListener) => {
     return {
       subjects,
@@ -377,13 +357,26 @@ var fetchPage = async (targetURL) => {
   console.info(`Fetching ${pathname}`);
   const res = await fetch(targetURL);
   const newDOM = domParser.parseFromString(await res.text(), "text/html");
-  const pageDataScript = newDOM.querySelector('script[data-tag="true"]');
-  if (!pageDataScript) {
-    return;
+  {
+    const dataScripts = Array.from(newDOM.querySelectorAll('script[data-module="true"]'));
+    const currentScripts = Array.from(document.head.querySelectorAll('script[data-module="true"]'));
+    for (const dataScript of dataScripts) {
+      const existing = currentScripts.find((s) => s.src === dataScript.src);
+      if (existing) {
+        continue;
+      }
+      document.head.appendChild(dataScript);
+    }
   }
-  if (!pd[pathname]) {
-    const { data } = await import(pageDataScript.src);
-    pd[pathname] = data;
+  {
+    const pageDataScript = newDOM.querySelector('script[data-tag="true"]');
+    if (!pageDataScript) {
+      return;
+    }
+    if (!pd[pathname]) {
+      const { data } = await import(pageDataScript.src);
+      pd[pathname] = data;
+    }
   }
   pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
   return newDOM;

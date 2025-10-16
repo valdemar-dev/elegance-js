@@ -19,7 +19,7 @@ export const generateHTMLTemplate = ({
     HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">'
 
     for (const module of requiredClientModules) {
-        HTMLTemplate += `<script src="/shipped/${module}.js" defer="true"></script>`;
+        HTMLTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
     }
     
     if (addPageScriptTag === true) {

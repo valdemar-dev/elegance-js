@@ -832,11 +832,12 @@ const shippedPlugins = new Map<string, true>();
 
 let pluginsToShip: Array<{ path: string, globalName: string, }> = [];
 
+
 const shipPlugin: esbuild.Plugin = {
     name: 'ship',
     setup(build) {
         build.onLoad({ filter: /\.(js|ts|jsx|tsx)$/ }, async (args) => {
-            const contents = await fs.promises.readFile(args.path, 'utf8')
+            let contents = await fs.promises.readFile(args.path, 'utf8')
             const lines = contents.split(/\r?\n/)
 
             // This is prepended to the content of the page.
@@ -876,12 +877,18 @@ const shipPlugin: esbuild.Plugin = {
                         path: pkgPath,
                         globalName: importName,
                     });
+
+                    const replacement = `const ${importName} = globalThis.${importName};`;
+                    lines.splice(i, 2, replacement);
+                    i--;
                 }
             }
             
             if (prepender !== "") {
                 prepender += "];";
             }
+
+            contents = lines.join('\n');
 
             return {
                 contents: prepender + contents,
@@ -966,6 +973,8 @@ const build = async (): Promise<boolean> => {
                 format: "iife",
                 platform: "browser",
                 globalName: plugin.globalName,
+                minify: true,
+                treeShaking: true,
             })
             
             log("Built a client module.")

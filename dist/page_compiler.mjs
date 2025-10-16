@@ -223,7 +223,7 @@ var generateHTMLTemplate = ({
   let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
   for (const module of requiredClientModules) {
-    HTMLTemplate += `<script src="/shipped/${module}.js" defer="true"></script>`;
+    HTMLTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
     HTMLTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
@@ -798,7 +798,7 @@ var shipPlugin = {
   name: "ship",
   setup(build2) {
     build2.onLoad({ filter: /\.(js|ts|jsx|tsx)$/ }, async (args) => {
-      const contents = await fs.promises.readFile(args.path, "utf8");
+      let contents = await fs.promises.readFile(args.path, "utf8");
       const lines = contents.split(/\r?\n/);
       let prepender = "";
       for (let i = 0; i < lines.length - 1; i++) {
@@ -830,11 +830,15 @@ var shipPlugin = {
             path: pkgPath,
             globalName: importName
           });
+          const replacement = `const ${importName} = globalThis.${importName};`;
+          lines.splice(i, 2, replacement);
+          i--;
         }
       }
       if (prepender !== "") {
         prepender += "];";
       }
+      contents = lines.join("\n");
       return {
         contents: prepender + contents,
         loader: path.extname(args.path).slice(1)
@@ -906,7 +910,9 @@ var build = async () => {
           outfile: path.join(DIST_DIR, "shipped", plugin.globalName + ".js"),
           format: "iife",
           platform: "browser",
-          globalName: plugin.globalName
+          globalName: plugin.globalName,
+          minify: true,
+          treeShaking: true
         });
         log("Built a client module.");
       }
