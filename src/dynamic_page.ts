@@ -212,6 +212,7 @@ const generateSuitablePageElements = async (
     metadata: () => BuiltElement<"head">,
     DIST_DIR: string,
     pageName: string,
+    requiredClientModules: string[],
 ) => {
     if (
         typeof pageElements === "string" ||
@@ -237,6 +238,7 @@ const generateSuitablePageElements = async (
         head: metadata,
         addPageScriptTag: true,
         name: pageName,
+        requiredClientModules,
     });
 
     const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
@@ -411,8 +413,9 @@ export const buildDynamicPage = async (
     resetLoadHooks();
     
     globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
-
     globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
+    
+    let modules: string[] = [];
     
     try {
         const {
@@ -424,7 +427,12 @@ export const buildDynamicPage = async (
             metadata: pageMetadata,
             isDynamicPage,
             requestHook,
+            requiredClientModules
         } = construct()
+        
+        if (requiredClientModules !== undefined) {
+            modules = requiredClientModules
+        }
         
         if (typeof requestHook === "function") {
             if (requestHook.constructor.name === "AsyncFunction") {
@@ -483,6 +491,7 @@ export const buildDynamicPage = async (
         metadata ?? (() => head()),
         DIST_DIR,
         "page",
+        modules,
     ) as { objectAttributes: any[], resultHTML: string, }
 
     await generateClientPageData(

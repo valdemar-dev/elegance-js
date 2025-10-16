@@ -217,14 +217,18 @@ var generateHTMLTemplate = ({
   head: head2,
   serverData = null,
   addPageScriptTag = true,
-  name
+  name,
+  requiredClientModules = []
 }) => {
   let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
+  for (const module of requiredClientModules) {
+    HTMLTemplate += `<script src="/shipped/${module}.js" defer="true"></script>`;
+  }
   if (addPageScriptTag === true) {
     HTMLTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
-  HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
+  HTMLTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   const builtHead = head2();
   for (const child of builtHead.children) {
     HTMLTemplate += renderRecursively(child);
@@ -514,7 +518,7 @@ ${trace}`);
     }
   }
 };
-var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true) => {
+var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = []) => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
     return [];
   }
@@ -530,7 +534,8 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     pageURL: path.relative(DIST_DIR2, pageLocation),
     head: metadata,
     addPageScriptTag: true,
-    name: pageName
+    name: pageName,
+    requiredClientModules
   });
   const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
   const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
@@ -680,12 +685,17 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   let pageElements;
   let metadata;
+  let modules = [];
   try {
     const {
       page,
       metadata: pageMetadata,
-      isDynamicPage
+      isDynamicPage,
+      requiredClientModules
     } = await import("file://" + filePath);
+    if (requiredClientModules !== void 0) {
+      modules = requiredClientModules;
+    }
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === true) {
@@ -734,7 +744,9 @@ return __exports
     pageElements || body(),
     metadata ?? (() => head()),
     DIST_DIR2,
-    name
+    name,
+    true,
+    modules
   );
   const {
     sendHardReloadInstruction
@@ -780,6 +792,56 @@ var externalPackagesPlugin = {
     });
   }
 };
+var shippedPlugins = /* @__PURE__ */ new Map();
+var pluginsToShip = [];
+var shipPlugin = {
+  name: "ship",
+  setup(build2) {
+    build2.onLoad({ filter: /\.(js|ts|jsx|tsx)$/ }, async (args) => {
+      const contents = await fs.promises.readFile(args.path, "utf8");
+      const lines = contents.split(/\r?\n/);
+      let prepender = "";
+      for (let i = 0; i < lines.length - 1; i++) {
+        if (lines[i].trim() === "//@ship") {
+          const nextLine = lines[i + 1].trim();
+          const starRegex = /import\s*\*\s*as\s*(\w+)\s*from\s*["']([^"']+)["']\s*;/;
+          const defaultRegex = /import\s*(\w+)\s*from\s*["']([^"']+)["']\s*;/;
+          let match = nextLine.match(starRegex);
+          let importName;
+          let pkgPath;
+          if (match) {
+            importName = match[1];
+            pkgPath = match[2];
+          } else {
+            match = nextLine.match(defaultRegex);
+            if (match) {
+              importName = match[1];
+              pkgPath = match[2];
+            } else {
+              continue;
+            }
+          }
+          if (prepender === "") {
+            prepender = "export const requiredClientModules = [\n";
+          }
+          prepender += `"${importName}",
+`;
+          pluginsToShip.push({
+            path: pkgPath,
+            globalName: importName
+          });
+        }
+      }
+      if (prepender !== "") {
+        prepender += "];";
+      }
+      return {
+        contents: prepender + contents,
+        loader: path.extname(args.path).slice(1)
+      };
+    });
+  }
+};
 var build = async () => {
   if (options.quiet === true) {
     console.log = function() {
@@ -815,12 +877,13 @@ var build = async () => {
     const projectFiles = getProjectFiles(options.pagesDirectory);
     const start = performance.now();
     {
+      pluginsToShip = [];
       await esbuild.build({
         entryPoints: projectFiles.map((f) => path.join(f.parentPath, f.name)),
         bundle: true,
         outdir: DIST_DIR,
         outExtension: { ".js": ".mjs" },
-        plugins: [externalPackagesPlugin],
+        plugins: [externalPackagesPlugin, shipPlugin],
         loader: {
           ".ts": "ts"
         },
@@ -832,6 +895,21 @@ var build = async () => {
           "PROD": options.environment === "development" ? "false" : "true"
         }
       });
+      for (const plugin of pluginsToShip) {
+        {
+          if (shippedPlugins.has(plugin.globalName)) continue;
+          shippedPlugins.set(plugin.globalName, true);
+        }
+        await esbuild.build({
+          entryPoints: [plugin.path],
+          bundle: true,
+          outfile: path.join(DIST_DIR, "shipped", plugin.globalName + ".js"),
+          format: "iife",
+          platform: "browser",
+          globalName: plugin.globalName
+        });
+        log("Built a client module.");
+      }
     }
     const pagesTranspiled = performance.now();
     const {

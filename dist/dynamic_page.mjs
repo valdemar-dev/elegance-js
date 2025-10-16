@@ -217,14 +217,18 @@ var generateHTMLTemplate = ({
   head: head2,
   serverData = null,
   addPageScriptTag = true,
-  name
+  name,
+  requiredClientModules = []
 }) => {
   let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
   HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
+  for (const module of requiredClientModules) {
+    HTMLTemplate += `<script src="/shipped/${module}.js" defer="true"></script>`;
+  }
   if (addPageScriptTag === true) {
     HTMLTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
-  HTMLTemplate += `<script stype="module" src="/client.js" defer="true"></script>`;
+  HTMLTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   const builtHead = head2();
   for (const child of builtHead.children) {
     HTMLTemplate += renderRecursively(child);
@@ -374,7 +378,7 @@ var processPageElements = async (element, objectAttributes, parent) => {
   }
   return element;
 };
-var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR, pageName) => {
+var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR, pageName, requiredClientModules) => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
     return [];
   }
@@ -389,7 +393,8 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     pageURL: path.relative(DIST_DIR, pageLocation),
     head: metadata,
     addPageScriptTag: true,
-    name: pageName
+    name: pageName,
+    requiredClientModules
   });
   const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
   return {
@@ -500,6 +505,7 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
   resetLoadHooks();
   globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
+  let modules = [];
   try {
     const {
       construct
@@ -508,8 +514,12 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
       page,
       metadata: pageMetadata,
       isDynamicPage,
-      requestHook
+      requestHook,
+      requiredClientModules
     } = construct();
+    if (requiredClientModules !== void 0) {
+      modules = requiredClientModules;
+    }
     if (typeof requestHook === "function") {
       if (requestHook.constructor.name === "AsyncFunction") {
         const doProcessRequest = await requestHook(req, res);
@@ -555,7 +565,8 @@ ${e?.stack ?? "No stack."}
     pageElements || body(),
     metadata ?? (() => head()),
     DIST_DIR,
-    "page"
+    "page",
+    modules
   );
   await generateClientPageData(
     path.dirname(filePath),
