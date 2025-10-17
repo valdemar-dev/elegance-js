@@ -66,7 +66,7 @@ type ReactiveMap<
         index: number,
         ...deps: { [K in keyof D]: ClientSubjectGeneric<D[K]>["value"] }
     ) => Child,
-    deps: [...D],
+    deps?: [...D],
 ) => Child;
 
 const reactiveMap = function <
@@ -84,7 +84,7 @@ const reactiveMap = function <
         index: number,
         ...deps: { [K in keyof D]: ClientSubjectGeneric<D[K]>["value"] }
     ) => AnyBuiltElement,
-    deps: [...D],
+    deps?: [...D],
 ): Child {
     const subject = this;
     

@@ -19,7 +19,7 @@ type ReactiveMap<T extends any[], D extends Dependencies> = (this: {
     bind: string | undefined;
 }, template: (item: T[number], index: number, ...deps: {
     [K in keyof D]: ClientSubjectGeneric<D[K]>["value"];
-}) => Child, deps: [...D]) => Child;
+}) => Child, deps?: [...D]) => Child;
 type Dependencies = {
     type: ObjectAttributeType;
     value: unknown;

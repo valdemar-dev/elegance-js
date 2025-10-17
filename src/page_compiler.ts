@@ -615,6 +615,17 @@ const generateClientPageData = async (
     })
     
     if (!transformedResult) return { sendHardReloadInstruction }
+    
+    // check if previous data exists
+    // if so, and it is different
+    // then the page must hard-reload.
+    if (fs.existsSync(pageDataPath)) {
+        const content = fs.readFileSync(pageDataPath).toString()
+        
+        if (content !== transformedResult.code) {
+            sendHardReloadInstruction = true;
+        }
+    }
 
     fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8",)
 
@@ -749,7 +760,7 @@ const buildPage = async (
     }
     
     if (typeof pageElements === "function") {
-        if (pageElements.constructor.name === "AsyncFunctino") {
+        if (pageElements.constructor.name === "AsyncFunction") {
             pageElements = await pageElements();
         } else {
             pageElements = pageElements();

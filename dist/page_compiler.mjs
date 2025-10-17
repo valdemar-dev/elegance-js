@@ -646,6 +646,12 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     console.error("Failed to transform client page js!", error);
   });
   if (!transformedResult) return { sendHardReloadInstruction };
+  if (fs.existsSync(pageDataPath)) {
+    const content = fs.readFileSync(pageDataPath).toString();
+    if (content !== transformedResult.code) {
+      sendHardReloadInstruction = true;
+    }
+  }
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
@@ -730,7 +736,7 @@ return __exports
     console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
   }
   if (typeof pageElements === "function") {
-    if (pageElements.constructor.name === "AsyncFunctino") {
+    if (pageElements.constructor.name === "AsyncFunction") {
       pageElements = await pageElements();
     } else {
       pageElements = pageElements();

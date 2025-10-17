@@ -44,11 +44,7 @@ declare global {
         options: Record<string, any> | Child;
     }
 
-    type PageOptions = {
-        build: "once" | "interval" | "request",
-    }
-
-    type Page = (AnyBuiltElement) | (() => AnyBuiltElement);
+    type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
         ? { type: ObjectAttributeType, id: string | number, value: any, bind?: string, }
