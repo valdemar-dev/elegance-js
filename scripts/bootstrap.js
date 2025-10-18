@@ -212,15 +212,17 @@ export const page: Page = async () => {
     In it, you should do things like link your stylesheets,
     set page titles, all that goodness.
 */   
-export const metadata = () => head ({},
+export const metadata: Metadata = (...children) => html ({
+    lang: "en",
+},
     link ({
         rel: "stylesheet",
         href: "/index.css",
     }),
     
-    title ({},
-        "Elegance.JS Demo"
-    ),
+    title ("Elegance.JS Demo"),
+    
+    ...children,
 )
 
 `;
