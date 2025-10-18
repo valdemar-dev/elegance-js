@@ -110,9 +110,7 @@ const getProjectFiles = (pagesDirectory: string,) => {
         const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
             .filter(f => f.name.endsWith(".ts"));
             
-        for (const file of subdirectoryFiles) {
-            files.push(file);
-        }
+        files.push(...subdirectoryFiles);
     }
     
     return files;
@@ -423,7 +421,7 @@ const generateSuitablePageElements = async (
         typeof pageElements === "number" ||
         Array.isArray(pageElements)
     ) {	
-        return [];
+        throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
     }
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
@@ -632,6 +630,172 @@ const generateClientPageData = async (
     return { sendHardReloadInstruction, }
 };
 
+const buildLayouts = async (
+    DIST_DIR: string,
+) => { 
+    resetLayouts();
+
+    const subdirectories = [...getAllSubdirectories(DIST_DIR), ""];
+
+    let shouldClientHardReload = false;
+
+    for (const directory of subdirectories) {
+        const abs = path.resolve(path.join(DIST_DIR, directory))
+        
+        const files = fs.readdirSync(abs, { withFileTypes: true, })
+            .filter(f => f.name.endsWith(".mjs"))
+        
+        for (const file of files) {
+            const filePath = path.join(file.parentPath, file.name);
+            
+            const name = file.name.slice(0, file.name.length - 4);
+            
+            const isLayout = file.name.includes("layout");
+            
+            if (isLayout == false) {                
+                continue;
+            }            
+
+            try {
+                const hardReloadForPage = await buildLayout(DIST_DIR, directory, filePath, name);
+                
+                if (hardReloadForPage) {
+                    shouldClientHardReload = true;
+                }
+
+            } catch(e) {
+                console.error(e);
+                
+                continue;
+            }
+        }
+    }
+
+    return {
+        shouldClientHardReload,
+    };
+};
+
+const buildLayout = async (
+    DIST_DIR: string,
+    directory: string,
+    filePath: string,
+    name: string,
+) => {
+    initializeState();
+    initializeObjectAttributes();
+    resetLoadHooks();
+    
+    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
+    
+    let layoutElements;
+    let modules: Array<string> = [];
+    
+    try {
+        const {
+            layout,
+            isDynamic,
+            requiredClientModules,
+        } = await import("file://" + filePath);
+        
+        if (requiredClientModules !== undefined) {
+            modules = requiredClientModules;
+        }
+        
+        layoutElements = layout;
+        
+        if (isDynamic === true) {
+            const result = await esbuild.build({
+                entryPoints: [filePath],
+                bundle: false,
+                format: 'iife',
+                globalName: '__exports',
+                write: false,
+                platform: 'node',
+                plugins: [externalPackagesPlugin],
+            });
+            
+            let iifeCode = result.outputFiles![0].text;
+            
+            iifeCode = iifeCode.replace(/^var __exports = /, '');
+            
+            const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);\n\nexport function construct() {\n  ${iifeCode} \nreturn __exports\n}`;
+            
+            fs.writeFileSync(filePath, wrappedCode);
+            
+            return false;
+        }
+        
+        fs.rmSync(filePath, { force: true, })
+    } catch(e) {
+        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.mjs - ${e}`);
+    }
+    
+    if (!layoutElements) {
+        console.error(`WARNING: ${filePath} should export a const layout, which is of type (...children: Child[]) => Child(...children).`);
+        
+        return;
+    }
+    
+    if (typeof layoutElements === "function") {
+        if (layoutElements.constructor.name === "AsyncFunction") {
+            layoutElements = await layoutElements();
+        } else {
+            layoutElements = layoutElements();
+        }
+    }
+
+    const state = getState();
+    const pageLoadHooks = getLoadHooks();
+    const objectAttributes = getObjectAttributes();
+    
+    if (
+        typeof layoutElements === "string" ||
+        typeof layoutElements === "boolean" ||
+        typeof layoutElements === "number" ||
+        Array.isArray(layoutElements)
+    ) {	
+        throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof layoutElements}.`);
+    }
+
+    const foundObjectAttributes: any[] = [];
+
+    const stack: any[] = [];
+    const processedPageElements = processPageElements(layoutElements, foundObjectAttributes, 0, stack);
+    
+    elementKey = 0;
+
+    const renderedPage = await serverSideRenderPage(
+        processedPageElements as Page,
+        path.dirname(filePath),
+    );
+    
+    console.log(processedPageElements);
+    
+    const htmlLocation = path.join(path.dirname(filePath), "layout.html");
+    
+    fs.writeFileSync(
+        htmlLocation,
+        renderedPage.bodyHTML,
+        {
+            encoding: "utf-8",
+            flag: "w",
+        }
+    );
+
+    const {
+        sendHardReloadInstruction,
+    } = await generateClientPageData(
+        path.dirname(filePath),
+        state || {},
+        [...objectAttributes, ...foundObjectAttributes as any[]],
+        pageLoadHooks || [],
+        DIST_DIR,
+        name,
+    );
+
+    return sendHardReloadInstruction === true;
+};
 
 const buildPages = async (
     DIST_DIR: string,
@@ -987,16 +1151,24 @@ const build = async (): Promise<boolean> => {
                 minify: true,
                 treeShaking: true,
             })
-            
-            log("Built a client module.")
         }
     }
    
     const pagesTranspiled = performance.now();
     
-    const {
-        shouldClientHardReload
-    } = await buildPages(DIST_DIR);
+    let shouldClientHardReload
+    
+    {
+        const { shouldClientHardReload: doReload } = await buildLayouts(DIST_DIR);
+        
+        if (doReload) shouldClientHardReload = true;
+    }
+    
+    {
+        const { shouldClientHardReload: doReload } = await buildPages(DIST_DIR);
+        
+        if (doReload) shouldClientHardReload = true;
+    }
     
     const pagesBuilt = performance.now();
 
