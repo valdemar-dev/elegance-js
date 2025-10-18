@@ -209,7 +209,7 @@ export const processPageElements = async (
 const generateSuitablePageElements = async (
     pageLocation: string,
     pageElements: Child,
-    metadata: () => BuiltElement<"head">,
+    metadata: () => BuiltElement<"html">,
     DIST_DIR: string,
     pageName: string,
     requiredClientModules: string[],
@@ -233,7 +233,7 @@ const generateSuitablePageElements = async (
         pageLocation,
     );
 
-    const template = generateHTMLTemplate({
+    const template = await generateHTMLTemplate({
         pageURL: path.relative(DIST_DIR, pageLocation),
         head: metadata,
         addPageScriptTag: true,
@@ -241,7 +241,7 @@ const generateSuitablePageElements = async (
         requiredClientModules,
     });
 
-    const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
+    const resultHTML = `<!DOCTYPE html>${template}${renderedPage.bodyHTML}`;
 
     return {
         objectAttributes,

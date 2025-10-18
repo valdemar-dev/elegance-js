@@ -411,7 +411,7 @@ export const processPageElements = (
 const generateSuitablePageElements = async (
     pageLocation: string,
     pageElements: Child,
-    metadata: () => BuiltElement<"head">,
+    metadata: () => BuiltElement<"html">,
     DIST_DIR: string,
     pageName: string,
     doWrite: boolean = true,
@@ -438,7 +438,7 @@ const generateSuitablePageElements = async (
         pageLocation,
     );
 
-    const template = generateHTMLTemplate({
+    const template = await generateHTMLTemplate({
         pageURL: path.relative(DIST_DIR, pageLocation),
         head: metadata,
         addPageScriptTag: true,
@@ -446,7 +446,7 @@ const generateSuitablePageElements = async (
         requiredClientModules,
     });
 
-    const resultHTML = `<!DOCTYPE html><html>${template}${renderedPage.bodyHTML}</html>`;
+    const resultHTML = `<!DOCTYPE html>${template}${renderedPage.bodyHTML}`;
 
     const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
     

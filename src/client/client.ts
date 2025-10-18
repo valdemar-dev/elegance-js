@@ -454,15 +454,17 @@ const renderRecursively = (element: Child, attributes: any[]) => {
 
     const domElement = document.createElement(element.tag);
 
-    if (typeof element.options === "object" && element.options !== null) {
+    if (typeof element.options !== "object" && element.options !== undefined) {
+        const childNode = renderRecursively(element.options, attributes);
+        if (childNode) domElement.appendChild(childNode);
+    } else if (typeof element.options === "object") {
         const { tag, options, children } = element.options as Record<string, any>;
         
         if (
-            tag !== undefined && 
-            options !== undefined && 
+            tag !== undefined ||
+            options !== undefined ||
             children !== undefined
         ) {
-            
             const childNode = renderRecursively(element.options as AnyBuiltElement, attributes);
             if (childNode) domElement.appendChild(childNode);
         } else {
@@ -471,7 +473,8 @@ const renderRecursively = (element: Child, attributes: any[]) => {
                     const { isAttribute } = attrValue;
                     
                     if (isAttribute === undefined || isAttribute === false) {
-                        throw "Objects are not valid option property values.";
+                        console.error("Objects are not valid option property values.");
+                        throw "";
                     }
                     
                     attributes.push({

@@ -97,7 +97,11 @@ const reactiveMap = function <
             const el = document.querySelector(
                 `[map-id="${subject.id}"]`
             ) as HTMLDivElement;
-            if (!el) throw new Error(`Couldn't find map tag with map-id=${subject.id}`);
+            if (!el) {
+                console.error(`Couldn't find map tag with map-id=${subject.id}`);
+                
+                return;
+            }
             
             const parentElement = el.parentElement as HTMLElement;
             const nextSibling = el.nextSibling as HTMLElement;
@@ -166,13 +170,10 @@ const reactiveMap = function <
                             
                             const lc = field.toLowerCase();
                             
-                            const state = pd[client.currentPage].stateManager;
-                            
                             const fn = (event: Event) => {
                                 eventListener(event, ...subjects);
                             };
                             
-                            console.log(element);
                             (element as any)[lc] = fn;
                             
                             break;
@@ -184,7 +185,6 @@ const reactiveMap = function <
                     
                     attributes.splice(0, attributes.length)
                 }
-                
             };
             
             const removeOldElements = () => {

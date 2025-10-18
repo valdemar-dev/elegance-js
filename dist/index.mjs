@@ -76,7 +76,10 @@ var reactiveMap = function(template, deps) {
       const el = document.querySelector(
         `[map-id="${subject2.id}"]`
       );
-      if (!el) throw new Error(`Couldn't find map tag with map-id=${subject2.id}`);
+      if (!el) {
+        console.error(`Couldn't find map tag with map-id=${subject2.id}`);
+        return;
+      }
       const parentElement = el.parentElement;
       const nextSibling = el.nextSibling;
       el.remove();
@@ -122,11 +125,9 @@ var reactiveMap = function(template, deps) {
               case 1 /* STATE */: {
                 const { field, element, subjects, eventListener: eventListener2 } = attribute;
                 const lc = field.toLowerCase();
-                const state4 = pd[client.currentPage].stateManager;
                 const fn = (event) => {
                   eventListener2(event, ...subjects);
                 };
-                console.log(element);
                 element[lc] = fn;
                 break;
               }

@@ -18,45 +18,37 @@ export const renderRecursively = (element: Child) => {
 
     returnString += `<${element.tag}`;
     
-    const {
-        tag: elementTag,
-        options: elementOptions,
-        children: elementChildren
-    } = (element.options as AnyBuiltElement);
-
-    if (
-        elementTag &&
-        elementOptions &&
-        elementChildren
-    ) {
-        const children = element.children as Child[];
-        
-        (element.children as Child[]) = [
-            (element.options as Child),
-            ...children
-        ];
-        
-        element.options = {};
-        
-        for (let i = 0; i < children.length+1; i++) {
-            const child = element.children![i];
-            
-            returnString += renderRecursively(child)
-        }
-        
-        returnString += `</${element.tag}>`;
-        
-        return returnString;
-    } 
-    
     if (typeof element.options === "object") {
-        for (const [attrName, attrValue] of Object.entries(element.options)) {
-            if (typeof attrValue === "object") {
-                throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element)}`;
-            }
+        const {
+            tag: elementTag,
+            options: elementOptions,
+            children: elementChildren
+        } = (element.options as AnyBuiltElement);
 
-            returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
+        if (
+            elementTag !== undefined &&
+            elementOptions !== undefined &&
+            elementChildren !== undefined
+        ) {
+            const children = element.children as Child[];
+            
+            (element.children as Child[]) = [
+                (element.options as Child),
+                ...children
+            ];
+            
+            element.options = {};
+        }  else {
+            for (const [attrName, attrValue] of Object.entries(element.options)) {
+                if (typeof attrValue === "object") {
+                    throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element, null, 2)}`;
+                }
+    
+                returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
+            }
         }
+    } else if (typeof element.options !== "object" && element.options !== undefined) {
+        element.children = [element.options, ...element.children || []];
     }
      
     if (element.children === null) {

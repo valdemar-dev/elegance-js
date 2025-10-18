@@ -154,32 +154,29 @@ var renderRecursively = (element) => {
     return returnString + element.join(", ");
   }
   returnString += `<${element.tag}`;
-  const {
-    tag: elementTag,
-    options: elementOptions,
-    children: elementChildren
-  } = element.options;
-  if (elementTag && elementOptions && elementChildren) {
-    const children = element.children;
-    element.children = [
-      element.options,
-      ...children
-    ];
-    element.options = {};
-    for (let i = 0; i < children.length + 1; i++) {
-      const child = element.children[i];
-      returnString += renderRecursively(child);
-    }
-    returnString += `</${element.tag}>`;
-    return returnString;
-  }
   if (typeof element.options === "object") {
-    for (const [attrName, attrValue] of Object.entries(element.options)) {
-      if (typeof attrValue === "object") {
-        throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element)}`;
+    const {
+      tag: elementTag,
+      options: elementOptions,
+      children: elementChildren
+    } = element.options;
+    if (elementTag !== void 0 && elementOptions !== void 0 && elementChildren !== void 0) {
+      const children = element.children;
+      element.children = [
+        element.options,
+        ...children
+      ];
+      element.options = {};
+    } else {
+      for (const [attrName, attrValue] of Object.entries(element.options)) {
+        if (typeof attrValue === "object") {
+          throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element, null, 2)}`;
+        }
+        returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
       }
-      returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
     }
+  } else if (typeof element.options !== "object" && element.options !== void 0) {
+    element.children = [element.options, ...element.children || []];
   }
   if (element.children === null) {
     returnString += "/>";
@@ -194,7 +191,7 @@ var renderRecursively = (element) => {
 };
 
 // src/server/generateHTMLTemplate.ts
-var generateHTMLTemplate = ({
+var generateHTMLTemplate = async ({
   pageURL,
   head,
   serverData = null,
@@ -202,23 +199,26 @@ var generateHTMLTemplate = ({
   name,
   requiredClientModules = []
 }) => {
-  let HTMLTemplate = `<head><meta name="viewport" content="width=device-width, initial-scale=1.0">`;
-  HTMLTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
+  let StartTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
+  StartTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
   for (const module of requiredClientModules) {
-    HTMLTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
+    StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
-    HTMLTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+    StartTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
-  HTMLTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
-  const builtHead = head();
-  for (const child of builtHead.children) {
-    HTMLTemplate += renderRecursively(child);
+  StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
+  let builtHead;
+  if (head.constructor.name === "AsyncFunction") {
+    builtHead = await head(StartTemplate);
+  } else {
+    builtHead = head(StartTemplate);
   }
+  let HTMLTemplate = renderRecursively(builtHead);
   if (serverData) {
     HTMLTemplate += serverData;
   }
-  HTMLTemplate += "</head>";
+  HTMLTemplate += "";
   return HTMLTemplate;
 };
 export {

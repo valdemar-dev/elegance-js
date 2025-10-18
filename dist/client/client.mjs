@@ -464,9 +464,12 @@ var renderRecursively = (element, attributes) => {
     return fragment;
   }
   const domElement = document.createElement(element.tag);
-  if (typeof element.options === "object" && element.options !== null) {
+  if (typeof element.options !== "object" && element.options !== void 0) {
+    const childNode = renderRecursively(element.options, attributes);
+    if (childNode) domElement.appendChild(childNode);
+  } else if (typeof element.options === "object") {
     const { tag, options, children } = element.options;
-    if (tag !== void 0 && options !== void 0 && children !== void 0) {
+    if (tag !== void 0 || options !== void 0 || children !== void 0) {
       const childNode = renderRecursively(element.options, attributes);
       if (childNode) domElement.appendChild(childNode);
     } else {
@@ -474,7 +477,8 @@ var renderRecursively = (element, attributes) => {
         if (typeof attrValue === "object") {
           const { isAttribute } = attrValue;
           if (isAttribute === void 0 || isAttribute === false) {
-            throw "Objects are not valid option property values.";
+            console.error("Objects are not valid option property values.");
+            throw "";
           }
           attributes.push({
             ...attrValue,

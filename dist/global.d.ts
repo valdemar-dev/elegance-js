@@ -28,6 +28,7 @@ declare global {
         options: Record<string, any> | Child;
     };
     type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);
+    type Metadata = ((...children: Child[]) => (AnyBuiltElement)) | ((...children: Child[]) => Promise<AnyBuiltElement>);
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE ? {
         type: ObjectAttributeType;
         id: string | number;
