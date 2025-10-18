@@ -46,7 +46,7 @@ declare global {
 
     type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);
     
-    type Layout = ((...children: Child[]) => (AnyBuiltElement | Promise<AnyBuiltElement>))
+    type Layout = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>))
     
     type Metadata = ((...children: Child[]) => (AnyBuiltElement)) | ((...children: Child[]) => Promise<AnyBuiltElement>);
 

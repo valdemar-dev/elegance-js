@@ -282,8 +282,10 @@ var generateHTMLTemplate = async ({
   if (serverData) {
     HTMLTemplate += serverData;
   }
-  HTMLTemplate += "";
-  return HTMLTemplate;
+  return {
+    internals: StartTemplate,
+    builtMetadata: HTMLTemplate
+  };
 };
 
 // src/server/createState.ts

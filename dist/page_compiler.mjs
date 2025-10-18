@@ -236,8 +236,10 @@ var generateHTMLTemplate = async ({
   if (serverData) {
     HTMLTemplate += serverData;
   }
-  HTMLTemplate += "";
-  return HTMLTemplate;
+  return {
+    internals: StartTemplate,
+    builtMetadata: HTMLTemplate
+  };
 };
 
 // src/server/createState.ts
@@ -516,7 +518,7 @@ ${trace}`);
     }
   }
 };
-var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = []) => {
+var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = [], layout) => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
     throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
   }
@@ -528,14 +530,16 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     processedPageElements,
     pageLocation
   );
-  const template = await generateHTMLTemplate({
+  const { internals, builtMetadata } = await generateHTMLTemplate({
     pageURL: path.relative(DIST_DIR2, pageLocation),
     head: metadata,
     addPageScriptTag: true,
     name: pageName,
     requiredClientModules
   });
-  const resultHTML = `<!DOCTYPE html>${template}${renderedPage.bodyHTML}`;
+  const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${internals}${builtMetadata}${layout.metadata.endHTML}`;
+  const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${layout.pageContent.endHTML}`;
+  const resultHTML = `${headHTML}${bodyHTML}`;
   const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
   if (doWrite) {
     fs.writeFileSync(
@@ -653,45 +657,19 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
-var buildLayouts = async (DIST_DIR2) => {
-  resetLayouts();
-  const subdirectories = [...getAllSubdirectories(DIST_DIR2), ""];
-  let shouldClientHardReload = false;
-  for (const directory of subdirectories) {
-    const abs = path.resolve(path.join(DIST_DIR2, directory));
-    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".mjs"));
-    for (const file of files) {
-      const filePath = path.join(file.parentPath, file.name);
-      const name = file.name.slice(0, file.name.length - 4);
-      const isLayout = file.name.includes("layout");
-      if (isLayout == false) {
-        continue;
-      }
-      try {
-        const hardReloadForPage = await buildLayout(DIST_DIR2, directory, filePath, name);
-        if (hardReloadForPage) {
-          shouldClientHardReload = true;
-        }
-      } catch (e) {
-        console.error(e);
-        continue;
-      }
-    }
-  }
-  return {
-    shouldClientHardReload
-  };
-};
-var buildLayout = async (DIST_DIR2, directory, filePath, name) => {
+var generateLayout = async (DIST_DIR2, filePath, childIndicator) => {
+  const directory = path.dirname(filePath);
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
   globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   let layoutElements;
+  let metadataElements;
   let modules = [];
   try {
     const {
       layout,
+      metadata,
       isDynamic,
       requiredClientModules
     } = await import("file://" + filePath);
@@ -699,6 +677,7 @@ var buildLayout = async (DIST_DIR2, directory, filePath, name) => {
       modules = requiredClientModules;
     }
     layoutElements = layout;
+    metadataElements = metadata;
     if (isDynamic === true) {
       const result = await esbuild.build({
         entryPoints: [filePath],
@@ -718,21 +697,34 @@ export function construct() {
 return __exports
 }`;
       fs.writeFileSync(filePath, wrappedCode);
-      return false;
+      return { pageContentHTML: "", metadataHTML: "" };
     }
     fs.rmSync(filePath, { force: true });
   } catch (e) {
-    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.mjs - ${e}`);
+    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
   }
-  if (!layoutElements) {
-    console.error(`WARNING: ${filePath} should export a const layout, which is of type (...children: Child[]) => Child(...children).`);
-    return;
+  {
+    if (!layoutElements) {
+      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (...children: Child[]) => Child(...children).`);
+    }
+    if (typeof layoutElements === "function") {
+      if (layoutElements.constructor.name === "AsyncFunction") {
+        layoutElements = await layoutElements(childIndicator);
+      } else {
+        layoutElements = layoutElements(childIndicator);
+      }
+    }
   }
-  if (typeof layoutElements === "function") {
-    if (layoutElements.constructor.name === "AsyncFunction") {
-      layoutElements = await layoutElements();
-    } else {
-      layoutElements = layoutElements();
+  {
+    if (!metadataElements) {
+      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (...children: Child[]) => Child(...children).`);
+    }
+    if (typeof metadataElements === "function") {
+      if (metadataElements.constructor.name === "AsyncFunction") {
+        metadataElements = await metadataElements(childIndicator);
+      } else {
+        metadataElements = metadataElements(childIndicator);
+      }
     }
   }
   const state = getState();
@@ -749,27 +741,77 @@ return __exports
     processedPageElements,
     path.dirname(filePath)
   );
-  console.log(processedPageElements);
-  const htmlLocation = path.join(path.dirname(filePath), "layout.html");
-  fs.writeFileSync(
-    htmlLocation,
-    renderedPage.bodyHTML,
-    {
-      encoding: "utf-8",
-      flag: "w"
-    }
-  );
-  const {
-    sendHardReloadInstruction
-  } = await generateClientPageData(
+  console.log(metadataElements);
+  const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
+  await generateClientPageData(
     path.dirname(filePath),
     state || {},
     [...objectAttributes, ...foundObjectAttributes],
     pageLoadHooks || [],
     DIST_DIR2,
-    name
+    "layout"
   );
-  return sendHardReloadInstruction === true;
+  return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
+};
+var builtLayouts = /* @__PURE__ */ new Map();
+var buildLayout = async (filePath) => {
+  const storedState = globalThis.__SERVER_CURRENT_STATE__;
+  const storedObjectAttributes = globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+  const storedLoadHooks = globalThis.__SERVER_CURRENT_LOADHOOKS__;
+  const storedPageDataBanner = globalThis.__SERVER_PAGE_DATA_BANNER__;
+  const childIndicator = "CHILD_INDICATOR_" + (Math.random() * 1e7).toString();
+  const { pageContentHTML, metadataHTML } = await generateLayout(
+    DIST_DIR,
+    filePath,
+    childIndicator
+  );
+  const splitAround = (str, sub) => {
+    const i = str.indexOf(sub);
+    if (i === -1) throw new Error("substring does not exist in parent string");
+    return {
+      startHTML: str.substring(0, i),
+      endHTML: str.substring(i + sub.length)
+    };
+  };
+  return {
+    pageContent: splitAround(pageContentHTML, childIndicator),
+    metadata: splitAround(metadataHTML, childIndicator)
+  };
+};
+var fetchPageLayoutHTML = async (dirname) => {
+  const relative = path.relative(DIST_DIR, dirname);
+  const split = relative.split(path.sep);
+  split.reverse();
+  let layouts = [];
+  for (const dir of split) {
+    const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
+    if (fs.existsSync(filePath)) {
+      if (builtLayouts.has(filePath)) {
+        layouts.push(builtLayouts.get(filePath));
+      } else {
+        const built = await buildLayout(filePath);
+        builtLayouts.set(filePath, built);
+        layouts.push(built);
+      }
+    }
+  }
+  const pageContent = {
+    startHTML: "",
+    endHTML: ""
+  };
+  const metadata = {
+    startHTML: "",
+    endHTML: ""
+  };
+  for (const layout of layouts) {
+    pageContent.startHTML += layout.pageContent.startHTML;
+    metadata.startHTML += layout.metadata.startHTML;
+  }
+  for (const layout of layouts) {
+    pageContent.endHTML += layout.pageContent.endHTML;
+    metadata.endHTML += layout.metadata.endHTML;
+  }
+  return { pageContent, metadata };
 };
 var buildPages = async (DIST_DIR2) => {
   resetLayouts();
@@ -808,15 +850,20 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   let pageElements;
   let metadata;
   let modules = [];
+  let pageIgnoresLayout = false;
   try {
     const {
       page,
       metadata: pageMetadata,
       isDynamicPage,
-      requiredClientModules
+      requiredClientModules,
+      ignoreLayout
     } = await import("file://" + filePath);
     if (requiredClientModules !== void 0) {
       modules = requiredClientModules;
+    }
+    if (ignoreLayout) {
+      pageIgnoresLayout = true;
     }
     pageElements = page;
     metadata = pageMetadata;
@@ -861,14 +908,16 @@ return __exports
   const state = getState();
   const pageLoadHooks = getLoadHooks();
   const objectAttributes = getObjectAttributes();
-  const foundObjectAttributes = await generateSuitablePageElements(
+  const layout = await fetchPageLayoutHTML(path.dirname(filePath));
+  const foundObjectAttributes = await pageToHTML(
     path.dirname(filePath),
     pageElements || body(),
     metadata ?? (() => head()),
     DIST_DIR2,
     name,
     true,
-    modules
+    modules,
+    layout
   );
   const {
     sendHardReloadInstruction
@@ -1040,10 +1089,6 @@ var build = async () => {
     }
     const pagesTranspiled = performance.now();
     let shouldClientHardReload;
-    {
-      const { shouldClientHardReload: doReload } = await buildLayouts(DIST_DIR);
-      if (doReload) shouldClientHardReload = true;
-    }
     {
       const { shouldClientHardReload: doReload } = await buildPages(DIST_DIR);
       if (doReload) shouldClientHardReload = true;

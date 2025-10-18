@@ -43,7 +43,8 @@ export const generateHTMLTemplate = async ({
         HTMLTemplate += serverData;
     }
 
-    HTMLTemplate += "";
-
-    return HTMLTemplate;
+    return {
+        internals: StartTemplate,
+        builtMetadata: HTMLTemplate,
+    };
 };
