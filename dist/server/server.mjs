@@ -619,6 +619,10 @@ var log = {
 };
 
 // src/server/server.ts
+import { gzip, deflate } from "zlib";
+import { promisify } from "util";
+var gzipAsync = promisify(gzip);
+var deflateAsync = promisify(deflate);
 var MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -644,8 +648,7 @@ function startServer({
   const requestHandler = async (req, res) => {
     try {
       if (!req.url) {
-        res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end("Bad Request");
+        await sendResponse(req, res, 400, { "Content-Type": "text/plain; charset=utf-8" }, "Bad Request");
         return;
       }
       res.setHeader("Access-Control-Allow-Origin", "*");
@@ -670,8 +673,7 @@ function startServer({
       }
     } catch (err) {
       log.error(err);
-      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Internal Server Error");
+      await sendResponse(req, res, 500, { "Content-Type": "text/plain; charset=utf-8" }, "Internal Server Error");
     }
   };
   function attemptListen(p) {
@@ -694,8 +696,7 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
   const originalPathname = pathname;
   let filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, "");
   if (!filePath.startsWith(root)) {
-    res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Forbidden");
+    await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
     return;
   }
   let stats;
@@ -769,7 +770,7 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
   }
   const finalHandler = async (req2, res2) => {
     if (!hasHandler) {
-      await respondWithErrorPage(root, pathname, 404, res2);
+      await respondWithErrorPage(root, pathname, 404, req2, res2);
       return;
     }
     if (isDynamic) {
@@ -778,8 +779,7 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
         if (resultHTML === false) {
           return;
         }
-        res2.writeHead(200, { "Content-Type": MIME_TYPES[".html"] });
-        res2.end(resultHTML);
+        await sendResponse(req2, res2, 200, { "Content-Type": MIME_TYPES[".html"] }, resultHTML);
       } catch (err) {
         log.error("Error building dynamic page -", err);
       }
@@ -787,8 +787,7 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
       const ext = extname(handlerPath).toLowerCase();
       const contentType = MIME_TYPES[ext] || "application/octet-stream";
       const data = await fs2.readFile(handlerPath);
-      res2.writeHead(200, { "Content-Type": contentType });
-      res2.end(data);
+      await sendResponse(req2, res2, 200, { "Content-Type": contentType }, data);
     }
   };
   const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
@@ -814,7 +813,7 @@ async function handleApiRequest(root, pathname, req, res) {
       fn = module[req.method];
     } catch (err) {
       console.error(err);
-      return respondWithJsonError(res, 500, "Internal Server Error");
+      return respondWithJsonError(req, res, 500, "Internal Server Error");
     }
   }
   const middlewareDirs = [];
@@ -845,10 +844,10 @@ async function handleApiRequest(root, pathname, req, res) {
   }
   const finalHandler = async (req2, res2) => {
     if (!hasRoute) {
-      return respondWithJsonError(res2, 404, "Not Found");
+      return respondWithJsonError(req2, res2, 404, "Not Found");
     }
     if (typeof fn !== "function") {
-      return respondWithJsonError(res2, 405, "Method Not Allowed");
+      return respondWithJsonError(req2, res2, 405, "Method Not Allowed");
     }
     await fn(req2, res2);
   };
@@ -861,9 +860,9 @@ function composeMiddlewares(mws, final, options) {
     async function dispatch(err) {
       if (err) {
         if (options.isApi) {
-          return respondWithJsonError(res, 500, err.message || "Internal Server Error");
+          return respondWithJsonError(req, res, 500, err.message || "Internal Server Error");
         } else {
-          return await respondWithErrorPage(options.root, options.pathname, 500, res);
+          return await respondWithErrorPage(options.root, options.pathname, 500, req, res);
         }
       }
       if (index >= mws.length) {
@@ -891,11 +890,11 @@ function composeMiddlewares(mws, final, options) {
     await dispatch();
   };
 }
-function respondWithJsonError(res, code, message) {
-  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
-  res.end(JSON.stringify({ error: message }));
+async function respondWithJsonError(req, res, code, message) {
+  const body2 = JSON.stringify({ error: message });
+  await sendResponse(req, res, code, { "Content-Type": "application/json; charset=utf-8" }, body2);
 }
-async function respondWithErrorPage(root, pathname, code, res) {
+async function respondWithErrorPage(root, pathname, code, req, res) {
   let currentPath = normalize(join(root, decodeURIComponent(pathname)));
   let tried = /* @__PURE__ */ new Set();
   let errorFilePath = null;
@@ -924,15 +923,46 @@ async function respondWithErrorPage(root, pathname, code, res) {
   }
   if (errorFilePath) {
     try {
-      const html = await fs2.readFile(errorFilePath);
-      res.writeHead(code, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
+      const html = await fs2.readFile(errorFilePath, "utf8");
+      await sendResponse(req, res, code, { "Content-Type": "text/html; charset=utf-8" }, html);
       return;
     } catch {
     }
   }
-  res.writeHead(code, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end(`${code} Error`);
+  await sendResponse(req, res, code, { "Content-Type": "text/plain; charset=utf-8" }, `${code} Error`);
+}
+function isCompressible(contentType) {
+  if (!contentType) return false;
+  return /text\/|javascript|json|xml|svg/.test(contentType);
+}
+async function sendResponse(req, res, status, headers, body2) {
+  if (typeof body2 === "string") {
+    body2 = Buffer.from(body2);
+  }
+  const accept = req.headers["accept-encoding"] || "";
+  let encoding = null;
+  if (accept.match(/\bgzip\b/)) {
+    encoding = "gzip";
+  } else if (accept.match(/\bdeflate\b/)) {
+    encoding = "deflate";
+  }
+  if (!encoding || !isCompressible(headers["Content-Type"] || "")) {
+    res.writeHead(status, headers);
+    res.end(body2);
+    return;
+  }
+  const compressor = encoding === "gzip" ? gzipAsync : deflateAsync;
+  try {
+    const compressed = await compressor(body2);
+    headers["Content-Encoding"] = encoding;
+    headers["Vary"] = "Accept-Encoding";
+    res.writeHead(status, headers);
+    res.end(compressed);
+  } catch (err) {
+    log.error("Compression error:", err);
+    res.writeHead(status, headers);
+    res.end(body2);
+  }
 }
 export {
   startServer

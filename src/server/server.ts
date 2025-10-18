@@ -4,7 +4,11 @@ import { promises as fs, readFileSync } from 'fs';
 import { join, normalize, extname, dirname, resolve, relative } from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
 import { log } from "../log";
+import { gzip, deflate } from 'zlib';
+import { promisify } from 'util';
 
+const gzipAsync = promisify(gzip);
+const deflateAsync = promisify(deflate);
 
 const MIME_TYPES: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
@@ -42,8 +46,7 @@ export function startServer({
     const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
         try {
             if (!req.url) {
-                res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
-                res.end('Bad Request');
+                await sendResponse(req, res, 400, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Bad Request');
                 return;
             }
             
@@ -75,8 +78,7 @@ export function startServer({
             }
         } catch (err) {
             log.error(err);
-            res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-            res.end('Internal Server Error');
+            await sendResponse(req, res, 500, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Internal Server Error');
         }
     };
 
@@ -106,8 +108,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
     const originalPathname = pathname;
     let filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, '');
     if (!filePath.startsWith(root)) {
-        res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Forbidden');
+        await sendResponse(req, res, 403, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Forbidden');
         return;
     }
 
@@ -188,7 +189,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
 
     const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
         if (!hasHandler) {
-            await respondWithErrorPage(root, pathname, 404, res);
+            await respondWithErrorPage(root, pathname, 404, req, res);
             return;
         }
 
@@ -203,8 +204,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
                     return;
                 }
                 
-                res.writeHead(200, { 'Content-Type': MIME_TYPES[".html"] });
-                res.end(resultHTML);
+                await sendResponse(req, res, 200, { 'Content-Type': MIME_TYPES[".html"] }, resultHTML);
             } catch(err) {
                 log.error("Error building dynamic page -", err);
             }
@@ -215,8 +215,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
             
             const data = await fs.readFile(handlerPath);
             
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(data);
+            await sendResponse(req, res, 200, { 'Content-Type': contentType }, data);
         }
     };
 
@@ -250,7 +249,7 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
         } catch (err) {
             console.error(err);
             
-            return respondWithJsonError(res, 500, 'Internal Server Error');
+            return respondWithJsonError(req, res, 500, 'Internal Server Error');
         }
     }
     
@@ -287,10 +286,10 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
 
     const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
         if (!hasRoute) {
-            return respondWithJsonError(res, 404, 'Not Found');
+            return respondWithJsonError(req, res, 404, 'Not Found');
         }
         if (typeof fn !== 'function') {
-            return respondWithJsonError(res, 405, 'Method Not Allowed');
+            return respondWithJsonError(req, res, 405, 'Method Not Allowed');
         }
         await fn(req, res);
     };
@@ -316,9 +315,9 @@ function composeMiddlewares(
         async function dispatch(err?: any): Promise<void> {
             if (err) {
                 if (options.isApi) {
-                    return respondWithJsonError(res, 500, err.message || 'Internal Server Error');
+                    return respondWithJsonError(req, res, 500, err.message || 'Internal Server Error');
                 } else {
-                    return await respondWithErrorPage(options.root!, options.pathname!, 500, res);
+                    return await respondWithErrorPage(options.root!, options.pathname!, 500, req, res);
                 }
             }
 
@@ -353,12 +352,12 @@ function composeMiddlewares(
     };
 }
 
-function respondWithJsonError(res: ServerResponse, code: number, message: string) {
-    res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ error: message }));
+async function respondWithJsonError(req: IncomingMessage, res: ServerResponse, code: number, message: string) {
+    const body = JSON.stringify({ error: message });
+    await sendResponse(req, res, code, { 'Content-Type': 'application/json; charset=utf-8' }, body);
 }
 
-async function respondWithErrorPage(root: string, pathname: string, code: number, res: ServerResponse) {
+async function respondWithErrorPage(root: string, pathname: string, code: number, req: IncomingMessage, res: ServerResponse) {
     let currentPath = normalize(join(root, decodeURIComponent(pathname)));
     let tried = new Set<string>();
     let errorFilePath: string | null = null;
@@ -388,13 +387,55 @@ async function respondWithErrorPage(root: string, pathname: string, code: number
 
     if (errorFilePath) {
         try {
-            const html = await fs.readFile(errorFilePath);
-            res.writeHead(code, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(html);
+            const html = await fs.readFile(errorFilePath, 'utf8');
+            await sendResponse(req, res, code, { 'Content-Type': 'text/html; charset=utf-8' }, html);
             return;
         } catch {}
     }
 
-    res.writeHead(code, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end(`${code} Error`);
+    await sendResponse(req, res, code, { 'Content-Type': 'text/plain; charset=utf-8' }, `${code} Error`);
+}
+
+function isCompressible(contentType: string): boolean {
+    if (!contentType) return false;
+    return /text\/|javascript|json|xml|svg/.test(contentType);
+}
+
+async function sendResponse(
+    req: IncomingMessage,
+    res: ServerResponse,
+    status: number,
+    headers: Record<string, string | string[] | undefined>,
+    body: Buffer | string
+) {
+    if (typeof body === 'string') {
+        body = Buffer.from(body);
+    }
+
+    const accept = (req.headers['accept-encoding'] as string) || '';
+    let encoding: string | null = null;
+    if (accept.match(/\bgzip\b/)) {
+        encoding = 'gzip';
+    } else if (accept.match(/\bdeflate\b/)) {
+        encoding = 'deflate';
+    }
+
+    if (!encoding || !isCompressible(headers['Content-Type'] as string || '')) {
+        res.writeHead(status, headers);
+        res.end(body);
+        return;
+    }
+
+    const compressor = encoding === 'gzip' ? gzipAsync : deflateAsync;
+    try {
+        const compressed = await compressor(body);
+        headers['Content-Encoding'] = encoding;
+        headers['Vary'] = 'Accept-Encoding';
+        res.writeHead(status, headers);
+        res.end(compressed);
+    } catch (err) {
+        log.error('Compression error:', err);
+        res.writeHead(status, headers);
+        res.end(body);
+    }
 }
