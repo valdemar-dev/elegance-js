@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 
 execSync("npm install tailwindcss @tailwindcss/cli");
 
-const dirs = ["pages", "public"];
+const dirs = ["pages", "public", "pages/components"];
 dirs.forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -57,6 +57,17 @@ loadHook(
         return () => clearInterval(interval);
     },
 )
+
+/*
+    This variable lets you determine whether your page is:
+    1. Built at compile time (non dynamic page).
+        Meaning, the page is turned into HTML, CSS and JS *once*, and then served statically.
+        
+    2. Built per-request (dynamic page).
+        Meaning the page is *transpiled into JS*, and then every time someone requests the page,
+        it is built and then served.
+*/
+export const isDynamicPage = true;
 
 /*
     State can also be an array!
@@ -114,7 +125,7 @@ export const page: Page = async () => {
         h1 ({
             class: "text-4xl font-inter font-semibold bg-clip-text text-transparent bg-gradient-to-tl from-[#EEB844] to-[#FF4FED] oveflow-clip",
         },
-            `Welcome to ${pageName.value}!`,
+            \`Welcome to \${pageName.value}!\`,
         ),
         
         ReactiveMap(),
