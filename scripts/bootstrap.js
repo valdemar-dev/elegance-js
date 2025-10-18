@@ -70,6 +70,20 @@ loadHook(
 export const isDynamicPage = true;
 
 /*
+    This is a request hook,
+    it's available for pages with isDynamicPage set to true.
+    
+    It acts a little bit like a middleware.
+    The function is called *before* the page is served.
+    If you end the request in the hook, the page won't be served.
+    
+export const requestHook = (req: http.IncomingMessage, res: http.ServerResponse) => {
+    res.statusCode = 403;
+    res.end();
+};
+*/
+
+/*
     State can also be an array!
     In which case, the reactiveMap() method is added onto the state.
     This allows you to run client-side code, which dynamically changes
@@ -88,6 +102,53 @@ const ReactiveMap = () => {
             index + ". ", item,
         )
     })
+};
+
+const SlowComponent = () => {
+    const myMessage = state<string | undefined>(undefined);
+    
+    loadHook(
+        [myMessage],
+        (_, message) => {
+            setTimeout(() => {
+                message.value = "Hello World!";
+                message.signal()
+            }, 2000);
+        },
+    )
+    
+    /*
+        This is a Barrier component.
+        
+        You can use it to guard clause components in the browser.
+        
+        This is useful for when you for example fetch data in the browser,
+        and are waiting for it to resolve.
+        
+        Whilst you're waiting, you can display a loading component,
+        instead of blocking the entire page loading.
+        
+        Whenever any value in the dependency array changes,
+        the component is re-evaluated.
+    */
+    return Barrier(
+        [myMessage],
+        (message) => {
+            if (message === undefined) {
+                return div({
+                    class: "animate-pulse",
+                },
+                    "Loading..",
+                );
+            }
+            
+            return div({
+                class: "animate-bounce",
+            },
+                message
+            );
+        },
+    )
 };
 
 /*
