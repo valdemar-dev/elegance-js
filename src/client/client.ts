@@ -235,14 +235,15 @@ const initPageData = (data: any) => {
 */
 
 const loadPage = (
-    deprecatedKeys: string[] = [],
-    newBreakpoints?: string[] | undefined,
+    previousPage: null | string = null
 ) => {
     const fixedUrl = new URL(loc.href);
     fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
 
     const pathname = fixedUrl.pathname;
     currentPage = pathname;
+    
+    console.log("Loading page change:", previousPage ?? "(initial load)", "->", currentPage);
 
     history.replaceState(null, "", fixedUrl.href);
     
@@ -258,8 +259,6 @@ const loadPage = (
         };
         
         console.info(`Loading page info for URL ${pathname}.`, {
-            "Deprecated Keys": deprecatedKeys,
-            "New Breakpoints:": newBreakpoints || "(none, initial load)",
             "State": pageData.state,
             "OOA": pageData.ooa,
             "SOA": pageData.soa,
@@ -330,17 +329,34 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
             document.head.appendChild(dataScript);
         }
     }
+    
+    // get page script
     {
-        const pageDataScript = newDOM.querySelector('script[data-tag="true"]') as HTMLScriptElement
+        const pageDataScript = newDOM.querySelector('script[data-page="true"]') as HTMLScriptElement
         
         if (!pageDataScript) {
             return;
         }
     
         if (!pd[pathname]) {
-            const { data } = await import(pageDataScript.src);
+            await import(pageDataScript.src);
+        }
+        
+    }
+    
+    // get layout scripts
+    {
+        const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]')) as HTMLScriptElement[]
+        
+        for (const script of layoutDataScripts) {
+            const url = new URL(script.src, location.origin);
+            const pathname = url.pathname.substring(0, url.pathname.lastIndexOf('/'));
             
-            pd[pathname] = data;
+            if (!ld[pathname]) {
+                await import(script.src);
+                
+                console.log("Imported new Layout Data script.");
+            }
         }
     }
 
@@ -436,13 +452,15 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     doc.head.replaceWith(newPage.head);
 
     if (pushState) history.pushState(null, "", targetURL.href); 
+    
+    loadPage(currentPage);
+    
     currentPage = pathname;
 
     if (targetURL.hash) {
         doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
 
-    loadPage(deprecatedKeys, newBreakpoints);
 };
 
 window.onpopstate = async (event: PopStateEvent) => {

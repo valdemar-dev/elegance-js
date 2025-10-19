@@ -223,7 +223,7 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
-    StartTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+    StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
   StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   let builtHead;
@@ -525,7 +525,6 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
   const objectAttributes = [];
   const stack = [];
   const processedPageElements = processPageElements(pageElements, objectAttributes, 0, stack);
-  elementKey = 0;
   const renderedPage = await serverSideRenderPage(
     processedPageElements,
     pageLocation
@@ -736,7 +735,6 @@ return __exports
   const foundObjectAttributes = [];
   const stack = [];
   const processedPageElements = processPageElements(layoutElements, foundObjectAttributes, 0, stack);
-  elementKey = 0;
   const renderedPage = await serverSideRenderPage(
     processedPageElements,
     path.dirname(filePath)
@@ -774,27 +772,33 @@ var buildLayout = async (filePath) => {
     };
   };
   const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
+  globalThis.__SERVER_CURRENT_STATE__ = storedState;
+  globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = storedObjectAttributes;
+  globalThis.__SERVER_CURRENT_LOADHOOKS__ = storedLoadHooks;
+  globalThis.__SERVER_PAGE_DATA_BANNER__ = storedPageDataBanner;
   return {
     pageContent: splitAround(pageContentHTML, childIndicator),
     metadata: splitAround(metadataHTML, childIndicator),
-    scriptTag: `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
+    scriptTag: `<script data-layout="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
   };
 };
 var fetchPageLayoutHTML = async (dirname) => {
   const relative = path.relative(DIST_DIR, dirname);
-  const split = relative.split(path.sep);
+  let split = relative.split(path.sep).filter(Boolean);
+  split.push("/");
   split.reverse();
+  console.log("Searching subdirectories:", split, "for layouts.");
   let layouts = [];
   for (const dir of split) {
     const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
-    if (fs.existsSync(filePath)) {
-      if (builtLayouts.has(filePath)) {
-        layouts.push(builtLayouts.get(filePath));
-      } else {
-        const built = await buildLayout(filePath);
-        builtLayouts.set(filePath, built);
-        layouts.push(built);
-      }
+    if (builtLayouts.has(filePath)) {
+      console.log("Layout file found:", filePath, "for page with dirname:", dirname);
+      layouts.push(builtLayouts.get(filePath));
+    } else if (fs.existsSync(filePath)) {
+      console.log("Layout file found:", filePath, "for page with dirname:", dirname);
+      const built = await buildLayout(filePath);
+      builtLayouts.set(filePath, built);
+      layouts.push(built);
     }
   }
   const pageContent = {

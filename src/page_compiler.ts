@@ -432,8 +432,6 @@ const pageToHTML = async (
     const stack: any[] = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes, 0, stack);
     
-    elementKey = 0;
-
     const renderedPage = await serverSideRenderPage(
         processedPageElements as Page,
         pageLocation,
@@ -642,6 +640,7 @@ const generateLayout = async (
     childIndicator: string,
 ) => {
     const directory = path.dirname(filePath);
+    
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
@@ -742,8 +741,6 @@ const generateLayout = async (
     const stack: any[] = [];
     const processedPageElements = processPageElements(layoutElements, foundObjectAttributes, 0, stack);
     
-    elementKey = 0;
-
     const renderedPage = await serverSideRenderPage(
         processedPageElements as Page,
         path.dirname(filePath),
@@ -824,10 +821,18 @@ const buildLayout = async (filePath: string) => {
     
     const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
     
+    /*
+        restore state
+    */
+    globalThis.__SERVER_CURRENT_STATE__ = storedState;
+    globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = storedObjectAttributes;
+    globalThis.__SERVER_CURRENT_LOADHOOKS__ = storedLoadHooks;
+    globalThis.__SERVER_PAGE_DATA_BANNER__ = storedPageDataBanner;
+    
     return {
         pageContent: splitAround(pageContentHTML, childIndicator),
         metadata: splitAround(metadataHTML, childIndicator),
-        scriptTag: `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
+        scriptTag: `<script data-layout="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
     } satisfies BuiltLayout;
 };
 
@@ -835,24 +840,31 @@ const fetchPageLayoutHTML = async (
     dirname: string
 ) => {
     const relative = path.relative(DIST_DIR, dirname);
-    const split = relative.split(path.sep)
+    
+    let split = relative.split(path.sep).filter(Boolean);
+    split.push("/");
     split.reverse();
+    
+    console.log("Searching subdirectories:", split, "for layouts.");
     
     let layouts: BuiltLayout[] = [];
     
     for (const dir of split) {
-        const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"))
+        const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
         
-        if (fs.existsSync(filePath)) {
-            if (builtLayouts.has(filePath)) {
-                layouts.push(builtLayouts.get(filePath)!);
-            } else {
-                const built = await buildLayout(filePath);
-                
-                builtLayouts.set(filePath, built);
-                
-                layouts.push(built);
-            }
+        if (builtLayouts.has(filePath)) {
+            console.log("Layout file found:", filePath, "for page with dirname:", dirname);
+            
+            layouts.push(builtLayouts.get(filePath)!);
+            
+        } else if (fs.existsSync(filePath)) {
+            console.log("Layout file found:", filePath, "for page with dirname:", dirname);
+            
+            const built = await buildLayout(filePath);
+            
+            builtLayouts.set(filePath, built);
+            
+            layouts.push(built);
         }
     }
     

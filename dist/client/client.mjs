@@ -306,11 +306,12 @@ var initPageData = (data) => {
     }
   }
 };
-var loadPage = (deprecatedKeys = [], newBreakpoints) => {
+var loadPage = (previousPage = null) => {
   const fixedUrl = new URL(loc.href);
   fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
   const pathname = fixedUrl.pathname;
   currentPage = pathname;
+  console.log("Loading page change:", previousPage ?? "(initial load)", "->", currentPage);
   history.replaceState(null, "", fixedUrl.href);
   {
     let pageData = pd[pathname];
@@ -320,8 +321,6 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
     }
     ;
     console.info(`Loading page info for URL ${pathname}.`, {
-      "Deprecated Keys": deprecatedKeys,
-      "New Breakpoints:": newBreakpoints || "(none, initial load)",
       "State": pageData.state,
       "OOA": pageData.ooa,
       "SOA": pageData.soa,
@@ -372,13 +371,23 @@ var fetchPage = async (targetURL) => {
     }
   }
   {
-    const pageDataScript = newDOM.querySelector('script[data-tag="true"]');
+    const pageDataScript = newDOM.querySelector('script[data-page="true"]');
     if (!pageDataScript) {
       return;
     }
     if (!pd[pathname]) {
-      const { data } = await import(pageDataScript.src);
-      pd[pathname] = data;
+      await import(pageDataScript.src);
+    }
+  }
+  {
+    const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]'));
+    for (const script of layoutDataScripts) {
+      const url = new URL(script.src, location.origin);
+      const pathname2 = url.pathname.substring(0, url.pathname.lastIndexOf("/"));
+      if (!ld[pathname2]) {
+        await import(script.src);
+        console.log("Imported new Layout Data script.");
+      }
     }
   }
   pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
@@ -439,11 +448,11 @@ var navigateLocally = async (target, pushState = true) => {
   oldPageLatest.replaceWith(newPageLatest);
   doc.head.replaceWith(newPage.head);
   if (pushState) history.pushState(null, "", targetURL.href);
+  loadPage(currentPage);
   currentPage = pathname;
   if (targetURL.hash) {
     doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
   }
-  loadPage(deprecatedKeys, newBreakpoints);
 };
 window.onpopstate = async (event) => {
   event.preventDefault();
