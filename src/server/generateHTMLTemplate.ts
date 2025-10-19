@@ -32,9 +32,9 @@ export const generateHTMLTemplate = async ({
     let builtHead: AnyBuiltElement;
     
     if (head.constructor.name === "AsyncFunction") {
-        builtHead = await head(StartTemplate);
+        builtHead = await head();
     } else {
-        builtHead = head(StartTemplate) as BuiltElement<"html">;
+        builtHead = head() as BuiltElement<"html">;
     }
     
     let HTMLTemplate = renderRecursively(builtHead);

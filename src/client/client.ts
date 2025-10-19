@@ -80,10 +80,10 @@ const createStateManager = (subjects: ClientSubject[]) => {
             state.subjects.splice(state.subjects.indexOf(s), 1);
         },
 
+        /**
+            Bind is deprecated, but kept as a paramater to not upset legacy code.
+        */
         get: (id: number, bind?: string | undefined) => {
-            if (bind) {
-                return pd[bind].get(id);
-            }
             return state.subjects.find((s: ClientSubject) => s.id === id)
         },
 
@@ -108,62 +108,19 @@ const createStateManager = (subjects: ClientSubject[]) => {
     return state;
 };
 
-const loadPage = (
-    deprecatedKeys: string[] = [],
-    newBreakpoints?: string[] | undefined,
-) => {
-    const fixedUrl = new URL(loc.href);
-    fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
-
-    const pathname = fixedUrl.pathname;
-    currentPage = pathname;
-
-    history.replaceState(null, "", fixedUrl.href);
-    
-    let pageData = pd[pathname];
-    
-    if (pd === undefined) {
-        console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;")
-        return;
-    };
-    
-    console.info(`Loading ${pathname}. Page info follows:`, {
-        "Deprecated Keys": deprecatedKeys,
-        "New Breakpoints:": newBreakpoints || "(none, initial load)",
-        "State": pageData.state,
-        "OOA": pageData.ooa,
-        "SOA": pageData.soa,
-        "Load Hooks": pageData.lh,
-    })
-
-    for (const [bind, subjects] of Object.entries(pageData.binds || {})) {
-        if (!pd[bind]) {
-            pd[bind] = createStateManager(subjects as ClientSubject[]);
-            continue;
-        }
-
-        const stateManager = pd[bind];
-        const newSubjects = subjects as ClientSubject[];
-
-        for (const subject of newSubjects) {
-            if (stateManager.get(subject.id)) continue;
-
-            pd[bind].subjects.push(subject);
-        }
-    } 
-
-    let state = pageData.stateManager;
+const initPageData = (data: any) => {
+    let state = data.stateManager;
     if (!state) {
-        state = createStateManager(pageData.state || []);
+        state = createStateManager(data.state || []);
 
-        pageData.stateManager = state;
+        data.stateManager = state;
     }
 
     for (const subject of state.subjects) {
         subject.observers = new Map();
     }
 
-    for (const ooa of pageData.ooa || []) {
+    for (const ooa of data.ooa || []) {
         // do all, because reactive-maps all use the same key
         const els = doc.querySelectorAll(`[key="${ooa.key}"]`);
 
@@ -202,7 +159,7 @@ const loadPage = (
         }
     }
 
-    for (const soa of pageData.soa || []) {
+    for (const soa of data.soa || []) {
         const el = doc.querySelector(`[key="${soa.key}"]`) as any;
 
         const subject = state.get(soa.id, soa.bind);
@@ -220,18 +177,14 @@ const loadPage = (
         }
     }
 
-    const loadHooks = pageData.lh as Array<ClientLoadHook>;
+    const loadHooks = data.lh as Array<ClientLoadHook>;
 
     for (const loadHook of loadHooks || []) {
         const bind: any = (loadHook.bind as any ?? "");
 
-        if (
-            // generateClientPageData makes undefined binds into empty strings
-            // so that the page_data.js is *smaller*
-            bind !== "" &&
-            newBreakpoints &&
-            (!newBreakpoints.includes(`${bind}`))
-        ) {
+        // generateClientPageData makes undefined binds into empty strings
+        // so that the page_data.js is *smaller*
+        if (bind !== "") {
             continue
         }
 
@@ -265,6 +218,76 @@ const loadPage = (
             console.error(e);
             
             return;
+        }
+    }
+};
+
+
+/*
+    TEMP NOTES:
+    if a new nav site, no longer includes the bind of pagedata,
+    call all the returns of it
+    
+    eg, pd["/mypage/test"], would have it's loadhooks return values called (always if it's a page),
+    but if it's a layout, when navigating to "/mypage", but not when navigating to "/mypage/test/something"
+    
+    you can do this with newpath.includes(mypath) (if false, call cleanup)
+*/
+
+const loadPage = (
+    deprecatedKeys: string[] = [],
+    newBreakpoints?: string[] | undefined,
+) => {
+    const fixedUrl = new URL(loc.href);
+    fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
+
+    const pathname = fixedUrl.pathname;
+    currentPage = pathname;
+
+    history.replaceState(null, "", fixedUrl.href);
+    
+    /*
+        init page state
+    */
+    {
+        let pageData = pd[pathname];
+        
+        if (pd === undefined) {
+            console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;")
+            return;
+        };
+        
+        console.info(`Loading page info for URL ${pathname}.`, {
+            "Deprecated Keys": deprecatedKeys,
+            "New Breakpoints:": newBreakpoints || "(none, initial load)",
+            "State": pageData.state,
+            "OOA": pageData.ooa,
+            "SOA": pageData.soa,
+            "Load Hooks": pageData.lh,
+        })
+        
+        initPageData(pageData);
+    }
+    
+    /*
+        find all active layouts that were shipped
+        load all their data
+    */
+    {
+        const parts = window.location.pathname.split("/").filter(Boolean);
+
+        const paths = [
+            ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/")),
+            "/",
+        ];
+        
+        for (const path of paths) {
+            const data = ld[path];
+            if (!data) {
+                continue;
+            }
+            
+            initPageData(data);
         }
     }
 

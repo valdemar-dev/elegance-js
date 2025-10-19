@@ -447,7 +447,7 @@ const pageToHTML = async (
         requiredClientModules,
     });
 
-    const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${internals}${builtMetadata}${layout.metadata.endHTML}`;
+    const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;
     const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${layout.pageContent.endHTML}`;
     const resultHTML = `${headHTML}${bodyHTML}`;
 
@@ -481,6 +481,7 @@ const generateClientPageData = async (
     pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
     pageName: string,
+    globalVariableName: string = "pd",
 ) => {
     const pageDiff = path.relative(DIST_DIR, pageLocation);
 
@@ -607,7 +608,7 @@ const generateClientPageData = async (
         clientPageJSText += `};`;
     }
     
-    clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
+    clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
 
     const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
 
@@ -748,7 +749,6 @@ const generateLayout = async (
         path.dirname(filePath),
     );
     
-    console.log(metadataElements);
     const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
 
     await generateClientPageData(
@@ -758,6 +758,7 @@ const generateLayout = async (
         pageLoadHooks || [],
         DIST_DIR,
         "layout",
+        "ld",
     );
 
     return { pageContentHTML: renderedPage.bodyHTML, metadataHTML }
@@ -772,7 +773,9 @@ type BuiltLayout = {
     metadata: {
         startHTML: string,
         endHTML: string,
-    }
+    },
+    
+    scriptTag: string,
 };
 
 /*
@@ -819,9 +822,12 @@ const buildLayout = async (filePath: string) => {
         };
     }
     
+    const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
+    
     return {
         pageContent: splitAround(pageContentHTML, childIndicator),
-        metadata: splitAround(metadataHTML, childIndicator)
+        metadata: splitAround(metadataHTML, childIndicator),
+        scriptTag: `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
     } satisfies BuiltLayout;
 };
 
@@ -860,17 +866,19 @@ const fetchPageLayoutHTML = async (
         endHTML: "",
     };
     
+    let scriptTags = "";
+    
     for (const layout of layouts) {
         pageContent.startHTML += layout.pageContent.startHTML
         metadata.startHTML += layout.metadata.startHTML
-    }
-    
-    for (const layout of layouts) {
+        
+        scriptTags += layout.scriptTag;
+        
         pageContent.endHTML += layout.pageContent.endHTML
         metadata.endHTML += layout.metadata.endHTML
     }
     
-    return { pageContent, metadata };
+    return { pageContent, metadata, scriptTag: scriptTags, };
 };
 
 const buildPages = async (

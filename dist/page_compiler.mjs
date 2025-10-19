@@ -228,9 +228,9 @@ var generateHTMLTemplate = async ({
   StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   let builtHead;
   if (head2.constructor.name === "AsyncFunction") {
-    builtHead = await head2(StartTemplate);
+    builtHead = await head2();
   } else {
-    builtHead = head2(StartTemplate);
+    builtHead = head2();
   }
   let HTMLTemplate = renderRecursively(builtHead);
   if (serverData) {
@@ -537,7 +537,7 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
     name: pageName,
     requiredClientModules
   });
-  const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${internals}${builtMetadata}${layout.metadata.endHTML}`;
+  const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;
   const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${layout.pageContent.endHTML}`;
   const resultHTML = `${headHTML}${bodyHTML}`;
   const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
@@ -558,7 +558,7 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
     };
   }
 };
-var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName) => {
+var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd") => {
   const pageDiff = path.relative(DIST_DIR2, pageLocation);
   let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
   {
@@ -641,7 +641,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     }
     clientPageJSText += `};`;
   }
-  clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
+  clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
   const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
   let sendHardReloadInstruction = false;
   const transformedResult = await esbuild.transform(clientPageJSText, { minify: options.environment === "production" }).catch((error) => {
@@ -741,7 +741,6 @@ return __exports
     processedPageElements,
     path.dirname(filePath)
   );
-  console.log(metadataElements);
   const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
   await generateClientPageData(
     path.dirname(filePath),
@@ -749,7 +748,8 @@ return __exports
     [...objectAttributes, ...foundObjectAttributes],
     pageLoadHooks || [],
     DIST_DIR2,
-    "layout"
+    "layout",
+    "ld"
   );
   return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
 };
@@ -773,9 +773,11 @@ var buildLayout = async (filePath) => {
       endHTML: str.substring(i + sub.length)
     };
   };
+  const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
   return {
     pageContent: splitAround(pageContentHTML, childIndicator),
-    metadata: splitAround(metadataHTML, childIndicator)
+    metadata: splitAround(metadataHTML, childIndicator),
+    scriptTag: `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
   };
 };
 var fetchPageLayoutHTML = async (dirname) => {
@@ -803,15 +805,15 @@ var fetchPageLayoutHTML = async (dirname) => {
     startHTML: "",
     endHTML: ""
   };
+  let scriptTags = "";
   for (const layout of layouts) {
     pageContent.startHTML += layout.pageContent.startHTML;
     metadata.startHTML += layout.metadata.startHTML;
-  }
-  for (const layout of layouts) {
+    scriptTags += layout.scriptTag;
     pageContent.endHTML += layout.pageContent.endHTML;
     metadata.endHTML += layout.metadata.endHTML;
   }
-  return { pageContent, metadata };
+  return { pageContent, metadata, scriptTag: scriptTags };
 };
 var buildPages = async (DIST_DIR2) => {
   resetLayouts();

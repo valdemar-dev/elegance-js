@@ -199,10 +199,10 @@ var createStateManager = (subjects) => {
     destroy: (s) => {
       state.subjects.splice(state.subjects.indexOf(s), 1);
     },
+    /**
+        Bind is deprecated, but kept as a paramater to not upset legacy code.
+    */
     get: (id, bind) => {
-      if (bind) {
-        return pd[bind].get(id);
-      }
       return state.subjects.find((s) => s.id === id);
     },
     getAll: (refs) => refs?.map((ref) => {
@@ -221,47 +221,16 @@ var createStateManager = (subjects) => {
   };
   return state;
 };
-var loadPage = (deprecatedKeys = [], newBreakpoints) => {
-  const fixedUrl = new URL(loc.href);
-  fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
-  const pathname = fixedUrl.pathname;
-  currentPage = pathname;
-  history.replaceState(null, "", fixedUrl.href);
-  let pageData = pd[pathname];
-  if (pd === void 0) {
-    console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;");
-    return;
-  }
-  ;
-  console.info(`Loading ${pathname}. Page info follows:`, {
-    "Deprecated Keys": deprecatedKeys,
-    "New Breakpoints:": newBreakpoints || "(none, initial load)",
-    "State": pageData.state,
-    "OOA": pageData.ooa,
-    "SOA": pageData.soa,
-    "Load Hooks": pageData.lh
-  });
-  for (const [bind, subjects] of Object.entries(pageData.binds || {})) {
-    if (!pd[bind]) {
-      pd[bind] = createStateManager(subjects);
-      continue;
-    }
-    const stateManager = pd[bind];
-    const newSubjects = subjects;
-    for (const subject of newSubjects) {
-      if (stateManager.get(subject.id)) continue;
-      pd[bind].subjects.push(subject);
-    }
-  }
-  let state = pageData.stateManager;
+var initPageData = (data) => {
+  let state = data.stateManager;
   if (!state) {
-    state = createStateManager(pageData.state || []);
-    pageData.stateManager = state;
+    state = createStateManager(data.state || []);
+    data.stateManager = state;
   }
   for (const subject of state.subjects) {
     subject.observers = /* @__PURE__ */ new Map();
   }
-  for (const ooa of pageData.ooa || []) {
+  for (const ooa of data.ooa || []) {
     const els = doc.querySelectorAll(`[key="${ooa.key}"]`);
     let values = {};
     for (const { id, bind } of ooa.refs) {
@@ -289,7 +258,7 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
       }
     }
   }
-  for (const soa of pageData.soa || []) {
+  for (const soa of data.soa || []) {
     const el = doc.querySelector(`[key="${soa.key}"]`);
     const subject = state.get(soa.id, soa.bind);
     if (typeof subject.value === "function") {
@@ -303,14 +272,10 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
       el[soa.attribute] = subject.value;
     }
   }
-  const loadHooks = pageData.lh;
+  const loadHooks = data.lh;
   for (const loadHook of loadHooks || []) {
     const bind = loadHook.bind ?? "";
-    if (
-      // generateClientPageData makes undefined binds into empty strings
-      // so that the page_data.js is *smaller*
-      bind !== "" && newBreakpoints && !newBreakpoints.includes(`${bind}`)
-    ) {
+    if (bind !== "") {
       continue;
     }
     const fn = loadHook.fn;
@@ -338,6 +303,44 @@ var loadPage = (deprecatedKeys = [], newBreakpoints) => {
     } catch (e) {
       console.error(e);
       return;
+    }
+  }
+};
+var loadPage = (deprecatedKeys = [], newBreakpoints) => {
+  const fixedUrl = new URL(loc.href);
+  fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
+  const pathname = fixedUrl.pathname;
+  currentPage = pathname;
+  history.replaceState(null, "", fixedUrl.href);
+  {
+    let pageData = pd[pathname];
+    if (pd === void 0) {
+      console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;");
+      return;
+    }
+    ;
+    console.info(`Loading page info for URL ${pathname}.`, {
+      "Deprecated Keys": deprecatedKeys,
+      "New Breakpoints:": newBreakpoints || "(none, initial load)",
+      "State": pageData.state,
+      "OOA": pageData.ooa,
+      "SOA": pageData.soa,
+      "Load Hooks": pageData.lh
+    });
+    initPageData(pageData);
+  }
+  {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const paths = [
+      ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/")),
+      "/"
+    ];
+    for (const path of paths) {
+      const data = ld[path];
+      if (!data) {
+        continue;
+      }
+      initPageData(data);
     }
   }
   pageStringCache.set(

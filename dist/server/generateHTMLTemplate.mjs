@@ -210,9 +210,9 @@ var generateHTMLTemplate = async ({
   StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   let builtHead;
   if (head.constructor.name === "AsyncFunction") {
-    builtHead = await head(StartTemplate);
+    builtHead = await head();
   } else {
-    builtHead = head(StartTemplate);
+    builtHead = head();
   }
   let HTMLTemplate = renderRecursively(builtHead);
   if (serverData) {
