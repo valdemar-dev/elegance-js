@@ -490,11 +490,9 @@ const generateClientPageData = async (
         clientPageJSText += `export const data = {`;
     
         if (state) {
-            const nonBoundState = state.filter(subj => (subj.bind === undefined));        
-    
             clientPageJSText += `state:[`
     
-            for (const subject of nonBoundState) {
+            for (const subject of state) {
                 if (typeof subject.value === "string") {
                     const stringified = JSON.stringify(subject.value)
                     
@@ -507,44 +505,6 @@ const generateClientPageData = async (
             }
     
             clientPageJSText += `],`;
-    
-            const formattedBoundState: Record<string, any> = {};
-    
-            const stateBinds = state.map(subj => subj.bind).filter(bind => bind !== undefined);
-    
-            for (const bind of stateBinds) {
-                formattedBoundState[bind] = [];
-            };
-    
-            const boundState = state.filter(subj => (subj.bind !== undefined))
-            for (const subject of boundState) {
-                const bindingState = formattedBoundState[subject.bind!];
-    
-                delete subject.bind;
-    
-                bindingState.push(subject);
-            }
-    
-            const bindSubjectPairing = Object.entries(formattedBoundState);
-            if (bindSubjectPairing.length > 0) {
-                clientPageJSText += "binds:{";
-    
-                for (const [bind, subjects] of bindSubjectPairing) {
-                    clientPageJSText += `${bind}:[`;
-    
-                    for (const subject of subjects) {
-                        if (typeof subject.value === "string") {
-                            clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-                        } else {
-                            clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-                        }
-                    }
-    
-                    clientPageJSText += "]";
-                }
-    
-                clientPageJSText += "},";
-            }
         }
     
         const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
@@ -577,10 +537,7 @@ const generateClientPageData = async (
                 observerObjectAttributeString += `refs:[`;
     
                 for (const ref of ooa.refs) {
-                    observerObjectAttributeString += `{id:${ref.id}`;
-                    if (ref.bind !== undefined) observerObjectAttributeString += `,bind:${ref.bind}`;
-    
-                    observerObjectAttributeString += "},";
+                    observerObjectAttributeString += `{id:${ref.id}},`;
                 }
     
                 observerObjectAttributeString += "]},";
@@ -594,9 +551,7 @@ const generateClientPageData = async (
             clientPageJSText += "lh:[";
     
             for (const loadHook of pageLoadHooks) {
-                const key = loadHook.bind
-    
-                clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
+                clientPageJSText += `{fn:${loadHook.fn}},`;
             }
     
             clientPageJSText += "],";
@@ -695,7 +650,7 @@ const generateLayout = async (
     // layout content
     {    
         if (!layoutElements) {
-            throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (...children: Child[]) => Child(...children).`);
+            throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
         }
         
         if (typeof layoutElements === "function") {
@@ -710,7 +665,7 @@ const generateLayout = async (
     // metadata content
     {    
         if (!metadataElements) {
-            throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (...children: Child[]) => Child(...children).`);
+            throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
         }
         
         if (typeof metadataElements === "function") {
@@ -801,7 +756,7 @@ const buildLayout = async (filePath: string) => {
         we split the built HTML of the layout at this point,
         and squish child layouts and the page in-between.
     */
-    const childIndicator = "CHILD_INDICATOR_" + (Math.random() * 10000000).toString();
+    const childIndicator = "<!-- CHILD_INDICATOR_" + Math.round(Math.random() * 10000000).toString() + " -->";
     
     const { pageContentHTML, metadataHTML } = await generateLayout(
         DIST_DIR,
@@ -845,21 +800,15 @@ const fetchPageLayoutHTML = async (
     split.push("/");
     split.reverse();
     
-    console.log("Searching subdirectories:", split, "for layouts.");
-    
     let layouts: BuiltLayout[] = [];
     
     for (const dir of split) {
         const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
         
         if (builtLayouts.has(filePath)) {
-            console.log("Layout file found:", filePath, "for page with dirname:", dirname);
-            
             layouts.push(builtLayouts.get(filePath)!);
             
         } else if (fs.existsSync(filePath)) {
-            console.log("Layout file found:", filePath, "for page with dirname:", dirname);
-            
             const built = await buildLayout(filePath);
             
             builtLayouts.set(filePath, built);

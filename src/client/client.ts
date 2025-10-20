@@ -6,7 +6,15 @@ import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 console.log("Elegance.JS is loading..");
 
 if (!globalThis.pd) globalThis.pd = {};
+if (!globalThis.ld) globalThis.ld = {};
 
+/** Determines how strict we should be with layout_data and page_data when we clean it. */
+enum BindLevel {
+    /** Strict means /blog -> /blog/entry does clean up the entries of /blog. */
+    STRICT=1,
+    /** Scoped means /blog -> /blog/entry does not clean up the entries of /blog. */
+    SCOPED=2,
+};
 
 // stubs for reactiveMap
 Object.assign(window, {
@@ -41,10 +49,10 @@ const doc = document;
 
 let cleanupProcedures: Array<{
     cleanupFunction: () => void | Promise<void | (() => void)>,
-    bind: string,
-}> = [];
-
-const makeArray = Array.from;
+    page: string,
+    loadHook: ClientLoadHook,
+    bindLevel: BindLevel,
+}> = []
 
 const sanitizePathname = (pn: string) => {
     if ((!pn.endsWith("/")) || pn === "/") return pn;
@@ -87,11 +95,10 @@ const createStateManager = (subjects: ClientSubject[]) => {
             return state.subjects.find((s: ClientSubject) => s.id === id)
         },
 
+        /**
+            Bind is deprecated, but kept as a paramater to not upset legacy code.
+        */
         getAll: (refs: { id: number, bind?: number, }[]) => refs?.map(ref => {
-            if (ref.bind) {
-                return pd[ref.bind].get(ref.id);
-            }
-
             return state.get(ref.id)
         }),
 
@@ -108,8 +115,19 @@ const createStateManager = (subjects: ClientSubject[]) => {
     return state;
 };
 
-const initPageData = (data: any) => {
-    let state = data.stateManager;
+const initPageData = (
+    data: any, 
+    currentPage: string,
+    previousPage: string | null,
+    bindLevel: BindLevel,
+) => {
+    if (!data) {
+        console.error("Data for page " + currentPage + " is null.")
+        
+        return;
+    }
+    
+    let state = data?.stateManager;
     if (!state) {
         state = createStateManager(data.state || []);
 
@@ -126,8 +144,8 @@ const initPageData = (data: any) => {
 
         let values: Record<string, any> = {};
 
-        for (const { id, bind } of ooa.refs) {
-            const subject = state.get(id, bind);
+        for (const { id } of ooa.refs) {
+            const subject = state.get(id);
 
             values[subject.id] = subject.value;
 
@@ -162,7 +180,7 @@ const initPageData = (data: any) => {
     for (const soa of data.soa || []) {
         const el = doc.querySelector(`[key="${soa.key}"]`) as any;
 
-        const subject = state.get(soa.id, soa.bind);
+        const subject = state.get(soa.id);
 
         if (typeof subject.value === "function") {
             try {
@@ -180,14 +198,12 @@ const initPageData = (data: any) => {
     const loadHooks = data.lh as Array<ClientLoadHook>;
 
     for (const loadHook of loadHooks || []) {
-        const bind: any = (loadHook.bind as any ?? "");
-
-        // generateClientPageData makes undefined binds into empty strings
-        // so that the page_data.js is *smaller*
-        if (bind !== "") {
+        const wasInScope = previousPage ? previousPage.startsWith(currentPage) : false;
+        
+        if (wasInScope && bindLevel !== BindLevel.STRICT) {
             continue
         }
-
+        
         const fn = loadHook.fn;
         
         try {
@@ -199,7 +215,9 @@ const initPageData = (data: any) => {
                     if (cleanupFunction){
                         cleanupProcedures.push({ 
                             cleanupFunction,
-                            bind: `${bind}`
+                            page: `${currentPage}`,
+                            loadHook: loadHook,
+                            bindLevel,
                         });
                     }
                 })
@@ -209,7 +227,9 @@ const initPageData = (data: any) => {
                 if (cleanupFunction){
                     cleanupProcedures.push({
                         cleanupFunction,
-                        bind: `${bind}`
+                        page: `${currentPage}`,
+                        loadHook: loadHook,
+                        bindLevel,
                     });
                 }
             }
@@ -233,7 +253,6 @@ const initPageData = (data: any) => {
     
     you can do this with newpath.includes(mypath) (if false, call cleanup)
 */
-
 const loadPage = (
     previousPage: null | string = null
 ) => {
@@ -243,8 +262,27 @@ const loadPage = (
     const pathname = fixedUrl.pathname;
     currentPage = pathname;
     
-    console.log("Loading page change:", previousPage ?? "(initial load)", "->", currentPage);
-
+    /*
+        template[lid="id"], is where children of a layout will be placed,
+        when that layout is navigated to.
+        however, we don't want this template element to exist,
+        since it could mess up some of the users code.
+        
+        and such, we remove it, and instead get it's previous sibling / parent,
+        and mark it with a lid=["id"].
+    */
+    
+    /*
+        it's important to do this *before*
+        any client-side code runs from pd or anything of the sort,
+        so that when the page is re-navigated to, the html is the original html
+        that was sent from the server.
+    */
+    pageStringCache.set(
+        currentPage,
+        xmlSerializer.serializeToString(doc)
+    );
+    
     history.replaceState(null, "", fixedUrl.href);
     
     /*
@@ -253,19 +291,12 @@ const loadPage = (
     {
         let pageData = pd[pathname];
         
-        if (pd === undefined) {
+        if (!pd) {
             console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;")
             return;
         };
         
-        console.info(`Loading page info for URL ${pathname}.`, {
-            "State": pageData.state,
-            "OOA": pageData.ooa,
-            "SOA": pageData.soa,
-            "Load Hooks": pageData.lh,
-        })
-        
-        initPageData(pageData);
+        initPageData(pageData, currentPage, previousPage, BindLevel.STRICT);
     }
     
     /*
@@ -286,17 +317,12 @@ const loadPage = (
                 continue;
             }
             
-            initPageData(data);
+            initPageData(data, path, previousPage, BindLevel.SCOPED);
         }
     }
 
-    pageStringCache.set(
-        currentPage,
-        xmlSerializer.serializeToString(doc)
-    );
-
     console.info(
-        `Loading finished, registered these cleanupProcedures`,
+        `Loading finished, cleanupProcedures are currently:`,
         cleanupProcedures,
     );
 };
@@ -307,8 +333,6 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     if (pageStringCache.has(pathname)) {
         return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
     }
-
-    console.info(`Fetching ${pathname}`);
 
     const res = await fetch(targetURL);
 
@@ -349,13 +373,13 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
         const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]')) as HTMLScriptElement[]
         
         for (const script of layoutDataScripts) {
-            const url = new URL(script.src, location.origin);
-            const pathname = url.pathname.substring(0, url.pathname.lastIndexOf('/'));
+            const url = new URL(script.src, window.location.origin);
+            
+            const dir = url.pathname.substring(0, url.pathname.lastIndexOf('/')) || '/';
+            const pathname = sanitizePathname(dir);
             
             if (!ld[pathname]) {
                 await import(script.src);
-                
-                console.log("Imported new Layout Data script.");
             }
         }
     }
@@ -378,63 +402,12 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     if (!newPage) return;
 
     if (pathname === currentPage) return;
-    
-    const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
-    const curBpTags = curBreaks.map(bp => bp.getAttribute("bp")!)
-
-    const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
-    const newBpTags = newBreaks.map(bp => bp.getAttribute("bp")!)
-
-    const latestMatchingBreakpoints = (arr1: Element[], arr2: Element[]) => {
-        let i = 0;
-        const len = Math.min(arr1.length, arr2.length);
-
-        while (i < len && arr1[i].getAttribute("bp")! === arr2[i].getAttribute("bp")!) i++;
-
-        return i > 0 ? [arr1[i - 1], arr2[i - 1]] : [document.body, newPage.body];
-    };
-
-    const [oldPageLatest, newPageLatest] = latestMatchingBreakpoints(curBreaks, newBreaks);
-
-    const deprecatedKeys: string[] = [];
-
-    const breakpointKey = oldPageLatest.getAttribute("key")!;
-
-    const getDeprecatedKeysRecursively = (element: HTMLElement) => {
-        const key = element.getAttribute("key");
-
-        if (key) {
-            deprecatedKeys.push(key)
-        }
-
-        if (
-            key === breakpointKey ||
-            !breakpointKey
-        ) return;
-        
-        for (const child of makeArray(element.children)) {
-            getDeprecatedKeysRecursively(child as HTMLElement);
-        }
-    };
-
-    getDeprecatedKeysRecursively(doc.body);
-
-    // We want to call these things cleanups, cause they're no longer in scope.
-    const deprecatedBreakpoints = curBpTags.filter(
-        item => !newBpTags.includes(item)
-    );
-
-    // We call these, because they were just created.
-    const newBreakpoints = newBpTags.filter(
-        item => !curBpTags.includes(item)
-    );
 
     for (const cleanupProcedure of [...cleanupProcedures]) {
-        const bind = cleanupProcedure.bind;
-
+        const isInScope = pathname.startsWith(cleanupProcedure.page);
+        
         if (
-            bind.length < 1 || 
-            deprecatedBreakpoints.includes(bind)
+            !isInScope || cleanupProcedure.bindLevel === BindLevel.STRICT
         ) {
             try {
                 cleanupProcedure.cleanupFunction();
@@ -447,6 +420,9 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
             cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
         }
     } 
+    
+    const oldPageLatest = doc.body;
+    const newPageLatest = newPage.body;
 
     oldPageLatest.replaceWith(newPageLatest)
     doc.head.replaceWith(newPage.head);

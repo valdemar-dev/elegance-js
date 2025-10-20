@@ -147,6 +147,7 @@ Object.assign(globalThis, childrenlessElements);
 // src/client/client.ts
 console.log("Elegance.JS is loading..");
 if (!globalThis.pd) globalThis.pd = {};
+if (!globalThis.ld) globalThis.ld = {};
 Object.assign(window, {
   observe: (subjects, updateCallback) => {
     return {
@@ -171,7 +172,6 @@ var pageStringCache = /* @__PURE__ */ new Map();
 var loc = window.location;
 var doc = document;
 var cleanupProcedures = [];
-var makeArray = Array.from;
 var sanitizePathname = (pn) => {
   if (!pn.endsWith("/") || pn === "/") return pn;
   return pn.slice(0, -1);
@@ -205,10 +205,10 @@ var createStateManager = (subjects) => {
     get: (id, bind) => {
       return state.subjects.find((s) => s.id === id);
     },
+    /**
+        Bind is deprecated, but kept as a paramater to not upset legacy code.
+    */
     getAll: (refs) => refs?.map((ref) => {
-      if (ref.bind) {
-        return pd[ref.bind].get(ref.id);
-      }
       return state.get(ref.id);
     }),
     observe: (subject, observer, key) => {
@@ -221,8 +221,12 @@ var createStateManager = (subjects) => {
   };
   return state;
 };
-var initPageData = (data) => {
-  let state = data.stateManager;
+var initPageData = (data, currentPage2, previousPage, bindLevel) => {
+  if (!data) {
+    console.error("Data for page " + currentPage2 + " is null.");
+    return;
+  }
+  let state = data?.stateManager;
   if (!state) {
     state = createStateManager(data.state || []);
     data.stateManager = state;
@@ -233,8 +237,8 @@ var initPageData = (data) => {
   for (const ooa of data.ooa || []) {
     const els = doc.querySelectorAll(`[key="${ooa.key}"]`);
     let values = {};
-    for (const { id, bind } of ooa.refs) {
-      const subject = state.get(id, bind);
+    for (const { id } of ooa.refs) {
+      const subject = state.get(id);
       values[subject.id] = subject.value;
       const updateFunction = (value) => {
         values[id] = value;
@@ -260,7 +264,7 @@ var initPageData = (data) => {
   }
   for (const soa of data.soa || []) {
     const el = doc.querySelector(`[key="${soa.key}"]`);
-    const subject = state.get(soa.id, soa.bind);
+    const subject = state.get(soa.id);
     if (typeof subject.value === "function") {
       try {
         el[soa.attribute] = (event) => subject.value(state, event);
@@ -274,8 +278,8 @@ var initPageData = (data) => {
   }
   const loadHooks = data.lh;
   for (const loadHook of loadHooks || []) {
-    const bind = loadHook.bind ?? "";
-    if (bind !== "") {
+    const wasInScope = previousPage ? previousPage.startsWith(currentPage2) : false;
+    if (wasInScope && bindLevel !== 1 /* STRICT */) {
       continue;
     }
     const fn = loadHook.fn;
@@ -287,7 +291,9 @@ var initPageData = (data) => {
           if (cleanupFunction2) {
             cleanupProcedures.push({
               cleanupFunction: cleanupFunction2,
-              bind: `${bind}`
+              page: `${currentPage2}`,
+              loadHook,
+              bindLevel
             });
           }
         });
@@ -296,7 +302,9 @@ var initPageData = (data) => {
         if (cleanupFunction) {
           cleanupProcedures.push({
             cleanupFunction,
-            bind: `${bind}`
+            page: `${currentPage2}`,
+            loadHook,
+            bindLevel
           });
         }
       }
@@ -311,22 +319,19 @@ var loadPage = (previousPage = null) => {
   fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
   const pathname = fixedUrl.pathname;
   currentPage = pathname;
-  console.log("Loading page change:", previousPage ?? "(initial load)", "->", currentPage);
+  pageStringCache.set(
+    currentPage,
+    xmlSerializer.serializeToString(doc)
+  );
   history.replaceState(null, "", fixedUrl.href);
   {
     let pageData = pd[pathname];
-    if (pd === void 0) {
+    if (!pd) {
       console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;");
       return;
     }
     ;
-    console.info(`Loading page info for URL ${pathname}.`, {
-      "State": pageData.state,
-      "OOA": pageData.ooa,
-      "SOA": pageData.soa,
-      "Load Hooks": pageData.lh
-    });
-    initPageData(pageData);
+    initPageData(pageData, currentPage, previousPage, 1 /* STRICT */);
   }
   {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -339,15 +344,11 @@ var loadPage = (previousPage = null) => {
       if (!data) {
         continue;
       }
-      initPageData(data);
+      initPageData(data, path, previousPage, 2 /* SCOPED */);
     }
   }
-  pageStringCache.set(
-    currentPage,
-    xmlSerializer.serializeToString(doc)
-  );
   console.info(
-    `Loading finished, registered these cleanupProcedures`,
+    `Loading finished, cleanupProcedures are currently:`,
     cleanupProcedures
   );
 };
@@ -356,7 +357,6 @@ var fetchPage = async (targetURL) => {
   if (pageStringCache.has(pathname)) {
     return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
   }
-  console.info(`Fetching ${pathname}`);
   const res = await fetch(targetURL);
   const newDOM = domParser.parseFromString(await res.text(), "text/html");
   {
@@ -382,11 +382,11 @@ var fetchPage = async (targetURL) => {
   {
     const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]'));
     for (const script of layoutDataScripts) {
-      const url = new URL(script.src, location.origin);
-      const pathname2 = url.pathname.substring(0, url.pathname.lastIndexOf("/"));
+      const url = new URL(script.src, window.location.origin);
+      const dir = url.pathname.substring(0, url.pathname.lastIndexOf("/")) || "/";
+      const pathname2 = sanitizePathname(dir);
       if (!ld[pathname2]) {
         await import(script.src);
-        console.log("Imported new Layout Data script.");
       }
     }
   }
@@ -403,39 +403,9 @@ var navigateLocally = async (target, pushState = true) => {
   let newPage = await fetchPage(targetURL);
   if (!newPage) return;
   if (pathname === currentPage) return;
-  const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
-  const curBpTags = curBreaks.map((bp) => bp.getAttribute("bp"));
-  const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
-  const newBpTags = newBreaks.map((bp) => bp.getAttribute("bp"));
-  const latestMatchingBreakpoints = (arr1, arr2) => {
-    let i = 0;
-    const len = Math.min(arr1.length, arr2.length);
-    while (i < len && arr1[i].getAttribute("bp") === arr2[i].getAttribute("bp")) i++;
-    return i > 0 ? [arr1[i - 1], arr2[i - 1]] : [document.body, newPage.body];
-  };
-  const [oldPageLatest, newPageLatest] = latestMatchingBreakpoints(curBreaks, newBreaks);
-  const deprecatedKeys = [];
-  const breakpointKey = oldPageLatest.getAttribute("key");
-  const getDeprecatedKeysRecursively = (element) => {
-    const key = element.getAttribute("key");
-    if (key) {
-      deprecatedKeys.push(key);
-    }
-    if (key === breakpointKey || !breakpointKey) return;
-    for (const child of makeArray(element.children)) {
-      getDeprecatedKeysRecursively(child);
-    }
-  };
-  getDeprecatedKeysRecursively(doc.body);
-  const deprecatedBreakpoints = curBpTags.filter(
-    (item) => !newBpTags.includes(item)
-  );
-  const newBreakpoints = newBpTags.filter(
-    (item) => !curBpTags.includes(item)
-  );
   for (const cleanupProcedure of [...cleanupProcedures]) {
-    const bind = cleanupProcedure.bind;
-    if (bind.length < 1 || deprecatedBreakpoints.includes(bind)) {
+    const isInScope = pathname.startsWith(cleanupProcedure.page);
+    if (!isInScope || cleanupProcedure.bindLevel === 1 /* STRICT */) {
       try {
         cleanupProcedure.cleanupFunction();
       } catch (e) {
@@ -445,6 +415,8 @@ var navigateLocally = async (target, pushState = true) => {
       cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
     }
   }
+  const oldPageLatest = doc.body;
+  const newPageLatest = newPage.body;
   oldPageLatest.replaceWith(newPageLatest);
   doc.head.replaceWith(newPage.head);
   if (pushState) history.pushState(null, "", targetURL.href);
