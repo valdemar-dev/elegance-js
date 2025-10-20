@@ -6,6 +6,11 @@ export const Breakpoint = (
     },
     ...children: Child[]
 ) => {    
+    process.emitWarning(
+        'Function Breakpoint() is deprecated. Prefer layout.ts files instead.',
+        { type: 'DeprecationWarning' }
+    );
+
     if (options.id === undefined) throw `Breakpoints must set a name attribute.`;
     const id = options.id;
 

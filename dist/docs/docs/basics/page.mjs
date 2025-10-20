@@ -15,6 +15,10 @@ var PageHeading = (title2, id) => h2({
 
 // src/components/Breakpoint.ts
 var Breakpoint = (options, ...children) => {
+  process.emitWarning(
+    "Function Breakpoint() is deprecated. Prefer layout.ts files instead.",
+    { type: "DeprecationWarning" }
+  );
   if (options.id === void 0) throw `Breakpoints must set a name attribute.`;
   const id = options.id;
   delete options.id;
@@ -507,6 +511,10 @@ var CodeBlock = (value, parse = true) => div(
 // src/server/layout.ts
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
 var createLayout = (name) => {
+  process.emitWarning(
+    "Function createLayout() is deprecated. Prefer layout.ts files instead.",
+    { type: "DeprecationWarning" }
+  );
   const layouts = globalThis.__SERVER_CURRENT_LAYOUTS__;
   if (layouts.has(name)) return layouts.get(name);
   const id = globalThis.__SERVER_CURRENT_LAYOUT_ID__ += 1;

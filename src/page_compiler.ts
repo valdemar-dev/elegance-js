@@ -527,7 +527,6 @@ const generateClientPageData = async (
                     key: string,
                     refs: {
                         id: number,
-                        bind: string | undefined,
                     }[],
                     attribute: string,
                     update: (...value: any) => any,
