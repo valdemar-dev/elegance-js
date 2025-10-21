@@ -299,13 +299,14 @@ const tsconfigContent = JSON.stringify({
     esModuleInterop: true,
     forceConsistentCasingInFileNames: true,
     skipLibCheck: true,
+    paths: {
+        "@/": ["./"],
+    }
+
   },
   include: ["pages/**/*", "env.d.ts"],
   exclude: ["node_modules"],
-  paths: {
-    "@/": ["./"],
-  }
-}, null, 2);
+}, null, 4);
 
 const indexCssContent = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
