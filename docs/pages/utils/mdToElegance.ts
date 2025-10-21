@@ -1,11 +1,39 @@
+import { eventListener, state } from "elegance-js";
+import { toastContent } from "@/pages/layout";
+
+const headingStyles = "";
+
 const headingMap: Record<string, (children: any[]) => any> = {
-    '#': (children) => h1({}, children),
-    '##': (children) => h2({}, children),
-    '###': (children) => h3({}, children),
-    '####': (children) => h4({}, children),
-    '#####': (children) => h5({}, children),
-    '######': (children) => h6({}, children)
+    '#': (children) => h1({ class: headingStyles + " text-4xl", }, children),
+    '##': (children) => h2({ class: headingStyles + " text-3xl", }, children),
+    '###': (children) => h3({ class: headingStyles + " text-2xl", }, children),
+    '####': (children) => h4({ class: headingStyles + " text-xl", }, children),
+    '#####': (children) => h5({ class: headingStyles + " text-lg", }, children),
+    '######': (children) => h6({ class: headingStyles + " text-base", }, children)
 };
+
+const codeElement = (children: any[]) => {
+    const codeContent = state(children as unknown as string);
+    
+    return div({
+        class: "bg-text-00 p-2 rounded-sm w-max hover:cursor-pointer hover:opacity-80 duration-100 select-none",
+        onClick: eventListener(
+            [codeContent, toastContent],
+            async (_, codeContent, toastContent) => { 
+                await navigator.clipboard.writeText(`${codeContent.value}`); 
+                
+                toastContent.value = "Copied to Clipboard";
+                toastContent.signal();
+            },
+        ),
+    }, 
+        code({ 
+            class: "font-plex-mono", 
+        }, 
+            children,
+        ),
+    );
+}
 
 const applyFormatter = (
     parts: Child[],
@@ -38,9 +66,37 @@ const applyFormatter = (
     return newParts;
 };
 
+const applyLinkFormatter = (parts: Child[]): Child[] => {
+    const newParts: Child[] = [];
+    for (let part of parts) {
+        if (typeof part !== 'string') {
+            newParts.push(part);
+            continue;
+        }
+        let lastIndex = 0;
+        const re = /\[([^\]]*)\]\(([^\)]*)\)/g;
+        let match: RegExpExecArray | null;
+        while ((match = re.exec(part)) !== null) {
+            if (match.index > lastIndex) {
+                newParts.push(part.slice(lastIndex, match.index));
+            }
+            const text = match[1];
+            const url = match[2];
+            const parsedText = parseInline(text);
+            newParts.push(a({ href: url }, ...parsedText));
+            lastIndex = re.lastIndex;
+        }
+        if (lastIndex < part.length) {
+            newParts.push(part.slice(lastIndex));
+        }
+    }
+    return newParts;
+};
+
 const parseInline = (text: string): Child[] => {
     let parts: Child[] = [text];
-    parts = applyFormatter(parts, /`(.*?)`/, (children) => code({}, children));
+    parts = applyFormatter(parts, /`(.*?)`/, (children) => codeElement(children));
+    parts = applyLinkFormatter(parts);
     parts = applyFormatter(parts, /\*\*(.*?)\*\*/, (children) => strong({}, children), true);
     parts = applyFormatter(parts, /\*(.*?)\*/, (children) => em({}, children), true);
     return parts;
@@ -49,16 +105,29 @@ const parseInline = (text: string): Child[] => {
 export const mdToElegance = (mdContent: string): any[] => {
     const lines = mdContent.split('\n');
     const output: any[] = [];
-    let currentPara: string[] = [];
+    let currentParaLines: string[] = [];
 
     for (let line of lines) {
-        line = line.trim();
-        if (!line) {
-            if (currentPara.length) {
-                const content = currentPara.join(' ');
-                const children = parseInline(content);
-                output.push(p({}, ...children));
-                currentPara = [];
+        const trimmed = line.trim();
+        if (!trimmed) {
+            if (currentParaLines.length > 0) {
+                const paraChildren: Child[] = [];
+                for (let i = 0; i < currentParaLines.length; i++) {
+                    let paraLine = currentParaLines[i];
+                    paraLine = paraLine.trimStart();
+                    const useBrAfter = paraLine.endsWith('  ');
+                    let content = paraLine.replace(/ {2,}$/, '').trimEnd();
+                    paraChildren.push(...parseInline(content));
+                    if (i < currentParaLines.length - 1) {
+                        if (useBrAfter) {
+                            paraChildren.push(br({}));
+                        } else {
+                            paraChildren.push(' ');
+                        }
+                    }
+                }
+                output.push(p({}, ...paraChildren));
+                currentParaLines = [];
             }
             continue;
         }
@@ -66,14 +135,27 @@ export const mdToElegance = (mdContent: string): any[] => {
         let isHeading = false;
         for (let level = 1; level <= 6; level++) {
             const token = '#'.repeat(level);
-            if (line.startsWith(token + ' ')) {
-                if (currentPara.length) {
-                    const paraContent = currentPara.join(' ');
-                    const paraChildren = parseInline(paraContent);
+            if (trimmed.startsWith(token + ' ')) {
+                if (currentParaLines.length > 0) {
+                    const paraChildren: Child[] = [];
+                    for (let i = 0; i < currentParaLines.length; i++) {
+                        let paraLine = currentParaLines[i];
+                        paraLine = paraLine.trimStart();
+                        const useBrAfter = paraLine.endsWith('  ');
+                        let content = paraLine.replace(/ {2,}$/, '').trimEnd();
+                        paraChildren.push(...parseInline(content));
+                        if (i < currentParaLines.length - 1) {
+                            if (useBrAfter) {
+                                paraChildren.push(br({}));
+                            } else {
+                                paraChildren.push(' ');
+                            }
+                        }
+                    }
                     output.push(p({}, ...paraChildren));
-                    currentPara = [];
+                    currentParaLines = [];
                 }
-                const content = line.slice(token.length + 1);
+                const content = trimmed.slice(token.length + 1);
                 const children = parseInline(content);
                 const headingFunc = headingMap[token];
                 output.push(headingFunc(children));
@@ -83,14 +165,27 @@ export const mdToElegance = (mdContent: string): any[] => {
         }
 
         if (!isHeading) {
-            currentPara.push(line);
+            currentParaLines.push(line);
         }
     }
 
-    if (currentPara.length) {
-        const content = currentPara.join(' ');
-        const children = parseInline(content);
-        output.push(p({}, ...children));
+    if (currentParaLines.length > 0) {
+        const paraChildren: Child[] = [];
+        for (let i = 0; i < currentParaLines.length; i++) {
+            let paraLine = currentParaLines[i];
+            paraLine = paraLine.trimStart();
+            const useBrAfter = paraLine.endsWith('  ');
+            let content = paraLine.replace(/ {2,}$/, '').trimEnd();
+            paraChildren.push(...parseInline(content));
+            if (i < currentParaLines.length - 1) {
+                if (useBrAfter) {
+                    paraChildren.push(br({}));
+                } else {
+                    paraChildren.push(' ');
+                }
+            }
+        }
+        output.push(p({}, ...paraChildren));
     }
 
     return output;

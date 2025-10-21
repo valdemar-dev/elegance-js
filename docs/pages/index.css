@@ -1,5 +1,4 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 * {
     line-height: normal;
@@ -9,4 +8,13 @@
 
 @theme {
     --font-inter: "Inter", sans-serif;
+    --font-plex-mono: "IBM Plex Mono", monospace;
+    
+    --color-background-10: #fcfcf6;
+    
+    --color-text-10: #161506;
+    --color-text-00: #16150611;
+    --color-text-05: #16150622;
+    
+    --color-accent-10: #f7df1e;
 }
