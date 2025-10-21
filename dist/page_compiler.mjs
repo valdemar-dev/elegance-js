@@ -672,7 +672,7 @@ return __exports
   }
   {
     if (!layoutElements) {
-      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
+      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type Layout: (child: Child) => AnyBuiltElement.`);
     }
     if (typeof layoutElements === "function") {
       if (layoutElements.constructor.name === "AsyncFunction") {
@@ -684,7 +684,7 @@ return __exports
   }
   {
     if (!metadataElements) {
-      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
+      throw new Error(`WARNING: ${filePath} should export a const metadata, which is of type LayoutMetadata: (child: Child) => AnyBuiltElement.`);
     }
     if (typeof metadataElements === "function") {
       if (metadataElements.constructor.name === "AsyncFunction") {

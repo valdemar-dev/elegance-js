@@ -144,6 +144,7 @@
   Object.assign(globalThis, childrenlessElements);
   console.log("Elegance.JS is loading..");
   if (!globalThis.pd) globalThis.pd = {};
+  if (!globalThis.ld) globalThis.ld = {};
   Object.assign(window, {
     observe: (subjects, updateCallback) => {
       return {
@@ -170,7 +171,6 @@
   var loc = window.location;
   var doc = document;
   var cleanupProcedures = [];
-  var makeArray = Array.from;
   var sanitizePathname = (pn) => {
     if (!pn.endsWith("/") || pn === "/") return pn;
     return pn.slice(0, -1);
@@ -198,16 +198,16 @@
       destroy: (s) => {
         state.subjects.splice(state.subjects.indexOf(s), 1);
       },
+      /**
+          Bind is deprecated, but kept as a paramater to not upset legacy code.
+      */
       get: (id, bind) => {
-        if (bind) {
-          return pd[bind].get(id);
-        }
         return state.subjects.find((s) => s.id === id);
       },
+      /**
+          Bind is deprecated, but kept as a paramater to not upset legacy code.
+      */
       getAll: (refs) => refs?.map((ref) => {
-        if (ref.bind) {
-          return pd[ref.bind].get(ref.id);
-        }
         return state.get(ref.id);
       }),
       observe: (subject, observer, key) => {
@@ -220,51 +220,24 @@
     };
     return state;
   };
-  var loadPage = (deprecatedKeys = [], newBreakpoints) => {
-    const fixedUrl = new URL(loc.href);
-    fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
-    const pathname = fixedUrl.pathname;
-    currentPage = pathname;
-    history.replaceState(null, "", fixedUrl.href);
-    let pageData = pd[pathname];
-    if (pd === void 0) {
-      console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;");
+  var initPageData = (data, currentPage2, previousPage, bindLevel) => {
+    if (!data) {
+      console.error("Data for page " + currentPage2 + " is null.");
       return;
     }
-    ;
-    console.info(`Loading ${pathname}. Page info follows:`, {
-      "Deprecated Keys": deprecatedKeys,
-      "New Breakpoints:": newBreakpoints || "(none, initial load)",
-      "State": pageData.state,
-      "OOA": pageData.ooa,
-      "SOA": pageData.soa,
-      "Load Hooks": pageData.lh
-    });
-    for (const [bind, subjects] of Object.entries(pageData.binds || {})) {
-      if (!pd[bind]) {
-        pd[bind] = createStateManager(subjects);
-        continue;
-      }
-      const stateManager = pd[bind];
-      const newSubjects = subjects;
-      for (const subject of newSubjects) {
-        if (stateManager.get(subject.id)) continue;
-        pd[bind].subjects.push(subject);
-      }
-    }
-    let state = pageData.stateManager;
+    let state = data?.stateManager;
     if (!state) {
-      state = createStateManager(pageData.state || []);
-      pageData.stateManager = state;
+      state = createStateManager(data.state || []);
+      data.stateManager = state;
     }
     for (const subject of state.subjects) {
       subject.observers = /* @__PURE__ */ new Map();
     }
-    for (const ooa of pageData.ooa || []) {
+    for (const ooa of data.ooa || []) {
       const els = doc.querySelectorAll(`[key="${ooa.key}"]`);
       let values = {};
-      for (const { id, bind } of ooa.refs) {
-        const subject = state.get(id, bind);
+      for (const { id } of ooa.refs) {
+        const subject = state.get(id);
         values[subject.id] = subject.value;
         const updateFunction = (value) => {
           values[id] = value;
@@ -288,9 +261,13 @@
         }
       }
     }
-    for (const soa of pageData.soa || []) {
+    for (const soa of data.soa || []) {
       const el = doc.querySelector(`[key="${soa.key}"]`);
-      const subject = state.get(soa.id, soa.bind);
+      if (!el) {
+        console.error("Could not find SOA element for SOA:", soa);
+        continue;
+      }
+      const subject = state.get(soa.id);
       if (typeof subject.value === "function") {
         try {
           el[soa.attribute] = (event) => subject.value(state, event);
@@ -302,14 +279,10 @@
         el[soa.attribute] = subject.value;
       }
     }
-    const loadHooks = pageData.lh;
+    const loadHooks = data.lh;
     for (const loadHook of loadHooks || []) {
-      const bind = loadHook.bind ?? "";
-      if (
-        // generateClientPageData makes undefined binds into empty strings
-        // so that the page_data.js is *smaller*
-        bind !== "" && newBreakpoints && !newBreakpoints.includes(`${bind}`)
-      ) {
+      const wasInScope = previousPage ? previousPage.startsWith(currentPage2) : false;
+      if (wasInScope && bindLevel !== 1) {
         continue;
       }
       const fn = loadHook.fn;
@@ -321,7 +294,9 @@
             if (cleanupFunction2) {
               cleanupProcedures.push({
                 cleanupFunction: cleanupFunction2,
-                bind: `${bind}`
+                page: `${currentPage2}`,
+                loadHook,
+                bindLevel
               });
             }
           });
@@ -330,7 +305,9 @@
           if (cleanupFunction) {
             cleanupProcedures.push({
               cleanupFunction,
-              bind: `${bind}`
+              page: `${currentPage2}`,
+              loadHook,
+              bindLevel
             });
           }
         }
@@ -339,12 +316,54 @@
         return;
       }
     }
+  };
+  var loadPage = (previousPage = null) => {
+    const fixedUrl = new URL(loc.href);
+    fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
+    const pathname = fixedUrl.pathname;
+    currentPage = pathname;
     pageStringCache.set(
       currentPage,
       xmlSerializer.serializeToString(doc)
     );
+    history.replaceState(null, "", fixedUrl.href);
+    {
+      let pageData = pd[pathname];
+      if (!pd) {
+        console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;");
+        return;
+      }
+      ;
+      initPageData(
+        pageData,
+        currentPage,
+        previousPage,
+        1
+        /* STRICT */
+      );
+    }
+    {
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      const paths = [
+        ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/")),
+        "/"
+      ];
+      for (const path of paths) {
+        const data = ld[path];
+        if (!data) {
+          continue;
+        }
+        initPageData(
+          data,
+          path,
+          previousPage,
+          2
+          /* SCOPED */
+        );
+      }
+    }
     console.info(
-      `Loading finished, registered these cleanupProcedures`,
+      `Loading finished, cleanupProcedures are currently:`,
       cleanupProcedures
     );
   };
@@ -353,7 +372,6 @@
     if (pageStringCache.has(pathname)) {
       return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
     }
-    console.info(`Fetching ${pathname}`);
     const res = await fetch(targetURL);
     const newDOM = domParser.parseFromString(await res.text(), "text/html");
     {
@@ -368,13 +386,23 @@
       }
     }
     {
-      const pageDataScript = newDOM.querySelector('script[data-tag="true"]');
+      const pageDataScript = newDOM.querySelector('script[data-page="true"]');
       if (!pageDataScript) {
         return;
       }
       if (!pd[pathname]) {
-        const { data } = await import(pageDataScript.src);
-        pd[pathname] = data;
+        await import(pageDataScript.src);
+      }
+    }
+    {
+      const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]'));
+      for (const script of layoutDataScripts) {
+        const url = new URL(script.src, window.location.origin);
+        const dir = url.pathname.substring(0, url.pathname.lastIndexOf("/")) || "/";
+        const pathname2 = sanitizePathname(dir);
+        if (!ld[pathname2]) {
+          await import(script.src);
+        }
       }
     }
     pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
@@ -390,39 +418,9 @@
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
     if (pathname === currentPage) return;
-    const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
-    const curBpTags = curBreaks.map((bp) => bp.getAttribute("bp"));
-    const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
-    const newBpTags = newBreaks.map((bp) => bp.getAttribute("bp"));
-    const latestMatchingBreakpoints = (arr1, arr2) => {
-      let i = 0;
-      const len = Math.min(arr1.length, arr2.length);
-      while (i < len && arr1[i].getAttribute("bp") === arr2[i].getAttribute("bp")) i++;
-      return i > 0 ? [arr1[i - 1], arr2[i - 1]] : [document.body, newPage.body];
-    };
-    const [oldPageLatest, newPageLatest] = latestMatchingBreakpoints(curBreaks, newBreaks);
-    const deprecatedKeys = [];
-    const breakpointKey = oldPageLatest.getAttribute("key");
-    const getDeprecatedKeysRecursively = (element) => {
-      const key = element.getAttribute("key");
-      if (key) {
-        deprecatedKeys.push(key);
-      }
-      if (key === breakpointKey || !breakpointKey) return;
-      for (const child of makeArray(element.children)) {
-        getDeprecatedKeysRecursively(child);
-      }
-    };
-    getDeprecatedKeysRecursively(doc.body);
-    const deprecatedBreakpoints = curBpTags.filter(
-      (item) => !newBpTags.includes(item)
-    );
-    const newBreakpoints = newBpTags.filter(
-      (item) => !curBpTags.includes(item)
-    );
     for (const cleanupProcedure of [...cleanupProcedures]) {
-      const bind = cleanupProcedure.bind;
-      if (bind.length < 1 || deprecatedBreakpoints.includes(bind)) {
+      const isInScope = pathname.startsWith(cleanupProcedure.page);
+      if (!isInScope || cleanupProcedure.bindLevel === 1) {
         try {
           cleanupProcedure.cleanupFunction();
         } catch (e) {
@@ -432,14 +430,32 @@
         cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
       }
     }
+    let oldPageLatest = doc.body;
+    let newPageLatest = newPage.body;
+    {
+      const newPageLayouts = Array.from(newPage.querySelectorAll("template[layout-id]"));
+      const oldPageLayouts = Array.from(doc.querySelectorAll("template[layout-id]"));
+      const size = Math.min(newPageLayouts.length, oldPageLayouts.length);
+      for (let i = 0; i < size; i++) {
+        const newPageLayout = newPageLayouts[i];
+        const oldPageLayout = oldPageLayouts[i];
+        const newLayoutId = newPageLayout.getAttribute("layout-id");
+        const oldLayoutId = oldPageLayout.getAttribute("layout-id");
+        if (newLayoutId !== oldLayoutId) {
+          break;
+        }
+        oldPageLatest = oldPageLayout.nextElementSibling;
+        newPageLatest = newPageLayout.nextElementSibling;
+      }
+    }
     oldPageLatest.replaceWith(newPageLatest);
     doc.head.replaceWith(newPage.head);
     if (pushState) history.pushState(null, "", targetURL.href);
+    loadPage(currentPage);
     currentPage = pathname;
     if (targetURL.hash) {
       doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
-    loadPage(deprecatedKeys, newBreakpoints);
   };
   window.onpopstate = async (event) => {
     event.preventDefault();
@@ -518,8 +534,9 @@
   }
   const watchServerPort = 3001;
   var eventSource = new EventSource(`http://localhost:${watchServerPort}/events`);
+  eventSource.onerror = async () => {
+  };
   eventSource.onmessage = async (event) => {
-    console.log(`hot-reload, command received: ${event.data}`);
     if (event.data === "reload") {
       for (const cleanupProcedure of cleanupProcedures) {
         cleanupProcedure.cleanupFunction();

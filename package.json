@@ -13,7 +13,7 @@
     "build": "esbuild --format=esm --platform=node --bundle --outdir=./dist --platform=node --external:esbuild --out-extension:.js=.mjs \"./src/**/*.ts\" && tsc",
     "compile-docs": "node ./dist/compile_docs.mjs --environment=development",
     "compile-docs-bun": "bun run ./dist/compile_docs.mjs --environment=development",
-    "prepare": "npm run build && node ./dist/compile_docs.mjs --environment=production"
+    "prepare": "npm run build"
   },
   "exports": {
     ".": {

@@ -44,10 +44,11 @@ declare global {
         options: Record<string, any> | Child;
     }
 
-    type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);
     
     type Layout = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>))
+    type LayoutMetadata = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>));
     
+    type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);
     type Metadata = (() => (AnyBuiltElement)) | (() => Promise<AnyBuiltElement>);
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
