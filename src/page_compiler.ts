@@ -591,7 +591,7 @@ const generateClientPageData = async (
 const generateLayout = async (
     DIST_DIR: string,
     filePath: string,
-    childIndicator: string,
+    childIndicator: Child,
 ) => {
     const directory = path.dirname(filePath);
     
@@ -755,7 +755,10 @@ const buildLayout = async (filePath: string) => {
         we split the built HTML of the layout at this point,
         and squish child layouts and the page in-between.
     */
-    const childIndicator = "<!-- CHILD_INDICATOR_" + Math.round(Math.random() * 10000000).toString() + " -->";
+    
+    const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
+    
+    const childIndicator = `<template layout-id="${id}"></template>`;
     
     const { pageContentHTML, metadataHTML } = await generateLayout(
         DIST_DIR,
@@ -773,6 +776,16 @@ const buildLayout = async (filePath: string) => {
         };
     }
     
+    const splitAt = (str: string, sub: string) => {
+        const i = str.indexOf(sub) + sub.length;
+        if (i === -1) throw new Error("substring does not exist in parent string");
+        
+        return {
+            startHTML: str.substring(0, i),
+            endHTML: str.substring(i)
+        };
+    }
+    
     const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
     
     /*
@@ -784,7 +797,7 @@ const buildLayout = async (filePath: string) => {
     globalThis.__SERVER_PAGE_DATA_BANNER__ = storedPageDataBanner;
     
     return {
-        pageContent: splitAround(pageContentHTML, childIndicator),
+        pageContent: splitAt(pageContentHTML, childIndicator),
         metadata: splitAround(metadataHTML, childIndicator),
         scriptTag: `<script data-layout="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
     } satisfies BuiltLayout;

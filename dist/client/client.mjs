@@ -264,6 +264,10 @@ var initPageData = (data, currentPage2, previousPage, bindLevel) => {
   }
   for (const soa of data.soa || []) {
     const el = doc.querySelector(`[key="${soa.key}"]`);
+    if (!el) {
+      console.error("Could not find SOA element for SOA:", soa);
+      continue;
+    }
     const subject = state.get(soa.id);
     if (typeof subject.value === "function") {
       try {
@@ -415,9 +419,25 @@ var navigateLocally = async (target, pushState = true) => {
       cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
     }
   }
-  const oldPageLatest = doc.body;
-  const newPageLatest = newPage.body;
-  oldPageLatest.replaceWith(newPageLatest);
+  let oldPageLatest = doc.body;
+  let newPageLatest = newPage.body;
+  {
+    const newPageLayouts = Array.from(newPage.querySelectorAll("template[layout-id]"));
+    const oldPageLayouts = Array.from(doc.querySelectorAll("template[layout-id]"));
+    const size = Math.min(newPageLayouts.length, oldPageLayouts.length);
+    for (let i = 0; i < size; i++) {
+      const newPageLayout = newPageLayouts[i];
+      const oldPageLayout = oldPageLayouts[i];
+      const newLayoutId = newPageLayout.getAttribute("layout-id");
+      const oldLayoutId = oldPageLayout.getAttribute("layout-id");
+      if (newLayoutId !== oldLayoutId) {
+        break;
+      }
+      oldPageLatest = oldPageLayout.parentElement;
+      newPageLatest = newPageLayout.parentElement;
+    }
+  }
+  oldPageLatest.replaceChildren(...Array.from(newPageLatest.children));
   doc.head.replaceWith(newPage.head);
   if (pushState) history.pushState(null, "", targetURL.href);
   loadPage(currentPage);
