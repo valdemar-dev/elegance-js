@@ -433,11 +433,11 @@ var navigateLocally = async (target, pushState = true) => {
       if (newLayoutId !== oldLayoutId) {
         break;
       }
-      oldPageLatest = oldPageLayout.parentElement;
-      newPageLatest = newPageLayout.parentElement;
+      oldPageLatest = oldPageLayout.nextElementSibling;
+      newPageLatest = newPageLayout.nextElementSibling;
     }
   }
-  oldPageLatest.replaceChildren(...Array.from(newPageLatest.children));
+  oldPageLatest.replaceWith(newPageLatest);
   doc.head.replaceWith(newPage.head);
   if (pushState) history.pushState(null, "", targetURL.href);
   loadPage(currentPage);

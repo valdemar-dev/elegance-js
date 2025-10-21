@@ -447,12 +447,12 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
                 break
             }
             
-            oldPageLatest = oldPageLayout.parentElement!;
-            newPageLatest = newPageLayout.parentElement!;
+            oldPageLatest = oldPageLayout.nextElementSibling! as HTMLElement;
+            newPageLatest = newPageLayout.nextElementSibling! as HTMLElement;
         }
     }
     
-    oldPageLatest.replaceChildren(...Array.from(newPageLatest.children));
+    oldPageLatest.replaceWith(newPageLatest);
     doc.head.replaceWith(newPage.head);
 
     if (pushState) history.pushState(null, "", targetURL.href); 
