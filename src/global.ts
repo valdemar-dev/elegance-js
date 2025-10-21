@@ -45,7 +45,10 @@ declare global {
     }
 
     type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);
-    type Metadata = ((...children: Child[]) => (AnyBuiltElement)) | ((...children: Child[]) => Promise<AnyBuiltElement>);
+    
+    type Layout = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>))
+    
+    type Metadata = (() => (AnyBuiltElement)) | (() => Promise<AnyBuiltElement>);
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE
         ? { type: ObjectAttributeType, id: string | number, value: any, bind?: string, }
@@ -304,10 +307,13 @@ declare global {
     }
 
     /*
-     * The below is al magical client stuff.
+     * The below is all magical client stuff.
      * So, don't use this on the server. It won't be defined!
      */
+    /** Generated client-page data. Contains things like loadHooks, state, etc. */
     var pd: Record<string, any>;
+    /** Generated layout-data. Contains things like loadHooks, state, etc.*/
+    var ld: Record<string, any>;
 
     var client: {
         navigateLocally: (target: string, pushState?: boolean) => any;

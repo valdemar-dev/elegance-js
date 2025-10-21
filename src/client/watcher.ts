@@ -1,10 +1,10 @@
-// hi, this is fine!
-// this gets embedded in the client.
+// watchServerPort is defined in client.ts, and this is prepended to client.ts
 // @ts-nocheck
 const eventSource = new EventSource(`http://localhost:${watchServerPort}/events`);
-eventSource.onmessage = async (event) => { 
-    console.log(`hot-reload, command received: ${event.data}`);
 
+// stub it out baby
+eventSource.onerror = async () => {};
+eventSource.onmessage = async (event) => { 
     if (event.data === "reload") {
         for (const cleanupProcedure of cleanupProcedures) {
             cleanupProcedure.cleanupFunction();

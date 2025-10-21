@@ -9,6 +9,7 @@ import { serverSideRenderPage } from "./server/render";
 import { getState, getObjectAttributes, initializeState, initializeObjectAttributes } from "./server/createState";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
+import { renderRecursively } from "./server/render";
 
 let packageDir = process.env.PACKAGE_PATH;
 if (packageDir === undefined) {
@@ -110,9 +111,7 @@ const getProjectFiles = (pagesDirectory: string,) => {
         const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
             .filter(f => f.name.endsWith(".ts"));
             
-        for (const file of subdirectoryFiles) {
-            files.push(file);
-        }
+        files.push(...subdirectoryFiles);
     }
     
     return files;
@@ -408,7 +407,7 @@ export const processPageElements = (
     }
 };
 
-const generateSuitablePageElements = async (
+const pageToHTML = async (
     pageLocation: string,
     pageElements: Child,
     metadata: () => BuiltElement<"html">,
@@ -416,6 +415,8 @@ const generateSuitablePageElements = async (
     pageName: string,
     doWrite: boolean = true,
     requiredClientModules: string[] = [],
+    
+    layout: BuiltLayout,
 ) => {
     if (
         typeof pageElements === "string" ||
@@ -423,7 +424,7 @@ const generateSuitablePageElements = async (
         typeof pageElements === "number" ||
         Array.isArray(pageElements)
     ) {	
-        return [];
+        throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
     }
 
     const objectAttributes: Array<ObjectAttribute<any>> = [];
@@ -431,14 +432,12 @@ const generateSuitablePageElements = async (
     const stack: any[] = [];
     const processedPageElements = processPageElements(pageElements, objectAttributes, 0, stack);
     
-    elementKey = 0;
-
     const renderedPage = await serverSideRenderPage(
         processedPageElements as Page,
         pageLocation,
     );
 
-    const template = await generateHTMLTemplate({
+    const { internals, builtMetadata } = await generateHTMLTemplate({
         pageURL: path.relative(DIST_DIR, pageLocation),
         head: metadata,
         addPageScriptTag: true,
@@ -446,7 +445,9 @@ const generateSuitablePageElements = async (
         requiredClientModules,
     });
 
-    const resultHTML = `<!DOCTYPE html>${template}${renderedPage.bodyHTML}`;
+    const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;
+    const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${layout.pageContent.endHTML}`;
+    const resultHTML = `${headHTML}${bodyHTML}`;
 
     const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
     
@@ -478,6 +479,7 @@ const generateClientPageData = async (
     pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
     pageName: string,
+    globalVariableName: string = "pd",
 ) => {
     const pageDiff = path.relative(DIST_DIR, pageLocation);
 
@@ -488,11 +490,9 @@ const generateClientPageData = async (
         clientPageJSText += `export const data = {`;
     
         if (state) {
-            const nonBoundState = state.filter(subj => (subj.bind === undefined));        
-    
             clientPageJSText += `state:[`
     
-            for (const subject of nonBoundState) {
+            for (const subject of state) {
                 if (typeof subject.value === "string") {
                     const stringified = JSON.stringify(subject.value)
                     
@@ -505,44 +505,6 @@ const generateClientPageData = async (
             }
     
             clientPageJSText += `],`;
-    
-            const formattedBoundState: Record<string, any> = {};
-    
-            const stateBinds = state.map(subj => subj.bind).filter(bind => bind !== undefined);
-    
-            for (const bind of stateBinds) {
-                formattedBoundState[bind] = [];
-            };
-    
-            const boundState = state.filter(subj => (subj.bind !== undefined))
-            for (const subject of boundState) {
-                const bindingState = formattedBoundState[subject.bind!];
-    
-                delete subject.bind;
-    
-                bindingState.push(subject);
-            }
-    
-            const bindSubjectPairing = Object.entries(formattedBoundState);
-            if (bindSubjectPairing.length > 0) {
-                clientPageJSText += "binds:{";
-    
-                for (const [bind, subjects] of bindSubjectPairing) {
-                    clientPageJSText += `${bind}:[`;
-    
-                    for (const subject of subjects) {
-                        if (typeof subject.value === "string") {
-                            clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-                        } else {
-                            clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-                        }
-                    }
-    
-                    clientPageJSText += "]";
-                }
-    
-                clientPageJSText += "},";
-            }
         }
     
         const stateObjectAttributes = objectAttributes.filter(oa => oa.type === ObjectAttributeType.STATE);
@@ -565,7 +527,6 @@ const generateClientPageData = async (
                     key: string,
                     refs: {
                         id: number,
-                        bind: string | undefined,
                     }[],
                     attribute: string,
                     update: (...value: any) => any,
@@ -575,10 +536,7 @@ const generateClientPageData = async (
                 observerObjectAttributeString += `refs:[`;
     
                 for (const ref of ooa.refs) {
-                    observerObjectAttributeString += `{id:${ref.id}`;
-                    if (ref.bind !== undefined) observerObjectAttributeString += `,bind:${ref.bind}`;
-    
-                    observerObjectAttributeString += "},";
+                    observerObjectAttributeString += `{id:${ref.id}},`;
                 }
     
                 observerObjectAttributeString += "]},";
@@ -592,9 +550,7 @@ const generateClientPageData = async (
             clientPageJSText += "lh:[";
     
             for (const loadHook of pageLoadHooks) {
-                const key = loadHook.bind
-    
-                clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
+                clientPageJSText += `{fn:${loadHook.fn}},`;
             }
     
             clientPageJSText += "],";
@@ -604,7 +560,7 @@ const generateClientPageData = async (
         clientPageJSText += `};`;
     }
     
-    clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
+    clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
 
     const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
 
@@ -632,10 +588,275 @@ const generateClientPageData = async (
     return { sendHardReloadInstruction, }
 };
 
+const generateLayout = async (
+    DIST_DIR: string,
+    filePath: string,
+    childIndicator: Child,
+) => {
+    const directory = path.dirname(filePath);
+    
+    initializeState();
+    initializeObjectAttributes();
+    resetLoadHooks();
+    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
+    
+    let layoutElements;
+    let metadataElements;
+    let modules: Array<string> = [];
+    
+    try {
+        const {
+            layout,
+            metadata,
+            isDynamic,
+            requiredClientModules,
+        } = await import("file://" + filePath);
+        
+        if (requiredClientModules !== undefined) {
+            modules = requiredClientModules;
+        }
+        
+        layoutElements = layout;
+        metadataElements = metadata;
+        
+        if (isDynamic === true) {
+            const result = await esbuild.build({
+                entryPoints: [filePath],
+                bundle: false,
+                format: 'iife',
+                globalName: '__exports',
+                write: false,
+                platform: 'node',
+                plugins: [externalPackagesPlugin],
+            });
+            
+            let iifeCode = result.outputFiles![0].text;
+            
+            iifeCode = iifeCode.replace(/^var __exports = /, '');
+            
+            const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);\n\nexport function construct() {\n  ${iifeCode} \nreturn __exports\n}`;
+            
+            fs.writeFileSync(filePath, wrappedCode);
+            
+            return { pageContentHTML: "", metadataHTML: "", };
+        }
+        
+        fs.rmSync(filePath, { force: true, })
+    } catch(e) {
+        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
+    }
+
+    // layout content
+    {    
+        if (!layoutElements) {
+            throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
+        }
+        
+        if (typeof layoutElements === "function") {
+            if (layoutElements.constructor.name === "AsyncFunction") {
+                layoutElements = await layoutElements(childIndicator);
+            } else {
+                layoutElements = layoutElements(childIndicator);
+            }
+        }
+    }
+    
+    // metadata content
+    {    
+        if (!metadataElements) {
+            throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
+        }
+        
+        if (typeof metadataElements === "function") {
+            if (metadataElements.constructor.name === "AsyncFunction") {
+                metadataElements = await metadataElements(childIndicator);
+            } else {
+                metadataElements = metadataElements(childIndicator);
+            }
+        }
+    }
+
+
+    const state = getState();
+    const pageLoadHooks = getLoadHooks();
+    const objectAttributes = getObjectAttributes();
+    
+    if (
+        typeof layoutElements === "string" ||
+        typeof layoutElements === "boolean" ||
+        typeof layoutElements === "number" ||
+        Array.isArray(layoutElements)
+    ) {	
+        throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof layoutElements}.`);
+    }
+
+    const foundObjectAttributes: any[] = [];
+
+    const stack: any[] = [];
+    const processedPageElements = processPageElements(layoutElements, foundObjectAttributes, 0, stack);
+    
+    const renderedPage = await serverSideRenderPage(
+        processedPageElements as Page,
+        path.dirname(filePath),
+    );
+    
+    const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
+
+    await generateClientPageData(
+        path.dirname(filePath),
+        state || {},
+        [...objectAttributes, ...foundObjectAttributes as any[]],
+        pageLoadHooks || [],
+        DIST_DIR,
+        "layout",
+        "ld",
+    );
+
+    return { pageContentHTML: renderedPage.bodyHTML, metadataHTML }
+};
+
+type BuiltLayout = {
+    pageContent: {
+        startHTML: string,
+        endHTML: string,
+    },
+    
+    metadata: {
+        startHTML: string,
+        endHTML: string,
+    },
+    
+    scriptTag: string,
+};
+
+/*
+    layouts are *lazy loaded*,
+    but require that their data be stored per-build;
+    so that we can ensure that navigating between
+    two pages that have the same layout,
+    maintains things like element keys, state ids, etc.
+    
+    and thus, we keep a *cache*
+    of previously built layouts (within this build).
+*/
+const builtLayouts = new Map<string, BuiltLayout>();
+
+const buildLayout = async (filePath: string) => {
+    // store previous values so that we can reassign globals
+    const storedState = globalThis.__SERVER_CURRENT_STATE__;
+    const storedObjectAttributes = globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+    const storedLoadHooks = globalThis.__SERVER_CURRENT_LOADHOOKS__;
+    const storedPageDataBanner = globalThis.__SERVER_PAGE_DATA_BANNER__;
+    
+    /*
+        this is used by the layout to determine where it ends
+        in the layout, this is the "child" parameter.
+        
+        we split the built HTML of the layout at this point,
+        and squish child layouts and the page in-between.
+    */
+    
+    const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
+    
+    const childIndicator = `<template layout-id="${id}"></template>`;
+    
+    const { pageContentHTML, metadataHTML } = await generateLayout(
+        DIST_DIR,
+        filePath,
+        childIndicator,
+    );
+    
+    const splitAround = (str: string, sub: string) => {
+        const i = str.indexOf(sub);
+        if (i === -1) throw new Error("substring does not exist in parent string");
+        
+        return {
+            startHTML: str.substring(0, i),
+            endHTML: str.substring(i + sub.length)
+        };
+    }
+    
+    const splitAt = (str: string, sub: string) => {
+        const i = str.indexOf(sub) + sub.length;
+        if (i === -1) throw new Error("substring does not exist in parent string");
+        
+        return {
+            startHTML: str.substring(0, i),
+            endHTML: str.substring(i)
+        };
+    }
+    
+    const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
+    
+    /*
+        restore state
+    */
+    globalThis.__SERVER_CURRENT_STATE__ = storedState;
+    globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = storedObjectAttributes;
+    globalThis.__SERVER_CURRENT_LOADHOOKS__ = storedLoadHooks;
+    globalThis.__SERVER_PAGE_DATA_BANNER__ = storedPageDataBanner;
+    
+    return {
+        pageContent: splitAt(pageContentHTML, childIndicator),
+        metadata: splitAround(metadataHTML, childIndicator),
+        scriptTag: `<script data-layout="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
+    } satisfies BuiltLayout;
+};
+
+const fetchPageLayoutHTML = async (
+    dirname: string
+) => {
+    const relative = path.relative(DIST_DIR, dirname);
+    
+    let split = relative.split(path.sep).filter(Boolean);
+    split.push("/");
+    split.reverse();
+    
+    let layouts: BuiltLayout[] = [];
+    
+    for (const dir of split) {
+        const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
+        
+        if (builtLayouts.has(filePath)) {
+            layouts.push(builtLayouts.get(filePath)!);
+            
+        } else if (fs.existsSync(filePath)) {
+            const built = await buildLayout(filePath);
+            
+            builtLayouts.set(filePath, built);
+            
+            layouts.push(built);
+        }
+    }
+    
+    const pageContent = {
+        startHTML: "",
+        endHTML: "",
+    };
+    
+    const metadata = {
+        startHTML: "",
+        endHTML: "",
+    };
+    
+    let scriptTags = "";
+    
+    for (const layout of layouts) {
+        pageContent.startHTML += layout.pageContent.startHTML
+        metadata.startHTML += layout.metadata.startHTML
+        
+        scriptTags += layout.scriptTag;
+        
+        pageContent.endHTML += layout.pageContent.endHTML
+        metadata.endHTML += layout.metadata.endHTML
+    }
+    
+    return { pageContent, metadata, scriptTag: scriptTags, };
+};
 
 const buildPages = async (
     DIST_DIR: string,
-) => { 
+) => {
     resetLayouts();
 
     const subdirectories = [...getAllSubdirectories(DIST_DIR), ""];
@@ -694,6 +915,7 @@ const buildPage = async (
     let pageElements;
     let metadata;
     let modules: Array<string> = [];
+    let pageIgnoresLayout: boolean = false;
     
     try {
         const {
@@ -701,10 +923,15 @@ const buildPage = async (
             metadata: pageMetadata,
             isDynamicPage,
             requiredClientModules,
+            ignoreLayout,
         } = await import("file://" + filePath);
         
         if (requiredClientModules !== undefined) {
             modules = requiredClientModules;
+        }
+        
+        if (ignoreLayout) {
+            pageIgnoresLayout = true;
         }
         
         pageElements = page;
@@ -759,6 +986,9 @@ const buildPage = async (
         console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
     }
     
+    // construct layout path    
+    // /me/blog/post/page.ts
+    // checks for /post/layout.ts, then /blog/layout.ts, then /me/layout.ts
     if (typeof pageElements === "function") {
         if (pageElements.constructor.name === "AsyncFunction") {
             pageElements = await pageElements();
@@ -771,7 +1001,9 @@ const buildPage = async (
     const pageLoadHooks = getLoadHooks();
     const objectAttributes = getObjectAttributes();
     
-    const foundObjectAttributes = await generateSuitablePageElements(
+    const layout = await fetchPageLayoutHTML(path.dirname(filePath));
+    
+    const foundObjectAttributes = await pageToHTML(
         path.dirname(filePath),
         pageElements || (body()),
         metadata ?? (() => head()),
@@ -779,6 +1011,7 @@ const buildPage = async (
         name,
         true,
         modules,
+        layout,
     )
 
     const {
@@ -987,16 +1220,26 @@ const build = async (): Promise<boolean> => {
                 minify: true,
                 treeShaking: true,
             })
-            
-            log("Built a client module.")
         }
     }
    
     const pagesTranspiled = performance.now();
     
-    const {
-        shouldClientHardReload
-    } = await buildPages(DIST_DIR);
+    let shouldClientHardReload
+
+    /*
+    {
+        const { shouldClientHardReload: doReload } = await buildLayouts(DIST_DIR);
+        
+        if (doReload) shouldClientHardReload = true;
+    }
+    */
+    
+    {
+        const { shouldClientHardReload: doReload } = await buildPages(DIST_DIR);
+        
+        if (doReload) shouldClientHardReload = true;
+    }
     
     const pagesBuilt = performance.now();
 

@@ -223,21 +223,23 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
-    StartTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+    StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
   StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   let builtHead;
   if (head2.constructor.name === "AsyncFunction") {
-    builtHead = await head2(StartTemplate);
+    builtHead = await head2();
   } else {
-    builtHead = head2(StartTemplate);
+    builtHead = head2();
   }
   let HTMLTemplate = renderRecursively(builtHead);
   if (serverData) {
     HTMLTemplate += serverData;
   }
-  HTMLTemplate += "";
-  return HTMLTemplate;
+  return {
+    internals: StartTemplate,
+    builtMetadata: HTMLTemplate
+  };
 };
 
 // src/server/createState.ts
@@ -318,9 +320,7 @@ var getProjectFiles = (pagesDirectory) => {
   for (const subdirectory of subdirectories) {
     const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
     const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
-    for (const file of subdirectoryFiles) {
-      files.push(file);
-    }
+    files.push(...subdirectoryFiles);
   }
   return files;
 };
@@ -518,26 +518,27 @@ ${trace}`);
     }
   }
 };
-var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = []) => {
+var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = [], layout) => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
-    return [];
+    throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
   }
   const objectAttributes = [];
   const stack = [];
   const processedPageElements = processPageElements(pageElements, objectAttributes, 0, stack);
-  elementKey = 0;
   const renderedPage = await serverSideRenderPage(
     processedPageElements,
     pageLocation
   );
-  const template = await generateHTMLTemplate({
+  const { internals, builtMetadata } = await generateHTMLTemplate({
     pageURL: path.relative(DIST_DIR2, pageLocation),
     head: metadata,
     addPageScriptTag: true,
     name: pageName,
     requiredClientModules
   });
-  const resultHTML = `<!DOCTYPE html>${template}${renderedPage.bodyHTML}`;
+  const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;
+  const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${layout.pageContent.endHTML}`;
+  const resultHTML = `${headHTML}${bodyHTML}`;
   const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
   if (doWrite) {
     fs.writeFileSync(
@@ -556,15 +557,14 @@ var generateSuitablePageElements = async (pageLocation, pageElements, metadata, 
     };
   }
 };
-var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName) => {
+var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd") => {
   const pageDiff = path.relative(DIST_DIR2, pageLocation);
   let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
   {
     clientPageJSText += `export const data = {`;
     if (state) {
-      const nonBoundState = state.filter((subj) => subj.bind === void 0);
       clientPageJSText += `state:[`;
-      for (const subject of nonBoundState) {
+      for (const subject of state) {
         if (typeof subject.value === "string") {
           const stringified = JSON.stringify(subject.value);
           clientPageJSText += `{id:${subject.id},value:${stringified}},`;
@@ -575,34 +575,6 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
         }
       }
       clientPageJSText += `],`;
-      const formattedBoundState = {};
-      const stateBinds = state.map((subj) => subj.bind).filter((bind) => bind !== void 0);
-      for (const bind of stateBinds) {
-        formattedBoundState[bind] = [];
-      }
-      ;
-      const boundState = state.filter((subj) => subj.bind !== void 0);
-      for (const subject of boundState) {
-        const bindingState = formattedBoundState[subject.bind];
-        delete subject.bind;
-        bindingState.push(subject);
-      }
-      const bindSubjectPairing = Object.entries(formattedBoundState);
-      if (bindSubjectPairing.length > 0) {
-        clientPageJSText += "binds:{";
-        for (const [bind, subjects] of bindSubjectPairing) {
-          clientPageJSText += `${bind}:[`;
-          for (const subject of subjects) {
-            if (typeof subject.value === "string") {
-              clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-            } else {
-              clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-            }
-          }
-          clientPageJSText += "]";
-        }
-        clientPageJSText += "},";
-      }
     }
     const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
     if (stateObjectAttributes.length > 0) {
@@ -620,9 +592,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
         observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",update:${ooa.update.toString()},`;
         observerObjectAttributeString += `refs:[`;
         for (const ref of ooa.refs) {
-          observerObjectAttributeString += `{id:${ref.id}`;
-          if (ref.bind !== void 0) observerObjectAttributeString += `,bind:${ref.bind}`;
-          observerObjectAttributeString += "},";
+          observerObjectAttributeString += `{id:${ref.id}},`;
         }
         observerObjectAttributeString += "]},";
       }
@@ -632,14 +602,13 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     if (pageLoadHooks.length > 0) {
       clientPageJSText += "lh:[";
       for (const loadHook of pageLoadHooks) {
-        const key = loadHook.bind;
-        clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
+        clientPageJSText += `{fn:${loadHook.fn}},`;
       }
       clientPageJSText += "],";
     }
     clientPageJSText += `};`;
   }
-  clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
+  clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
   const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
   let sendHardReloadInstruction = false;
   const transformedResult = await esbuild.transform(clientPageJSText, { minify: options.environment === "production" }).catch((error) => {
@@ -654,6 +623,175 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   }
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
+};
+var generateLayout = async (DIST_DIR2, filePath, childIndicator) => {
+  const directory = path.dirname(filePath);
+  initializeState();
+  initializeObjectAttributes();
+  resetLoadHooks();
+  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
+  let layoutElements;
+  let metadataElements;
+  let modules = [];
+  try {
+    const {
+      layout,
+      metadata,
+      isDynamic,
+      requiredClientModules
+    } = await import("file://" + filePath);
+    if (requiredClientModules !== void 0) {
+      modules = requiredClientModules;
+    }
+    layoutElements = layout;
+    metadataElements = metadata;
+    if (isDynamic === true) {
+      const result = await esbuild.build({
+        entryPoints: [filePath],
+        bundle: false,
+        format: "iife",
+        globalName: "__exports",
+        write: false,
+        platform: "node",
+        plugins: [externalPackagesPlugin]
+      });
+      let iifeCode = result.outputFiles[0].text;
+      iifeCode = iifeCode.replace(/^var __exports = /, "");
+      const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+export function construct() {
+  ${iifeCode} 
+return __exports
+}`;
+      fs.writeFileSync(filePath, wrappedCode);
+      return { pageContentHTML: "", metadataHTML: "" };
+    }
+    fs.rmSync(filePath, { force: true });
+  } catch (e) {
+    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
+  }
+  {
+    if (!layoutElements) {
+      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
+    }
+    if (typeof layoutElements === "function") {
+      if (layoutElements.constructor.name === "AsyncFunction") {
+        layoutElements = await layoutElements(childIndicator);
+      } else {
+        layoutElements = layoutElements(childIndicator);
+      }
+    }
+  }
+  {
+    if (!metadataElements) {
+      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type (child: Child) => AnyBuiltElement.`);
+    }
+    if (typeof metadataElements === "function") {
+      if (metadataElements.constructor.name === "AsyncFunction") {
+        metadataElements = await metadataElements(childIndicator);
+      } else {
+        metadataElements = metadataElements(childIndicator);
+      }
+    }
+  }
+  const state = getState();
+  const pageLoadHooks = getLoadHooks();
+  const objectAttributes = getObjectAttributes();
+  if (typeof layoutElements === "string" || typeof layoutElements === "boolean" || typeof layoutElements === "number" || Array.isArray(layoutElements)) {
+    throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof layoutElements}.`);
+  }
+  const foundObjectAttributes = [];
+  const stack = [];
+  const processedPageElements = processPageElements(layoutElements, foundObjectAttributes, 0, stack);
+  const renderedPage = await serverSideRenderPage(
+    processedPageElements,
+    path.dirname(filePath)
+  );
+  const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
+  await generateClientPageData(
+    path.dirname(filePath),
+    state || {},
+    [...objectAttributes, ...foundObjectAttributes],
+    pageLoadHooks || [],
+    DIST_DIR2,
+    "layout",
+    "ld"
+  );
+  return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
+};
+var builtLayouts = /* @__PURE__ */ new Map();
+var buildLayout = async (filePath) => {
+  const storedState = globalThis.__SERVER_CURRENT_STATE__;
+  const storedObjectAttributes = globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+  const storedLoadHooks = globalThis.__SERVER_CURRENT_LOADHOOKS__;
+  const storedPageDataBanner = globalThis.__SERVER_PAGE_DATA_BANNER__;
+  const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
+  const childIndicator = `<template layout-id="${id}"></template>`;
+  const { pageContentHTML, metadataHTML } = await generateLayout(
+    DIST_DIR,
+    filePath,
+    childIndicator
+  );
+  const splitAround = (str, sub) => {
+    const i = str.indexOf(sub);
+    if (i === -1) throw new Error("substring does not exist in parent string");
+    return {
+      startHTML: str.substring(0, i),
+      endHTML: str.substring(i + sub.length)
+    };
+  };
+  const splitAt = (str, sub) => {
+    const i = str.indexOf(sub) + sub.length;
+    if (i === -1) throw new Error("substring does not exist in parent string");
+    return {
+      startHTML: str.substring(0, i),
+      endHTML: str.substring(i)
+    };
+  };
+  const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
+  globalThis.__SERVER_CURRENT_STATE__ = storedState;
+  globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = storedObjectAttributes;
+  globalThis.__SERVER_CURRENT_LOADHOOKS__ = storedLoadHooks;
+  globalThis.__SERVER_PAGE_DATA_BANNER__ = storedPageDataBanner;
+  return {
+    pageContent: splitAt(pageContentHTML, childIndicator),
+    metadata: splitAround(metadataHTML, childIndicator),
+    scriptTag: `<script data-layout="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
+  };
+};
+var fetchPageLayoutHTML = async (dirname) => {
+  const relative = path.relative(DIST_DIR, dirname);
+  let split = relative.split(path.sep).filter(Boolean);
+  split.push("/");
+  split.reverse();
+  let layouts = [];
+  for (const dir of split) {
+    const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
+    if (builtLayouts.has(filePath)) {
+      layouts.push(builtLayouts.get(filePath));
+    } else if (fs.existsSync(filePath)) {
+      const built = await buildLayout(filePath);
+      builtLayouts.set(filePath, built);
+      layouts.push(built);
+    }
+  }
+  const pageContent = {
+    startHTML: "",
+    endHTML: ""
+  };
+  const metadata = {
+    startHTML: "",
+    endHTML: ""
+  };
+  let scriptTags = "";
+  for (const layout of layouts) {
+    pageContent.startHTML += layout.pageContent.startHTML;
+    metadata.startHTML += layout.metadata.startHTML;
+    scriptTags += layout.scriptTag;
+    pageContent.endHTML += layout.pageContent.endHTML;
+    metadata.endHTML += layout.metadata.endHTML;
+  }
+  return { pageContent, metadata, scriptTag: scriptTags };
 };
 var buildPages = async (DIST_DIR2) => {
   resetLayouts();
@@ -692,15 +830,20 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   let pageElements;
   let metadata;
   let modules = [];
+  let pageIgnoresLayout = false;
   try {
     const {
       page,
       metadata: pageMetadata,
       isDynamicPage,
-      requiredClientModules
+      requiredClientModules,
+      ignoreLayout
     } = await import("file://" + filePath);
     if (requiredClientModules !== void 0) {
       modules = requiredClientModules;
+    }
+    if (ignoreLayout) {
+      pageIgnoresLayout = true;
     }
     pageElements = page;
     metadata = pageMetadata;
@@ -745,14 +888,16 @@ return __exports
   const state = getState();
   const pageLoadHooks = getLoadHooks();
   const objectAttributes = getObjectAttributes();
-  const foundObjectAttributes = await generateSuitablePageElements(
+  const layout = await fetchPageLayoutHTML(path.dirname(filePath));
+  const foundObjectAttributes = await pageToHTML(
     path.dirname(filePath),
     pageElements || body(),
     metadata ?? (() => head()),
     DIST_DIR2,
     name,
     true,
-    modules
+    modules,
+    layout
   );
   const {
     sendHardReloadInstruction
@@ -920,13 +1065,14 @@ var build = async () => {
           minify: true,
           treeShaking: true
         });
-        log("Built a client module.");
       }
     }
     const pagesTranspiled = performance.now();
-    const {
-      shouldClientHardReload
-    } = await buildPages(DIST_DIR);
+    let shouldClientHardReload;
+    {
+      const { shouldClientHardReload: doReload } = await buildPages(DIST_DIR);
+      if (doReload) shouldClientHardReload = true;
+    }
     const pagesBuilt = performance.now();
     await buildClient(DIST_DIR);
     const end = performance.now();

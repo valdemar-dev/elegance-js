@@ -1,7 +1,8 @@
 // src/client/watcher.ts
 var eventSource = new EventSource(`http://localhost:${watchServerPort}/events`);
+eventSource.onerror = async () => {
+};
 eventSource.onmessage = async (event) => {
-  console.log(`hot-reload, command received: ${event.data}`);
   if (event.data === "reload") {
     for (const cleanupProcedure of cleanupProcedures) {
       cleanupProcedure.cleanupFunction();

@@ -24,7 +24,7 @@ export const generateHTMLTemplate = async ({
     }
     
     if (addPageScriptTag === true) {
-        StartTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+        StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
     }
 
     StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
@@ -32,9 +32,9 @@ export const generateHTMLTemplate = async ({
     let builtHead: AnyBuiltElement;
     
     if (head.constructor.name === "AsyncFunction") {
-        builtHead = await head(StartTemplate);
+        builtHead = await head();
     } else {
-        builtHead = head(StartTemplate) as BuiltElement<"html">;
+        builtHead = head() as BuiltElement<"html">;
     }
     
     let HTMLTemplate = renderRecursively(builtHead);
@@ -43,7 +43,8 @@ export const generateHTMLTemplate = async ({
         HTMLTemplate += serverData;
     }
 
-    HTMLTemplate += "";
-
-    return HTMLTemplate;
+    return {
+        internals: StartTemplate,
+        builtMetadata: HTMLTemplate,
+    };
 };

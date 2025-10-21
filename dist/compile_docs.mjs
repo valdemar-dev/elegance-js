@@ -269,21 +269,23 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
-    StartTemplate += `<script data-tag="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+    StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
   }
   StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   let builtHead;
   if (head2.constructor.name === "AsyncFunction") {
-    builtHead = await head2(StartTemplate);
+    builtHead = await head2();
   } else {
-    builtHead = head2(StartTemplate);
+    builtHead = head2();
   }
   let HTMLTemplate = renderRecursively(builtHead);
   if (serverData) {
     HTMLTemplate += serverData;
   }
-  HTMLTemplate += "";
-  return HTMLTemplate;
+  return {
+    internals: StartTemplate,
+    builtMetadata: HTMLTemplate
+  };
 };
 
 // src/server/createState.ts

@@ -6,7 +6,15 @@ import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 console.log("Elegance.JS is loading..");
 
 if (!globalThis.pd) globalThis.pd = {};
+if (!globalThis.ld) globalThis.ld = {};
 
+/** Determines how strict we should be with layout_data and page_data when we clean it. */
+enum BindLevel {
+    /** Strict means /blog -> /blog/entry does clean up the entries of /blog. */
+    STRICT=1,
+    /** Scoped means /blog -> /blog/entry does not clean up the entries of /blog. */
+    SCOPED=2,
+};
 
 // stubs for reactiveMap
 Object.assign(window, {
@@ -41,10 +49,10 @@ const doc = document;
 
 let cleanupProcedures: Array<{
     cleanupFunction: () => void | Promise<void | (() => void)>,
-    bind: string,
-}> = [];
-
-const makeArray = Array.from;
+    page: string,
+    loadHook: ClientLoadHook,
+    bindLevel: BindLevel,
+}> = []
 
 const sanitizePathname = (pn: string) => {
     if ((!pn.endsWith("/")) || pn === "/") return pn;
@@ -80,18 +88,17 @@ const createStateManager = (subjects: ClientSubject[]) => {
             state.subjects.splice(state.subjects.indexOf(s), 1);
         },
 
+        /**
+            Bind is deprecated, but kept as a paramater to not upset legacy code.
+        */
         get: (id: number, bind?: string | undefined) => {
-            if (bind) {
-                return pd[bind].get(id);
-            }
             return state.subjects.find((s: ClientSubject) => s.id === id)
         },
 
+        /**
+            Bind is deprecated, but kept as a paramater to not upset legacy code.
+        */
         getAll: (refs: { id: number, bind?: number, }[]) => refs?.map(ref => {
-            if (ref.bind) {
-                return pd[ref.bind].get(ref.id);
-            }
-
             return state.get(ref.id)
         }),
 
@@ -108,69 +115,37 @@ const createStateManager = (subjects: ClientSubject[]) => {
     return state;
 };
 
-const loadPage = (
-    deprecatedKeys: string[] = [],
-    newBreakpoints?: string[] | undefined,
+const initPageData = (
+    data: any, 
+    currentPage: string,
+    previousPage: string | null,
+    bindLevel: BindLevel,
 ) => {
-    const fixedUrl = new URL(loc.href);
-    fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
-
-    const pathname = fixedUrl.pathname;
-    currentPage = pathname;
-
-    history.replaceState(null, "", fixedUrl.href);
-    
-    let pageData = pd[pathname];
-    
-    if (pd === undefined) {
-        console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;")
+    if (!data) {
+        console.error("Data for page " + currentPage + " is null.")
+        
         return;
-    };
+    }
     
-    console.info(`Loading ${pathname}. Page info follows:`, {
-        "Deprecated Keys": deprecatedKeys,
-        "New Breakpoints:": newBreakpoints || "(none, initial load)",
-        "State": pageData.state,
-        "OOA": pageData.ooa,
-        "SOA": pageData.soa,
-        "Load Hooks": pageData.lh,
-    })
-
-    for (const [bind, subjects] of Object.entries(pageData.binds || {})) {
-        if (!pd[bind]) {
-            pd[bind] = createStateManager(subjects as ClientSubject[]);
-            continue;
-        }
-
-        const stateManager = pd[bind];
-        const newSubjects = subjects as ClientSubject[];
-
-        for (const subject of newSubjects) {
-            if (stateManager.get(subject.id)) continue;
-
-            pd[bind].subjects.push(subject);
-        }
-    } 
-
-    let state = pageData.stateManager;
+    let state = data?.stateManager;
     if (!state) {
-        state = createStateManager(pageData.state || []);
+        state = createStateManager(data.state || []);
 
-        pageData.stateManager = state;
+        data.stateManager = state;
     }
 
     for (const subject of state.subjects) {
         subject.observers = new Map();
     }
 
-    for (const ooa of pageData.ooa || []) {
+    for (const ooa of data.ooa || []) {
         // do all, because reactive-maps all use the same key
         const els = doc.querySelectorAll(`[key="${ooa.key}"]`);
 
         let values: Record<string, any> = {};
 
-        for (const { id, bind } of ooa.refs) {
-            const subject = state.get(id, bind);
+        for (const { id } of ooa.refs) {
+            const subject = state.get(id);
 
             values[subject.id] = subject.value;
 
@@ -202,10 +177,16 @@ const loadPage = (
         }
     }
 
-    for (const soa of pageData.soa || []) {
+    for (const soa of data.soa || []) {
         const el = doc.querySelector(`[key="${soa.key}"]`) as any;
+        
+        if (!el) {
+            console.error("Could not find SOA element for SOA:", soa);
+            
+            continue;
+        }
 
-        const subject = state.get(soa.id, soa.bind);
+        const subject = state.get(soa.id);
 
         if (typeof subject.value === "function") {
             try {
@@ -220,21 +201,15 @@ const loadPage = (
         }
     }
 
-    const loadHooks = pageData.lh as Array<ClientLoadHook>;
+    const loadHooks = data.lh as Array<ClientLoadHook>;
 
     for (const loadHook of loadHooks || []) {
-        const bind: any = (loadHook.bind as any ?? "");
-
-        if (
-            // generateClientPageData makes undefined binds into empty strings
-            // so that the page_data.js is *smaller*
-            bind !== "" &&
-            newBreakpoints &&
-            (!newBreakpoints.includes(`${bind}`))
-        ) {
+        const wasInScope = previousPage ? previousPage.startsWith(currentPage) : false;
+        
+        if (wasInScope && bindLevel !== BindLevel.STRICT) {
             continue
         }
-
+        
         const fn = loadHook.fn;
         
         try {
@@ -246,7 +221,9 @@ const loadPage = (
                     if (cleanupFunction){
                         cleanupProcedures.push({ 
                             cleanupFunction,
-                            bind: `${bind}`
+                            page: `${currentPage}`,
+                            loadHook: loadHook,
+                            bindLevel,
                         });
                     }
                 })
@@ -256,7 +233,9 @@ const loadPage = (
                 if (cleanupFunction){
                     cleanupProcedures.push({
                         cleanupFunction,
-                        bind: `${bind}`
+                        page: `${currentPage}`,
+                        loadHook: loadHook,
+                        bindLevel,
                     });
                 }
             }
@@ -267,14 +246,89 @@ const loadPage = (
             return;
         }
     }
+};
 
+
+/*
+    TEMP NOTES:
+    if a new nav site, no longer includes the bind of pagedata,
+    call all the returns of it
+    
+    eg, pd["/mypage/test"], would have it's loadhooks return values called (always if it's a page),
+    but if it's a layout, when navigating to "/mypage", but not when navigating to "/mypage/test/something"
+    
+    you can do this with newpath.includes(mypath) (if false, call cleanup)
+*/
+const loadPage = (
+    previousPage: null | string = null
+) => {
+    const fixedUrl = new URL(loc.href);
+    fixedUrl.pathname = sanitizePathname(fixedUrl.pathname)
+
+    const pathname = fixedUrl.pathname;
+    currentPage = pathname;
+    
+    /*
+        template[lid="id"], is where children of a layout will be placed,
+        when that layout is navigated to.
+        however, we don't want this template element to exist,
+        since it could mess up some of the users code.
+        
+        and such, we remove it, and instead get it's previous sibling / parent,
+        and mark it with a lid=["id"].
+    */
+    
+    /*
+        it's important to do this *before*
+        any client-side code runs from pd or anything of the sort,
+        so that when the page is re-navigated to, the html is the original html
+        that was sent from the server.
+    */
     pageStringCache.set(
         currentPage,
         xmlSerializer.serializeToString(doc)
     );
+    
+    history.replaceState(null, "", fixedUrl.href);
+    
+    /*
+        init page state
+    */
+    {
+        let pageData = pd[pathname];
+        
+        if (!pd) {
+            console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;")
+            return;
+        };
+        
+        initPageData(pageData, currentPage, previousPage, BindLevel.STRICT);
+    }
+    
+    /*
+        find all active layouts that were shipped
+        load all their data
+    */
+    {
+        const parts = window.location.pathname.split("/").filter(Boolean);
+
+        const paths = [
+            ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/")),
+            "/",
+        ];
+        
+        for (const path of paths) {
+            const data = ld[path];
+            if (!data) {
+                continue;
+            }
+            
+            initPageData(data, path, previousPage, BindLevel.SCOPED);
+        }
+    }
 
     console.info(
-        `Loading finished, registered these cleanupProcedures`,
+        `Loading finished, cleanupProcedures are currently:`,
         cleanupProcedures,
     );
 };
@@ -285,8 +339,6 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     if (pageStringCache.has(pathname)) {
         return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
     }
-
-    console.info(`Fetching ${pathname}`);
 
     const res = await fetch(targetURL);
 
@@ -307,17 +359,34 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
             document.head.appendChild(dataScript);
         }
     }
+    
+    // get page script
     {
-        const pageDataScript = newDOM.querySelector('script[data-tag="true"]') as HTMLScriptElement
+        const pageDataScript = newDOM.querySelector('script[data-page="true"]') as HTMLScriptElement
         
         if (!pageDataScript) {
             return;
         }
     
         if (!pd[pathname]) {
-            const { data } = await import(pageDataScript.src);
+            await import(pageDataScript.src);
+        }
+        
+    }
+    
+    // get layout scripts
+    {
+        const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]')) as HTMLScriptElement[]
+        
+        for (const script of layoutDataScripts) {
+            const url = new URL(script.src, window.location.origin);
             
-            pd[pathname] = data;
+            const dir = url.pathname.substring(0, url.pathname.lastIndexOf('/')) || '/';
+            const pathname = sanitizePathname(dir);
+            
+            if (!ld[pathname]) {
+                await import(script.src);
+            }
         }
     }
 
@@ -339,63 +408,12 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     if (!newPage) return;
 
     if (pathname === currentPage) return;
-    
-    const curBreaks = makeArray(doc.querySelectorAll("div[bp]"));
-    const curBpTags = curBreaks.map(bp => bp.getAttribute("bp")!)
-
-    const newBreaks = makeArray(newPage.querySelectorAll("div[bp]"));
-    const newBpTags = newBreaks.map(bp => bp.getAttribute("bp")!)
-
-    const latestMatchingBreakpoints = (arr1: Element[], arr2: Element[]) => {
-        let i = 0;
-        const len = Math.min(arr1.length, arr2.length);
-
-        while (i < len && arr1[i].getAttribute("bp")! === arr2[i].getAttribute("bp")!) i++;
-
-        return i > 0 ? [arr1[i - 1], arr2[i - 1]] : [document.body, newPage.body];
-    };
-
-    const [oldPageLatest, newPageLatest] = latestMatchingBreakpoints(curBreaks, newBreaks);
-
-    const deprecatedKeys: string[] = [];
-
-    const breakpointKey = oldPageLatest.getAttribute("key")!;
-
-    const getDeprecatedKeysRecursively = (element: HTMLElement) => {
-        const key = element.getAttribute("key");
-
-        if (key) {
-            deprecatedKeys.push(key)
-        }
-
-        if (
-            key === breakpointKey ||
-            !breakpointKey
-        ) return;
-        
-        for (const child of makeArray(element.children)) {
-            getDeprecatedKeysRecursively(child as HTMLElement);
-        }
-    };
-
-    getDeprecatedKeysRecursively(doc.body);
-
-    // We want to call these things cleanups, cause they're no longer in scope.
-    const deprecatedBreakpoints = curBpTags.filter(
-        item => !newBpTags.includes(item)
-    );
-
-    // We call these, because they were just created.
-    const newBreakpoints = newBpTags.filter(
-        item => !curBpTags.includes(item)
-    );
 
     for (const cleanupProcedure of [...cleanupProcedures]) {
-        const bind = cleanupProcedure.bind;
-
+        const isInScope = pathname.startsWith(cleanupProcedure.page);
+        
         if (
-            bind.length < 1 || 
-            deprecatedBreakpoints.includes(bind)
+            !isInScope || cleanupProcedure.bindLevel === BindLevel.STRICT
         ) {
             try {
                 cleanupProcedure.cleanupFunction();
@@ -408,18 +426,45 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
             cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
         }
     } 
-
-    oldPageLatest.replaceWith(newPageLatest)
+    
+    let oldPageLatest = doc.body;
+    let newPageLatest = newPage.body;
+    
+    {
+        const newPageLayouts = Array.from(newPage.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
+        const oldPageLayouts = Array.from(doc.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
+        
+        const size = Math.min(newPageLayouts.length, oldPageLayouts.length);
+        
+        for (let i = 0; i < size; i++) {
+            const newPageLayout = newPageLayouts[i];
+            const oldPageLayout = oldPageLayouts[i];
+            
+            const newLayoutId = newPageLayout.getAttribute("layout-id")!;
+            const oldLayoutId = oldPageLayout.getAttribute("layout-id")!;
+            
+            if (newLayoutId !== oldLayoutId) {
+                break
+            }
+            
+            oldPageLatest = oldPageLayout.nextElementSibling! as HTMLElement;
+            newPageLatest = newPageLayout.nextElementSibling! as HTMLElement;
+        }
+    }
+    
+    oldPageLatest.replaceWith(newPageLatest);
     doc.head.replaceWith(newPage.head);
 
     if (pushState) history.pushState(null, "", targetURL.href); 
+    
+    loadPage(currentPage);
+    
     currentPage = pathname;
 
     if (targetURL.hash) {
         doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
 
-    loadPage(deprecatedKeys, newBreakpoints);
 };
 
 window.onpopstate = async (event: PopStateEvent) => {
