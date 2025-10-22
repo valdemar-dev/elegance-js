@@ -63,7 +63,7 @@ const Sidebar = () => {
         class: observe(
             [isOpen], 
             (value) => {
-                let classList = "p-8 sm:pr-0 inset-0 z-50 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-full duration-500 w-full max-w-[600px]  ";
+                let classList = "p-8 sm:pr-0 inset-0 z-10 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-[calc(100%-calc(24px+2rem))] sm:h-full duration-500 w-full max-w-[600px]  ";
                 
                 if (value === true) {
                     classList += "translate-x-0 sm:translate-x-0"

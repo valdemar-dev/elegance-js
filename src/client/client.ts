@@ -453,7 +453,47 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     }
     
     oldPageLatest.replaceWith(newPageLatest);
-    doc.head.replaceWith(newPage.head);
+    
+    {   
+        // Gracefully replace head.
+        // document.head.replaceWith(); causes FOUC on Chromium browsers.
+        doc.head.querySelector("title")?.replaceWith(
+            newPage.head.querySelector("title") ?? ""
+        )
+        
+        const update = (targetList: HTMLElement[], matchAgainst: HTMLElement[], action: (node: HTMLElement) => void) => {
+            for (const target of targetList) {
+                const matching = matchAgainst.find(n => n.isEqualNode(target));
+                
+                if (matching) {
+                    continue;
+                }
+                
+                action(target);
+            }
+        };
+        
+        // add new tags and reomve old ones
+        const oldTags = Array.from([
+            ...Array.from(document.head.querySelectorAll("link")),
+            ...Array.from(document.head.querySelectorAll("meta")),
+            ...Array.from(document.head.querySelectorAll("script")),
+            ...Array.from(document.head.querySelectorAll("base")),
+            ...Array.from(document.head.querySelectorAll("style")),
+        ]);
+        
+        const newTags = Array.from([
+            ...Array.from(newPage.head.querySelectorAll("link")),
+            ...Array.from(newPage.head.querySelectorAll("meta")),
+            ...Array.from(newPage.head.querySelectorAll("script")),
+            ...Array.from(newPage.head.querySelectorAll("base")),
+            ...Array.from(newPage.head.querySelectorAll("style")),
+        ]);
+        
+        update(newTags, oldTags, (node) => document.head.appendChild(node));
+        update(oldTags, newTags, (node) => node.remove());
+    }
+    
 
     if (pushState) history.pushState(null, "", targetURL.href); 
     

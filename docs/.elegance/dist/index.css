@@ -212,8 +212,8 @@
   .bottom-0 {
     bottom: calc(var(--spacing) * 0);
   }
-  .z-50 {
-    z-index: 50;
+  .z-10 {
+    z-index: 10;
   }
   .my-2 {
     margin-block: calc(var(--spacing) * 2);
@@ -238,6 +238,9 @@
   }
   .h-48 {
     height: calc(var(--spacing) * 48);
+  }
+  .h-\[calc\(100\%-calc\(24px\+2rem\)\)\] {
+    height: calc(100% - calc(24px + 2rem));
   }
   .h-full {
     height: 100%;
@@ -443,6 +446,11 @@
   .sm\:hidden {
     @media (width >= 40rem) {
       display: none;
+    }
+  }
+  .sm\:h-full {
+    @media (width >= 40rem) {
+      height: 100%;
     }
   }
   .sm\:translate-x-0 {
