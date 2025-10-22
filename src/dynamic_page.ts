@@ -239,6 +239,7 @@ const generateSuitablePageElements = async (
         addPageScriptTag: true,
         name: pageName,
         requiredClientModules,
+        environment: "production",
     });
 
     const resultHTML = `<!DOCTYPE html>${template}${renderedPage.bodyHTML}`;

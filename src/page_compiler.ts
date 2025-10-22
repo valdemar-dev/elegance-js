@@ -443,6 +443,7 @@ const pageToHTML = async (
         addPageScriptTag: true,
         name: pageName,
         requiredClientModules,
+        environment: options.environment,
     });
 
     const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;

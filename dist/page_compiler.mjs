@@ -215,10 +215,14 @@ var generateHTMLTemplate = async ({
   serverData = null,
   addPageScriptTag = true,
   name,
-  requiredClientModules = []
+  requiredClientModules = [],
+  environment
 }) => {
   let StartTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
-  StartTemplate += '<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"><meta charset="UTF-8">';
+  if (environment === "production") {
+    StartTemplate += `<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">`;
+  }
+  StartTemplate += '<meta charset="UTF-8">';
   for (const module of requiredClientModules) {
     StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
   }
@@ -534,7 +538,8 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
     head: metadata,
     addPageScriptTag: true,
     name: pageName,
-    requiredClientModules
+    requiredClientModules,
+    environment: options.environment
   });
   const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;
   const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${layout.pageContent.endHTML}`;
