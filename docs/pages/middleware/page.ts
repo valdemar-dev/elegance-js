@@ -7,6 +7,7 @@ export const page: Page = () => {
     const target = path.join(
         process.cwd(),
         "pages",
+        "middleware",
         "content.md",
     );
     

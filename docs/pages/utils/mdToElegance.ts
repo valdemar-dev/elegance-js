@@ -1,7 +1,7 @@
 import { eventListener, state } from "elegance-js";
 import { toastContent } from "@/pages/layout";
 
-const headingStyles = "";
+const headingStyles = "pb-2 mt-12";
 
 const headingMap: Record<string, (children: any[]) => any> = {
     '#': (children) => h1({ class: headingStyles + " text-4xl", }, children),
@@ -16,7 +16,7 @@ const codeElement = (children: any[]) => {
     const codeContent = state(children as unknown as string);
     
     return div({
-        class: "bg-text-00 p-2 rounded-sm w-max hover:cursor-pointer hover:opacity-80 duration-100 select-none",
+        class: "bg-text-00 p-2 rounded-sm w-max hover:cursor-pointer hover:opacity-80 duration-100 select-none my-2",
         onClick: eventListener(
             [codeContent, toastContent],
             async (_, codeContent, toastContent) => { 
@@ -107,23 +107,22 @@ export const mdToElegance = (mdContent: string): any[] => {
     const output: any[] = [];
     let currentParaLines: string[] = [];
 
-    for (let line of lines) {
+    for (let line of lines) {        
         const trimmed = line.trim();
+        
         if (!trimmed) {
             if (currentParaLines.length > 0) {
                 const paraChildren: Child[] = [];
                 for (let i = 0; i < currentParaLines.length; i++) {
                     let paraLine = currentParaLines[i];
-                    paraLine = paraLine.trimStart();
-                    const useBrAfter = paraLine.endsWith('  ');
+                    const trailingSpaces = paraLine.length - paraLine.trimEnd().length;
+                    const brCount = Math.floor(trailingSpaces / 2);
+
                     let content = paraLine.replace(/ {2,}$/, '').trimEnd();
                     paraChildren.push(...parseInline(content));
-                    if (i < currentParaLines.length - 1) {
-                        if (useBrAfter) {
-                            paraChildren.push(br({}));
-                        } else {
-                            paraChildren.push(' ');
-                        }
+                    
+                    for (let j = 0; j < brCount; j++) {
+                        paraChildren.push(br({}));
                     }
                 }
                 output.push(p({}, ...paraChildren));
@@ -140,16 +139,14 @@ export const mdToElegance = (mdContent: string): any[] => {
                     const paraChildren: Child[] = [];
                     for (let i = 0; i < currentParaLines.length; i++) {
                         let paraLine = currentParaLines[i];
-                        paraLine = paraLine.trimStart();
-                        const useBrAfter = paraLine.endsWith('  ');
+                        const trailingSpaces = paraLine.length - paraLine.trimEnd().length;
+                        const brCount = Math.floor(trailingSpaces / 2);
+    
                         let content = paraLine.replace(/ {2,}$/, '').trimEnd();
                         paraChildren.push(...parseInline(content));
-                        if (i < currentParaLines.length - 1) {
-                            if (useBrAfter) {
-                                paraChildren.push(br({}));
-                            } else {
-                                paraChildren.push(' ');
-                            }
+                        
+                        for (let j = 0; j < brCount; j++) {
+                            paraChildren.push(br({}));
                         }
                     }
                     output.push(p({}, ...paraChildren));
@@ -173,18 +170,16 @@ export const mdToElegance = (mdContent: string): any[] => {
         const paraChildren: Child[] = [];
         for (let i = 0; i < currentParaLines.length; i++) {
             let paraLine = currentParaLines[i];
-            paraLine = paraLine.trimStart();
-            const useBrAfter = paraLine.endsWith('  ');
+            const trailingSpaces = paraLine.length - paraLine.trimEnd().length;
+            const brCount = Math.floor(trailingSpaces / 2);
+    
             let content = paraLine.replace(/ {2,}$/, '').trimEnd();
             paraChildren.push(...parseInline(content));
-            if (i < currentParaLines.length - 1) {
-                if (useBrAfter) {
-                    paraChildren.push(br({}));
-                } else {
-                    paraChildren.push(' ');
-                }
+            
+            for (let j = 0; j < brCount; j++) {
+                paraChildren.push(br({}));
             }
-        }
+       }
         output.push(p({}, ...paraChildren));
     }
 

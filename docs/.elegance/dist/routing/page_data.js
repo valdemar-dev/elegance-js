@@ -1,5 +1,5 @@
-let url = "/";
-export const data = { state: [{ id: 17, value: function anonymous(state, event) {
+let url = "/routing";
+export const data = { state: [{ id: 13, value: function anonymous(state, event) {
   ((event2) => {
     const target = new URL(event2.currentTarget.href);
     const client2 = globalThis.client;
@@ -12,25 +12,13 @@ export const data = { state: [{ id: 17, value: function anonymous(state, event) 
     event2.preventDefault();
     client2.navigateLocally(target.href);
   })(event, ...state.getAll([]));
-} }, { id: 18, value: "" }, { id: 19, value: ["npx create-elegance-app my-app"] }, { id: 20, value: function anonymous2(state, event) {
+} }, { id: 14, value: "" }, { id: 15, value: ["/pages/recipes/cake/page.ts"] }, { id: 16, value: function anonymous2(state, event) {
   (async (_, codeContent2, toastContent2) => {
     await navigator.clipboard.writeText(`${codeContent2.value}`);
     toastContent2.value = "Copied to Clipboard";
     toastContent2.signal();
-  })(event, ...state.getAll([{ id: 19 }, { id: 18 }]));
-} }, { id: 21, value: ["npx dev"] }, { id: 22, value: function anonymous3(state, event) {
-  (async (_, codeContent2, toastContent2) => {
-    await navigator.clipboard.writeText(`${codeContent2.value}`);
-    toastContent2.value = "Copied to Clipboard";
-    toastContent2.signal();
-  })(event, ...state.getAll([{ id: 21 }, { id: 18 }]));
-} }, { id: 23, value: ["http://localhost:3000/"] }, { id: 24, value: function anonymous4(state, event) {
-  (async (_, codeContent2, toastContent2) => {
-    await navigator.clipboard.writeText(`${codeContent2.value}`);
-    toastContent2.value = "Copied to Clipboard";
-    toastContent2.signal();
-  })(event, ...state.getAll([{ id: 23 }, { id: 18 }]));
-} }], soa: [{ "id": 20, "key": 9, "attribute": "onclick" }, { "id": 22, "key": 10, "attribute": "onclick" }, { "id": 24, "key": 11, "attribute": "onclick" }], lh: [{ fn: (state) => (() => {
+  })(event, ...state.getAll([{ id: 15 }, { id: 14 }]));
+} }], soa: [{ "id": 16, "key": 8, "attribute": "onclick" }], lh: [{ fn: (state) => (() => {
   const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
   const elsToClear = [];
   for (const anchor of anchors) {
@@ -93,7 +81,7 @@ export const data = { state: [{ id: 17, value: function anonymous(state, event) 
   observer(toastContent2.value);
   state2.observe(toastContent2, observer, id);
   return () => toastContent2.observers.delete(id);
-})(state, ...state.getAll([{ id: 18 }])) }] };
+})(state, ...state.getAll([{ id: 14 }])) }] };
 if (!globalThis.pd) {
   globalThis.pd = {};
 }

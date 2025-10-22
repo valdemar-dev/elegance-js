@@ -1,18 +1,20 @@
 import { ObjectAttributeType, } from "./helpers/ObjectAttributeType";
 import { CreateEventListenerOptions } from "./server/createState";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 declare global {
     type NonVoid<T> = T extends void ? never : T;
 
-    /*
-     * The below is all magical server stuff.
-     * The client won't know of *any* of it!
-     */
+    /** Deprecated. */
     var __ELEGANCE_SERVER_DATA__: any;
 
+    /** Increment this by 1 to get a per-build unique ID. */
     var __SERVER_CURRENT_STATE_ID__: number;
+    
+    /** Deprecated. */
     var __SERVER_CURRENT_REF_ID__: number;
 
+    /** The global server current state for this build. */
     var __SERVER_CURRENT_STATE__: Array<{
         value: unknown;
         type: ObjectAttributeType,
@@ -44,8 +46,16 @@ declare global {
         options: Record<string, any> | Child;
     }
 
+    /** The type for API Endpoints in route.ts files. */
+    type Endpoint = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
     
+    /** The type for middleware functions in middleware.ts files. */
+    type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>;
+    
+    /** The type for const layout in layout.ts files. */
     type Layout = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>))
+    
+    /** The type for const metadata in layout.ts files. */
     type LayoutMetadata = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>));
     
     type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);

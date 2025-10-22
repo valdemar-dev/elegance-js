@@ -31,6 +31,8 @@ const Sidebar = () => {
             class: "flex flex-col gap-0",
         },
             SidebarEntry("Introduction", "/"),
+            SidebarEntry("Routing", "/routing"),
+            SidebarEntry("Middleware", "/middleware"),
             SidebarEntry("Loadhook", "/loadhook"),
         ),
     );
@@ -121,6 +123,7 @@ export const layout: Layout = (child) => {
 
         child,
         
+        footer({ class: "h-48", }),
     );
 };
 
