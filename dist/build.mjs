@@ -672,7 +672,7 @@ function startServer({
         }
         return;
       }
-      const url = new URL(req.url, `https://${req.headers.host}`);
+      const url = new URL(req.url, `http://${req.headers.host}`);
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(root, url.pathname, req, res);
       } else {
@@ -696,7 +696,7 @@ function startServer({
       }
     });
     server.listen(p, host, () => {
-      log.info(`Server running at https://${host}:${p}/`);
+      log.info(`Server running at http://${host}:${p}/`);
     });
     return server;
   }
