@@ -1,5 +1,38 @@
 import { Link } from "elegance-js/components/Link";
-import { state, loadHook } from "elegance-js";
+import { state, eventListener, loadHook, observe } from "elegance-js";
+
+import Menu from "@/pages/components/Menu";
+import { Sun, Dark } from "@/pages/components/Theme";
+
+const useDarkMode = state(false);
+
+loadHook(
+    [useDarkMode],
+    (state, useDarkMode) => {
+        let userPrefersDarkMode = localStorage.getItem("use-dark-mode");
+        
+        if (userPrefersDarkMode === null) {
+            userPrefersDarkMode = "false";
+        }
+        
+        useDarkMode.value = userPrefersDarkMode === "true";
+        useDarkMode.signal();
+        
+        document.body.style.transitionDuration = "0ms";
+        void document.body.offsetWidth;
+        document.body.style.transitionDuration = "500ms";
+        
+        const el = () => {
+            const updated = state.get(useDarkMode.id)!;
+            
+            localStorage.setItem("use-dark-mode", (updated.value === true).toString())
+        };
+        
+        window.addEventListener("beforeunload", el)
+        
+        return () => window.removeEventListener("beforeunload", el)
+    },
+);
 
 const SidebarEntry = (content: string, href: string) => {
     return div(
@@ -21,9 +54,27 @@ const SidebarCategory = (content: string) => {
     );
 };
 
+/** Whether or not the sidebar is open. */
+const isOpen = state(false);
+    
 const Sidebar = () => {    
+    
     return div({
-        class: "p-8",
+        class: observe(
+            [isOpen], 
+            (value) => {
+                let classList = "p-8 sm:pr-0 inset-0 z-50 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-full duration-500 w-full max-w-[600px]  ";
+                
+                if (value === true) {
+                    classList += "translate-x-0 sm:translate-x-0"
+                
+                } else {
+                    classList += "-translate-x-full sm:translate-x-0"
+                }
+                
+                return classList;
+            },
+        ),
     },
         SidebarCategory("Reference"),
         
@@ -31,9 +82,46 @@ const Sidebar = () => {
             class: "flex flex-col gap-0",
         },
             SidebarEntry("Introduction", "/"),
+            SidebarEntry("API Routes", "/api-routes"),
             SidebarEntry("Routing", "/routing"),
             SidebarEntry("Middleware", "/middleware"),
             SidebarEntry("Loadhook", "/loadhook"),
+        ),
+        
+        div({
+            class: "mt-auto flex items-center gap-2",
+        },
+            button({
+                onClick: eventListener(
+                    [useDarkMode], 
+                    (_, useDarkMode) => {
+                        useDarkMode.value = false;
+                        
+                        useDarkMode.signal();
+                    },
+                ),
+            },
+            
+                Sun({
+                    class: "stroke-text-10 dark:stroke-background-10 duration-500",
+                }),
+            ),
+            
+            button({
+                onClick: eventListener(
+                    [useDarkMode], 
+                    (_, useDarkMode) => {
+                        useDarkMode.value = true;
+                        
+                        useDarkMode.signal();
+                    },
+                ),
+            },
+            
+                Dark({
+                    class: "stroke-text-10 dark:stroke-background-10 duration-500",
+                }),
+            ),
         ),
     );
 };
@@ -114,16 +202,54 @@ const Toast = () => {
 };
 
 export const layout: Layout = (child) => {
+    
     return body({
-        class: "bg-background-10 text-text-10 font-inter grid grid-cols-[20rem_auto]",
+        class: observe(
+            [useDarkMode],
+            (value) => {
+                let classList = "bg-background-10 text-text-10 dark:bg-text-10 dark:text-background-10 font-inter grid grid-cols-1 sm:gap-8 gap-0 sm:grid-cols-[300px_auto] grid-rows-[auto_auto] sm:grid-rows-1 h-full h-screen w-screen sm:pt-0 pt-[calc(2rem+24px)]";
+                
+                if (value === true) {
+                    classList += " dark"
+                }
+                
+                return classList;
+            },
+        ), 
     },
+        div({
+            class: "sm:hidden fixed w-full top-0 flex p-4 backdrop-blur-md flex flex-row items-center gap-2 justify-between",
+        },
+            h2({
+                class: "font-bold",
+            },
+                "Elegance.JS",
+            ),
+            
+            button({
+                class: "",
+                onClick: eventListener(
+                    [isOpen],
+                    (_, isOpen) => { isOpen.value = !isOpen.value; isOpen.signal(); },
+                ),
+            },
+                Menu({ class: "stroke-text-10 dark:stroke-background-10 duration-500", }),
+            ),
+            
+            
+        ),
+
         Toast(),
         
         Sidebar(),
 
-        child,
-        
-        footer({ class: "h-48", }),
+        div({
+            class: "h-full overflow-y-auto p-3 sm:p-0",
+        },
+            child,
+            
+            div({ class: "h-48", }),
+        ),
     );
 };
 

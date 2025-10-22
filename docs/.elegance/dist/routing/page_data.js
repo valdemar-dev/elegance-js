@@ -1,5 +1,5 @@
 let url = "/routing";
-export const data = { state: [{ id: 13, value: function anonymous(state, event) {
+export const data = { state: [{ id: 24, value: function anonymous(state, event) {
   ((event2) => {
     const target = new URL(event2.currentTarget.href);
     const client2 = globalThis.client;
@@ -12,13 +12,13 @@ export const data = { state: [{ id: 13, value: function anonymous(state, event) 
     event2.preventDefault();
     client2.navigateLocally(target.href);
   })(event, ...state.getAll([]));
-} }, { id: 14, value: "" }, { id: 15, value: ["/pages/recipes/cake/page.ts"] }, { id: 16, value: function anonymous2(state, event) {
+} }, { id: 25, value: false }, { id: 26, value: false }, { id: 27, value: "" }, { id: 28, value: ["/pages/recipes/cake/page.ts"] }, { id: 29, value: function anonymous2(state, event) {
   (async (_, codeContent2, toastContent2) => {
     await navigator.clipboard.writeText(`${codeContent2.value}`);
     toastContent2.value = "Copied to Clipboard";
     toastContent2.signal();
-  })(event, ...state.getAll([{ id: 15 }, { id: 14 }]));
-} }], soa: [{ "id": 16, "key": 8, "attribute": "onclick" }], lh: [{ fn: (state) => (() => {
+  })(event, ...state.getAll([{ id: 28 }, { id: 27 }]));
+} }], soa: [{ "id": 29, "key": 14, "attribute": "onclick" }], lh: [{ fn: (state) => (() => {
   const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
   const elsToClear = [];
   for (const anchor of anchors) {
@@ -45,7 +45,23 @@ export const data = { state: [{ id: 13, value: function anonymous(state, event) 
       listener.el.removeEventListener("mouseenter", listener.fn);
     }
   };
-})(state, ...state.getAll([])) }, { fn: (state) => ((state2, toastContent2) => {
+})(state, ...state.getAll([])) }, { fn: (state) => ((state2, useDarkMode2) => {
+  let userPrefersDarkMode = localStorage.getItem("use-dark-mode");
+  if (userPrefersDarkMode === null) {
+    userPrefersDarkMode = "false";
+  }
+  useDarkMode2.value = userPrefersDarkMode === "true";
+  useDarkMode2.signal();
+  document.body.style.transitionDuration = "0ms";
+  void document.body.offsetWidth;
+  document.body.style.transitionDuration = "500ms";
+  const el = () => {
+    const updated = state2.get(useDarkMode2.id);
+    localStorage.setItem("use-dark-mode", (updated.value === true).toString());
+  };
+  window.addEventListener("beforeunload", el);
+  return () => window.removeEventListener("beforeunload", el);
+})(state, ...state.getAll([{ id: 25 }])) }, { fn: (state) => ((state2, toastContent2) => {
   const toastElement = document.getElementById("toaster");
   if (!toastElement) return;
   const showToast = () => {
@@ -81,7 +97,7 @@ export const data = { state: [{ id: 13, value: function anonymous(state, event) 
   observer(toastContent2.value);
   state2.observe(toastContent2, observer, id);
   return () => toastContent2.observers.delete(id);
-})(state, ...state.getAll([{ id: 14 }])) }] };
+})(state, ...state.getAll([{ id: 27 }])) }] };
 if (!globalThis.pd) {
   globalThis.pd = {};
 }

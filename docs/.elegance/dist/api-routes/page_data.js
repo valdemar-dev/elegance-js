@@ -1,5 +1,5 @@
-let url = "/";
-export const data = { state: [{ id: 7, value: function anonymous(state, event) {
+let url = "/api-routes";
+export const data = { state: [{ id: 2, value: function anonymous(state, event) {
   ((event2) => {
     const target = new URL(event2.currentTarget.href);
     const client2 = globalThis.client;
@@ -12,36 +12,7 @@ export const data = { state: [{ id: 7, value: function anonymous(state, event) {
     event2.preventDefault();
     client2.navigateLocally(target.href);
   })(event, ...state.getAll([]));
-} }, { id: 8, value: false }, { id: 9, value: false }, { id: 10, value: "" }, { id: 11, value: function anonymous2(state, event) {
-  ((_, isOpen2) => {
-    isOpen2.value = !isOpen2.value;
-    isOpen2.signal();
-  })(event, ...state.getAll([{ id: 9 }]));
-} }, { id: 12, value: function anonymous3(state, event) {
-  ((_, useDarkMode2) => {
-    useDarkMode2.value = false;
-    useDarkMode2.signal();
-  })(event, ...state.getAll([{ id: 8 }]));
-} }, { id: 13, value: function anonymous4(state, event) {
-  ((_, useDarkMode2) => {
-    useDarkMode2.value = true;
-    useDarkMode2.signal();
-  })(event, ...state.getAll([{ id: 8 }]));
-} }], soa: [{ "id": 11, "key": 2, "attribute": "onclick" }, { "id": 7, "key": 4, "attribute": "onclick" }, { "id": 7, "key": 5, "attribute": "onclick" }, { "id": 7, "key": 6, "attribute": "onclick" }, { "id": 7, "key": 7, "attribute": "onclick" }, { "id": 7, "key": 8, "attribute": "onclick" }, { "id": 12, "key": 9, "attribute": "onclick" }, { "id": 13, "key": 10, "attribute": "onclick" }], ooa: [{ key: 1, attribute: "class", update: (value) => {
-  let classList = "bg-background-10 text-text-10 dark:bg-text-10 dark:text-background-10 font-inter grid grid-cols-1 sm:gap-8 gap-0 sm:grid-cols-[300px_auto] grid-rows-[auto_auto] sm:grid-rows-1 h-full h-screen w-screen sm:pt-0 pt-[calc(2rem+24px)]";
-  if (value === true) {
-    classList += " dark";
-  }
-  return classList;
-}, refs: [{ id: 8 }] }, { key: 3, attribute: "class", update: (value) => {
-  let classList = "p-8 sm:pr-0 inset-0 z-50 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-full duration-500 w-full max-w-[600px]  ";
-  if (value === true) {
-    classList += "translate-x-0 sm:translate-x-0";
-  } else {
-    classList += "-translate-x-full sm:translate-x-0";
-  }
-  return classList;
-}, refs: [{ id: 9 }] }], lh: [{ fn: (state) => (() => {
+} }, { id: 3, value: false }, { id: 4, value: false }, { id: 5, value: "" }], lh: [{ fn: (state) => (() => {
   const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
   const elsToClear = [];
   for (const anchor of anchors) {
@@ -84,7 +55,7 @@ export const data = { state: [{ id: 7, value: function anonymous(state, event) {
   };
   window.addEventListener("beforeunload", el);
   return () => window.removeEventListener("beforeunload", el);
-})(state, ...state.getAll([{ id: 8 }])) }, { fn: (state) => ((state2, toastContent2) => {
+})(state, ...state.getAll([{ id: 3 }])) }, { fn: (state) => ((state2, toastContent2) => {
   const toastElement = document.getElementById("toaster");
   if (!toastElement) return;
   const showToast = () => {
@@ -120,9 +91,9 @@ export const data = { state: [{ id: 7, value: function anonymous(state, event) {
   observer(toastContent2.value);
   state2.observe(toastContent2, observer, id);
   return () => toastContent2.observers.delete(id);
-})(state, ...state.getAll([{ id: 10 }])) }] };
-if (!globalThis.ld) {
-  globalThis.ld = {};
+})(state, ...state.getAll([{ id: 5 }])) }] };
+if (!globalThis.pd) {
+  globalThis.pd = {};
 }
 ;
-globalThis.ld[url] = data;
+globalThis.pd[url] = data;

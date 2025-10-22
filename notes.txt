@@ -7,3 +7,5 @@ users could not be aware of this, and leak sensitive code.
 
 we could instead move them to .elegance/transpiled,
 and have things like layout_data, etc, things we actually *want* to share, in the DIST_DIR
+
+add the <circle> element

@@ -1,5 +1,5 @@
 let url = "/middleware";
-export const data = { state: [{ id: 2, value: function anonymous(state, event) {
+export const data = { state: [{ id: 14, value: function anonymous(state, event) {
   ((event2) => {
     const target = new URL(event2.currentTarget.href);
     const client2 = globalThis.client;
@@ -12,25 +12,25 @@ export const data = { state: [{ id: 2, value: function anonymous(state, event) {
     event2.preventDefault();
     client2.navigateLocally(target.href);
   })(event, ...state.getAll([]));
-} }, { id: 3, value: "" }, { id: 4, value: ["export async function Middleware(req, res, next) {}"] }, { id: 5, value: function anonymous2(state, event) {
+} }, { id: 15, value: false }, { id: 16, value: false }, { id: 17, value: "" }, { id: 18, value: ["export async function Middleware(req, res, next) {}"] }, { id: 19, value: function anonymous2(state, event) {
   (async (_, codeContent2, toastContent2) => {
     await navigator.clipboard.writeText(`${codeContent2.value}`);
     toastContent2.value = "Copied to Clipboard";
     toastContent2.signal();
-  })(event, ...state.getAll([{ id: 4 }, { id: 3 }]));
-} }, { id: 6, value: ["const middlewares = await import(middlewareFile);"] }, { id: 7, value: function anonymous3(state, event) {
+  })(event, ...state.getAll([{ id: 18 }, { id: 17 }]));
+} }, { id: 20, value: ["const middlewares = await import(middlewareFile);"] }, { id: 21, value: function anonymous3(state, event) {
   (async (_, codeContent2, toastContent2) => {
     await navigator.clipboard.writeText(`${codeContent2.value}`);
     toastContent2.value = "Copied to Clipboard";
     toastContent2.signal();
-  })(event, ...state.getAll([{ id: 6 }, { id: 3 }]));
-} }, { id: 8, value: ["req: http.IncomingMessage, res: http.ServerResponse"] }, { id: 9, value: function anonymous4(state, event) {
+  })(event, ...state.getAll([{ id: 20 }, { id: 17 }]));
+} }, { id: 22, value: ["req: http.IncomingMessage, res: http.ServerResponse"] }, { id: 23, value: function anonymous4(state, event) {
   (async (_, codeContent2, toastContent2) => {
     await navigator.clipboard.writeText(`${codeContent2.value}`);
     toastContent2.value = "Copied to Clipboard";
     toastContent2.signal();
-  })(event, ...state.getAll([{ id: 8 }, { id: 3 }]));
-} }], soa: [{ "id": 5, "key": 5, "attribute": "onclick" }, { "id": 7, "key": 6, "attribute": "onclick" }, { "id": 9, "key": 7, "attribute": "onclick" }], lh: [{ fn: (state) => (() => {
+  })(event, ...state.getAll([{ id: 22 }, { id: 17 }]));
+} }], soa: [{ "id": 19, "key": 11, "attribute": "onclick" }, { "id": 21, "key": 12, "attribute": "onclick" }, { "id": 23, "key": 13, "attribute": "onclick" }], lh: [{ fn: (state) => (() => {
   const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
   const elsToClear = [];
   for (const anchor of anchors) {
@@ -57,7 +57,23 @@ export const data = { state: [{ id: 2, value: function anonymous(state, event) {
       listener.el.removeEventListener("mouseenter", listener.fn);
     }
   };
-})(state, ...state.getAll([])) }, { fn: (state) => ((state2, toastContent2) => {
+})(state, ...state.getAll([])) }, { fn: (state) => ((state2, useDarkMode2) => {
+  let userPrefersDarkMode = localStorage.getItem("use-dark-mode");
+  if (userPrefersDarkMode === null) {
+    userPrefersDarkMode = "false";
+  }
+  useDarkMode2.value = userPrefersDarkMode === "true";
+  useDarkMode2.signal();
+  document.body.style.transitionDuration = "0ms";
+  void document.body.offsetWidth;
+  document.body.style.transitionDuration = "500ms";
+  const el = () => {
+    const updated = state2.get(useDarkMode2.id);
+    localStorage.setItem("use-dark-mode", (updated.value === true).toString());
+  };
+  window.addEventListener("beforeunload", el);
+  return () => window.removeEventListener("beforeunload", el);
+})(state, ...state.getAll([{ id: 15 }])) }, { fn: (state) => ((state2, toastContent2) => {
   const toastElement = document.getElementById("toaster");
   if (!toastElement) return;
   const showToast = () => {
@@ -93,7 +109,7 @@ export const data = { state: [{ id: 2, value: function anonymous(state, event) {
   observer(toastContent2.value);
   state2.observe(toastContent2, observer, id);
   return () => toastContent2.observers.delete(id);
-})(state, ...state.getAll([{ id: 3 }])) }] };
+})(state, ...state.getAll([{ id: 17 }])) }] };
 if (!globalThis.pd) {
   globalThis.pd = {};
 }

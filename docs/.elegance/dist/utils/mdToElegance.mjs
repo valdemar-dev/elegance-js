@@ -245,6 +245,28 @@ var navigate = eventListener2(
 );
 
 // pages/layout.ts
+var useDarkMode = state(false);
+loadHook(
+  [useDarkMode],
+  (state2, useDarkMode2) => {
+    let userPrefersDarkMode = localStorage.getItem("use-dark-mode");
+    if (userPrefersDarkMode === null) {
+      userPrefersDarkMode = "false";
+    }
+    useDarkMode2.value = userPrefersDarkMode === "true";
+    useDarkMode2.signal();
+    document.body.style.transitionDuration = "0ms";
+    void document.body.offsetWidth;
+    document.body.style.transitionDuration = "500ms";
+    const el = () => {
+      const updated = state2.get(useDarkMode2.id);
+      localStorage.setItem("use-dark-mode", (updated.value === true).toString());
+    };
+    window.addEventListener("beforeunload", el);
+    return () => window.removeEventListener("beforeunload", el);
+  }
+);
+var isOpen = state(false);
 var toastContent = state("");
 loadHook(
   [toastContent],
