@@ -10,7 +10,7 @@
     "native": "./scripts/native-test.js"
   },
   "scripts": {
-    "build": "esbuild --format=esm --platform=node --bundle --outdir=./dist --platform=node --external:esbuild --out-extension:.js=.mjs \"./src/**/*.ts\" && tsc",
+    "build": "esbuild --format=esm --platform=node --bundle --outdir=./dist --platform=node --external:ts-arc --external:esbuild --out-extension:.js=.mjs \"./src/**/*.ts\" && tsc",
     "compile-docs": "node ./dist/compile_docs.mjs --environment=development",
     "compile-docs-bun": "bun run ./dist/compile_docs.mjs --environment=development",
     "prepare": "npm run build"
@@ -34,7 +34,8 @@
   "author": "vqldemar",
   "license": "MIT",
   "dependencies": {
-    "esbuild": "^0.25.9"
+    "esbuild": "^0.25.9",
+    "ts-arc": "^1.1.15"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.0.3",

@@ -1025,7 +1025,7 @@ var runBuild = (filepath, DIST_DIR) => {
     child.removeAllListeners();
     child.kill("SIGKILL");
   }
-  child = child_process.spawn("npx", ["ts-arc", filepath], {
+  child = child_process.spawn("node", [filepath], {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
     env: { ...process.env, DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir2 }
   });
