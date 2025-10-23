@@ -92,7 +92,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         child.kill('SIGKILL');
     }
         
-    child = child_process.spawn("node", [filepath], { 
+    child = child_process.spawn("npx ts-arc", [filepath], { 
         stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
         env: { ...process.env, DIST_DIR: DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir, }
     });
