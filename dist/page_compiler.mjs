@@ -1,6 +1,7 @@
 // src/page_compiler.ts
 import fs from "fs";
 import path from "path";
+import { registerLoader, setArcTsConfig } from "ts-arc";
 import esbuild from "esbuild";
 import { fileURLToPath } from "url";
 
@@ -246,9 +247,6 @@ var generateHTMLTemplate = async ({
   };
 };
 
-// src/page_compiler.ts
-import { registerLoader } from "ts-arc";
-
 // src/server/createState.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
@@ -273,11 +271,12 @@ var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
 
 // src/page_compiler.ts
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path.dirname(__filename);
 registerLoader();
+setArcTsConfig(__dirname);
 var packageDir = process.env.PACKAGE_PATH;
 if (packageDir === void 0) {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
   packageDir = path.resolve(__dirname, "..");
 }
 var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");

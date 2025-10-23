@@ -1,3 +1,9 @@
+import fs, { Dirent } from "fs";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 /** 
     Ignore this error, this program was made *for* elegance, but I was too lazy to add typescript types (since I made it into a cli, with api support later)
     This function below just registers a node module loader, which let's us transpile TypeScript into JS on-the-fly.
@@ -5,15 +11,13 @@
     I am aware tsx exists, however I felt that something smaller and simpler was more suited for Elegance.
 */
 //@ts-ignore
-import { registerLoader } from "ts-arc";
+import { registerLoader, setArcTsConfig } from "ts-arc";
 registerLoader();
-
-import fs, { Dirent } from "fs";
-import path from "path";
+setArcTsConfig(__dirname);
+    
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
-
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
@@ -24,8 +28,6 @@ import { renderRecursively } from "./server/render";
 
 let packageDir = process.env.PACKAGE_PATH;
 if (packageDir === undefined) {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
     
     packageDir = path.resolve(__dirname, '..');
 }
