@@ -46,9 +46,6 @@ export const data = { state: [{ id: 2, value: function anonymous(state, event) {
   }
   useDarkMode2.value = userPrefersDarkMode === "true";
   useDarkMode2.signal();
-  document.body.style.transitionDuration = "0ms";
-  void document.body.offsetWidth;
-  document.body.style.transitionDuration = "500ms";
   const el = () => {
     const updated = state2.get(useDarkMode2.id);
     localStorage.setItem("use-dark-mode", (updated.value === true).toString());

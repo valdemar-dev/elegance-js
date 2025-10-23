@@ -16,7 +16,7 @@ const codeElement = (children: any[]) => {
     const codeContent = state(children as unknown as string);
     
     return div({
-        class: "bg-text-00 p-2 rounded-sm w-max hover:cursor-pointer hover:opacity-80 duration-100 select-none my-2",
+        class: "bg-darken dark:bg-lighten p-2 rounded-sm w-max hover:cursor-pointer hover:opacity-80 duration-100 select-none my-2",
         onClick: eventListener(
             [codeContent, toastContent],
             async (_, codeContent, toastContent) => { 

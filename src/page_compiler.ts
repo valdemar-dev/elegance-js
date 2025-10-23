@@ -592,9 +592,9 @@ const generateClientPageData = async (
 const generateLayout = async (
     DIST_DIR: string,
     filePath: string,
+    directory: string,
     childIndicator: Child,
 ) => {
-    const directory = path.dirname(filePath);
     
     initializeState();
     initializeObjectAttributes();
@@ -621,6 +621,7 @@ const generateLayout = async (
         metadataElements = metadata;
         
         if (isDynamic === true) {
+            /*
             const result = await esbuild.build({
                 entryPoints: [filePath],
                 bundle: false,
@@ -640,9 +641,10 @@ const generateLayout = async (
             fs.writeFileSync(filePath, wrappedCode);
             
             return { pageContentHTML: "", metadataHTML: "", };
+            */
+            
+            throw new Error("ts-arc in Elegance does not support dynamic pages yet.");
         }
-        
-        fs.rmSync(filePath, { force: true, })
     } catch(e) {
         throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
     }
@@ -698,13 +700,12 @@ const generateLayout = async (
     
     const renderedPage = await serverSideRenderPage(
         processedPageElements as Page,
-        path.dirname(filePath),
     );
     
     const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
 
     await generateClientPageData(
-        path.dirname(filePath),
+        path.dirname(path.join(DIST_DIR, "dist", directory)),
         state || {},
         [...objectAttributes, ...foundObjectAttributes as any[]],
         pageLoadHooks || [],
@@ -742,7 +743,7 @@ type BuiltLayout = {
 */
 const builtLayouts = new Map<string, BuiltLayout>();
 
-const buildLayout = async (filePath: string) => {
+const buildLayout = async (filePath: string, directory: string) => {
     // store previous values so that we can reassign globals
     const storedState = globalThis.__SERVER_CURRENT_STATE__;
     const storedObjectAttributes = globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
@@ -764,6 +765,7 @@ const buildLayout = async (filePath: string) => {
     const { pageContentHTML, metadataHTML } = await generateLayout(
         DIST_DIR,
         filePath,
+        directory,
         childIndicator,
     );
     
@@ -787,7 +789,7 @@ const buildLayout = async (filePath: string) => {
         };
     }
     
-    const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
+    const pageURL = directory;
     
     /*
         restore state
@@ -800,14 +802,14 @@ const buildLayout = async (filePath: string) => {
     return {
         pageContent: splitAt(pageContentHTML, childIndicator),
         metadata: splitAround(metadataHTML, childIndicator),
-        scriptTag: `<script data-layout="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
+        scriptTag: `<script data-layout="true" type="module" src="${pageURL}${pageURL === "/" ? "" : "/"}layout_data.js" defer="true"></script>`
     } satisfies BuiltLayout;
 };
 
 const fetchPageLayoutHTML = async (
     dirname: string
 ) => {
-    const relative = path.relative(DIST_DIR, dirname);
+    const relative = path.relative(options.pagesDirectory, dirname);
     
     let split = relative.split(path.sep).filter(Boolean);
     split.push("/");
@@ -816,13 +818,13 @@ const fetchPageLayoutHTML = async (
     let layouts: BuiltLayout[] = [];
     
     for (const dir of split) {
-        const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
+        const filePath = path.resolve(path.join(options.pagesDirectory, dir, "layout.ts"));
         
         if (builtLayouts.has(filePath)) {
             layouts.push(builtLayouts.get(filePath)!);
             
         } else if (fs.existsSync(filePath)) {
-            const built = await buildLayout(filePath);
+            const built = await buildLayout(filePath, dir);
             
             builtLayouts.set(filePath, built);
             
@@ -859,21 +861,23 @@ const buildPages = async (
     DIST_DIR: string,
 ) => {
     resetLayouts();
+    
+    const pagesDirectory = path.resolve(options.pagesDirectory);
 
-    const subdirectories = [...getAllSubdirectories(DIST_DIR), ""];
+    const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
 
     let shouldClientHardReload = false;
 
     for (const directory of subdirectories) {
-        const abs = path.resolve(path.join(DIST_DIR, directory))
+        const abs = path.resolve(path.join(pagesDirectory, directory))
         
         const files = fs.readdirSync(abs, { withFileTypes: true, })
-            .filter(f => f.name.endsWith(".mjs"))
+            .filter(f => f.name.endsWith(".ts"))
         
         for (const file of files) {
             const filePath = path.join(file.parentPath, file.name);
             
-            const name = file.name.slice(0, file.name.length - 4);
+            const name = file.name.slice(0, file.name.length - 3);
             
             const isPage = file.name.includes("page");
             
@@ -950,6 +954,7 @@ const buildPage = async (
         // then, the function will return module.exports, and the page will be none the wiser.
         // these are then used to compile the page later on per-request.
         if (isDynamicPage === true) {
+            /*
             const result = await esbuild.build({
                 entryPoints: [filePath],
                 bundle: false,
@@ -969,11 +974,12 @@ const buildPage = async (
             fs.writeFileSync(filePath, wrappedCode);
             
             return false;
+            */
+            
+            throw new Error("Dynamic page is not yet supported with ts-arc");
         }
-        
-        fs.rmSync(filePath, { force: true, })
     } catch(e) {
-        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.mjs - ${e}`);
+        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.ts - ${e}`);
     }
     
     if (
@@ -987,14 +993,18 @@ const buildPage = async (
         console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
     }
     
+    const pageProps: PageProps = {
+        pageName: directory,
+    };
+    
     // construct layout path    
     // /me/blog/post/page.ts
     // checks for /post/layout.ts, then /blog/layout.ts, then /me/layout.ts
     if (typeof pageElements === "function") {
         if (pageElements.constructor.name === "AsyncFunction") {
-            pageElements = await pageElements();
+            pageElements = await pageElements(pageProps);
         } else {
-            pageElements = pageElements();
+            pageElements = pageElements(pageProps);
         }
     }
 
@@ -1005,7 +1015,7 @@ const buildPage = async (
     const layout = await fetchPageLayoutHTML(path.dirname(filePath));
     
     const foundObjectAttributes = await pageToHTML(
-        path.dirname(filePath),
+        path.dirname(path.join(DIST_DIR, "dist", directory)),
         pageElements || (body()),
         metadata ?? (() => head()),
         DIST_DIR,
@@ -1018,7 +1028,7 @@ const buildPage = async (
     const {
         sendHardReloadInstruction,
     } = await generateClientPageData(
-        path.dirname(filePath),
+        path.dirname(path.join(DIST_DIR, "dist", directory)),
         state || {},
         [...objectAttributes, ...foundObjectAttributes as any[]],
         pageLoadHooks || [],
@@ -1186,6 +1196,7 @@ const build = async (): Promise<boolean> => {
     {       
         pluginsToShip = [];
 
+        /*
         await esbuild.build({
             entryPoints: projectFiles.map(f => path.join(f.parentPath, f.name)),
             bundle: true,
@@ -1203,6 +1214,7 @@ const build = async (): Promise<boolean> => {
                 "PROD": options.environment === "development" ? "false" : "true",
             },
         })
+        */
 
         for (const plugin of pluginsToShip) {
             // dont build the same plugin multiple times. (very inefficient!)

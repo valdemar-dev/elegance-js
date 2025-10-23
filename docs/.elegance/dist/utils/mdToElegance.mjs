@@ -255,9 +255,6 @@ loadHook(
     }
     useDarkMode2.value = userPrefersDarkMode === "true";
     useDarkMode2.signal();
-    document.body.style.transitionDuration = "0ms";
-    void document.body.offsetWidth;
-    document.body.style.transitionDuration = "500ms";
     const el = () => {
       const updated = state2.get(useDarkMode2.id);
       localStorage.setItem("use-dark-mode", (updated.value === true).toString());
@@ -323,7 +320,7 @@ var codeElement = (children) => {
   const codeContent = state(children);
   return div(
     {
-      class: "bg-text-00 p-2 rounded-sm w-max hover:cursor-pointer hover:opacity-80 duration-100 select-none my-2",
+      class: "bg-darken dark:bg-lighten p-2 rounded-sm w-max hover:cursor-pointer hover:opacity-80 duration-100 select-none my-2",
       onClick: eventListener(
         [codeContent, toastContent],
         async (_, codeContent2, toastContent2) => {

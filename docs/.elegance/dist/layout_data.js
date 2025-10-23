@@ -18,23 +18,48 @@ export const data = { state: [{ id: 7, value: function anonymous(state, event) {
     isOpen2.signal();
   })(event, ...state.getAll([{ id: 9 }]));
 } }, { id: 12, value: function anonymous3(state, event) {
+  ((_, isOpen2) => {
+    isOpen2.value = false;
+    isOpen2.signal();
+  })(event, ...state.getAll([{ id: 9 }]));
+} }, { id: 13, value: function anonymous4(state, event) {
+  ((_, isOpen2) => {
+    isOpen2.value = false;
+    isOpen2.signal();
+  })(event, ...state.getAll([{ id: 9 }]));
+} }, { id: 14, value: function anonymous5(state, event) {
+  ((_, isOpen2) => {
+    isOpen2.value = false;
+    isOpen2.signal();
+  })(event, ...state.getAll([{ id: 9 }]));
+} }, { id: 15, value: function anonymous6(state, event) {
+  ((_, isOpen2) => {
+    isOpen2.value = false;
+    isOpen2.signal();
+  })(event, ...state.getAll([{ id: 9 }]));
+} }, { id: 16, value: function anonymous7(state, event) {
+  ((_, isOpen2) => {
+    isOpen2.value = false;
+    isOpen2.signal();
+  })(event, ...state.getAll([{ id: 9 }]));
+} }, { id: 17, value: function anonymous8(state, event) {
   ((_, useDarkMode2) => {
     useDarkMode2.value = false;
     useDarkMode2.signal();
   })(event, ...state.getAll([{ id: 8 }]));
-} }, { id: 13, value: function anonymous4(state, event) {
+} }, { id: 18, value: function anonymous9(state, event) {
   ((_, useDarkMode2) => {
     useDarkMode2.value = true;
     useDarkMode2.signal();
   })(event, ...state.getAll([{ id: 8 }]));
-} }], soa: [{ "id": 11, "key": 2, "attribute": "onclick" }, { "id": 7, "key": 4, "attribute": "onclick" }, { "id": 7, "key": 5, "attribute": "onclick" }, { "id": 7, "key": 6, "attribute": "onclick" }, { "id": 7, "key": 7, "attribute": "onclick" }, { "id": 7, "key": 8, "attribute": "onclick" }, { "id": 12, "key": 9, "attribute": "onclick" }, { "id": 13, "key": 10, "attribute": "onclick" }], ooa: [{ key: 1, attribute: "class", update: (value) => {
-  let classList = "bg-background-10 text-text-10 dark:bg-text-10 dark:text-background-10 font-inter grid grid-cols-1 sm:gap-8 gap-0 sm:grid-cols-[300px_auto] grid-rows-[auto_auto] sm:grid-rows-1 h-full h-screen w-screen sm:pt-0 pt-[calc(2rem+24px)]";
+} }], soa: [{ "id": 11, "key": 2, "attribute": "onclick" }, { "id": 12, "key": 4, "attribute": "onclick" }, { "id": 7, "key": 5, "attribute": "onclick" }, { "id": 13, "key": 6, "attribute": "onclick" }, { "id": 7, "key": 7, "attribute": "onclick" }, { "id": 14, "key": 8, "attribute": "onclick" }, { "id": 7, "key": 9, "attribute": "onclick" }, { "id": 15, "key": 10, "attribute": "onclick" }, { "id": 7, "key": 11, "attribute": "onclick" }, { "id": 16, "key": 12, "attribute": "onclick" }, { "id": 7, "key": 13, "attribute": "onclick" }, { "id": 17, "key": 14, "attribute": "onclick" }, { "id": 18, "key": 15, "attribute": "onclick" }], ooa: [{ key: 1, attribute: "class", update: (value) => {
+  let classList = "ease bg-background-10 text-text-10 dark:bg-text-10 dark:text-background-10 font-inter grid grid-cols-1 sm:gap-8 gap-0 sm:grid-cols-[300px_auto] grid-rows-[auto_auto] sm:grid-rows-1 h-full h-screen w-screen sm:pt-0 pt-[calc(2rem+24px)]";
   if (value === true) {
     classList += " dark";
   }
   return classList;
 }, refs: [{ id: 8 }] }, { key: 3, attribute: "class", update: (value) => {
-  let classList = "p-8 sm:pr-0 inset-0 z-10 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-[calc(100%-calc(24px+2rem))] sm:h-full duration-500 w-full max-w-[600px]  ";
+  let classList = "px-4 sm:p-8 sm:pr-0 inset-0 z-10 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-[calc(100%-calc(24px+2rem))] sm:h-full w-full max-w-[600px]   ";
   if (value === true) {
     classList += "translate-x-0 sm:translate-x-0";
   } else {
@@ -75,9 +100,6 @@ export const data = { state: [{ id: 7, value: function anonymous(state, event) {
   }
   useDarkMode2.value = userPrefersDarkMode === "true";
   useDarkMode2.signal();
-  document.body.style.transitionDuration = "0ms";
-  void document.body.offsetWidth;
-  document.body.style.transitionDuration = "500ms";
   const el = () => {
     const updated = state2.get(useDarkMode2.id);
     localStorage.setItem("use-dark-mode", (updated.value === true).toString());

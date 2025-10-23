@@ -240,6 +240,8 @@ export const compile = async (props: CompilationOptions) => {
         finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "))
         
         const watcherFn = async () => {
+            return;
+            
             if (isTimedOut) return;
             isTimedOut = true;
     

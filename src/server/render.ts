@@ -68,7 +68,7 @@ export const renderRecursively = (element: Child) => {
     return returnString;
 };
 
-export const serverSideRenderPage = async (page: Page, pathname: string) => {
+export const serverSideRenderPage = async (page: Page, pathname?: string) => {
     if (!page) {
         throw `No Page Provided.`;
     }

@@ -629,8 +629,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction };
 };
-var generateLayout = async (DIST_DIR2, filePath, childIndicator) => {
-  const directory = path.dirname(filePath);
+var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
@@ -651,27 +650,8 @@ var generateLayout = async (DIST_DIR2, filePath, childIndicator) => {
     layoutElements = layout;
     metadataElements = metadata;
     if (isDynamic === true) {
-      const result = await esbuild.build({
-        entryPoints: [filePath],
-        bundle: false,
-        format: "iife",
-        globalName: "__exports",
-        write: false,
-        platform: "node",
-        plugins: [externalPackagesPlugin]
-      });
-      let iifeCode = result.outputFiles[0].text;
-      iifeCode = iifeCode.replace(/^var __exports = /, "");
-      const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-
-export function construct() {
-  ${iifeCode} 
-return __exports
-}`;
-      fs.writeFileSync(filePath, wrappedCode);
-      return { pageContentHTML: "", metadataHTML: "" };
+      throw new Error("ts-arc in Elegance does not support dynamic pages yet.");
     }
-    fs.rmSync(filePath, { force: true });
   } catch (e) {
     throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
   }
@@ -709,12 +689,11 @@ return __exports
   const stack = [];
   const processedPageElements = processPageElements(layoutElements, foundObjectAttributes, 0, stack);
   const renderedPage = await serverSideRenderPage(
-    processedPageElements,
-    path.dirname(filePath)
+    processedPageElements
   );
   const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
   await generateClientPageData(
-    path.dirname(filePath),
+    path.dirname(path.join(DIST_DIR2, "dist", directory)),
     state || {},
     [...objectAttributes, ...foundObjectAttributes],
     pageLoadHooks || [],
@@ -725,7 +704,7 @@ return __exports
   return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
 };
 var builtLayouts = /* @__PURE__ */ new Map();
-var buildLayout = async (filePath) => {
+var buildLayout = async (filePath, directory) => {
   const storedState = globalThis.__SERVER_CURRENT_STATE__;
   const storedObjectAttributes = globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
   const storedLoadHooks = globalThis.__SERVER_CURRENT_LOADHOOKS__;
@@ -735,6 +714,7 @@ var buildLayout = async (filePath) => {
   const { pageContentHTML, metadataHTML } = await generateLayout(
     DIST_DIR,
     filePath,
+    directory,
     childIndicator
   );
   const splitAround = (str, sub) => {
@@ -753,7 +733,7 @@ var buildLayout = async (filePath) => {
       endHTML: str.substring(i)
     };
   };
-  const pageURL = path.relative(DIST_DIR, path.dirname(filePath));
+  const pageURL = directory;
   globalThis.__SERVER_CURRENT_STATE__ = storedState;
   globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = storedObjectAttributes;
   globalThis.__SERVER_CURRENT_LOADHOOKS__ = storedLoadHooks;
@@ -761,21 +741,21 @@ var buildLayout = async (filePath) => {
   return {
     pageContent: splitAt(pageContentHTML, childIndicator),
     metadata: splitAround(metadataHTML, childIndicator),
-    scriptTag: `<script data-layout="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/layout_data.js" defer="true"></script>`
+    scriptTag: `<script data-layout="true" type="module" src="${pageURL}${pageURL === "/" ? "" : "/"}layout_data.js" defer="true"></script>`
   };
 };
 var fetchPageLayoutHTML = async (dirname) => {
-  const relative = path.relative(DIST_DIR, dirname);
+  const relative = path.relative(options.pagesDirectory, dirname);
   let split = relative.split(path.sep).filter(Boolean);
   split.push("/");
   split.reverse();
   let layouts = [];
   for (const dir of split) {
-    const filePath = path.resolve(path.join(DIST_DIR, dir, "layout.mjs"));
+    const filePath = path.resolve(path.join(options.pagesDirectory, dir, "layout.ts"));
     if (builtLayouts.has(filePath)) {
       layouts.push(builtLayouts.get(filePath));
     } else if (fs.existsSync(filePath)) {
-      const built = await buildLayout(filePath);
+      const built = await buildLayout(filePath, dir);
       builtLayouts.set(filePath, built);
       layouts.push(built);
     }
@@ -800,14 +780,15 @@ var fetchPageLayoutHTML = async (dirname) => {
 };
 var buildPages = async (DIST_DIR2) => {
   resetLayouts();
-  const subdirectories = [...getAllSubdirectories(DIST_DIR2), ""];
+  const pagesDirectory = path.resolve(options.pagesDirectory);
+  const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   let shouldClientHardReload = false;
   for (const directory of subdirectories) {
-    const abs = path.resolve(path.join(DIST_DIR2, directory));
-    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".mjs"));
+    const abs = path.resolve(path.join(pagesDirectory, directory));
+    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
     for (const file of files) {
       const filePath = path.join(file.parentPath, file.name);
-      const name = file.name.slice(0, file.name.length - 4);
+      const name = file.name.slice(0, file.name.length - 3);
       const isPage = file.name.includes("page");
       if (isPage == false) {
         continue;
@@ -853,29 +834,10 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === true) {
-      const result = await esbuild.build({
-        entryPoints: [filePath],
-        bundle: false,
-        format: "iife",
-        globalName: "__exports",
-        write: false,
-        platform: "node",
-        plugins: [externalPackagesPlugin]
-      });
-      let iifeCode = result.outputFiles[0].text;
-      iifeCode = iifeCode.replace(/^var __exports = /, "");
-      const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-
-export function construct() {
-  ${iifeCode} 
-return __exports
-}`;
-      fs.writeFileSync(filePath, wrappedCode);
-      return false;
+      throw new Error("Dynamic page is not yet supported with ts-arc");
     }
-    fs.rmSync(filePath, { force: true });
   } catch (e) {
-    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.mjs - ${e}`);
+    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.ts - ${e}`);
   }
   if (!metadata || metadata && typeof metadata !== "function") {
     console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
@@ -883,11 +845,14 @@ return __exports
   if (!pageElements) {
     console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
   }
+  const pageProps = {
+    pageName: directory
+  };
   if (typeof pageElements === "function") {
     if (pageElements.constructor.name === "AsyncFunction") {
-      pageElements = await pageElements();
+      pageElements = await pageElements(pageProps);
     } else {
-      pageElements = pageElements();
+      pageElements = pageElements(pageProps);
     }
   }
   const state = getState();
@@ -895,7 +860,7 @@ return __exports
   const objectAttributes = getObjectAttributes();
   const layout = await fetchPageLayoutHTML(path.dirname(filePath));
   const foundObjectAttributes = await pageToHTML(
-    path.dirname(filePath),
+    path.dirname(path.join(DIST_DIR2, "dist", directory)),
     pageElements || body(),
     metadata ?? (() => head()),
     DIST_DIR2,
@@ -907,7 +872,7 @@ return __exports
   const {
     sendHardReloadInstruction
   } = await generateClientPageData(
-    path.dirname(filePath),
+    path.dirname(path.join(DIST_DIR2, "dist", directory)),
     state || {},
     [...objectAttributes, ...foundObjectAttributes],
     pageLoadHooks || [],
@@ -917,91 +882,8 @@ return __exports
   return sendHardReloadInstruction === true;
 };
 var recursionFlag = Symbol("external-node-modules-recursion");
-var externalPackagesPlugin = {
-  name: "external-packages",
-  setup(build2) {
-    build2.onResolve({ filter: /^[^./]/ }, async (args) => {
-      if (args.pluginData?.[recursionFlag]) {
-        return;
-      }
-      const result = await build2.resolve(args.path, {
-        resolveDir: args.resolveDir,
-        kind: args.kind,
-        importer: args.importer,
-        pluginData: { [recursionFlag]: true }
-      });
-      if (result.errors.length > 0 || result.external || !result.path) {
-        return { path: args.path, external: true };
-      }
-      const nodeModulesIndex = result.path.indexOf("node_modules");
-      if (nodeModulesIndex === -1) {
-        return result;
-      }
-      const isNested = result.path.includes("node_modules", nodeModulesIndex + 14);
-      if (args.path.startsWith("elegance-js")) {
-        return result;
-      }
-      if (isNested) {
-        return { path: args.path, external: true };
-      }
-      return { path: args.path, external: true };
-    });
-  }
-};
 var shippedPlugins = /* @__PURE__ */ new Map();
 var pluginsToShip = [];
-var shipPlugin = {
-  name: "ship",
-  setup(build2) {
-    build2.onLoad({ filter: /\.(js|ts|jsx|tsx)$/ }, async (args) => {
-      let contents = await fs.promises.readFile(args.path, "utf8");
-      const lines = contents.split(/\r?\n/);
-      let prepender = "";
-      for (let i = 0; i < lines.length - 1; i++) {
-        if (lines[i].trim() === "//@ship") {
-          const nextLine = lines[i + 1].trim();
-          const starRegex = /import\s*\*\s*as\s*(\w+)\s*from\s*["']([^"']+)["']\s*;/;
-          const defaultRegex = /import\s*(\w+)\s*from\s*["']([^"']+)["']\s*;/;
-          let match = nextLine.match(starRegex);
-          let importName;
-          let pkgPath;
-          if (match) {
-            importName = match[1];
-            pkgPath = match[2];
-          } else {
-            match = nextLine.match(defaultRegex);
-            if (match) {
-              importName = match[1];
-              pkgPath = match[2];
-            } else {
-              continue;
-            }
-          }
-          if (prepender === "") {
-            prepender = "export const requiredClientModules = [\n";
-          }
-          prepender += `"${importName}",
-`;
-          pluginsToShip.push({
-            path: pkgPath,
-            globalName: importName
-          });
-          const replacement = `const ${importName} = globalThis.${importName};`;
-          lines.splice(i, 2, replacement);
-          i--;
-        }
-      }
-      if (prepender !== "") {
-        prepender += "];";
-      }
-      contents = lines.join("\n");
-      return {
-        contents: prepender + contents,
-        loader: path.extname(args.path).slice(1)
-      };
-    });
-  }
-};
 var build = async () => {
   if (options.quiet === true) {
     console.log = function() {
@@ -1038,23 +920,6 @@ var build = async () => {
     const start = performance.now();
     {
       pluginsToShip = [];
-      await esbuild.build({
-        entryPoints: projectFiles.map((f) => path.join(f.parentPath, f.name)),
-        bundle: true,
-        outdir: DIST_DIR,
-        outExtension: { ".js": ".mjs" },
-        plugins: [externalPackagesPlugin, shipPlugin],
-        loader: {
-          ".ts": "ts"
-        },
-        format: "esm",
-        platform: "node",
-        keepNames: false,
-        define: {
-          "DEV": options.environment === "development" ? "true" : "false",
-          "PROD": options.environment === "development" ? "false" : "true"
-        }
-      });
       for (const plugin of pluginsToShip) {
         {
           if (shippedPlugins.has(plugin.globalName)) continue;

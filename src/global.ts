@@ -57,8 +57,12 @@ declare global {
     
     /** The type for const metadata in layout.ts files. */
     type LayoutMetadata = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>));
+    /** Parameters that get passed into Page */
+    type PageProps = {
+        pageName: string,
+    };
     
-    type Page = (AnyBuiltElement) | (() => AnyBuiltElement) | (() => Promise<AnyBuiltElement>);
+    type Page = (AnyBuiltElement) | ((props: PageProps) => AnyBuiltElement | Promise<AnyBuiltElement>);
     type Metadata = (() => (AnyBuiltElement)) | (() => Promise<AnyBuiltElement>);
 
     type ObjectAttribute<T> = T extends ObjectAttributeType.STATE

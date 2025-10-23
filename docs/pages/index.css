@@ -12,11 +12,17 @@
     --font-inter: "Inter", sans-serif;
     --font-plex-mono: "IBM Plex Mono", monospace;
     
+    --color-darken: #00000022;
+    --color-lighten: #ffffff11;
+    
     --color-background-10: #fcfcf6;
+    --color-background-05: #e0e0d4;
+    --color-background-00: #c4c4b5;
     
     --color-text-10: #161506;
-    --color-text-00: #16150611;
-    --color-text-05: #16150622;
+    --color-text-05: #595633;
+    --color-text-00: #8c885f;
     
     --color-accent-10: #f7df1e;
+
 }

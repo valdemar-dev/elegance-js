@@ -18,10 +18,6 @@ loadHook(
         useDarkMode.value = userPrefersDarkMode === "true";
         useDarkMode.signal();
         
-        document.body.style.transitionDuration = "0ms";
-        void document.body.offsetWidth;
-        document.body.style.transitionDuration = "500ms";
-        
         const el = () => {
             const updated = state.get(useDarkMode.id)!;
             
@@ -35,9 +31,14 @@ loadHook(
 );
 
 const SidebarEntry = (content: string, href: string) => {
-    return div(
+    return div({
+        onClick: eventListener(
+            [isOpen],
+            (_, isOpen) => { isOpen.value = false; isOpen.signal(); },
+        ),
+    },
         Link({
-            class: "text-xs uppercase font-bold opacity-70 hover:opacity-50",
+            class: "text-sm uppercase font-bold text-text-05 dark:text-background-05 hover:opacity-50",
             prefetch: "hover",
             href,
         },
@@ -63,7 +64,7 @@ const Sidebar = () => {
         class: observe(
             [isOpen], 
             (value) => {
-                let classList = "p-8 sm:pr-0 inset-0 z-10 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-[calc(100%-calc(24px+2rem))] sm:h-full duration-500 w-full max-w-[600px]  ";
+                let classList = "px-4 sm:p-8 sm:pr-0 inset-0 z-10 sm:bg-transparent top-[calc(24px_+_2rem)] sm:top-0 text-text-10 dark:text-background-10 dark:bg-text-10 bg-background-10 sm:relative fixed flex flex-col h-[calc(100%-calc(24px+2rem))] sm:h-full w-full max-w-[600px]   ";
                 
                 if (value === true) {
                     classList += "translate-x-0 sm:translate-x-0"
@@ -103,7 +104,7 @@ const Sidebar = () => {
             },
             
                 Sun({
-                    class: "stroke-text-10 dark:stroke-background-10 duration-500",
+                    class: "stroke-text-10 dark:stroke-background-10",
                 }),
             ),
             
@@ -119,7 +120,7 @@ const Sidebar = () => {
             },
             
                 Dark({
-                    class: "stroke-text-10 dark:stroke-background-10 duration-500",
+                    class: "stroke-text-10 dark:stroke-background-10",
                 }),
             ),
         ),
@@ -194,7 +195,7 @@ loadHook(
 
 const Toast = () => {
     return div({
-        class: "fixed bottom-0 right-4 w-max h-max p-2 bg-text-00 border-[1px] border-text-05 rounded-full px-4 uppercase font-bold text-xs",
+        class: "fixed z-10 backdrop-blur-md bottom-0 right-4 w-max h-max p-2 bg-darken dark:bg-lighten border-text-10 rounded-full px-4 uppercase font-bold text-xs",
         hidden: false,
         id: "toaster",
     },
@@ -207,7 +208,7 @@ export const layout: Layout = (child) => {
         class: observe(
             [useDarkMode],
             (value) => {
-                let classList = "bg-background-10 text-text-10 dark:bg-text-10 dark:text-background-10 font-inter grid grid-cols-1 sm:gap-8 gap-0 sm:grid-cols-[300px_auto] grid-rows-[auto_auto] sm:grid-rows-1 h-full h-screen w-screen sm:pt-0 pt-[calc(2rem+24px)]";
+                let classList = "ease bg-background-10 text-text-10 dark:bg-text-10 dark:text-background-10 font-inter grid grid-cols-1 sm:gap-8 gap-0 sm:grid-cols-[300px_auto] grid-rows-[auto_auto] sm:grid-rows-1 h-full h-screen w-screen sm:pt-0 pt-[calc(2rem+24px)]";
                 
                 if (value === true) {
                     classList += " dark"
@@ -233,7 +234,7 @@ export const layout: Layout = (child) => {
                     (_, isOpen) => { isOpen.value = !isOpen.value; isOpen.signal(); },
                 ),
             },
-                Menu({ class: "stroke-text-10 dark:stroke-background-10 duration-500", }),
+                Menu({ class: "stroke-text-10 dark:stroke-background-10", }),
             ),
             
             
