@@ -28,7 +28,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts"
   ],
   "author": "vqldemar",
   "license": "MIT",
