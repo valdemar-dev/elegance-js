@@ -1146,7 +1146,6 @@ var compile = async (props) => {
     const subdirectories = [...pagesSubDirs, options.pagesDirectory, ...extra];
     finishLog(yellow("Hot-Reload Watching Subdirectories: "), ...subdirectories.join(", "));
     const watcherFn = async () => {
-      return;
       if (isTimedOut) return;
       isTimedOut = true;
       process.stdout.write("\x1Bc");

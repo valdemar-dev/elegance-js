@@ -4,9 +4,8 @@
   "description": "Web-Framework",
   "type": "module",
   "bin": {
-    "dev": "./scripts/dev.js",
-    "prod": "./scripts/prod.js",
-    "static": "./scripts/export.js",
+    "dev": "./scripts/ts-arc-dev.js",
+    "prod": "./scripts/ts-arc-prod.js",
     "bootstrap": "./scripts/bootstrap.js",
     "native": "./scripts/native-test.js"
   },
