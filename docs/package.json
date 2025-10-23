@@ -13,6 +13,7 @@
   "dependencies": {
     "@tailwindcss/cli": "^4.1.15",
     "elegance-js": "^2.0.4",
-    "tailwindcss": "^4.1.15"
+    "tailwindcss": "^4.1.15",
+    "ts-arc": "^1.1.16"
   }
 }
