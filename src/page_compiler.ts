@@ -1041,7 +1041,7 @@ const buildPage = async (
     const {
         sendHardReloadInstruction,
     } = await generateClientPageData(
-        path.dirname(path.join(DIST_DIR, "dist", directory)),
+        path.dirname(path.join(DIST_DIR, directory)),
         state || {},
         [...objectAttributes, ...foundObjectAttributes as any[]],
         pageLoadHooks || [],
