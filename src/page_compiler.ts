@@ -12,8 +12,8 @@ const __dirname = path.dirname(__filename);
 */
 //@ts-ignore
 import { registerLoader, setArcTsConfig } from "ts-arc";
-registerLoader();
 setArcTsConfig(__dirname);
+registerLoader();
     
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';

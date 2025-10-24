@@ -273,8 +273,8 @@ if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT
 // src/page_compiler.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
-registerLoader();
 setArcTsConfig(__dirname);
+registerLoader();
 var packageDir = process.env.PACKAGE_PATH;
 if (packageDir === void 0) {
   packageDir = path.resolve(__dirname, "..");
