@@ -466,13 +466,19 @@ const pageToHTML = async (
     const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
     
     if (doWrite) {
+        const dirname = path.dirname(htmlLocation);
+        
+        if (fs.existsSync(dirname) === false) {
+            fs.mkdirSync(dirname, { recursive: true, });
+        }
+        
         fs.writeFileSync(
             htmlLocation,
             resultHTML,
             {
                 encoding: "utf-8",
                 flag: "w",
-            }
+            },
         );
     
         return objectAttributes;
