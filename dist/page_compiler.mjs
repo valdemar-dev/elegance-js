@@ -792,10 +792,11 @@ var buildPages = async (DIST_DIR2) => {
     for (const file of files) {
       const filePath = path.join(file.parentPath, file.name);
       const name = file.name.slice(0, file.name.length - 3);
-      const isPage = file.name.includes("page");
+      const isPage = name === "page";
       if (isPage == false) {
         continue;
       }
+      console.log("building page with", DIST_DIR2, `d: ${directory}`, filePath, name);
       try {
         const hardReloadForPage = await buildPage(DIST_DIR2, directory, filePath, name);
         if (hardReloadForPage) {
@@ -863,7 +864,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   const objectAttributes = getObjectAttributes();
   const layout = await fetchPageLayoutHTML(path.dirname(filePath));
   const foundObjectAttributes = await pageToHTML(
-    path.dirname(path.join(DIST_DIR2, directory)),
+    path.join(DIST_DIR2, directory),
     pageElements || body(),
     metadata ?? (() => head()),
     DIST_DIR2,
@@ -875,7 +876,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   const {
     sendHardReloadInstruction
   } = await generateClientPageData(
-    path.dirname(path.join(DIST_DIR2, directory)),
+    path.join(DIST_DIR2, directory),
     state || {},
     [...objectAttributes, ...foundObjectAttributes],
     pageLoadHooks || [],
@@ -943,7 +944,7 @@ var build = async () => {
     const pagesTranspiled = performance.now();
     let shouldClientHardReload;
     {
-      const { shouldClientHardReload: doReload } = await buildPages(DIST_DIR);
+      const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
       if (doReload) shouldClientHardReload = true;
     }
     const pagesBuilt = performance.now();
