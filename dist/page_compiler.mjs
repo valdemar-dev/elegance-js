@@ -863,7 +863,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   const objectAttributes = getObjectAttributes();
   const layout = await fetchPageLayoutHTML(path.dirname(filePath));
   const foundObjectAttributes = await pageToHTML(
-    path.dirname(path.join(DIST_DIR2, "dist", directory)),
+    path.dirname(path.join(DIST_DIR2, directory)),
     pageElements || body(),
     metadata ?? (() => head()),
     DIST_DIR2,
