@@ -6,6 +6,12 @@ import { Sun, Dark } from "@/pages/components/Theme";
 
 const useDarkMode = state(false);
 
+/** Whether or not the sidebar is open. */
+const isOpen = state(false);
+
+/** Set to anything except "" to show a toast for 3 seconds debounced. */
+const toastContent = state("");
+
 loadHook(
     [useDarkMode],
     (state, useDarkMode) => {
@@ -30,12 +36,14 @@ loadHook(
     },
 );
 
+const closeOnNav = eventListener(
+    [isOpen],
+    (_, isOpen) => { isOpen.value = false; isOpen.signal(); },
+);
+
 const SidebarEntry = (content: string, href: string) => {
     return div({
-        onClick: eventListener(
-            [isOpen],
-            (_, isOpen) => { isOpen.value = false; isOpen.signal(); },
-        ),
+        onClick: closeOnNav,
     },
         Link({
             class: "text-sm uppercase font-bold text-text-05 dark:text-background-05 hover:opacity-50",
@@ -55,8 +63,6 @@ const SidebarCategory = (content: string) => {
     );
 };
 
-/** Whether or not the sidebar is open. */
-const isOpen = state(false);
     
 const Sidebar = () => {    
     
@@ -126,9 +132,6 @@ const Sidebar = () => {
         ),
     );
 };
-
-/** Set to anything except "" to show a toast for 3 seconds debounced. */
-export const toastContent = state("");
 
 loadHook(
     [toastContent],

@@ -614,7 +614,6 @@ const generateLayout = async (
     directory: string,
     childIndicator: Child,
 ) => {
-    
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
@@ -904,9 +903,6 @@ const buildPages = async (
                 continue;
             }            
             
-            
-            console.log("building page with", DIST_DIR, `d: ${directory}`, filePath, name);
-
             try {
                 const hardReloadForPage = await buildPage(DIST_DIR, directory, filePath, name);
                 

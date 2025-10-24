@@ -1,7 +1,7 @@
 import { eventListener, state } from "elegance-js";
-import { toastContent } from "@/pages/layout";
 
 const headingStyles = "pb-2 mt-12";
+const toastContent = state("");
 
 const headingMap: Record<string, (children: any[]) => any> = {
     '#': (children) => h1({ class: headingStyles + " text-4xl", }, children),

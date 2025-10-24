@@ -61,6 +61,25 @@ const sanitizePathname = (pn: string) => {
 
 let currentPage: string = sanitizePathname(loc.pathname);
 
+/** 
+    Get all paths from a pathname:
+    Path: /home/recipes/cake
+    Result: / /home /home/recipes /home/recipes/cake
+*/
+function getAllPaths(pathname: string) {
+    const sanitized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+    const parts = sanitized.split("/").filter(Boolean);
+    
+    const subpaths = [
+        "/",
+        ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/"))
+    ];
+    
+    if (sanitized === "/") return ["/"];
+    
+    return subpaths;
+}
+
 const createStateManager = (subjects: ClientSubject[]) => {
     const state = {
         subjects: subjects.map((subject: any) => {
@@ -92,7 +111,25 @@ const createStateManager = (subjects: ClientSubject[]) => {
             Bind is deprecated, but kept as a paramater to not upset legacy code.
         */
         get: (id: number, bind?: string | undefined) => {
-            return state.subjects.find((s: ClientSubject) => s.id === id)
+            const subject = state.subjects.find((s: ClientSubject) => s.id === id);
+            if (subject) return subject; // early return because computing is expensive
+            
+            /*
+                goes *up* in pathname until it finds
+                a layout that contains the state we want.
+            */
+            const stack = getAllPaths(currentPage);
+            for (const item of stack) {
+                const sanitized = sanitizePathname(item);
+                
+                const data = ld[sanitized];
+                if (!data) continue;
+                
+                const entry = data.stateManager.get(id);
+                if (entry) return entry;
+            }
+            
+            return undefined;
         },
 
         /**

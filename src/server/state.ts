@@ -22,8 +22,7 @@ export const state = <
 >(
     value: U,
     options?: {
-        bind?: number;
-        // ephemeral?: boolean;
+        isGlobal: boolean,
     },
 ) => {
     type ValueType = Widen<U>;
@@ -32,7 +31,6 @@ export const state = <
         id: __SERVER_CURRENT_STATE_ID__ += 1,
         value: value,
         type: ObjectAttributeType.STATE,
-        bind: options?.bind,
     };
 
     globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);

@@ -4,7 +4,7 @@ type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
 };
 type Widen<T> = T extends number ? number : T extends string ? string : T extends boolean ? boolean : T extends {} ? T & Record<string, any> : T;
 export declare const state: <U extends number | string | boolean | {} | undefined | null | Array<any>>(value: U, options?: {
-    bind?: number;
+    isGlobal: boolean;
 }) => {
     id: number;
     value: Widen<U>;

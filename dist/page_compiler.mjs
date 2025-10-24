@@ -800,7 +800,6 @@ var buildPages = async (DIST_DIR2) => {
       if (isPage == false) {
         continue;
       }
-      console.log("building page with", DIST_DIR2, `d: ${directory}`, filePath, name);
       try {
         const hardReloadForPage = await buildPage(DIST_DIR2, directory, filePath, name);
         if (hardReloadForPage) {

@@ -57,8 +57,7 @@ var state = (value, options) => {
   const serverStateEntry = {
     id: __SERVER_CURRENT_STATE_ID__ += 1,
     value,
-    type: 1 /* STATE */,
-    bind: options?.bind
+    type: 1 /* STATE */
   };
   globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
   if (Array.isArray(value)) {
