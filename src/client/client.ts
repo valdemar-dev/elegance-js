@@ -80,7 +80,7 @@ function getAllPaths(pathname: string) {
     return subpaths;
 }
 
-const createStateManager = (subjects: ClientSubject[]) => {
+const createStateManager = (subjects: ClientSubject[], bindLevel: BindLevel) => {
     const state = {
         subjects: subjects.map((subject: any) => {
             const s = {
@@ -107,19 +107,25 @@ const createStateManager = (subjects: ClientSubject[]) => {
             state.subjects.splice(state.subjects.indexOf(s), 1);
         },
 
-        /**
-            Bind is deprecated, but kept as a paramater to not upset legacy code.
-        */
-        get: (id: number, bind?: string | undefined) => {
+        get: (id: number) => {
             const subject = state.subjects.find((s: ClientSubject) => s.id === id);
             if (subject) return subject; // early return because computing is expensive
+            
+            // prevents recursion in layouts.
+            if (bindLevel === BindLevel.SCOPED) return undefined;
             
             /*
                 goes *up* in pathname until it finds
                 a layout that contains the state we want.
             */
-            const stack = getAllPaths(currentPage);
-            for (const item of stack) {
+            const parts = window.location.pathname.split("/").filter(Boolean);
+    
+            const paths = [
+                ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/")),
+                "/",
+            ].reverse() //so we get deepest-to-root;
+            
+            for (const item of paths) {
                 const sanitized = sanitizePathname(item);
                 
                 const data = ld[sanitized];
@@ -166,7 +172,7 @@ const initPageData = (
     
     let state = data?.stateManager;
     if (!state) {
-        state = createStateManager(data.state || []);
+        state = createStateManager(data.state || [], bindLevel);
 
         data.stateManager = state;
     }
