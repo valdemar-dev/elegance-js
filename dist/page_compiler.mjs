@@ -698,7 +698,7 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
   return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
 };
 var builtLayouts = /* @__PURE__ */ new Map();
-var buildLayouts = async (DIST_DIR2) => {
+var buildLayouts = async () => {
   const pagesDirectory = path.resolve(options.pagesDirectory);
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   let shouldClientHardReload = false;
@@ -713,10 +713,8 @@ var buildLayouts = async (DIST_DIR2) => {
         continue;
       }
       try {
-        const hardReloadForPage = await buildLayout(filePath, directory);
-        if (hardReloadForPage) {
-          shouldClientHardReload = true;
-        }
+        const builtLayout = await buildLayout(filePath, directory);
+        builtLayouts.set(directory, builtLayout);
       } catch (e) {
         console.error(e);
         continue;
@@ -942,7 +940,7 @@ var build = async () => {
     }
     let shouldClientHardReload;
     {
-      const { shouldClientHardReload: doReload } = await buildLayouts(path.resolve(DIST_DIR));
+      const { shouldClientHardReload: doReload } = await buildLayouts();
       if (doReload) shouldClientHardReload = true;
     }
     {

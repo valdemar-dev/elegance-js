@@ -761,7 +761,7 @@ type BuiltLayout = {
 */
 const builtLayouts = new Map<string, BuiltLayout>();
 
-const buildLayouts = async (DIST_DIR: string) => {
+const buildLayouts = async () => {
     const pagesDirectory = path.resolve(options.pagesDirectory);
 
     const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
@@ -786,12 +786,9 @@ const buildLayouts = async (DIST_DIR: string) => {
             }            
             
             try {
-                const hardReloadForPage = await buildLayout(filePath, directory);
+                const builtLayout = await buildLayout(filePath, directory);
                 
-                if (hardReloadForPage) {
-                    shouldClientHardReload = true;
-                }
-
+                builtLayouts.set(directory, builtLayout)
             } catch(e) {
                 console.error(e);
                 
@@ -1249,7 +1246,7 @@ const build = async (): Promise<boolean> => {
     let shouldClientHardReload
 
     {
-        const { shouldClientHardReload: doReload } = await buildLayouts(path.resolve(DIST_DIR));
+        const { shouldClientHardReload: doReload } = await buildLayouts();
         
         if (doReload) shouldClientHardReload = true;
     }
