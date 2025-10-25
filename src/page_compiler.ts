@@ -788,7 +788,7 @@ const buildLayouts = async () => {
             try {
                 const builtLayout = await buildLayout(filePath, directory);
                 
-                builtLayouts.set(directory, builtLayout)
+                builtLayouts.set(filePath, builtLayout)
             } catch(e) {
                 console.error(e);
                 
