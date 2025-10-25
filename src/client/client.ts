@@ -178,7 +178,13 @@ const initPageData = (
     }
 
     for (const subject of state.subjects) {
-        subject.observers = new Map();
+        /*
+            layout data gets re-inited on every navigation
+            (it has to),
+            but we don't want to clean up stuff that was already there.
+            (eg. existing observers, etc)
+        */
+        if (!subject.observers) subject.observers = new Map();
     }
 
     for (const ooa of data.ooa || []) {
@@ -290,18 +296,6 @@ const initPageData = (
         }
     }
 };
-
-
-/*
-    TEMP NOTES:
-    if a new nav site, no longer includes the bind of pagedata,
-    call all the returns of it
-    
-    eg, pd["/mypage/test"], would have it's loadhooks return values called (always if it's a page),
-    but if it's a layout, when navigating to "/mypage", but not when navigating to "/mypage/test/something"
-    
-    you can do this with newpath.includes(mypath) (if false, call cleanup)
-*/
 const loadPage = (
     previousPage: null | string = null
 ) => {

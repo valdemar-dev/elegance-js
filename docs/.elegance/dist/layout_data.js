@@ -99,6 +99,7 @@ export const data = { state: [{ id: 3, value: function anonymous(state, event) {
   const el = () => {
     toastElement.hidden = true;
     toastContent2.value = "";
+    toastContent2.signal();
     toastElement.removeEventListener("transitionend", el);
   };
   const hideToast = () => {
@@ -121,7 +122,10 @@ export const data = { state: [{ id: 3, value: function anonymous(state, event) {
   const id = Date.now().toString();
   observer(toastContent2.value);
   state2.observe(toastContent2, observer, id);
-  return () => toastContent2.observers.delete(id);
+  return () => {
+    console.log("clearing up toast");
+    toastContent2.observers.delete(id);
+  };
 })(state, ...state.getAll([{ id: 6 }])) }] };
 if (!globalThis.ld) {
   globalThis.ld = {};

@@ -2,13 +2,13 @@ import { mdToElegance } from "@/pages/utils/mdToElegance";
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const page: Page = () => {
-    const target = path.join(
-        process.cwd(),
-        "pages",
-        "content.md",
-    );
+    const target = path.join(__dirname, "content.md");
     
     const content = fs.readFileSync(target).toString();
     
@@ -18,5 +18,5 @@ export const page: Page = () => {
 };
 
 export const metadata: Metadata = () => {
-    return title("Page!");
+    return title("Elegance.JS");
 };

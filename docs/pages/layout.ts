@@ -157,6 +157,7 @@ loadHook(
             // cool thing, we don't actually signal here,
             // cause we have no need to re-trigger observers!
             toastContent.value = "";
+            toastContent.signal();
             
             toastElement.removeEventListener("transitionend", el);
         }
@@ -192,7 +193,10 @@ loadHook(
         observer(toastContent.value);
         state.observe(toastContent, observer, id);
         
-        return () => toastContent.observers.delete(id);
+        return () => {
+            console.log("clearing up toast");
+            toastContent.observers.delete(id);
+        }
     },
 )
 
