@@ -299,9 +299,6 @@ var underline = (text) => {
 var white = (text) => {
   return `\x1B[38;2;255;247;229m${text}`;
 };
-var green = (text) => {
-  return `\x1B[38;2;65;224;108m${text}`;
-};
 var log = (...text) => {
   if (options.quiet) return;
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
@@ -320,16 +317,6 @@ var getAllSubdirectories = (dir, baseDir = dir) => {
     }
   }
   return directories;
-};
-var getProjectFiles = (pagesDirectory) => {
-  const files = [];
-  const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
-  for (const subdirectory of subdirectories) {
-    const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
-    const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
-    files.push(...subdirectoryFiles);
-  }
-  return files;
 };
 var buildClient = async (DIST_DIR2) => {
   let clientString = "window.__name = (func) => func; ";
@@ -711,11 +698,34 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
   return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
 };
 var builtLayouts = /* @__PURE__ */ new Map();
+var buildLayouts = async (DIST_DIR2) => {
+  const pagesDirectory = path.resolve(options.pagesDirectory);
+  const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
+  let shouldClientHardReload = false;
+  for (const directory of subdirectories) {
+    const abs = path.resolve(path.join(pagesDirectory, directory));
+    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
+    for (const file of files) {
+      const filePath = path.join(file.parentPath, file.name);
+      const name = file.name.slice(0, file.name.length - 3);
+      const isLayout = name === "layout";
+      if (isLayout == false) {
+        continue;
+      }
+      try {
+        const hardReloadForPage = await buildLayout(filePath, directory);
+        if (hardReloadForPage) {
+          shouldClientHardReload = true;
+        }
+      } catch (e) {
+        console.error(e);
+        continue;
+      }
+    }
+  }
+  return { shouldClientHardReload };
+};
 var buildLayout = async (filePath, directory) => {
-  const storedState = globalThis.__SERVER_CURRENT_STATE__;
-  const storedObjectAttributes = globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
-  const storedLoadHooks = globalThis.__SERVER_CURRENT_LOADHOOKS__;
-  const storedPageDataBanner = globalThis.__SERVER_PAGE_DATA_BANNER__;
   const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
   const childIndicator = `<template layout-id="${id}"></template>`;
   const { pageContentHTML, metadataHTML } = await generateLayout(
@@ -741,10 +751,6 @@ var buildLayout = async (filePath, directory) => {
     };
   };
   const pageURL = directory;
-  globalThis.__SERVER_CURRENT_STATE__ = storedState;
-  globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = storedObjectAttributes;
-  globalThis.__SERVER_CURRENT_LOADHOOKS__ = storedLoadHooks;
-  globalThis.__SERVER_PAGE_DATA_BANNER__ = storedPageDataBanner;
   return {
     pageContent: splitAt(pageContentHTML, childIndicator),
     metadata: splitAround(metadataHTML, childIndicator),
@@ -761,10 +767,6 @@ var fetchPageLayoutHTML = async (dirname) => {
     const filePath = path.resolve(path.join(options.pagesDirectory, dir, "layout.ts"));
     if (builtLayouts.has(filePath)) {
       layouts.push(builtLayouts.get(filePath));
-    } else if (fs.existsSync(filePath)) {
-      const built = await buildLayout(filePath, dir);
-      builtLayouts.set(filePath, built);
-      layouts.push(built);
     }
   }
   const pageContent = {
@@ -903,8 +905,6 @@ var build = async () => {
   try {
     {
       log(bold(yellow(" -- Elegance.JS -- ")));
-      log(white(`Beginning build at ${(/* @__PURE__ */ new Date()).toLocaleTimeString()}..`));
-      log("");
       if (options.environment === "production") {
         log(
           " - ",
@@ -918,12 +918,8 @@ var build = async () => {
       }
     }
     if (options.preCompile) {
-      log(
-        white("Calling pre-compile hook..")
-      );
       options.preCompile();
     }
-    const projectFiles = getProjectFiles(options.pagesDirectory);
     const start = performance.now();
     {
       pluginsToShip = [];
@@ -944,8 +940,11 @@ var build = async () => {
         });
       }
     }
-    const pagesTranspiled = performance.now();
     let shouldClientHardReload;
+    {
+      const { shouldClientHardReload: doReload } = await buildLayouts(path.resolve(DIST_DIR));
+      if (doReload) shouldClientHardReload = true;
+    }
     {
       const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
       if (doReload) shouldClientHardReload = true;
@@ -963,18 +962,14 @@ var build = async () => {
       await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true });
     }
     {
-      log(`${Math.round(pagesTranspiled - start)}ms to Transpile Fales`);
-      log(`${Math.round(pagesBuilt - pagesTranspiled)}ms to Build Pages`);
-      log(`${Math.round(end - pagesBuilt)}ms to Build Client`);
-      log(green(bold(`Compiled ${projectFiles.length} files in ${Math.ceil(end - start)}ms!`)));
+      log(`Took ${Math.round(pagesBuilt - start)}ms to Build Pages.`);
+      log(`Took ${Math.round(end - pagesBuilt)}ms to Build Client.`);
     }
     process.send({ event: "message", data: "set-layouts", layouts: JSON.stringify(Array.from(__SERVER_CURRENT_LAYOUTS__)), currentLayouTId: __SERVER_CURRENT_LAYOUT_ID__ });
     process.send({ event: "message", data: "compile-finish" });
     if (shouldClientHardReload) {
-      log("Sending hard reload..");
       process.send({ event: "message", data: "hard-reload" });
     } else {
-      log("Sending soft reload..");
       process.send({ event: "message", data: "soft-reload" });
     }
   } catch (e) {

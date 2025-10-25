@@ -761,23 +761,59 @@ type BuiltLayout = {
 */
 const builtLayouts = new Map<string, BuiltLayout>();
 
-const buildLayout = async (filePath: string, directory: string) => {
-    // store previous values so that we can reassign globals
-    const storedState = globalThis.__SERVER_CURRENT_STATE__;
-    const storedObjectAttributes = globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
-    const storedLoadHooks = globalThis.__SERVER_CURRENT_LOADHOOKS__;
-    const storedPageDataBanner = globalThis.__SERVER_PAGE_DATA_BANNER__;
+const buildLayouts = async (DIST_DIR: string) => {
+    const pagesDirectory = path.resolve(options.pagesDirectory);
+
+    const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
     
+    let shouldClientHardReload: boolean = false;
+    
+    for (const directory of subdirectories) {
+        const abs = path.resolve(path.join(pagesDirectory, directory))
+        
+        const files = fs.readdirSync(abs, { withFileTypes: true, })
+            .filter(f => f.name.endsWith(".ts"))
+        
+        for (const file of files) {
+            const filePath = path.join(file.parentPath, file.name);
+            
+            const name = file.name.slice(0, file.name.length - 3);
+            
+            const isLayout = name === "layout";
+            
+            if (isLayout == false) {                
+                continue;
+            }            
+            
+            try {
+                const hardReloadForPage = await buildLayout(filePath, directory);
+                
+                if (hardReloadForPage) {
+                    shouldClientHardReload = true;
+                }
+
+            } catch(e) {
+                console.error(e);
+                
+                continue;
+            }
+        }
+    }
+    
+    return { shouldClientHardReload };
+}
+
+const buildLayout = async (filePath: string, directory: string) => {
     /*
         this is used by the layout to determine where it ends
         in the layout, this is the "child" parameter.
         
         we split the built HTML of the layout at this point,
         and squish child layouts and the page in-between.
+        
+        the client then uses this for client-side navigation
     */
-    
     const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
-    
     const childIndicator = `<template layout-id="${id}"></template>`;
     
     const { pageContentHTML, metadataHTML } = await generateLayout(
@@ -809,14 +845,6 @@ const buildLayout = async (filePath: string, directory: string) => {
     
     const pageURL = directory;
     
-    /*
-        restore state
-    */
-    globalThis.__SERVER_CURRENT_STATE__ = storedState;
-    globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = storedObjectAttributes;
-    globalThis.__SERVER_CURRENT_LOADHOOKS__ = storedLoadHooks;
-    globalThis.__SERVER_PAGE_DATA_BANNER__ = storedPageDataBanner;
-    
     return {
         pageContent: splitAt(pageContentHTML, childIndicator),
         metadata: splitAround(metadataHTML, childIndicator),
@@ -840,13 +868,6 @@ const fetchPageLayoutHTML = async (
         
         if (builtLayouts.has(filePath)) {
             layouts.push(builtLayouts.get(filePath)!);
-            
-        } else if (fs.existsSync(filePath)) {
-            const built = await buildLayout(filePath, dir);
-            
-            builtLayouts.set(filePath, built);
-            
-            layouts.push(built);
         }
     }
     
@@ -1182,9 +1203,6 @@ const build = async (): Promise<boolean> => {
     // log spam
     { 
         log(bold(yellow(" -- Elegance.JS -- ")));
-        log(white(`Beginning build at ${new Date().toLocaleTimeString()}..`));
-    
-        log("");
     
         if (options.environment === "production") {
             log(
@@ -1200,39 +1218,13 @@ const build = async (): Promise<boolean> => {
     }
     
     if (options.preCompile) {
-        log(
-            white("Calling pre-compile hook..")
-        )
-        
         options.preCompile();
     }
     
-    const projectFiles = getProjectFiles(options.pagesDirectory);
-
     const start = performance.now();
     
     {       
         pluginsToShip = [];
-
-        /*
-        await esbuild.build({
-            entryPoints: projectFiles.map(f => path.join(f.parentPath, f.name)),
-            bundle: true,
-            outdir: DIST_DIR,
-            outExtension: { ".js": ".mjs", },
-            plugins: [externalPackagesPlugin, shipPlugin],
-            loader: {
-                ".ts": "ts",
-            },
-            format: "esm",
-            platform: "node",
-            keepNames: false,
-            define: {
-                "DEV": options.environment === "development" ? "true" : "false",
-                "PROD": options.environment === "development" ? "false" : "true",
-            },
-        })
-        */
 
         for (const plugin of pluginsToShip) {
             // dont build the same plugin multiple times. (very inefficient!)
@@ -1253,18 +1245,14 @@ const build = async (): Promise<boolean> => {
             })
         }
     }
-   
-    const pagesTranspiled = performance.now();
     
     let shouldClientHardReload
 
-    /*
     {
-        const { shouldClientHardReload: doReload } = await buildLayouts(DIST_DIR);
+        const { shouldClientHardReload: doReload } = await buildLayouts(path.resolve(DIST_DIR));
         
         if (doReload) shouldClientHardReload = true;
     }
-    */
     
     {
         const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
@@ -1291,21 +1279,16 @@ const build = async (): Promise<boolean> => {
     }
 
     {
-        log(`${Math.round(pagesTranspiled-start)}ms to Transpile Fales`)
-        log(`${Math.round(pagesBuilt-pagesTranspiled)}ms to Build Pages`)
-        log(`${Math.round(end-pagesBuilt)}ms to Build Client`)
-        
-        log(green(bold((`Compiled ${projectFiles.length} files in ${Math.ceil(end-start)}ms!`))));
+        log(`Took ${Math.round(pagesBuilt-start)}ms to Build Pages.`)
+        log(`Took ${Math.round(end-pagesBuilt)}ms to Build Client.`)
     }
     
     process.send!({ event: "message", data: "set-layouts", layouts: JSON.stringify(Array.from(__SERVER_CURRENT_LAYOUTS__)), currentLayouTId: __SERVER_CURRENT_LAYOUT_ID__ });
     process.send!({ event: "message", data: "compile-finish", });
     
     if (shouldClientHardReload) {
-        log("Sending hard reload..");
         process.send!({ event: "message", data: "hard-reload", })
     } else {
-        log("Sending soft reload..");
         process.send!({ event: "message", data: "soft-reload", })
     }
     

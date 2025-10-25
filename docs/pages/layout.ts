@@ -10,7 +10,7 @@ const useDarkMode = state(false);
 const isOpen = state(false);
 
 /** Set to anything except "" to show a toast for 3 seconds debounced. */
-const toastContent = state("");
+export const toastContent = state("");
 
 loadHook(
     [useDarkMode],

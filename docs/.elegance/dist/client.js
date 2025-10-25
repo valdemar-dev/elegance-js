@@ -176,17 +176,7 @@
     return pn.slice(0, -1);
   };
   var currentPage = sanitizePathname(loc.pathname);
-  function getAllPaths(pathname) {
-    const sanitized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
-    const parts = sanitized.split("/").filter(Boolean);
-    const subpaths = [
-      "/",
-      ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/"))
-    ];
-    if (sanitized === "/") return ["/"];
-    return subpaths;
-  }
-  var createStateManager = (subjects) => {
+  var createStateManager = (subjects, bindLevel) => {
     const state = {
       subjects: subjects.map((subject) => {
         const s = {
@@ -208,14 +198,16 @@
       destroy: (s) => {
         state.subjects.splice(state.subjects.indexOf(s), 1);
       },
-      /**
-          Bind is deprecated, but kept as a paramater to not upset legacy code.
-      */
-      get: (id, bind) => {
+      get: (id) => {
         const subject = state.subjects.find((s) => s.id === id);
         if (subject) return subject;
-        const stack = getAllPaths(currentPage);
-        for (const item of stack) {
+        if (bindLevel === 2) return void 0;
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        const paths = [
+          ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/")),
+          "/"
+        ].reverse();
+        for (const item of paths) {
           const sanitized = sanitizePathname(item);
           const data = ld[sanitized];
           if (!data) continue;
@@ -247,7 +239,7 @@
     }
     let state = data?.stateManager;
     if (!state) {
-      state = createStateManager(data.state || []);
+      state = createStateManager(data.state || [], bindLevel);
       data.stateManager = state;
     }
     for (const subject of state.subjects) {
