@@ -1,0 +1,43 @@
+let url = "/loadhook";
+export const data = { state: [{ id: 19, value: ['import { loadHook } from "elegance-js"'] }, { id: 20, value: function anonymous(state, event) {
+  (async (_, codeContent2, toastContent2) => {
+    await navigator.clipboard.writeText(`${codeContent2.value}`);
+    toastContent2.value = "Copied to Clipboard";
+    toastContent2.signal();
+  })(event, ...state.getAll([{ id: 19 }, { id: 6 }]));
+} }, { id: 21, value: ['loadHook([], () => { console.log("Hello Browser!"); })'] }, { id: 22, value: function anonymous2(state, event) {
+  (async (_, codeContent2, toastContent2) => {
+    await navigator.clipboard.writeText(`${codeContent2.value}`);
+    toastContent2.value = "Copied to Clipboard";
+    toastContent2.signal();
+  })(event, ...state.getAll([{ id: 21 }, { id: 6 }]));
+} }, { id: 23, value: ['const myState = state("hello!")'] }, { id: 24, value: function anonymous3(state, event) {
+  (async (_, codeContent2, toastContent2) => {
+    await navigator.clipboard.writeText(`${codeContent2.value}`);
+    toastContent2.value = "Copied to Clipboard";
+    toastContent2.signal();
+  })(event, ...state.getAll([{ id: 23 }, { id: 6 }]));
+} }, { id: 25, value: ["loadHook([myState], (_, myState) => { console.log(myState.value); })"] }, { id: 26, value: function anonymous4(state, event) {
+  (async (_, codeContent2, toastContent2) => {
+    await navigator.clipboard.writeText(`${codeContent2.value}`);
+    toastContent2.value = "Copied to Clipboard";
+    toastContent2.signal();
+  })(event, ...state.getAll([{ id: 25 }, { id: 6 }]));
+} }, { id: 27, value: ["const updateCallback = (value: string) => { console.log(value); };"] }, { id: 28, value: function anonymous5(state, event) {
+  (async (_, codeContent2, toastContent2) => {
+    await navigator.clipboard.writeText(`${codeContent2.value}`);
+    toastContent2.value = "Copied to Clipboard";
+    toastContent2.signal();
+  })(event, ...state.getAll([{ id: 27 }, { id: 6 }]));
+} }, { id: 29, value: ['loadHook([myState], (state, myState) => { state.observe(myState, updateCallback, "some-key"); })'] }, { id: 30, value: function anonymous6(state, event) {
+  (async (_, codeContent2, toastContent2) => {
+    await navigator.clipboard.writeText(`${codeContent2.value}`);
+    toastContent2.value = "Copied to Clipboard";
+    toastContent2.signal();
+  })(event, ...state.getAll([{ id: 29 }, { id: 6 }]));
+} }], soa: [{ "id": 20, "key": 20, "attribute": "onclick" }, { "id": 22, "key": 21, "attribute": "onclick" }, { "id": 24, "key": 22, "attribute": "onclick" }, { "id": 26, "key": 23, "attribute": "onclick" }, { "id": 28, "key": 24, "attribute": "onclick" }, { "id": 30, "key": 25, "attribute": "onclick" }] };
+if (!globalThis.pd) {
+  globalThis.pd = {};
+}
+;
+globalThis.pd[url] = data;

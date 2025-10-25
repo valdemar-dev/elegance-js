@@ -243,7 +243,7 @@
       data.stateManager = state;
     }
     for (const subject of state.subjects) {
-      subject.observers = /* @__PURE__ */ new Map();
+      if (!subject.observers) subject.observers = /* @__PURE__ */ new Map();
     }
     for (const ooa of data.ooa || []) {
       const els = doc.querySelectorAll(`[key="${ooa.key}"]`);

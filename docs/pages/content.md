@@ -5,7 +5,7 @@ It has fast build times, and ships very little JS to the browser.
 
 ## Assumed Truths  
 You possess a 64-bit Posix / Windows based system.  
-You have knowledge of Node.JS 16+, and TypeScript.  
+You have knowledge of Node.JS v22 or later, and TypeScript.  
 
 ## Try Elegance
 To create an Elegance app, run:
