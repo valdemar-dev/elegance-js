@@ -1,3 +1,0 @@
-running with deno:
-(should work)
-deno run --unstable-bare-node-builtins index.ts
