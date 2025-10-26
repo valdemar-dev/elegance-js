@@ -17,6 +17,7 @@ compile({
         runServer: true,
         port: 3000,
     },
+    hotReload: undefined,
     postCompile: () => {
         if (child !== undefined) {
             child.kill('SIGKILL');

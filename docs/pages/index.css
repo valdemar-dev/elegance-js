@@ -15,13 +15,13 @@
     --color-darken: #00000022;
     --color-lighten: #ffffff11;
     
-    --color-background-10: #fcfcf6;
+    --color-text-10: #030408;
+    --color-text-05: #1a1c22;
+    --color-text-00: #30333d;
+    
     --color-background-05: #e0e0d4;
     --color-background-00: #c4c4b5;
-    
-    --color-text-10: #161506;
-    --color-text-05: #595633;
-    --color-text-00: #8c885f;
+    --color-background-10: #faf9eb;
     
     --color-accent-10: #f7df1e;
 
