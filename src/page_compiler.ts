@@ -63,10 +63,6 @@ const white = (text: string) => {
     return `\u001b[38;2;255;247;229m${text}`;
 };
 
-const green = (text: string) => {
-    return `\u001b[38;2;65;224;108m${text}`;
-};
-
 const log = (...text: string[]) => {
     if (options.quiet) return;
     
@@ -96,7 +92,116 @@ type CompilationOptions = {
 }
 
 let options: CompilationOptions = JSON.parse(process.env.OPTIONS as string);
+
+/** Contains publicly accessible files. */
 const DIST_DIR = process.env.DIST_DIR as string;
+
+
+/*
+    brain stuff, thinking:
+    none of this is real..
+    
+    put a pin in this.
+    
+    
+    the general idea behind this is that during compilation, 
+    we gather a big map of every page we build.
+    
+    then, when a page is requested, we can look up the pathname of that page,
+    and every layout that goes along with it.
+    
+    if isDynamic: true, when we compile per request.
+    if isDynamic: false, we just serve index.html
+    
+    theres a question here:
+    can a static page have a dynamic layout?
+    can layouts ever decide their dynamicness?
+    is a layout for a dynamic page compiled per-request.
+    
+    it should probably be like this:
+    1. dynamic page & layout: ok
+    2. static page & dynamic layout: not okay? (doesnt seem to be possible.)
+    3. dynamic page & static layout: ok
+    4. static page & static layout: ok
+    
+    dynamic pages:
+        i suppose for dynamic pages,
+        we could keep the page_compiler alive,
+        and a reference to the page in javascript.
+        
+        then, we just call page() and metadata().
+        
+        there just needs to be some form of strictness on our end,
+        so the user doesnt declare loadhooks and state *outside* of the page().
+        
+        or, dynamic pages wrap their stuff in a *build()* function.
+        
+    1. dynamic page & layout:
+        on a request, the user calls buildPage,
+        we have a clear "builtLayouts" map, and thus every layout is built.
+        
+        though, as a note, both would have to have clear "esm-cache" semantics.
+        meaning, they would not be allowed to declare state outside of layout(), page() and metadata().
+        
+        other than that, i see no issues.
+        
+    2. static page & dynamic layout
+        on a request, the server fetches what layouts would be included in this pathname.
+        we should probably keep this information *cached* within PAGE_MAP.
+        
+        it would then go through the normal process of fetchPageLayoutHTML().
+        
+        however, if it finds a *dynamic* layout, it would attempt to build it.
+            the primary issue with this is, i dont know how to *send* the javascript.
+            
+            we could hold it in memory, and maybe write it to a file?
+            but if we write it to a file, we'd have severe race condition issues.
+            
+            multiple requests would overwrite the same file many times.
+            
+            if we made a unique file per-request, that would eat lots of disk space.
+                you *could* store in a map, the page_data, etc.
+                then, write into the head: /page_data.js?id=SOME_UUID
+                this is *secure* i think.
+                the only issue i'd have is potential memory leaks.
+                
+                it'd have to be like a 30 second cache or something.
+                which seems unnecessarily complex.
+                
+                
+            the best method for this is *probably:
+                inline page_data.js as a script tag in the HTML.
+                
+                it'll increase parsing times, (maybe substantially)
+                unless we put a ondomcontentload hook (???)
+                
+        for now we shall forbid it. put a pin in this.
+    
+    3. dynamic page and static layout:
+        i see no issue with this.
+        you fetch the page, get the information.
+        
+        look up in the layout map, if it's static, just include it,
+        the browser can fetch the data.
+        
+    4. static & static:
+        this is the default generation method,
+        and as such, has no issues.
+*/
+{
+    type PageInformation = {
+        isDynamic: boolean;
+    };
+    
+    type LayoutInformation = {
+        isDynamic: boolean;
+    }
+    
+    type Pathname = string;
+    
+    const PAGE_MAP = new Map<Pathname, PageInformation>();
+    const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
+}
 
 const getAllSubdirectories = (dir: string, baseDir = dir) => {
     let directories: Array<string> = [];
@@ -106,8 +211,8 @@ const getAllSubdirectories = (dir: string, baseDir = dir) => {
     for (const item of items) {
         if (item.isDirectory()) {
             const fullPath = path.join(dir, item.name);
-            // Get the relative path from the base directory
             const relativePath = path.relative(baseDir, fullPath);
+            
             directories.push(relativePath);
             directories = directories.concat(getAllSubdirectories(fullPath, baseDir));
         }
@@ -369,14 +474,6 @@ export const processPageElements = (
                     continue;
                 }
                 
-                // why cant naming be consistent.
-                // this was made to make life easier, eg. dataTest, ariaLabel, into data-test, aria-label. BUt html BAD and they use incosistent casing.
-                // means this breaks stuff.
-                /*
-                delete options[optionName];
-                options[camelToKebabCase(optionName)] = optionValue;
-                */
-                
                 continue;
             };
     
@@ -394,6 +491,7 @@ export const processPageElements = (
         }
     
         stack.pop();
+        
         return element;
     
     } catch(e) {
@@ -477,7 +575,12 @@ const pageToHTML = async (
 
 };
 
-// TODO: REWRITE THIS SHITTY FUNCTION
+/**
+    This uses string interpolation to generate the:
+    page_data.js file that the browser receives.
+    
+    It's *very* error-prone, so be careful if you edit this!
+*/
 const generateClientPageData = async (
     pageLocation: string,
     state: typeof globalThis.__SERVER_CURRENT_STATE__,
@@ -625,29 +728,7 @@ const generateLayout = async (
         metadataElements = metadata;
         
         if (isDynamic === true) {
-            /*
-            const result = await esbuild.build({
-                entryPoints: [filePath],
-                bundle: false,
-                format: 'iife',
-                globalName: '__exports',
-                write: false,
-                platform: 'node',
-                plugins: [externalPackagesPlugin],
-            });
-            
-            let iifeCode = result.outputFiles![0].text;
-            
-            iifeCode = iifeCode.replace(/^var __exports = /, '');
-            
-            const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);\n\nexport function construct() {\n  ${iifeCode} \nreturn __exports\n}`;
-            
-            fs.writeFileSync(filePath, wrappedCode);
-            
-            return { pageContentHTML: "", metadataHTML: "", };
-            */
-            
-            throw new Error("ts-arc in Elegance does not support dynamic pages yet.");
+            throw new Error("not yet supported.");
         }
     } catch(e) {
         throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
@@ -964,44 +1045,11 @@ const buildPage = async (
         pageElements = page;
         metadata = pageMetadata;
         
-        // wrap dynamic page
-        // this requires a bit of an explanation cause it's kind of weird.
-        // dynamic pages are built on each request.
-        // as such, we want to "re-call" a module multiple times, which is not normally possible (at least in node).
-        // we also don't want to use cache-busting methods, since this incurs a memory leak.
-        // we *also* don't want to bother doing *another* child process to build *one* page.
-        // instead, a cheaper and faster option is this.
-        // we re-build the dynamic page, and wrap a *function* around it.
-        // this function, when called, will *execute* the page (re-evaluating things like top-level variables and such)
-        // then, the function will return module.exports, and the page will be none the wiser.
-        // these are then used to compile the page later on per-request.
         if (isDynamicPage === true) {
-            /*
-            const result = await esbuild.build({
-                entryPoints: [filePath],
-                bundle: false,
-                format: 'iife',
-                globalName: '__exports',
-                write: false,
-                platform: 'node',
-                plugins: [externalPackagesPlugin],
-            });
-            
-            let iifeCode = result.outputFiles![0].text;
-            
-            iifeCode = iifeCode.replace(/^var __exports = /, '');
-            
-            const wrappedCode = `import { createRequire } from 'module'; const require = createRequire(import.meta.url);\n\nexport function construct() {\n  ${iifeCode} \nreturn __exports\n}`;
-            
-            fs.writeFileSync(filePath, wrappedCode);
-            
             return false;
-            */
-            
-            throw new Error("Dynamic page is not yet supported with ts-arc");
         }
     } catch(e) {
-        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.ts - ${e}`);
+        throw new Error(`Error in Page: ${directory}/${name}.ts - ${e}`);
     }
     
     if (modules !== undefined) {
@@ -1014,7 +1062,7 @@ const buildPage = async (
         !metadata ||
         metadata && typeof metadata !== "function"
     ) {
-        console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
+        console.warn(`WARNING: ${filePath} does not export a metadata function.`);
     }
 
     if (!pageElements) {
@@ -1066,121 +1114,6 @@ const buildPage = async (
 
     return sendHardReloadInstruction === true;
 };
-
-const recursionFlag = Symbol("external-node-modules-recursion");
-
-const externalPackagesPlugin: esbuild.Plugin = {
-    name: 'external-packages',
-    setup(build: esbuild.PluginBuild) {
-        build.onResolve({ filter: /^[^./]/ }, async (args) => {
-            if (args.pluginData?.[recursionFlag]) {
-                return;
-            }
-        
-            const result = await build.resolve(args.path, {
-                resolveDir: args.resolveDir,
-                kind: args.kind,
-                importer: args.importer,
-                pluginData: { [recursionFlag]: true },
-            });
-        
-            if (result.errors.length > 0 || result.external || !result.path) {
-                return { path: args.path, external: true };
-            }
-        
-            const nodeModulesIndex = result.path.indexOf('node_modules');
-            if (nodeModulesIndex === -1) {
-                return result;
-            }
-        
-            const isNested = result.path.includes('node_modules', nodeModulesIndex + 14);
-        
-            // we want to bundle things like the built-in components
-            // so that dynamic pages when constructed()
-            // will re-call loadHook, state, etc.
-            if (args.path.startsWith('elegance-js')) {
-                return result;
-            }
-        
-            if (isNested) {
-                return { path: args.path, external: true };
-            }
-        
-            return { path: args.path, external: true };
-        });
-    }
-};   
-
-
-/*
-    deprecated ship plugin from when we used to transpile files instead of interpret them
-*/
-/*
-const shipPlugin: esbuild.Plugin = {
-    name: 'ship',
-    setup(build) {
-        build.onLoad({ filter: /\.(js|ts|jsx|tsx)$/ }, async (args) => {
-            let contents = await fs.promises.readFile(args.path, 'utf8')
-            const lines = contents.split(/\r?\n/)
-
-            // This is prepended to the content of the page.
-            let prepender = "";
-
-            for (let i = 0; i < lines.length - 1; i++) {
-                if (lines[i].trim() === '//@ship') {
-                    const nextLine = lines[i + 1].trim()
-                    const starRegex = /import\s*\*\s*as\s*(\w+)\s*from\s*["']([^"']+)["']\s*;/
-                    const defaultRegex = /import\s*(\w+)\s*from\s*["']([^"']+)["']\s*;/
-
-                    let match = nextLine.match(starRegex)
-                    let importName: string | undefined
-                    let pkgPath: string | undefined
-
-                    if (match) {
-                        importName = match[1]
-                        pkgPath = match[2]
-                    } else {
-                        match = nextLine.match(defaultRegex)
-
-                        if (match) {
-                            importName = match[1]
-                            pkgPath = match[2]
-                        } else {
-                            continue
-                        }
-                    }
-                    
-                    if (prepender === "") {
-                        prepender = "export const requiredClientModules = [\n";
-                    }
-                    
-                    prepender += `"${importName}",\n`;
-
-                    pluginsToShip.push({
-                        path: pkgPath,
-                        globalName: importName,
-                    });
-
-                    const replacement = `const ${importName} = globalThis.${importName};`;
-                    lines.splice(i, 2, replacement);
-                    i--;
-                }
-            }
-            
-            if (prepender !== "") {
-                prepender += "];";
-            }
-
-            contents = lines.join('\n');
-
-            return {
-                contents: prepender + contents,
-                loader: path.extname(args.path).slice(1) as any,
-            }
-        })
-    },
-}
-*/
 
 const build = async (): Promise<boolean> => {
     if (options.quiet === true) {
@@ -1235,7 +1168,7 @@ const build = async (): Promise<boolean> => {
                 shippedModules.set(plugin.globalName, true);
             }
             
-            await esbuild.build({
+            esbuild.build({
                 entryPoints: [plugin.path],
                 bundle: true,
                 outfile: path.join(DIST_DIR, "shipped", plugin.globalName + ".js"),

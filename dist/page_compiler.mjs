@@ -307,6 +307,10 @@ var log = (...text) => {
 };
 var options = JSON.parse(process.env.OPTIONS);
 var DIST_DIR = process.env.DIST_DIR;
+{
+  const PAGE_MAP = /* @__PURE__ */ new Map();
+  const LAYOUT_MAP = /* @__PURE__ */ new Map();
+}
 var getAllSubdirectories = (dir, baseDir = dir) => {
   let directories = [];
   const items = fs.readdirSync(dir, { withFileTypes: true });
@@ -646,7 +650,7 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
     layoutElements = layout;
     metadataElements = metadata;
     if (isDynamic === true) {
-      throw new Error("ts-arc in Elegance does not support dynamic pages yet.");
+      throw new Error("not yet supported.");
     }
   } catch (e) {
     throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
@@ -843,10 +847,10 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     pageElements = page;
     metadata = pageMetadata;
     if (isDynamicPage === true) {
-      throw new Error("Dynamic page is not yet supported with ts-arc");
+      return false;
     }
   } catch (e) {
-    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.ts - ${e}`);
+    throw new Error(`Error in Page: ${directory}/${name}.ts - ${e}`);
   }
   if (modules !== void 0) {
     for (const [globalName, path2] of Object.entries(modules)) {
@@ -854,7 +858,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     }
   }
   if (!metadata || metadata && typeof metadata !== "function") {
-    console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
+    console.warn(`WARNING: ${filePath} does not export a metadata function.`);
   }
   if (!pageElements) {
     console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
@@ -895,7 +899,6 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   );
   return sendHardReloadInstruction === true;
 };
-var recursionFlag = Symbol("external-node-modules-recursion");
 var build = async () => {
   if (options.quiet === true) {
     console.log = function() {
@@ -939,7 +942,7 @@ var build = async () => {
           if (shippedModules.has(plugin.globalName)) continue;
           shippedModules.set(plugin.globalName, true);
         }
-        await esbuild.build({
+        esbuild.build({
           entryPoints: [plugin.path],
           bundle: true,
           outfile: path.join(DIST_DIR, "shipped", plugin.globalName + ".js"),
