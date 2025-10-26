@@ -89,10 +89,12 @@ const Sidebar = () => {
             class: "flex flex-col gap-0",
         },
             SidebarEntry("Introduction", "/"),
+            SidebarEntry("State", "/state"),
+            SidebarEntry("Event Listener", "/eventlistener"),
+            SidebarEntry("Loadhook", "/loadhook"),
             SidebarEntry("API Routes", "/api-routes"),
             SidebarEntry("Routing", "/routing"),
             SidebarEntry("Middleware", "/middleware"),
-            SidebarEntry("Loadhook", "/loadhook"),
         ),
         
         div({
@@ -154,8 +156,6 @@ loadHook(
         const el = () => {
             toastElement.hidden = true
             
-            // cool thing, we don't actually signal here,
-            // cause we have no need to re-trigger observers!
             toastContent.value = "";
             toastContent.signal();
             
