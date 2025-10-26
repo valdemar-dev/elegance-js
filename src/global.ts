@@ -62,6 +62,9 @@ declare global {
         pageName: string,
     };
     
+    /** Modules that are shipped to the browser. */
+    type ShippedModules = { [key: string]: string, };
+    
     type Page = (AnyBuiltElement) | ((props: PageProps) => AnyBuiltElement | Promise<AnyBuiltElement>);
     type Metadata = (() => (AnyBuiltElement)) | (() => Promise<AnyBuiltElement>);
 

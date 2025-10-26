@@ -197,7 +197,7 @@ var generateHTMLTemplate = async ({
   serverData = null,
   addPageScriptTag = true,
   name,
-  requiredClientModules = [],
+  requiredClientModules = {},
   environment
 }) => {
   let StartTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
@@ -205,8 +205,8 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">`;
   }
   StartTemplate += '<meta charset="UTF-8">';
-  for (const module of requiredClientModules) {
-    StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
+  for (const [globalName] of Object.entries(requiredClientModules)) {
+    StartTemplate += `<script data-module="true" src="/shipped/${globalName}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
     StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;

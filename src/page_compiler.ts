@@ -35,6 +35,10 @@ if (packageDir === undefined) {
 const clientPath = path.resolve(packageDir, './dist/client/client.mjs');
 const watcherPath = path.resolve(packageDir, './dist/client/watcher.mjs');
 
+const shippedModules = new Map<string, true>();
+
+let modulesToShip: Array<{ path: string, globalName: string, }> = [];
+
 const yellow = (text: string) => {
     return `\u001b[38;2;238;184;68m${text}`;
 };
@@ -110,24 +114,6 @@ const getAllSubdirectories = (dir: string, baseDir = dir) => {
     }
 
     return directories;
-};
-
-const getProjectFiles = (pagesDirectory: string,) => {
-    const files = [];
-    
-    const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
-
-    for (const subdirectory of subdirectories) {
-    
-        const absoluteDirectoryPath = path.join(pagesDirectory, subdirectory);
-
-        const subdirectoryFiles = fs.readdirSync(absoluteDirectoryPath, { withFileTypes: true, })
-            .filter(f => f.name.endsWith(".ts"));
-            
-        files.push(...subdirectoryFiles);
-    }
-    
-    return files;
 };
 
 const buildClient = async (
@@ -427,7 +413,7 @@ const pageToHTML = async (
     DIST_DIR: string,
     pageName: string,
     doWrite: boolean = true,
-    requiredClientModules: string[] = [],
+    requiredClientModules: ShippedModules = {},
     
     layout: BuiltLayout,
 ) => {
@@ -628,11 +614,11 @@ const generateLayout = async (
             layout,
             metadata,
             isDynamic,
-            requiredClientModules,
+            shippedModules,
         } = await import("file://" + filePath);
         
-        if (requiredClientModules !== undefined) {
-            modules = requiredClientModules;
+        if (shippedModules !== undefined) {
+            modules = shippedModules;
         }
         
         layoutElements = layout;
@@ -955,7 +941,7 @@ const buildPage = async (
     
     let pageElements;
     let metadata;
-    let modules: Array<string> = [];
+    let modules: ShippedModules = {};
     let pageIgnoresLayout: boolean = false;
     
     try {
@@ -963,12 +949,12 @@ const buildPage = async (
             page,
             metadata: pageMetadata,
             isDynamicPage,
-            requiredClientModules,
+            shippedModules,
             ignoreLayout,
         } = await import("file://" + filePath);
         
-        if (requiredClientModules !== undefined) {
-            modules = requiredClientModules;
+        if (shippedModules !== undefined) {
+            modules = shippedModules;
         }
         
         if (ignoreLayout) {
@@ -1016,6 +1002,12 @@ const buildPage = async (
         }
     } catch(e) {
         throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.ts - ${e}`);
+    }
+    
+    if (modules !== undefined) {
+        for (const [globalName, path] of Object.entries(modules)) {
+            modulesToShip.push({ globalName, path, })
+        }
     }
     
     if (
@@ -1119,11 +1111,11 @@ const externalPackagesPlugin: esbuild.Plugin = {
     }
 };   
 
-const shippedPlugins = new Map<string, true>();
 
-let pluginsToShip: Array<{ path: string, globalName: string, }> = [];
-
-
+/*
+    deprecated ship plugin from when we used to transpile files instead of interpret them
+*/
+/*
 const shipPlugin: esbuild.Plugin = {
     name: 'ship',
     setup(build) {
@@ -1188,6 +1180,7 @@ const shipPlugin: esbuild.Plugin = {
         })
     },
 }
+*/
 
 const build = async (): Promise<boolean> => {
     if (options.quiet === true) {
@@ -1220,14 +1213,26 @@ const build = async (): Promise<boolean> => {
     
     const start = performance.now();
     
-    {       
-        pluginsToShip = [];
+    let shouldClientHardReload
 
-        for (const plugin of pluginsToShip) {
+    {
+        const { shouldClientHardReload: doReload } = await buildLayouts();
+        
+        if (doReload) shouldClientHardReload = true;
+    }
+    
+    {
+        const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
+        
+        if (doReload) shouldClientHardReload = true;
+    }
+    
+    {       
+        for (const plugin of modulesToShip) {
             // dont build the same plugin multiple times. (very inefficient!)
             {
-                if (shippedPlugins.has(plugin.globalName)) continue;
-                shippedPlugins.set(plugin.globalName, true);
+                if (shippedModules.has(plugin.globalName)) continue;
+                shippedModules.set(plugin.globalName, true);
             }
             
             await esbuild.build({
@@ -1241,20 +1246,6 @@ const build = async (): Promise<boolean> => {
                 treeShaking: true,
             })
         }
-    }
-    
-    let shouldClientHardReload
-
-    {
-        const { shouldClientHardReload: doReload } = await buildLayouts();
-        
-        if (doReload) shouldClientHardReload = true;
-    }
-    
-    {
-        const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
-        
-        if (doReload) shouldClientHardReload = true;
     }
     
     const pagesBuilt = performance.now();

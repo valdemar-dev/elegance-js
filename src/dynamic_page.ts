@@ -212,7 +212,7 @@ const generateSuitablePageElements = async (
     metadata: () => BuiltElement<"html">,
     DIST_DIR: string,
     pageName: string,
-    requiredClientModules: string[],
+    requiredClientModules: ShippedModules,
 ) => {
     if (
         typeof pageElements === "string" ||
@@ -416,7 +416,7 @@ export const buildDynamicPage = async (
     globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
     globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
     
-    let modules: string[] = [];
+    let modules: ShippedModules = {};
     
     try {
         const {
@@ -428,11 +428,11 @@ export const buildDynamicPage = async (
             metadata: pageMetadata,
             isDynamicPage,
             requestHook,
-            requiredClientModules
+            shippedModules
         } = construct()
         
-        if (requiredClientModules !== undefined) {
-            modules = requiredClientModules
+        if (shippedModules !== undefined) {
+            modules = shippedModules
         }
         
         if (typeof requestHook === "function") {

@@ -4,7 +4,7 @@ export declare const generateHTMLTemplate: ({ pageURL, head, serverData, addPage
     head: Metadata;
     serverData?: string | null;
     name: string;
-    requiredClientModules: string[];
+    requiredClientModules: ShippedModules;
     environment: "development" | "production";
 }) => Promise<{
     internals: string;

@@ -215,7 +215,7 @@ var generateHTMLTemplate = async ({
   serverData = null,
   addPageScriptTag = true,
   name,
-  requiredClientModules = [],
+  requiredClientModules = {},
   environment
 }) => {
   let StartTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
@@ -223,8 +223,8 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">`;
   }
   StartTemplate += '<meta charset="UTF-8">';
-  for (const module of requiredClientModules) {
-    StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
+  for (const [globalName] of Object.entries(requiredClientModules)) {
+    StartTemplate += `<script data-module="true" src="/shipped/${globalName}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
     StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
@@ -512,7 +512,7 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
   resetLoadHooks();
   globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
-  let modules = [];
+  let modules = {};
   try {
     const {
       construct
@@ -522,10 +522,10 @@ var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
       metadata: pageMetadata,
       isDynamicPage,
       requestHook,
-      requiredClientModules
+      shippedModules
     } = construct();
-    if (requiredClientModules !== void 0) {
-      modules = requiredClientModules;
+    if (shippedModules !== void 0) {
+      modules = shippedModules;
     }
     if (typeof requestHook === "function") {
       if (requestHook.constructor.name === "AsyncFunction") {

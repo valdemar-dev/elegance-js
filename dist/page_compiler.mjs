@@ -216,7 +216,7 @@ var generateHTMLTemplate = async ({
   serverData = null,
   addPageScriptTag = true,
   name,
-  requiredClientModules = [],
+  requiredClientModules = {},
   environment
 }) => {
   let StartTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
@@ -224,8 +224,8 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">`;
   }
   StartTemplate += '<meta charset="UTF-8">';
-  for (const module of requiredClientModules) {
-    StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
+  for (const [globalName] of Object.entries(requiredClientModules)) {
+    StartTemplate += `<script data-module="true" src="/shipped/${globalName}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
     StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
@@ -281,6 +281,8 @@ if (packageDir === void 0) {
 }
 var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
 var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
+var shippedModules = /* @__PURE__ */ new Map();
+var modulesToShip = [];
 var yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
 };
@@ -512,7 +514,7 @@ ${trace}`);
     }
   }
 };
-var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = [], layout) => {
+var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = {}, layout) => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
     throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
   }
@@ -636,10 +638,10 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
       layout,
       metadata,
       isDynamic,
-      requiredClientModules
+      shippedModules: shippedModules2
     } = await import("file://" + filePath);
-    if (requiredClientModules !== void 0) {
-      modules = requiredClientModules;
+    if (shippedModules2 !== void 0) {
+      modules = shippedModules2;
     }
     layoutElements = layout;
     metadataElements = metadata;
@@ -822,18 +824,18 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   let pageElements;
   let metadata;
-  let modules = [];
+  let modules = {};
   let pageIgnoresLayout = false;
   try {
     const {
       page,
       metadata: pageMetadata,
       isDynamicPage,
-      requiredClientModules,
+      shippedModules: shippedModules2,
       ignoreLayout
     } = await import("file://" + filePath);
-    if (requiredClientModules !== void 0) {
-      modules = requiredClientModules;
+    if (shippedModules2 !== void 0) {
+      modules = shippedModules2;
     }
     if (ignoreLayout) {
       pageIgnoresLayout = true;
@@ -845,6 +847,11 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     }
   } catch (e) {
     throw new Error(`Error in Page: ${directory === "" ? "/" : directory}${name}.ts - ${e}`);
+  }
+  if (modules !== void 0) {
+    for (const [globalName, path2] of Object.entries(modules)) {
+      modulesToShip.push({ globalName, path: path2 });
+    }
   }
   if (!metadata || metadata && typeof metadata !== "function") {
     console.warn(`WARNING: ${filePath} does not export a metadata function. This is *highly* recommended.`);
@@ -889,8 +896,6 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   return sendHardReloadInstruction === true;
 };
 var recursionFlag = Symbol("external-node-modules-recursion");
-var shippedPlugins = /* @__PURE__ */ new Map();
-var pluginsToShip = [];
 var build = async () => {
   if (options.quiet === true) {
     console.log = function() {
@@ -919,12 +924,20 @@ var build = async () => {
       options.preCompile();
     }
     const start = performance.now();
+    let shouldClientHardReload;
     {
-      pluginsToShip = [];
-      for (const plugin of pluginsToShip) {
+      const { shouldClientHardReload: doReload } = await buildLayouts();
+      if (doReload) shouldClientHardReload = true;
+    }
+    {
+      const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
+      if (doReload) shouldClientHardReload = true;
+    }
+    {
+      for (const plugin of modulesToShip) {
         {
-          if (shippedPlugins.has(plugin.globalName)) continue;
-          shippedPlugins.set(plugin.globalName, true);
+          if (shippedModules.has(plugin.globalName)) continue;
+          shippedModules.set(plugin.globalName, true);
         }
         await esbuild.build({
           entryPoints: [plugin.path],
@@ -937,15 +950,6 @@ var build = async () => {
           treeShaking: true
         });
       }
-    }
-    let shouldClientHardReload;
-    {
-      const { shouldClientHardReload: doReload } = await buildLayouts();
-      if (doReload) shouldClientHardReload = true;
-    }
-    {
-      const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
-      if (doReload) shouldClientHardReload = true;
     }
     const pagesBuilt = performance.now();
     await buildClient(DIST_DIR);

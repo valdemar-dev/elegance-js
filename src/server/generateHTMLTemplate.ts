@@ -6,7 +6,7 @@ export const generateHTMLTemplate = async ({
     serverData = null,
     addPageScriptTag = true,
     name,
-    requiredClientModules = [],
+    requiredClientModules = {},
     environment,
 }: {
     addPageScriptTag: boolean,
@@ -14,7 +14,7 @@ export const generateHTMLTemplate = async ({
     head: Metadata,
     serverData?: string | null,
     name: string,
-    requiredClientModules: string[],
+    requiredClientModules: ShippedModules,
     environment: "development" | "production",
 }) => {
     
@@ -26,8 +26,8 @@ export const generateHTMLTemplate = async ({
     
     StartTemplate += '<meta charset="UTF-8">'
 
-    for (const module of requiredClientModules) {
-        StartTemplate += `<script data-module="true" src="/shipped/${module}.js" defer="true"></script>`;
+    for (const [globalName] of Object.entries(requiredClientModules)) {
+        StartTemplate += `<script data-module="true" src="/shipped/${globalName}.js" defer="true"></script>`;
     }
     
     if (addPageScriptTag === true) {
