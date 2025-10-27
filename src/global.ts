@@ -1,5 +1,4 @@
 import { ObjectAttributeType, } from "./helpers/ObjectAttributeType";
-import { CreateEventListenerOptions } from "./server/createState";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 declare global {
@@ -22,6 +21,7 @@ declare global {
         bind?: number;
     }>
     
+    /** User defined object attributes. Mostly unused, use at your own risk. */
     var __SERVER_CURRENT_OBJECT_ATTRIBUTES__: Array<ObjectAttribute<any>>
 
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>

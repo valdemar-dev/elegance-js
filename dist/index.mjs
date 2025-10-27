@@ -182,6 +182,10 @@ var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
+var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+var getObjectAttributes = () => {
+  return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+};
 
 // src/server/observe.ts
 var observe = (refs, update) => {
@@ -200,7 +204,9 @@ export {
   createLoadHook,
   eventListener,
   getLoadHooks,
+  getObjectAttributes,
   getState,
+  initializeObjectAttributes,
   initializeState,
   loadHook,
   observe,

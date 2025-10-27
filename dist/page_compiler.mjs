@@ -652,13 +652,15 @@ async function sendResponse(req, res, status, headers, body2) {
   }
 }
 
-// src/server/createState.ts
+// src/server/loadHook.ts
+var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
+var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
+
+// src/server/state.ts
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
-var initializeState = () => {
-  globalThis.__SERVER_CURRENT_STATE__ = [];
-};
+var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
@@ -666,10 +668,6 @@ var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIB
 var getObjectAttributes = () => {
   return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
 };
-
-// src/server/loadHook.ts
-var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
-var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
 
 // src/server/layout.ts
 var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
@@ -1043,8 +1041,8 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     }
     if (pageLoadHooks.length > 0) {
       clientPageJSText += "lh:[";
-      for (const loadHook of pageLoadHooks) {
-        clientPageJSText += `{fn:${loadHook.fn}},`;
+      for (const loadHook2 of pageLoadHooks) {
+        clientPageJSText += `{fn:${loadHook2.fn}},`;
       }
       clientPageJSText += "],";
     }
@@ -1065,7 +1063,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   if (write) fs2.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction, result: transformedResult.code };
 };
-var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
+var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, generateDynamic = false) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
@@ -1090,12 +1088,13 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
       isDynamicLayout = isDynamic;
     }
   } catch (e) {
-    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
+    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.ts - ${e}`);
   }
-  LAYOUT_MAP2.set(directory, {
+  LAYOUT_MAP2.set(directory === "" ? "/" : directory, {
     isDynamic: isDynamicLayout,
     filePath
   });
+  if (isDynamicLayout === true && generateDynamic === false) return false;
   {
     if (!layoutElements) {
       throw new Error(`WARNING: ${filePath} should export a const layout, which is of type Layout: (child: Child) => AnyBuiltElement.`);
@@ -1162,6 +1161,7 @@ var buildLayouts = async () => {
       }
       try {
         const builtLayout = await buildLayout(filePath, directory);
+        if (!builtLayout) return { shouldClientHardReload: false };
         builtLayouts.set(filePath, builtLayout);
       } catch (e) {
         console.error(e);
@@ -1171,15 +1171,18 @@ var buildLayouts = async () => {
   }
   return { shouldClientHardReload };
 };
-var buildLayout = async (filePath, directory) => {
+var buildLayout = async (filePath, directory, generateDynamic = false) => {
   const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
   const childIndicator = `<template layout-id="${id}"></template>`;
-  const { pageContentHTML, metadataHTML } = await generateLayout(
+  const result = await generateLayout(
     DIST_DIR,
     filePath,
     directory,
-    childIndicator
+    childIndicator,
+    generateDynamic
   );
+  if (result === false) return false;
+  const { pageContentHTML, metadataHTML } = result;
   const splitAround = (str, sub) => {
     const i = str.indexOf(sub);
     if (i === -1) throw new Error("substring does not exist in parent string");
@@ -1210,9 +1213,16 @@ var fetchPageLayoutHTML = async (dirname2) => {
   split.reverse();
   let layouts = [];
   for (const dir of split) {
-    const filePath = path.resolve(path.join(options.pagesDirectory, dir, "layout.ts"));
-    if (builtLayouts.has(filePath)) {
-      layouts.push(builtLayouts.get(filePath));
+    if (LAYOUT_MAP2.has(dir)) {
+      const filePath = path.join(path.resolve(options.pagesDirectory), dir, "layout.ts");
+      const layout = LAYOUT_MAP2.get(dir);
+      if (layout.isDynamic) {
+        const builtLayout = await buildLayout(layout.filePath, dir, true);
+        if (!builtLayout) continue;
+        layouts.push(builtLayout);
+      } else {
+        layouts.push(builtLayouts.get(filePath));
+      }
     }
   }
   const pageContent = {

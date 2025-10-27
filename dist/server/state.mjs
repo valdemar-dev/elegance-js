@@ -153,9 +153,15 @@ var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
 var getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
+var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+var getObjectAttributes = () => {
+  return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+};
 export {
   eventListener,
+  getObjectAttributes,
   getState,
+  initializeObjectAttributes,
   initializeState,
   state
 };

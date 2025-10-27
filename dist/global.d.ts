@@ -15,6 +15,7 @@ declare global {
         id: number;
         bind?: number;
     }>;
+    /** User defined object attributes. Mostly unused, use at your own risk. */
     var __SERVER_CURRENT_OBJECT_ATTRIBUTES__: Array<ObjectAttribute<any>>;
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>;
     var __SERVER_CURRENT_LAYOUTS__: Map<string, number>;

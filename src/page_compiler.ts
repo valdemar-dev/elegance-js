@@ -22,7 +22,7 @@ import { startServer } from "./server/server";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
-import { getState, getObjectAttributes, initializeState, initializeObjectAttributes } from "./server/createState";
+import { getState, initializeState, initializeObjectAttributes, getObjectAttributes, } from "./server/state";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
 import { resetLayouts } from "./server/layout";
 import { renderRecursively } from "./server/render";
@@ -760,9 +760,14 @@ const generateClientPageData = async (
 
 const generateLayout = async (
     DIST_DIR: string,
+    /** The absolute path of the layout.ts file. */
     filePath: string,
+    /** Path relative to pagesDirectory. */
     directory: string,
+    /** What to squish between the start and end HTML (aka the split point). */
     childIndicator: Child,
+    /** Whether or not to generate the layout if it is dynamic */
+    generateDynamic: boolean = false,
 ) => {
     initializeState();
     initializeObjectAttributes();
@@ -794,13 +799,18 @@ const generateLayout = async (
             isDynamicLayout = isDynamic;
         }
     } catch(e) {
-        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
+        throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.ts - ${e}`);
     }
     
-    LAYOUT_MAP.set(directory, { 
+    LAYOUT_MAP.set(directory === "" ? "/" : directory, { 
         isDynamic: isDynamicLayout,
         filePath: filePath,
     })
+    
+    if (
+        isDynamicLayout === true && 
+        generateDynamic === false
+    ) return false;
 
     // layout content
     {    
@@ -924,6 +934,8 @@ const buildLayouts = async () => {
             try {
                 const builtLayout = await buildLayout(filePath, directory);
                 
+                if (!builtLayout) return { shouldClientHardReload: false, };
+                
                 builtLayouts.set(filePath, builtLayout)
             } catch(e) {
                 console.error(e);
@@ -936,7 +948,11 @@ const buildLayouts = async () => {
     return { shouldClientHardReload };
 }
 
-const buildLayout = async (filePath: string, directory: string) => {
+const buildLayout = async (
+    filePath: string, 
+    directory: string, 
+    generateDynamic: boolean = false,
+) => {
     /*
         this is used by the layout to determine where it ends
         in the layout, this is the "child" parameter.
@@ -949,12 +965,16 @@ const buildLayout = async (filePath: string, directory: string) => {
     const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
     const childIndicator = `<template layout-id="${id}"></template>`;
     
-    const { pageContentHTML, metadataHTML } = await generateLayout(
+    const result = await generateLayout(
         DIST_DIR,
         filePath,
         directory,
         childIndicator,
+        generateDynamic,
     );
+    
+    if (result === false) return false;
+    const { pageContentHTML, metadataHTML } = result;
     
     const splitAround = (str: string, sub: string) => {
         const i = str.indexOf(sub);
@@ -997,10 +1017,20 @@ const fetchPageLayoutHTML = async (
     let layouts: BuiltLayout[] = [];
     
     for (const dir of split) {
-        const filePath = path.resolve(path.join(options.pagesDirectory, dir, "layout.ts"));
-        
-        if (builtLayouts.has(filePath)) {
-            layouts.push(builtLayouts.get(filePath)!);
+        if (LAYOUT_MAP.has(dir)) {
+            const filePath = path.join(path.resolve(options.pagesDirectory), dir, "layout.ts");
+            
+            const layout = LAYOUT_MAP.get(dir)!;
+            
+            if (layout.isDynamic) {
+                const builtLayout = await buildLayout(layout.filePath, dir, true);
+                
+                if (!builtLayout) continue;
+                
+                layouts.push(builtLayout);
+            } else {
+                layouts.push(builtLayouts.get(filePath)!);
+            }
         }
     }
     
