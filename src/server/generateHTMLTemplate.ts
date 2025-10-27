@@ -33,7 +33,7 @@ export const generateHTMLTemplate = async ({
     if (addPageScriptTag === true) {
         const sanitized = pageURL === "" ? "/" : `/${pageURL}`;
         
-        StartTemplate += `<script data-page="true" type="module" data-pathname="${sanitized}" src="${sanitized}/${name}_data.js" defer="true"></script>`;
+        StartTemplate += `<script data-page="true" type="module" data-pathname="${sanitized}" src="${sanitized.endsWith("/") ? sanitized : sanitized + "/"}${name}_data.js" defer="true"></script>`;
     }
 
     StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
