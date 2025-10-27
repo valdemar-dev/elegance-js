@@ -436,11 +436,17 @@ async function handlePageRequest(root, pathname, req, res, DIST_DIR2, pageInfo) 
       }
       if (isDynamic) {
         try {
-          const { resultHTML } = await buildDynamicPage(
+          const result = await buildDynamicPage(
             DIST_DIR2,
             pathname,
-            pageInfo
+            pageInfo,
+            req2,
+            res2
           );
+          if (result === false) {
+            return;
+          }
+          const { resultHTML } = result;
           if (resultHTML === false) {
             return;
           }
@@ -1358,7 +1364,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   );
   return sendHardReloadInstruction === true;
 };
-var buildDynamicPage = async (DIST_DIR2, directory, pageInfo) => {
+var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res) => {
   directory = directory === "/" ? "" : directory;
   const filePath = pageInfo.filePath;
   initializeState();
@@ -1376,8 +1382,16 @@ var buildDynamicPage = async (DIST_DIR2, directory, pageInfo) => {
       metadata: pageMetadata,
       isDynamic,
       shippedModules: shippedModules2,
-      ignoreLayout
+      ignoreLayout,
+      requestHook
     } = await import("file://" + filePath);
+    if (requestHook) {
+      const hook = requestHook;
+      const doContinue = await hook(req, res);
+      if (!doContinue) {
+        return false;
+      }
+    }
     if (shippedModules2 !== void 0) {
       modules = shippedModules2;
     }

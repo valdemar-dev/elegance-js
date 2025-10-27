@@ -52,6 +52,9 @@ declare global {
     /** The type for middleware functions in middleware.ts files. */
     type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>;
     
+    /** On dynamic pages, the requestHook, if present, shall be called by the server, before serving the page. */
+    type RequestHook = (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
+    
     /** The type for const layout in layout.ts files. */
     type Layout = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>))
     
@@ -75,7 +78,6 @@ declare global {
     }
     
     type Pathname = string;
-    
     
     /** Modules that are shipped to the browser. */
     type ShippedModules = { [key: string]: string, };

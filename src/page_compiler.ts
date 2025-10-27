@@ -19,6 +19,7 @@ import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
 import { startServer } from "./server/server";
+import type { IncomingMessage, ServerResponse } from "http";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
@@ -96,107 +97,6 @@ let options: CompilationOptions = JSON.parse(process.env.OPTIONS as string);
 
 /** Contains publicly accessible files. */
 const DIST_DIR = process.env.DIST_DIR as string;
-
-
-/*
-    brain stuff, thinking:
-    none of this is real..
-    
-    put a pin in this.
-    
-    
-    the general idea behind this is that during compilation, 
-    we gather a big map of every page we build.
-    
-    then, when a page is requested, we can look up the pathname of that page,
-    and every layout that goes along with it.
-    
-    if isDynamic: true, when we compile per request.
-    if isDynamic: false, we just serve index.html
-    
-    theres a question here:
-    can a static page have a dynamic layout?
-    can layouts ever decide their dynamicness?
-    is a layout for a dynamic page compiled per-request.
-    
-    it should probably be like this:
-    1. dynamic page & layout: ok
-    2. static page & dynamic layout: not okay? (doesnt seem to be possible.)
-    3. dynamic page & static layout: ok
-    4. static page & static layout: ok
-    
-    dynamic pages:
-        i suppose for dynamic pages,
-        we could keep the page_compiler alive,
-        and a reference to the page in javascript.
-        
-        then, we just call page() and metadata().
-        
-        there just needs to be some form of strictness on our end,
-        so the user doesnt declare loadhooks and state *outside* of the page().
-        
-        or, dynamic pages wrap their stuff in a *build()* function.
-        
-    1. dynamic page & layout:
-        on a request, the user calls buildPage,
-        we have a clear "builtLayouts" map, and thus every layout is built.
-        
-        though, as a note, both would have to have clear "esm-cache" semantics.
-        meaning, they would not be allowed to declare state outside of layout(), page() and metadata().
-        
-        other than that, i see no issues.
-        
-    2. static page & dynamic layout
-        on a request, the server fetches what layouts would be included in this pathname.
-        we should probably keep this information *cached* within PAGE_MAP.
-        
-        it would then go through the normal process of fetchPageLayoutHTML().
-        
-        however, if it finds a *dynamic* layout, it would attempt to build it.
-            the primary issue with this is, i dont know how to *send* the javascript.
-            
-            we could hold it in memory, and maybe write it to a file?
-            but if we write it to a file, we'd have severe race condition issues.
-            
-            multiple requests would overwrite the same file many times.
-            
-            if we made a unique file per-request, that would eat lots of disk space.
-                you *could* store in a map, the page_data, etc.
-                then, write into the head: /page_data.js?id=SOME_UUID
-                this is *secure* i think.
-                the only issue i'd have is potential memory leaks.
-                
-                it'd have to be like a 30 second cache or something.
-                which seems unnecessarily complex.
-                
-                
-            the best method for this is *probably:
-                inline page_data.js as a script tag in the HTML.
-                
-                it'll increase parsing times, (maybe substantially)
-                unless we put a ondomcontentload hook (???)
-                
-                to avoid usage of globals, we'll *inline* the content,
-                but have an "export const data = {}"
-                
-                then, when navigating to a page, the way we *extract* the data,
-                is by creating a synthetic blob module with: URL.createObjectUrl() & new Blob();
-                
-                then, we import that url, and delete the inline script tag (to preserve safety)
-                
-        for now we shall forbid it. put a pin in this.
-    
-    3. dynamic page and static layout:
-        i see no issue with this.
-        you fetch the page, get the information.
-        
-        look up in the layout map, if it's static, just include it,
-        the browser can fetch the data.
-        
-    4. static & static:
-        this is the default generation method,
-        and as such, has no issues.
-*/
 
 export const PAGE_MAP = new Map<Pathname, PageInformation>();
 export const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
@@ -1227,6 +1127,8 @@ export const buildDynamicPage = async (
     DIST_DIR: string,
     directory: string,
     pageInfo: PageInformation,
+    req: IncomingMessage, 
+    res: ServerResponse,
 ) => {
     directory = directory === "/" ? "" : directory;
     
@@ -1251,7 +1153,18 @@ export const buildDynamicPage = async (
             isDynamic,
             shippedModules,
             ignoreLayout,
+            requestHook,
         } = await import("file://" + filePath);
+        
+        if (requestHook) {
+            const hook = requestHook as RequestHook;
+            
+            const doContinue = await hook(req, res);
+            
+            if (!doContinue) {
+                return false;
+            }
+        }
         
         if (shippedModules !== undefined) {
             modules = shippedModules;

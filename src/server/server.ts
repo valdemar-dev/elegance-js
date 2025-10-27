@@ -202,11 +202,19 @@ async function handlePageRequest(
 
             if (isDynamic) {
                 try {
-                    const { resultHTML } = await buildDynamicPage(
+                    const result = await buildDynamicPage(
                         DIST_DIR,
                         pathname,
                         pageInfo,
+                        req,
+                        res,
                     );
+                    
+                    if (result === false) {
+                        return;
+                    }
+                    
+                    const { resultHTML } = result;
                     
                     if (resultHTML === false) {
                         return;
