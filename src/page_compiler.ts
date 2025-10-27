@@ -576,7 +576,7 @@ const pageToHTML = async (
             Creates a URL, and makes a new page-data script in the head,
             so that the client can then import it.
         */
-        const sanitized = pathname === "" ? "/" : pathname;
+        const sanitized = pathname === "" ? "/" : `/${pathname}`;
         
         extraBodyHTML = `<script data-hook="true" data-pathname="${sanitized}" type="text/plain">${result}</script>`;
         extraBodyHTML += `<script>

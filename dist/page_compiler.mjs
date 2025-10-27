@@ -228,8 +228,8 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<script data-module="true" src="/shipped/${globalName}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
-    const sanitized = pageURL === "" ? "/" : pageURL;
-    StartTemplate += `<script data-page="true" type="module" data-pathname="${sanitized}" src="${sanitized}${name}_data.js" defer="true"></script>`;
+    const sanitized = pageURL === "" ? "/" : `/${pageURL}`;
+    StartTemplate += `<script data-page="true" type="module" data-pathname="${sanitized}" src="${sanitized}/${name}_data.js" defer="true"></script>`;
   }
   StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   let builtHead;
@@ -955,7 +955,7 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
       "pd",
       false
     );
-    const sanitized = pathname === "" ? "/" : pathname;
+    const sanitized = pathname === "" ? "/" : `/${pathname}`;
     extraBodyHTML = `<script data-hook="true" data-pathname="${sanitized}" type="text/plain">${result}</script>`;
     extraBodyHTML += `<script>
             const text = document.querySelector('[data-hook="true"][data-pathname="${sanitized}"][type="text/plain"').textContent;
