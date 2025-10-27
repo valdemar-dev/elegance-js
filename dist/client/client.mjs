@@ -146,8 +146,8 @@ Object.assign(globalThis, childrenlessElements);
 
 // src/client/client.ts
 console.log("Elegance.JS is loading..");
-if (!globalThis.pd) globalThis.pd = {};
-if (!globalThis.ld) globalThis.ld = {};
+var pd = {};
+var ld = {};
 Object.assign(window, {
   observe: (subjects, updateCallback) => {
     return {
@@ -330,7 +330,7 @@ var initPageData = (data, currentPage2, previousPage, bindLevel) => {
     }
   }
 };
-var loadPage = (previousPage = null) => {
+var loadPage = async (previousPage = null) => {
   const fixedUrl = new URL(loc.href);
   fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
   const pathname = fixedUrl.pathname;
@@ -341,13 +341,14 @@ var loadPage = (previousPage = null) => {
   );
   history.replaceState(null, "", fixedUrl.href);
   {
-    let pageData = pd[pathname];
-    if (!pd) {
-      console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;");
-      return;
+    const pageDataScript = document.head.querySelector(`script[data-page="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+    const { data } = await import(pageDataScript.src);
+    if (!pd[pathname]) pd[pathname] = data;
+    {
+      const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+      if (dataScript) dataScript.remove();
     }
-    ;
-    initPageData(pageData, currentPage, previousPage, 1 /* STRICT */);
+    initPageData(pd[pathname], currentPage, previousPage, 1 /* STRICT */);
   }
   {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -356,11 +357,17 @@ var loadPage = (previousPage = null) => {
       "/"
     ];
     for (const path of paths) {
-      const data = ld[path];
-      if (!data) {
+      const layoutDataScript = document.querySelector(`script[data-layout="true"][data-pathname="${path}"]`);
+      if (!layoutDataScript) {
         continue;
       }
-      initPageData(data, path, previousPage, 2 /* SCOPED */);
+      const { data } = await import(layoutDataScript.src);
+      if (!ld[pathname]) ld[pathname] = data;
+      {
+        const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+        if (dataScript) dataScript.remove();
+      }
+      initPageData(ld[pathname], path, previousPage, 2 /* SCOPED */);
     }
   }
   console.info(
@@ -481,7 +488,7 @@ var navigateLocally = async (target, pushState = true) => {
     update(oldTags, newTags, (node) => node.remove());
   }
   if (pushState) history.pushState(null, "", targetURL.href);
-  loadPage(currentPage);
+  await loadPage(currentPage);
   currentPage = pathname;
   if (targetURL.hash) {
     doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();

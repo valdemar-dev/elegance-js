@@ -5,8 +5,8 @@ import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 
 console.log("Elegance.JS is loading..");
 
-if (!globalThis.pd) globalThis.pd = {};
-if (!globalThis.ld) globalThis.ld = {};
+let pd: Record<string, any> = {};
+let ld: Record<string, any> = {};
 
 /** Determines how strict we should be with layout_data and page_data when we clean it. */
 enum BindLevel {
@@ -296,7 +296,7 @@ const initPageData = (
         }
     }
 };
-const loadPage = (
+const loadPage = async (
     previousPage: null | string = null
 ) => {
     const fixedUrl = new URL(loc.href);
@@ -304,16 +304,6 @@ const loadPage = (
 
     const pathname = fixedUrl.pathname;
     currentPage = pathname;
-    
-    /*
-        template[lid="id"], is where children of a layout will be placed,
-        when that layout is navigated to.
-        however, we don't want this template element to exist,
-        since it could mess up some of the users code.
-        
-        and such, we remove it, and instead get it's previous sibling / parent,
-        and mark it with a lid=["id"].
-    */
     
     /*
         it's important to do this *before*
@@ -332,14 +322,19 @@ const loadPage = (
         init page state
     */
     {
-        let pageData = pd[pathname];
+        const pageDataScript = document.head.querySelector(`script[data-page="true"][data-pathname="${sanitizePathname(pathname)}"]`) as HTMLScriptElement;
         
-        if (!pd) {
-            console.error(`%cFailed to load! Missing page data!`, "font-size: 20px; font-weight: 600;")
-            return;
-        };
+        const { data } = await import(pageDataScript.src);
+        if (!pd[pathname]) pd[pathname] = data;
         
-        initPageData(pageData, currentPage, previousPage, BindLevel.STRICT);
+        // remove the script that contained the string literal of the page_data
+        {
+            const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+            
+            if (dataScript) dataScript.remove();
+        }
+        
+        initPageData(pd[pathname], currentPage, previousPage, BindLevel.STRICT);
     }
     
     /*
@@ -355,12 +350,24 @@ const loadPage = (
         ];
         
         for (const path of paths) {
-            const data = ld[path];
-            if (!data) {
+            const layoutDataScript = document.querySelector(`script[data-layout="true"][data-pathname="${path}"]`) as HTMLScriptElement;
+            
+            if (!layoutDataScript) {
                 continue;
             }
+        
+            const { data } = await import(layoutDataScript.src);
             
-            initPageData(data, path, previousPage, BindLevel.SCOPED);
+            if (!ld[pathname]) ld[pathname] = data;
+            
+            // remove the script that contained the string literal of the page_data
+            {
+                const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+                
+                if (dataScript) dataScript.remove();
+            }
+
+            initPageData(ld[pathname], path, previousPage, BindLevel.SCOPED);
         }
     }
 
@@ -534,7 +541,7 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     if (pushState) history.pushState(null, "", targetURL.href); 
     
-    loadPage(currentPage);
+    await loadPage(currentPage);
     
     currentPage = pathname;
 

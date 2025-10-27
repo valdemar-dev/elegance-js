@@ -1,11 +1,11 @@
-import { buildDynamicPage } from "../dynamic_page";
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'http';
-import { promises as fs, readFileSync } from 'fs';
+import { promises as fs, readFileSync, Stats } from 'fs';
 import { join, normalize, extname, dirname, resolve, relative } from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
 import { log } from "../log";
 import { gzip, deflate } from 'zlib';
 import { promisify } from 'util';
+import { buildDynamicPage, PAGE_MAP, LAYOUT_MAP } from "../page_compiler";
 
 const gzipAsync = promisify(gzip);
 const deflateAsync = promisify(deflate);
@@ -66,9 +66,11 @@ export function startServer({
             }
 
             const url = new URL(req.url, `http://${req.headers.host}`);
-
+            
             if (url.pathname.startsWith('/api/')) {
                 await handleApiRequest(root, url.pathname, req, res);
+            } else if (PAGE_MAP.has(url.pathname)) {
+                await handlePageRequest(root, url.pathname, req, res, DIST_DIR, PAGE_MAP.get(url.pathname)!);
             } else {
                 await handleStaticRequest(root, url.pathname, req, res, DIST_DIR);
             }
@@ -103,48 +105,48 @@ export function startServer({
     return attemptListen(port);
 }
 
+interface TargetInfo {
+    filePath: string;
+    targetDir: string;
+    stats?: Stats;
+}
 
-async function handleStaticRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse, DIST_DIR: string) {
+async function getTargetInfo(root: string, pathname: string): Promise<TargetInfo> {
     const originalPathname = pathname;
-    let filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, '');
+    const filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, '');
     if (!filePath.startsWith(root)) {
-        await sendResponse(req, res, 403, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Forbidden');
-        return;
+        throw new Error('Forbidden');
     }
 
-    let stats;
+    let stats: Stats | undefined;
     try {
         stats = await fs.stat(filePath);
     } catch {}
 
-    let pageDir: string;
+    let targetDir: string;
     if (stats) {
-        if (stats.isDirectory()) {
-            pageDir = filePath;
-        } else {
-            pageDir = dirname(filePath);
-        }
+        targetDir = stats.isDirectory() ? filePath : dirname(filePath);
     } else {
-        if (originalPathname.endsWith('/')) {
-            pageDir = filePath;
-        } else {
-            pageDir = dirname(filePath);
-        }
+        targetDir = originalPathname.endsWith('/') ? filePath : dirname(filePath);
     }
 
-    const relDir = pageDir.slice(root.length).replace(/^[\/\\]+/, '');
-    const parts = relDir.split(/[\\/]/).filter(Boolean);
+    return { filePath, targetDir, stats };
+}
 
+function getMiddlewareDirs(base: string, parts: string[]): string[] {
     const middlewareDirs: string[] = [];
-    let current = root;
+    let current = base;
     middlewareDirs.push(current);
     for (const part of parts) {
         current = join(current, part);
         middlewareDirs.push(current);
     }
+    return middlewareDirs;
+}
 
+async function collectMiddlewares(dirs: string[]): Promise<((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[]> {
     const middlewares: ((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[] = [];
-    for (const dir of middlewareDirs) {
+    for (const dir of dirs) {
         const mwPath = join(dir, 'middleware.mjs');
         let mwModule;
         try {
@@ -163,70 +165,133 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
             }
         }
     }
+    return middlewares;
+}
 
-    let isDynamic = false;
-    let handlerPath = filePath;
-    if (stats && stats.isDirectory()) {
-        const pageMjsPath = join(filePath, 'page.mjs');
-        try {
-            await fs.access(pageMjsPath);
-            handlerPath = pageMjsPath;
-            isDynamic = true;
-        } catch {
-            handlerPath = join(filePath, 'index.html');
-            isDynamic = false;
-        }
-    } else {
-        handlerPath = filePath;
-        isDynamic = false;
-    }
-
-    let hasHandler = false;
+async function handlePageRequest(
+    root: string, 
+    pathname: string, 
+    req: IncomingMessage, 
+    res: ServerResponse, 
+    DIST_DIR: string,
+    pageInfo: PageInformation
+) {
     try {
-        await fs.access(handlerPath);
-        hasHandler = true;
-    } catch {}
+        const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
 
-    const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
-        if (!hasHandler) {
-            await respondWithErrorPage(root, pathname, 404, req, res);
-            return;
-        }
+        const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, '');
+        const parts = relDir.split(/[\\/]/).filter(Boolean);
+        const middlewareDirs = getMiddlewareDirs(root, parts);
+        const middlewares = await collectMiddlewares(middlewareDirs);
+        
+        let isDynamic = pageInfo.isDynamic;
+        const handlerPath = isDynamic ? pageInfo.filePath : join(filePath, 'index.html');
 
-        if (isDynamic) {
-            try {
-                const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR, req, res);
+        let hasHandler = false;
+        try {
+            await fs.access(handlerPath);
+            hasHandler = true;
+        } catch {}
+
+        const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
+            if (!hasHandler) {
+                await respondWithErrorPage(root, pathname, 404, req, res);
                 
-                // builddynamicpage has access to req,res, which the requestHook function within a page might call
-                // if they decide to do something with it, we need to stop
-                // (hence a false return). i believe this is cleaner than a throw catch in this specific scenario
-                if (resultHTML === false) {
-                    return;
+                return;
+            }
+
+            if (isDynamic) {
+                try {
+                    const { resultHTML } = await buildDynamicPage(
+                        DIST_DIR,
+                        pathname,
+                        pageInfo,
+                    );
+                    
+                    if (resultHTML === false) {
+                        return;
+                    }
+                    
+                    await sendResponse(req, res, 200, { 'Content-Type': MIME_TYPES[".html"] }, resultHTML);
+                } catch(err) {
+                    log.error("Error building dynamic page -", err);
                 }
                 
-                await sendResponse(req, res, 200, { 'Content-Type': MIME_TYPES[".html"] }, resultHTML);
-            } catch(err) {
-                log.error("Error building dynamic page -", err);
+            } else {
+                const ext = extname(handlerPath).toLowerCase();
+                const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+                
+                const data = await fs.readFile(handlerPath);
+                
+                await sendResponse(req, res, 200, { 'Content-Type': contentType }, data);
             }
-            
+        };
+
+        const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+        await composed(req, res);
+    } catch (err: any) {
+        if (err.message === 'Forbidden') {
+            await sendResponse(req, res, 403, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Forbidden');
         } else {
+            throw err;
+        }
+    }
+}
+
+async function handleStaticRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse, DIST_DIR: string) {
+    try {
+        const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
+
+        const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, '');
+        const parts = relDir.split(/[\\/]/).filter(Boolean);
+        const middlewareDirs = getMiddlewareDirs(root, parts);
+        const middlewares = await collectMiddlewares(middlewareDirs);
+
+        let handlerPath = filePath;
+        if (stats && stats.isDirectory()) {
+            handlerPath = join(filePath, 'index.html');
+        } else {
+            handlerPath = filePath;
+        }
+
+        let hasHandler = false;
+        try {
+            await fs.access(handlerPath);
+            hasHandler = true;
+        } catch {}
+
+        const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
+            if (!hasHandler) {
+                await respondWithErrorPage(root, pathname, 404, req, res);
+                return;
+            }
+
             const ext = extname(handlerPath).toLowerCase();
             const contentType = MIME_TYPES[ext] || 'application/octet-stream';
             
             const data = await fs.readFile(handlerPath);
             
             await sendResponse(req, res, 200, { 'Content-Type': contentType }, data);
-        }
-    };
+        };
 
-    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
-    await composed(req, res);
+        const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+        await composed(req, res);
+    } catch (err: any) {
+        if (err.message === 'Forbidden') {
+            await sendResponse(req, res, 403, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Forbidden');
+        } else {
+            throw err;
+        }
+    }
 }
 
 async function handleApiRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse) {
     const apiSubPath = pathname.slice('/api/'.length);
     const parts = apiSubPath.split('/').filter(Boolean);
-    const routeDir = join(root, pathname);
+    const middlewareDirs = getMiddlewareDirs(join(root, 'api'), parts);
+    const middlewares = await collectMiddlewares(middlewareDirs);
+
+    const routeDir = middlewareDirs[middlewareDirs.length - 1];
     const routePath = join(routeDir, 'route.mjs');
 
     let hasRoute = false;
@@ -253,37 +318,6 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
         }
     }
     
-    const middlewareDirs: string[] = [];
-    let current = join(root, 'api');
-    
-    middlewareDirs.push(current);
-    
-    for (const part of parts) {
-        current = join(current, part);
-        middlewareDirs.push(current);
-    }
-
-    const middlewares: ((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[] = [];
-    for (const dir of middlewareDirs) {
-        const mwPath = join(dir, 'middleware.mjs');
-        let mwModule;
-        try {
-            await fs.access(mwPath);
-            const url = pathToFileURL(mwPath).href;
-            mwModule = await import(url);
-        } catch {
-            continue;
-        }
-
-        const mwKeys = Object.keys(mwModule).sort();
-        for (const key of mwKeys) {
-            const f = mwModule[key];
-            if (typeof f === 'function' && !middlewares.some(existing => existing === f)) {
-                middlewares.push(f);
-            }
-        }
-    }
-
     const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
         if (!hasRoute) {
             return respondWithJsonError(req, res, 404, 'Not Found');

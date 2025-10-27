@@ -114,8 +114,6 @@ const reactiveMap = function <
             const currentlyWatched: any[] = [];
             
             const createElements = () => {
-                const state = pd[client.currentPage].stateManager;
-                
                 for (let i = 0; i < value.length; i += 1) {
                     const htmlElement = client.renderRecursively(templateFn.value(value[i], i, ...deps as any), attributes) as HTMLElement;
                     
@@ -134,7 +132,7 @@ const reactiveMap = function <
                             const { field, subjects, updateCallback } = attribute;
                              
                             for (const reference of subjects) {
-                                const subject = state.get(reference.id, reference.bind);
+                                const subject = state.get(reference.id, reference.bind)!;
                                 
                                 const updateFunction = (value: any) => {
                                     values[subject.id] = value;
@@ -190,10 +188,6 @@ const reactiveMap = function <
                 
                 for (const el of list) { el.remove(); }
                 
-                const pageData = pd[client.currentPage];
-                
-                const state = pageData.stateManager;
-                    
                 for (const watched of currentlyWatched) {                    
                     state.unobserve(watched.subject, watched.key);
                 }

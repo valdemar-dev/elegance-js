@@ -5,7 +5,6 @@ import child_process from "node:child_process";
 import http, { IncomingMessage, ServerResponse } from "http";
 
 import { log, setQuiet } from "./log";
-import { startServer } from "./server/server";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +79,7 @@ const getAllSubdirectories = (dir: string, baseDir = dir) => {
 
 let child: child_process.ChildProcess | undefined = undefined;
 let isBuilding = false;
+
 const runBuild = (filepath: string, DIST_DIR: string) => {
     const optionsString = JSON.stringify(options);
     
@@ -124,9 +124,6 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
                 
                 options.postCompile();
             }
-        } else if (data === "set-layouts") {
-            globalThis.__SERVER_CURRENT_LAYOUTS__ = new Map(JSON.parse(message.layouts));
-            globalThis.__SERVER_CURRENT_LAYOUT_ID__ = parseInt(message.currentLayoutId);
         }
     });
 };
@@ -157,7 +154,6 @@ const registerListener = async () => {
 
             httpStream = res;
 
-            // makes weird buffering thing go away lol
             httpStream.write(`data: ping\n\n`);
         } else {
             res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -201,15 +197,7 @@ export const compile = async (props: CompilationOptions) => {
         fs.mkdirSync(DIST_DIR, { recursive: true, });
     }
     
-    if (props.server != undefined && props.server.runServer == true) {
-        startServer({
-            root: props.server.root ?? DIST_DIR,
-            environment: props.environment,
-            port: props.server.port ?? 3000,
-            host: props.server.host ?? "localhost",
-            DIST_DIR,
-        })
-    }
+
         
     if (watch) {
         await registerListener()

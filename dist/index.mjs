@@ -87,7 +87,6 @@ var reactiveMap = function(template, deps) {
       const attributes = [];
       const currentlyWatched = [];
       const createElements = () => {
-        const state3 = pd[client.currentPage].stateManager;
         for (let i = 0; i < value.length; i += 1) {
           const htmlElement = client.renderRecursively(templateFn2.value(value[i], i, ...deps2), attributes);
           htmlElement.setAttribute("map-id", subject2.id.toString());
@@ -100,7 +99,7 @@ var reactiveMap = function(template, deps) {
               case 2 /* OBSERVER */: {
                 const { field, subjects, updateCallback } = attribute;
                 for (const reference of subjects) {
-                  const subject3 = state3.get(reference.id, reference.bind);
+                  const subject3 = state2.get(reference.id, reference.bind);
                   const updateFunction = (value2) => {
                     values[subject3.id] = value2;
                     try {
@@ -113,7 +112,7 @@ var reactiveMap = function(template, deps) {
                     }
                   };
                   updateFunction(subject3.value);
-                  state3.observe(subject3, updateFunction, elementKey);
+                  state2.observe(subject3, updateFunction, elementKey);
                   currentlyWatched.push({
                     key: elementKey,
                     subject: subject3
@@ -141,10 +140,8 @@ var reactiveMap = function(template, deps) {
         for (const el2 of list) {
           el2.remove();
         }
-        const pageData = pd[client.currentPage];
-        const state3 = pageData.stateManager;
         for (const watched of currentlyWatched) {
-          state3.unobserve(watched.subject, watched.key);
+          state2.unobserve(watched.subject, watched.key);
         }
         currentlyWatched.splice(0, currentlyWatched.length);
       };

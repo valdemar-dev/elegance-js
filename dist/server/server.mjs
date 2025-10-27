@@ -1,21 +1,65 @@
-// src/dynamic_page.ts
+// src/server/server.ts
+import { createServer as createHttpServer } from "http";
+import { promises as fs2 } from "fs";
+import { join, normalize, extname, dirname } from "path";
+import { pathToFileURL } from "url";
+
+// src/log.ts
+var quiet = false;
+function getTimestamp() {
+  const now = /* @__PURE__ */ new Date();
+  return now.toLocaleString(void 0, {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
+function color(text, code) {
+  return `\x1B[${code}m${text}\x1B[0m`;
+}
+function logInfo(...args) {
+  if (quiet) return;
+  console.info(`Elegance.JS: ${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
+}
+function logWarn(...args) {
+  if (quiet) return;
+  console.warn(`Elegance.JS: ${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
+}
+function logError(...args) {
+  console.error(`Elegance.JS: ${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
+}
+var log = {
+  info: logInfo,
+  warn: logWarn,
+  error: logError
+};
+
+// src/server/server.ts
+import { gzip, deflate } from "zlib";
+import { promisify } from "util";
+
+// src/page_compiler.ts
 import fs from "fs";
 import path from "path";
+import { registerLoader, setArcTsConfig } from "ts-arc";
 import esbuild from "esbuild";
 import { fileURLToPath } from "url";
 
 // src/shared/serverElements.ts
 var createBuildableElement = (tag) => {
-  return (options, ...children) => ({
+  return (options2, ...children) => ({
     tag,
-    options: options || {},
+    options: options2 || {},
     children
   });
 };
 var createChildrenlessBuildableElement = (tag) => {
-  return (options) => ({
+  return (options2) => ({
     tag,
-    options: options || {},
+    options: options2 || {},
     children: null
   });
 };
@@ -227,7 +271,8 @@ var generateHTMLTemplate = async ({
     StartTemplate += `<script data-module="true" src="/shipped/${globalName}.js" defer="true"></script>`;
   }
   if (addPageScriptTag === true) {
-    StartTemplate += `<script data-page="true" type="module" src="${pageURL === "" ? "" : "/"}${pageURL}/${name}_data.js" defer="true"></script>`;
+    const sanitized = pageURL === "" ? "/" : pageURL;
+    StartTemplate += `<script data-page="true" type="module" data-pathname="${sanitized}" src="${sanitized}${name}_data.js" defer="true"></script>`;
   }
   StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
   let builtHead;
@@ -265,21 +310,90 @@ var getObjectAttributes = () => {
 var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
 var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
 
-// src/dynamic_page.ts
+// src/server/layout.ts
+var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
+if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
+
+// src/page_compiler.ts
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path.dirname(__filename);
+setArcTsConfig(__dirname);
+registerLoader();
 var packageDir = process.env.PACKAGE_PATH;
 if (packageDir === void 0) {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
   packageDir = path.resolve(__dirname, "..");
 }
+var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
+var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
+var shippedModules = /* @__PURE__ */ new Map();
+var modulesToShip = [];
+var yellow = (text) => {
+  return `\x1B[38;2;238;184;68m${text}`;
+};
+var black = (text) => {
+  return `\x1B[38;2;0;0;0m${text}`;
+};
+var bgYellow = (text) => {
+  return `\x1B[48;2;238;184;68m${text}`;
+};
+var bold = (text) => {
+  return `\x1B[1m${text}`;
+};
+var underline = (text) => {
+  return `\x1B[4m${text}`;
+};
+var white = (text) => {
+  return `\x1B[38;2;255;247;229m${text}`;
+};
+var log2 = (...text) => {
+  if (options.quiet) return;
+  return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
+};
+var options = JSON.parse(process.env.OPTIONS);
+var DIST_DIR = process.env.DIST_DIR;
+var PAGE_MAP = /* @__PURE__ */ new Map();
+var LAYOUT_MAP = /* @__PURE__ */ new Map();
+var getAllSubdirectories = (dir, baseDir = dir) => {
+  let directories = [];
+  const items = fs.readdirSync(dir, { withFileTypes: true });
+  for (const item of items) {
+    if (item.isDirectory()) {
+      const fullPath = path.join(dir, item.name);
+      const relativePath = path.relative(baseDir, fullPath);
+      directories.push(relativePath);
+      directories = directories.concat(getAllSubdirectories(fullPath, baseDir));
+    }
+  }
+  return directories;
+};
+var buildClient = async (DIST_DIR2) => {
+  let clientString = "window.__name = (func) => func; ";
+  clientString += fs.readFileSync(clientPath, "utf-8");
+  if (options.hotReload !== void 0) {
+    clientString += `const watchServerPort = ${options.hotReload.port}`;
+    clientString += fs.readFileSync(watcherPath, "utf-8");
+  }
+  const transformedClient = await esbuild.transform(clientString, {
+    minify: options.environment === "production",
+    drop: options.environment === "production" ? ["console", "debugger"] : void 0,
+    keepNames: false,
+    format: "iife",
+    platform: "node",
+    loader: "ts"
+  });
+  fs.writeFileSync(
+    path.join(DIST_DIR2, "/client.js"),
+    transformedClient.code
+  );
+};
 var elementKey = 0;
 var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
   const lcOptionName = optionName.toLowerCase();
-  const options = element.options;
-  let key = options.key;
+  const options2 = element.options;
+  let key = options2.key;
   if (key == void 0) {
     key = elementKey += 1;
-    options.key = key;
+    options2.key = key;
   }
   if (!optionValue.type) {
     throw `ObjectAttributeType is missing from object attribute. ${element.tag}: ${optionName}/${optionValue}`;
@@ -289,15 +403,15 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
     case 1 /* STATE */:
       const SOA = optionValue;
       if (typeof SOA.value === "function") {
-        delete options[optionName];
+        delete options2[optionName];
         break;
       }
       if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
         element.children = [SOA.value];
-        delete options[optionName];
+        delete options2[optionName];
       } else {
-        delete options[optionName];
-        options[lcOptionName] = SOA.value;
+        delete options2[optionName];
+        options2[lcOptionName] = SOA.value;
       }
       break;
     case 2 /* OBSERVER */:
@@ -305,121 +419,233 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
       const firstValue = OOA.update(...OOA.initialValues);
       if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
         element.children = [firstValue];
-        delete options[optionName];
+        delete options2[optionName];
       } else {
-        delete options[optionName];
-        options[lcOptionName] = firstValue;
+        delete options2[optionName];
+        options2[lcOptionName] = firstValue;
       }
       optionFinal = optionName;
       break;
     case 4 /* REFERENCE */:
-      options["ref"] = optionValue.value;
+      options2["ref"] = optionValue.value;
       break;
   }
   objectAttributes.push({ ...optionValue, key, attribute: optionFinal });
 };
-var processPageElements = async (element, objectAttributes, parent) => {
-  if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
-  if (typeof element === "string") {
-    return element;
-  }
-  const processElementOptionsAsChildAndReturn = async () => {
-    const children = element.children;
-    element.children = [
-      element.options,
-      ...children
-    ];
-    element.options = {};
-    for (let i = 0; i < children.length + 1; i++) {
-      const child = element.children[i];
-      const processedChild = await processPageElements(child, objectAttributes, element);
-      element.children[i] = processedChild;
-    }
-    return {
-      ...element,
-      options: {}
-    };
-  };
-  if (typeof element.options !== "object") {
-    return await processElementOptionsAsChildAndReturn();
-  }
-  const {
-    tag: elementTag,
-    options: elementOptions,
-    children: elementChildren
-  } = element.options;
-  if (elementTag && elementOptions && elementChildren) {
-    return await processElementOptionsAsChildAndReturn();
-  }
-  const options = element.options;
-  for (const [optionName, optionValue] of Object.entries(options)) {
-    const lcOptionName = optionName.toLowerCase();
-    if (typeof optionValue !== "object") {
-      if (lcOptionName === "innertext") {
-        delete options[optionName];
-        if (element.children === null) {
-          throw `Cannot use innerText or innerHTML on childrenless elements.`;
-        }
-        element.children = [optionValue, ...element.children];
-        continue;
-      } else if (lcOptionName === "innerhtml") {
-        if (element.children === null) {
-          throw `Cannot use innerText or innerHTML on childrenless elements.`;
-        }
-        delete options[optionName];
-        element.children = [optionValue];
+function buildTrace(stack, indent = 4) {
+  try {
+    if (!stack || stack.length === 0) return "[]";
+    let traceObj = stack[stack.length - 1] && typeof stack[stack.length - 1] === "object" ? JSON.parse(JSON.stringify(stack[stack.length - 1])) : { value: stack[stack.length - 1] };
+    traceObj._error = "This is the element where the error occurred";
+    for (let i = stack.length - 2; i >= 0; i--) {
+      const parent = stack[i];
+      const child = stack[i + 1];
+      if (!parent || typeof parent !== "object") {
+        traceObj = { value: parent, _errorChild: traceObj };
         continue;
       }
-      continue;
+      let parentClone;
+      try {
+        parentClone = JSON.parse(JSON.stringify(parent));
+      } catch {
+        parentClone = { value: parent };
+      }
+      let index = -1;
+      if (Array.isArray(parentClone.children)) {
+        index = parentClone.children.findIndex((c) => c === child);
+      }
+      if (index !== -1 && parentClone.children) {
+        parentClone.children = parentClone.children.slice(0, index + 1);
+        parentClone.children[index] = traceObj;
+      } else {
+        parentClone._errorChild = traceObj;
+      }
+      traceObj = parentClone;
     }
-    ;
-    processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
+    return JSON.stringify(traceObj, null, indent).replace(/^/gm, " ".repeat(indent));
+  } catch {
+    return "Could not build stack-trace.";
   }
-  if (element.children) {
-    for (let i = 0; i < element.children.length; i++) {
-      const child = element.children[i];
-      const processedChild = await processPageElements(child, objectAttributes, element);
-      element.children[i] = processedChild;
+}
+var processPageElements = (element, objectAttributes, recursionLevel, stack = []) => {
+  stack.push(element);
+  try {
+    if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) {
+      stack.pop();
+      return element;
+    }
+    if (typeof element === "string") {
+      stack.pop();
+      return element;
+    }
+    const processElementOptionsAsChildAndReturn = () => {
+      try {
+        const children = element.children;
+        element.children = [
+          element.options,
+          ...children
+        ];
+        element.options = {};
+        for (let i = 0; i < children.length + 1; i++) {
+          const child = element.children[i];
+          const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1, stack);
+          element.children[i] = processedChild;
+        }
+        return {
+          ...element,
+          options: {}
+        };
+      } catch (e) {
+        const errorString = `Could not process element options as a child. ${e}.`;
+        throw new Error(errorString);
+      }
+    };
+    if (typeof element.options !== "object") {
+      const result = processElementOptionsAsChildAndReturn();
+      stack.pop();
+      return result;
+    }
+    const {
+      tag: elementTag,
+      options: elementOptions,
+      children: elementChildren
+    } = element.options;
+    if (elementTag && elementOptions && elementChildren) {
+      const result = processElementOptionsAsChildAndReturn();
+      stack.pop();
+      return result;
+    }
+    const options2 = element.options;
+    for (const [optionName, optionValue] of Object.entries(options2)) {
+      const lcOptionName = optionName.toLowerCase();
+      if (typeof optionValue !== "object") {
+        if (lcOptionName === "innertext") {
+          delete options2[optionName];
+          if (element.children === null) {
+            throw `Cannot use innerText or innerHTML on childrenless elements.`;
+          }
+          element.children = [optionValue, ...element.children];
+          continue;
+        } else if (lcOptionName === "innerhtml") {
+          if (element.children === null) {
+            throw `Cannot use innerText or innerHTML on childrenless elements.`;
+          }
+          delete options2[optionName];
+          element.children = [optionValue];
+          continue;
+        }
+        continue;
+      }
+      ;
+      processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes);
+    }
+    if (element.children) {
+      for (let i = 0; i < element.children.length; i++) {
+        const child = element.children[i];
+        const processedChild = processPageElements(child, objectAttributes, recursionLevel + 1, stack);
+        element.children[i] = processedChild;
+      }
+    }
+    stack.pop();
+    return element;
+  } catch (e) {
+    const trace = buildTrace(stack);
+    if (recursionLevel === 0) {
+      throw new Error(`${e}
+
+Trace:
+${trace}`);
+    } else {
+      throw e;
     }
   }
-  return element;
 };
-var generateSuitablePageElements = async (pageLocation, pageElements, metadata, DIST_DIR, pageName, requiredClientModules) => {
+var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = {}, layout, pathname = "") => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
-    return [];
+    throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
   }
   const objectAttributes = [];
-  const processedPageElements = await processPageElements(pageElements, objectAttributes, []);
-  elementKey = 0;
+  const stack = [];
+  const processedPageElements = processPageElements(pageElements, objectAttributes, 0, stack);
   const renderedPage = await serverSideRenderPage(
     processedPageElements,
     pageLocation
   );
-  const template = await generateHTMLTemplate({
-    pageURL: path.relative(DIST_DIR, pageLocation),
+  const { internals, builtMetadata } = await generateHTMLTemplate({
+    pageURL: pathname,
     head: metadata,
-    addPageScriptTag: true,
+    addPageScriptTag: doWrite,
     name: pageName,
     requiredClientModules,
-    environment: "production"
+    environment: options.environment
   });
-  const resultHTML = `<!DOCTYPE html>${template}${renderedPage.bodyHTML}`;
-  return {
-    objectAttributes,
-    resultHTML
-  };
+  let extraBodyHTML = "";
+  if (doWrite === false) {
+    const state = getState();
+    const pageLoadHooks = getLoadHooks();
+    const userObjectAttributes = getObjectAttributes();
+    const {
+      result
+    } = await generateClientPageData(
+      pathname,
+      state || {},
+      [...objectAttributes, ...userObjectAttributes],
+      pageLoadHooks || [],
+      DIST_DIR2,
+      "page",
+      "pd",
+      false
+    );
+    const sanitized = pathname === "" ? "/" : pathname;
+    extraBodyHTML = `<script data-hook="true" data-pathname="${sanitized}" type="text/plain">${result}</script>`;
+    extraBodyHTML += `<script>
+            const text = document.querySelector('[data-hook="true"][data-pathname="${sanitized}"][type="text/plain"').textContent;
+            const blob = new Blob([text], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            
+            const script = document.createElement("script");
+            script.src = url;
+            script.type = "module";
+            script.setAttribute("data-page", "true");
+            script.setAttribute("data-pathname", "${sanitized}");
+            
+            document.head.appendChild(script);
+            
+            document.currentScript.remove();
+        </script>`;
+    extraBodyHTML = extraBodyHTML.replace(/\s+/g, " ").replace(/\s*([{}();,:])\s*/g, "$1").trim();
+  }
+  const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;
+  const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${extraBodyHTML}${layout.pageContent.endHTML}`;
+  const resultHTML = `${headHTML}${bodyHTML}`;
+  const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
+  if (doWrite) {
+    const dirname2 = path.dirname(htmlLocation);
+    if (fs.existsSync(dirname2) === false) {
+      fs.mkdirSync(dirname2, { recursive: true });
+    }
+    fs.writeFileSync(
+      htmlLocation,
+      resultHTML,
+      {
+        encoding: "utf-8",
+        flag: "w"
+      }
+    );
+    return objectAttributes;
+  }
+  return resultHTML;
 };
-var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR, pageName) => {
-  const pageDiff = path.relative(DIST_DIR, pageLocation);
-  let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}
-/*ELEGANCE_JS*/
-let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
+var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd", write = true) => {
+  let clientPageJSText = "";
+  {
+    clientPageJSText += `${globalThis.__SERVER_PAGE_DATA_BANNER__}`;
+  }
   {
     clientPageJSText += `export const data = {`;
     if (state) {
-      const nonBoundState = state.filter((subj) => subj.bind === void 0);
       clientPageJSText += `state:[`;
-      for (const subject of nonBoundState) {
+      for (const subject of state) {
         if (typeof subject.value === "string") {
           const stringified = JSON.stringify(subject.value);
           clientPageJSText += `{id:${subject.id},value:${stringified}},`;
@@ -430,34 +656,6 @@ let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
         }
       }
       clientPageJSText += `],`;
-      const formattedBoundState = {};
-      const stateBinds = state.map((subj) => subj.bind).filter((bind) => bind !== void 0);
-      for (const bind of stateBinds) {
-        formattedBoundState[bind] = [];
-      }
-      ;
-      const boundState = state.filter((subj) => subj.bind !== void 0);
-      for (const subject of boundState) {
-        const bindingState = formattedBoundState[subject.bind];
-        delete subject.bind;
-        bindingState.push(subject);
-      }
-      const bindSubjectPairing = Object.entries(formattedBoundState);
-      if (bindSubjectPairing.length > 0) {
-        clientPageJSText += "binds:{";
-        for (const [bind, subjects] of bindSubjectPairing) {
-          clientPageJSText += `${bind}:[`;
-          for (const subject of subjects) {
-            if (typeof subject.value === "string") {
-              clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-            } else {
-              clientPageJSText += `{id:${subject.id},value:${JSON.stringify(subject.value)}},`;
-            }
-          }
-          clientPageJSText += "]";
-        }
-        clientPageJSText += "},";
-      }
     }
     const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
     if (stateObjectAttributes.length > 0) {
@@ -475,9 +673,7 @@ let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
         observerObjectAttributeString += `{key:${ooa.key},attribute:"${ooa.attribute}",update:${ooa.update.toString()},`;
         observerObjectAttributeString += `refs:[`;
         for (const ref of ooa.refs) {
-          observerObjectAttributeString += `{id:${ref.id}`;
-          if (ref.bind !== void 0) observerObjectAttributeString += `,bind:${ref.bind}`;
-          observerObjectAttributeString += "},";
+          observerObjectAttributeString += `{id:${ref.id}},`;
         }
         observerObjectAttributeString += "]},";
       }
@@ -487,147 +683,480 @@ let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
     if (pageLoadHooks.length > 0) {
       clientPageJSText += "lh:[";
       for (const loadHook of pageLoadHooks) {
-        const key = loadHook.bind;
-        clientPageJSText += `{fn:${loadHook.fn},bind:"${key || ""}"},`;
+        clientPageJSText += `{fn:${loadHook.fn}},`;
       }
       clientPageJSText += "],";
     }
     clientPageJSText += `};`;
   }
-  clientPageJSText += "if(!globalThis.pd) { globalThis.pd = {}; globalThis.pd[url] = data}";
-  const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
+  const pageDataPath = path.join(DIST_DIR2, pageLocation, `${pageName}_data.js`);
   let sendHardReloadInstruction = false;
-  const transformedResult = await esbuild.transform(clientPageJSText, { minify: true }).catch((error) => {
+  const transformedResult = await esbuild.transform(clientPageJSText, { minify: options.environment === "production" }).catch((error) => {
     console.error("Failed to transform client page js!", error);
   });
   if (!transformedResult) return { sendHardReloadInstruction };
-  fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
-  return { sendHardReloadInstruction };
+  if (fs.existsSync(pageDataPath)) {
+    const content = fs.readFileSync(pageDataPath).toString();
+    if (content !== transformedResult.code) {
+      sendHardReloadInstruction = true;
+    }
+  }
+  if (write) fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
+  return { sendHardReloadInstruction, result: transformedResult.code };
 };
-var buildDynamicPage = async (filePath, DIST_DIR, req, res) => {
-  let pageElements;
-  let metadata;
+var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
   globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
-  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
-  let modules = {};
+  let layoutElements;
+  let metadataElements;
+  let modules = [];
+  let isDynamicLayout = false;
   try {
     const {
-      construct
+      layout,
+      metadata,
+      isDynamic,
+      shippedModules: shippedModules2
     } = await import("file://" + filePath);
-    const {
-      page,
-      metadata: pageMetadata,
-      isDynamicPage,
-      requestHook,
-      shippedModules
-    } = construct();
-    if (shippedModules !== void 0) {
-      modules = shippedModules;
+    if (shippedModules2 !== void 0) {
+      modules = shippedModules2;
     }
-    if (typeof requestHook === "function") {
-      if (requestHook.constructor.name === "AsyncFunction") {
-        const doProcessRequest = await requestHook(req, res);
-        if (doProcessRequest !== void 0 == doProcessRequest === false) {
-          return false;
-        }
-      } else {
-        const doProcessRequest = requestHook(req, res);
-        if (doProcessRequest !== void 0 == doProcessRequest === false) {
-          return false;
-        }
-      }
-    }
-    pageElements = page;
-    metadata = pageMetadata;
-    if (isDynamicPage === false) {
-      throw new Error("Cannot dynamically render a non-dynamic page.");
+    layoutElements = layout;
+    metadataElements = metadata;
+    if (isDynamic === true) {
+      isDynamicLayout = isDynamic;
     }
   } catch (e) {
-    throw `${filePath} - ${e}
-${e?.stack ?? "No stack."}
-
-`;
+    throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
   }
-  if (!metadata || metadata && typeof metadata !== "function") {
-    console.warn(`WARNING: Dynamic ${filePath} does not export a metadata function. This is *highly* recommended.`);
+  LAYOUT_MAP.set(directory, {
+    isDynamic: isDynamicLayout,
+    filePath
+  });
+  {
+    if (!layoutElements) {
+      throw new Error(`WARNING: ${filePath} should export a const layout, which is of type Layout: (child: Child) => AnyBuiltElement.`);
+    }
+    if (typeof layoutElements === "function") {
+      if (layoutElements.constructor.name === "AsyncFunction") {
+        layoutElements = await layoutElements(childIndicator);
+      } else {
+        layoutElements = layoutElements(childIndicator);
+      }
+    }
   }
-  if (!pageElements) {
-    console.warn(`WARNING: Dynamic ${filePath} should export a const page, which is of type BuiltElement<"body">.`);
-  }
-  if (typeof pageElements === "function") {
-    if (pageElements.constructor.name === "AsyncFunction") {
-      pageElements = await pageElements();
-    } else {
-      pageElements = pageElements();
+  {
+    if (!metadataElements) {
+      throw new Error(`WARNING: ${filePath} should export a const metadata, which is of type LayoutMetadata: (child: Child) => AnyBuiltElement.`);
+    }
+    if (typeof metadataElements === "function") {
+      if (metadataElements.constructor.name === "AsyncFunction") {
+        metadataElements = await metadataElements(childIndicator);
+      } else {
+        metadataElements = metadataElements(childIndicator);
+      }
     }
   }
   const state = getState();
   const pageLoadHooks = getLoadHooks();
   const objectAttributes = getObjectAttributes();
-  const foundObjectAttributes = await generateSuitablePageElements(
-    path.dirname(filePath),
+  if (typeof layoutElements === "string" || typeof layoutElements === "boolean" || typeof layoutElements === "number" || Array.isArray(layoutElements)) {
+    throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof layoutElements}.`);
+  }
+  const foundObjectAttributes = [];
+  const stack = [];
+  const processedPageElements = processPageElements(layoutElements, foundObjectAttributes, 0, stack);
+  const renderedPage = await serverSideRenderPage(
+    processedPageElements,
+    directory
+  );
+  const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
+  await generateClientPageData(
+    directory,
+    state || {},
+    [...objectAttributes, ...foundObjectAttributes],
+    pageLoadHooks || [],
+    DIST_DIR2,
+    "layout",
+    "ld"
+  );
+  return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
+};
+var builtLayouts = /* @__PURE__ */ new Map();
+var buildLayouts = async () => {
+  const pagesDirectory = path.resolve(options.pagesDirectory);
+  const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
+  let shouldClientHardReload = false;
+  for (const directory of subdirectories) {
+    const abs = path.resolve(path.join(pagesDirectory, directory));
+    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
+    for (const file of files) {
+      const filePath = path.join(file.parentPath, file.name);
+      const name = file.name.slice(0, file.name.length - 3);
+      const isLayout = name === "layout";
+      if (isLayout == false) {
+        continue;
+      }
+      try {
+        const builtLayout = await buildLayout(filePath, directory);
+        builtLayouts.set(filePath, builtLayout);
+      } catch (e) {
+        console.error(e);
+        continue;
+      }
+    }
+  }
+  return { shouldClientHardReload };
+};
+var buildLayout = async (filePath, directory) => {
+  const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
+  const childIndicator = `<template layout-id="${id}"></template>`;
+  const { pageContentHTML, metadataHTML } = await generateLayout(
+    DIST_DIR,
+    filePath,
+    directory,
+    childIndicator
+  );
+  const splitAround = (str, sub) => {
+    const i = str.indexOf(sub);
+    if (i === -1) throw new Error("substring does not exist in parent string");
+    return {
+      startHTML: str.substring(0, i),
+      endHTML: str.substring(i + sub.length)
+    };
+  };
+  const splitAt = (str, sub) => {
+    const i = str.indexOf(sub) + sub.length;
+    if (i === -1) throw new Error("substring does not exist in parent string");
+    return {
+      startHTML: str.substring(0, i),
+      endHTML: str.substring(i)
+    };
+  };
+  const pathname = directory === "" ? "/" : directory;
+  return {
+    pageContent: splitAt(pageContentHTML, childIndicator),
+    metadata: splitAround(metadataHTML, childIndicator),
+    scriptTag: `<script data-layout="true" type="module" src="${pathname}layout_data.js" data-pathname="${pathname}" defer="true"></script>`
+  };
+};
+var fetchPageLayoutHTML = async (dirname2) => {
+  const relative2 = path.relative(options.pagesDirectory, dirname2);
+  let split = relative2.split(path.sep).filter(Boolean);
+  split.push("/");
+  split.reverse();
+  let layouts = [];
+  for (const dir of split) {
+    const filePath = path.resolve(path.join(options.pagesDirectory, dir, "layout.ts"));
+    if (builtLayouts.has(filePath)) {
+      layouts.push(builtLayouts.get(filePath));
+    }
+  }
+  const pageContent = {
+    startHTML: "",
+    endHTML: ""
+  };
+  const metadata = {
+    startHTML: "",
+    endHTML: ""
+  };
+  let scriptTags = "";
+  for (const layout of layouts) {
+    pageContent.startHTML += layout.pageContent.startHTML;
+    metadata.startHTML += layout.metadata.startHTML;
+    scriptTags += layout.scriptTag;
+    pageContent.endHTML += layout.pageContent.endHTML;
+    metadata.endHTML += layout.metadata.endHTML;
+  }
+  return { pageContent, metadata, scriptTag: scriptTags };
+};
+var buildPages = async (DIST_DIR2) => {
+  resetLayouts();
+  const pagesDirectory = path.resolve(options.pagesDirectory);
+  const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
+  let shouldClientHardReload = false;
+  for (const directory of subdirectories) {
+    const abs = path.resolve(path.join(pagesDirectory, directory));
+    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
+    for (const file of files) {
+      const filePath = path.join(file.parentPath, file.name);
+      const name = file.name.slice(0, file.name.length - 3);
+      const isPage = name === "page";
+      if (isPage == false) {
+        continue;
+      }
+      try {
+        const hardReloadForPage = await buildPage(DIST_DIR2, directory, filePath, name);
+        if (hardReloadForPage) {
+          shouldClientHardReload = true;
+        }
+      } catch (e) {
+        console.error(e);
+        continue;
+      }
+    }
+  }
+  return {
+    shouldClientHardReload
+  };
+};
+var buildPage = async (DIST_DIR2, directory, filePath, name) => {
+  initializeState();
+  initializeObjectAttributes();
+  resetLoadHooks();
+  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
+  let pageElements;
+  let metadata;
+  let modules = {};
+  let pageIgnoresLayout = false;
+  let isDynamicPage = false;
+  try {
+    const {
+      page,
+      metadata: pageMetadata,
+      isDynamic,
+      shippedModules: shippedModules2,
+      ignoreLayout
+    } = await import("file://" + filePath);
+    if (shippedModules2 !== void 0) {
+      modules = shippedModules2;
+    }
+    if (ignoreLayout) {
+      pageIgnoresLayout = true;
+    }
+    pageElements = page;
+    metadata = pageMetadata;
+    if (isDynamic === true) {
+      isDynamicPage = isDynamic;
+    }
+  } catch (e) {
+    throw new Error(`Error in Page: ${directory}/${name}.ts - ${e}`);
+  }
+  PAGE_MAP.set(directory === "" ? "/" : directory, {
+    isDynamic: isDynamicPage,
+    filePath
+  });
+  if (isDynamicPage) return false;
+  if (modules !== void 0) {
+    for (const [globalName, path2] of Object.entries(modules)) {
+      modulesToShip.push({ globalName, path: path2 });
+    }
+  }
+  if (!metadata || metadata && typeof metadata !== "function") {
+    console.warn(`WARNING: ${filePath} does not export a metadata function.`);
+  }
+  if (!pageElements) {
+    console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
+  }
+  const pageProps = {
+    pageName: directory
+  };
+  if (typeof pageElements === "function") {
+    if (pageElements.constructor.name === "AsyncFunction") {
+      pageElements = await pageElements(pageProps);
+    } else {
+      pageElements = pageElements(pageProps);
+    }
+  }
+  const state = getState();
+  const pageLoadHooks = getLoadHooks();
+  const objectAttributes = getObjectAttributes();
+  const layout = await fetchPageLayoutHTML(path.dirname(filePath));
+  const foundObjectAttributes = await pageToHTML(
+    path.join(DIST_DIR2, directory),
     pageElements || body(),
     metadata ?? (() => head()),
-    DIST_DIR,
-    "page",
-    modules
+    DIST_DIR2,
+    name,
+    true,
+    modules,
+    layout,
+    directory
   );
-  await generateClientPageData(
-    path.dirname(filePath),
+  const {
+    sendHardReloadInstruction
+  } = await generateClientPageData(
+    directory,
     state || {},
-    [...objectAttributes, ...foundObjectAttributes.objectAttributes],
+    [...objectAttributes, ...foundObjectAttributes],
     pageLoadHooks || [],
-    DIST_DIR,
-    "page"
+    DIST_DIR2,
+    name
   );
-  return foundObjectAttributes.resultHTML;
+  return sendHardReloadInstruction === true;
 };
+var buildDynamicPage = async (DIST_DIR2, directory, pageInfo) => {
+  directory = directory === "/" ? "" : directory;
+  const filePath = pageInfo.filePath;
+  initializeState();
+  initializeObjectAttributes();
+  resetLoadHooks();
+  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
+  let pageElements = async (props) => body();
+  let metadata = async (props) => html();
+  let modules = {};
+  let pageIgnoresLayout = false;
+  let isDynamicPage = false;
+  try {
+    const {
+      page,
+      metadata: pageMetadata,
+      isDynamic,
+      shippedModules: shippedModules2,
+      ignoreLayout
+    } = await import("file://" + filePath);
+    if (shippedModules2 !== void 0) {
+      modules = shippedModules2;
+    }
+    if (ignoreLayout) {
+      pageIgnoresLayout = true;
+    }
+    pageElements = page;
+    metadata = pageMetadata;
+    if (isDynamic === true) {
+      isDynamicPage = isDynamic;
+    }
+  } catch (e) {
+    throw new Error(`Error in Page: ${directory}/page.ts - ${e}`);
+  }
+  if (modules !== void 0) {
+    for (const [globalName, path2] of Object.entries(modules)) {
+      modulesToShip.push({ globalName, path: path2 });
+    }
+  }
+  if (!metadata || metadata && typeof metadata !== "function") {
+    console.warn(`WARNING: ${filePath} does not export a metadata function.`);
+  }
+  if (!pageElements) {
+    console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
+  }
+  const pageProps = {
+    pageName: directory
+  };
+  if (typeof pageElements === "function") {
+    if (pageElements.constructor.name === "AsyncFunction") {
+      pageElements = await pageElements(pageProps);
+    } else {
+      pageElements = pageElements(pageProps);
+    }
+  }
+  const layout = await fetchPageLayoutHTML(path.dirname(filePath));
+  const resultHTML = await pageToHTML(
+    path.join(DIST_DIR2, directory),
+    pageElements,
+    metadata,
+    DIST_DIR2,
+    "page",
+    false,
+    modules,
+    layout,
+    directory
+  );
+  await shipModules();
+  return { resultHTML };
+};
+var shipModules = async () => {
+  for (const plugin of modulesToShip) {
+    {
+      if (shippedModules.has(plugin.globalName)) continue;
+      shippedModules.set(plugin.globalName, true);
+    }
+    esbuild.build({
+      entryPoints: [plugin.path],
+      bundle: true,
+      outfile: path.join(DIST_DIR, "shipped", plugin.globalName + ".js"),
+      format: "iife",
+      platform: "browser",
+      globalName: plugin.globalName,
+      minify: true,
+      treeShaking: true
+    });
+  }
+  modulesToShip = [];
+};
+var build = async () => {
+  if (options.quiet === true) {
+    console.log = function() {
+    };
+    console.error = function() {
+    };
+    console.warn = function() {
+    };
+  }
+  try {
+    {
+      log2(bold(yellow(" -- Elegance.JS -- ")));
+      if (options.environment === "production") {
+        log2(
+          " - ",
+          bgYellow(bold(black(" NOTE "))),
+          " : ",
+          white("In production mode, no "),
+          underline("console.log() "),
+          white("statements will be shown on the client, and all code will be minified.")
+        );
+        log2("");
+      }
+    }
+    if (options.preCompile) {
+      options.preCompile();
+    }
+    const start = performance.now();
+    let shouldClientHardReload;
+    {
+      const { shouldClientHardReload: doReload } = await buildLayouts();
+      if (doReload) shouldClientHardReload = true;
+    }
+    {
+      const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
+      if (doReload) shouldClientHardReload = true;
+    }
+    await shipModules();
+    const pagesBuilt = performance.now();
+    await buildClient(DIST_DIR);
+    const end = performance.now();
+    if (options.publicDirectory) {
+      log2("Recursively copying public directory.. this may take a while.");
+      const src = path.relative(process.cwd(), options.publicDirectory.path);
+      if (fs.existsSync(src) === false) {
+        console.warn("WARNING: Public directory not found, an attempt will be made create it..");
+        fs.mkdirSync(src, { recursive: true });
+      }
+      await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true });
+    }
+    {
+      log2(`Took ${Math.round(pagesBuilt - start)}ms to Build Pages.`);
+      log2(`Took ${Math.round(end - pagesBuilt)}ms to Build Client.`);
+    }
+    if (options.server != void 0 && options.server.runServer == true) {
+      startServer({
+        root: options.server.root ?? DIST_DIR,
+        environment: options.environment,
+        port: options.server.port ?? 3e3,
+        host: options.server.host ?? "localhost",
+        DIST_DIR
+      });
+    }
+    process.send?.({ event: "message", data: "compile-finish" });
+    if (shouldClientHardReload) {
+      process.send({ event: "message", data: "hard-reload" });
+    } else {
+      process.send({ event: "message", data: "soft-reload" });
+    }
+  } catch (e) {
+    console.error("Build Failed! Received Error:");
+    console.error(e);
+    return false;
+  }
+  return true;
+};
+(async () => {
+  await build();
+})();
 
 // src/server/server.ts
-import { createServer as createHttpServer } from "http";
-import { promises as fs2 } from "fs";
-import { join, normalize, extname, dirname, resolve } from "path";
-import { pathToFileURL } from "url";
-
-// src/log.ts
-var quiet = false;
-function getTimestamp() {
-  const now = /* @__PURE__ */ new Date();
-  return now.toLocaleString(void 0, {
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-}
-function color(text, code) {
-  return `\x1B[${code}m${text}\x1B[0m`;
-}
-function logInfo(...args) {
-  if (quiet) return;
-  console.info(`Elegance.JS: ${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
-}
-function logWarn(...args) {
-  if (quiet) return;
-  console.warn(`Elegance.JS: ${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
-}
-function logError(...args) {
-  console.error(`Elegance.JS: ${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
-}
-var log = {
-  info: logInfo,
-  warn: logWarn,
-  error: logError
-};
-
-// src/server/server.ts
-import { gzip, deflate } from "zlib";
-import { promisify } from "util";
 var gzipAsync = promisify(gzip);
 var deflateAsync = promisify(deflate);
 var MIME_TYPES = {
@@ -648,7 +1177,7 @@ function startServer({
   port = 3e3,
   host = "localhost",
   environment = "production",
-  DIST_DIR
+  DIST_DIR: DIST_DIR2
 }) {
   if (!root) throw new Error("Root directory must be specified.");
   root = normalize(root).replace(/[\\/]+$/, "");
@@ -672,8 +1201,10 @@ function startServer({
       const url = new URL(req.url, `http://${req.headers.host}`);
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(root, url.pathname, req, res);
+      } else if (PAGE_MAP.has(url.pathname)) {
+        await handlePageRequest(root, url.pathname, req, res, DIST_DIR2, PAGE_MAP.get(url.pathname));
       } else {
-        await handleStaticRequest(root, url.pathname, req, res, DIST_DIR);
+        await handleStaticRequest(root, url.pathname, req, res, DIST_DIR2);
       }
       if (environment === "development") {
         log.info(req.method, "::", req.url, "-", res.statusCode);
@@ -699,43 +1230,38 @@ function startServer({
   }
   return attemptListen(port);
 }
-async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
+async function getTargetInfo(root, pathname) {
   const originalPathname = pathname;
-  let filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, "");
+  const filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, "");
   if (!filePath.startsWith(root)) {
-    await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
-    return;
+    throw new Error("Forbidden");
   }
   let stats;
   try {
     stats = await fs2.stat(filePath);
   } catch {
   }
-  let pageDir;
+  let targetDir;
   if (stats) {
-    if (stats.isDirectory()) {
-      pageDir = filePath;
-    } else {
-      pageDir = dirname(filePath);
-    }
+    targetDir = stats.isDirectory() ? filePath : dirname(filePath);
   } else {
-    if (originalPathname.endsWith("/")) {
-      pageDir = filePath;
-    } else {
-      pageDir = dirname(filePath);
-    }
+    targetDir = originalPathname.endsWith("/") ? filePath : dirname(filePath);
   }
-  const relDir = pageDir.slice(root.length).replace(/^[\/\\]+/, "");
-  const parts = relDir.split(/[\\/]/).filter(Boolean);
+  return { filePath, targetDir, stats };
+}
+function getMiddlewareDirs(base, parts) {
   const middlewareDirs = [];
-  let current = root;
+  let current = base;
   middlewareDirs.push(current);
   for (const part of parts) {
     current = join(current, part);
     middlewareDirs.push(current);
   }
+  return middlewareDirs;
+}
+async function collectMiddlewares(dirs) {
   const middlewares = [];
-  for (const dir of middlewareDirs) {
+  for (const dir of dirs) {
     const mwPath = join(dir, "middleware.mjs");
     let mwModule;
     try {
@@ -753,57 +1279,104 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR) {
       }
     }
   }
-  let isDynamic = false;
-  let handlerPath = filePath;
-  if (stats && stats.isDirectory()) {
-    const pageMjsPath = join(filePath, "page.mjs");
-    try {
-      await fs2.access(pageMjsPath);
-      handlerPath = pageMjsPath;
-      isDynamic = true;
-    } catch {
-      handlerPath = join(filePath, "index.html");
-      isDynamic = false;
-    }
-  } else {
-    handlerPath = filePath;
-    isDynamic = false;
-  }
-  let hasHandler = false;
+  return middlewares;
+}
+async function handlePageRequest(root, pathname, req, res, DIST_DIR2, pageInfo) {
   try {
-    await fs2.access(handlerPath);
-    hasHandler = true;
-  } catch {
-  }
-  const finalHandler = async (req2, res2) => {
-    if (!hasHandler) {
-      await respondWithErrorPage(root, pathname, 404, req2, res2);
-      return;
+    const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
+    const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
+    const parts = relDir.split(/[\\/]/).filter(Boolean);
+    const middlewareDirs = getMiddlewareDirs(root, parts);
+    const middlewares = await collectMiddlewares(middlewareDirs);
+    let isDynamic = pageInfo.isDynamic;
+    const handlerPath = isDynamic ? pageInfo.filePath : join(filePath, "index.html");
+    let hasHandler = false;
+    try {
+      await fs2.access(handlerPath);
+      hasHandler = true;
+    } catch {
     }
-    if (isDynamic) {
-      try {
-        const resultHTML = await buildDynamicPage(resolve(handlerPath), DIST_DIR, req2, res2);
-        if (resultHTML === false) {
-          return;
-        }
-        await sendResponse(req2, res2, 200, { "Content-Type": MIME_TYPES[".html"] }, resultHTML);
-      } catch (err) {
-        log.error("Error building dynamic page -", err);
+    const finalHandler = async (req2, res2) => {
+      if (!hasHandler) {
+        await respondWithErrorPage(root, pathname, 404, req2, res2);
+        return;
       }
+      if (isDynamic) {
+        try {
+          const { resultHTML } = await buildDynamicPage(
+            DIST_DIR2,
+            pathname,
+            pageInfo
+          );
+          if (resultHTML === false) {
+            return;
+          }
+          await sendResponse(req2, res2, 200, { "Content-Type": MIME_TYPES[".html"] }, resultHTML);
+        } catch (err) {
+          log.error("Error building dynamic page -", err);
+        }
+      } else {
+        const ext = extname(handlerPath).toLowerCase();
+        const contentType = MIME_TYPES[ext] || "application/octet-stream";
+        const data = await fs2.readFile(handlerPath);
+        await sendResponse(req2, res2, 200, { "Content-Type": contentType }, data);
+      }
+    };
+    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+    await composed(req, res);
+  } catch (err) {
+    if (err.message === "Forbidden") {
+      await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
     } else {
+      throw err;
+    }
+  }
+}
+async function handleStaticRequest(root, pathname, req, res, DIST_DIR2) {
+  try {
+    const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
+    const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
+    const parts = relDir.split(/[\\/]/).filter(Boolean);
+    const middlewareDirs = getMiddlewareDirs(root, parts);
+    const middlewares = await collectMiddlewares(middlewareDirs);
+    let handlerPath = filePath;
+    if (stats && stats.isDirectory()) {
+      handlerPath = join(filePath, "index.html");
+    } else {
+      handlerPath = filePath;
+    }
+    let hasHandler = false;
+    try {
+      await fs2.access(handlerPath);
+      hasHandler = true;
+    } catch {
+    }
+    const finalHandler = async (req2, res2) => {
+      if (!hasHandler) {
+        await respondWithErrorPage(root, pathname, 404, req2, res2);
+        return;
+      }
       const ext = extname(handlerPath).toLowerCase();
       const contentType = MIME_TYPES[ext] || "application/octet-stream";
       const data = await fs2.readFile(handlerPath);
       await sendResponse(req2, res2, 200, { "Content-Type": contentType }, data);
+    };
+    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+    await composed(req, res);
+  } catch (err) {
+    if (err.message === "Forbidden") {
+      await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
+    } else {
+      throw err;
     }
-  };
-  const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
-  await composed(req, res);
+  }
 }
 async function handleApiRequest(root, pathname, req, res) {
   const apiSubPath = pathname.slice("/api/".length);
   const parts = apiSubPath.split("/").filter(Boolean);
-  const routeDir = join(root, pathname);
+  const middlewareDirs = getMiddlewareDirs(join(root, "api"), parts);
+  const middlewares = await collectMiddlewares(middlewareDirs);
+  const routeDir = middlewareDirs[middlewareDirs.length - 1];
   const routePath = join(routeDir, "route.mjs");
   let hasRoute = false;
   try {
@@ -823,32 +1396,6 @@ async function handleApiRequest(root, pathname, req, res) {
       return respondWithJsonError(req, res, 500, "Internal Server Error");
     }
   }
-  const middlewareDirs = [];
-  let current = join(root, "api");
-  middlewareDirs.push(current);
-  for (const part of parts) {
-    current = join(current, part);
-    middlewareDirs.push(current);
-  }
-  const middlewares = [];
-  for (const dir of middlewareDirs) {
-    const mwPath = join(dir, "middleware.mjs");
-    let mwModule;
-    try {
-      await fs2.access(mwPath);
-      const url = pathToFileURL(mwPath).href;
-      mwModule = await import(url);
-    } catch {
-      continue;
-    }
-    const mwKeys = Object.keys(mwModule).sort();
-    for (const key of mwKeys) {
-      const f = mwModule[key];
-      if (typeof f === "function" && !middlewares.some((existing) => existing === f)) {
-        middlewares.push(f);
-      }
-    }
-  }
   const finalHandler = async (req2, res2) => {
     if (!hasRoute) {
       return respondWithJsonError(req2, res2, 404, "Not Found");
@@ -861,15 +1408,15 @@ async function handleApiRequest(root, pathname, req, res) {
   const composed = composeMiddlewares(middlewares, finalHandler, { isApi: true });
   await composed(req, res);
 }
-function composeMiddlewares(mws, final, options) {
+function composeMiddlewares(mws, final, options2) {
   return async function(req, res) {
     let index = 0;
     async function dispatch(err) {
       if (err) {
-        if (options.isApi) {
+        if (options2.isApi) {
           return respondWithJsonError(req, res, 500, err.message || "Internal Server Error");
         } else {
-          return await respondWithErrorPage(options.root, options.pathname, 500, req, res);
+          return await respondWithErrorPage(options2.root, options2.pathname, 500, req, res);
         }
       }
       if (index >= mws.length) {
@@ -930,8 +1477,8 @@ async function respondWithErrorPage(root, pathname, code, req, res) {
   }
   if (errorFilePath) {
     try {
-      const html = await fs2.readFile(errorFilePath, "utf8");
-      await sendResponse(req, res, code, { "Content-Type": "text/html; charset=utf-8" }, html);
+      const html2 = await fs2.readFile(errorFilePath, "utf8");
+      await sendResponse(req, res, code, { "Content-Type": "text/html; charset=utf-8" }, html2);
       return;
     } catch {
     }

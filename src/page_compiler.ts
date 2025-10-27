@@ -18,6 +18,7 @@ registerLoader();
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
+import { startServer } from "./server/server";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
@@ -175,6 +176,14 @@ const DIST_DIR = process.env.DIST_DIR as string;
                 it'll increase parsing times, (maybe substantially)
                 unless we put a ondomcontentload hook (???)
                 
+                to avoid usage of globals, we'll *inline* the content,
+                but have an "export const data = {}"
+                
+                then, when navigating to a page, the way we *extract* the data,
+                is by creating a synthetic blob module with: URL.createObjectUrl() & new Blob();
+                
+                then, we import that url, and delete the inline script tag (to preserve safety)
+                
         for now we shall forbid it. put a pin in this.
     
     3. dynamic page and static layout:
@@ -188,20 +197,9 @@ const DIST_DIR = process.env.DIST_DIR as string;
         this is the default generation method,
         and as such, has no issues.
 */
-{
-    type PageInformation = {
-        isDynamic: boolean;
-    };
-    
-    type LayoutInformation = {
-        isDynamic: boolean;
-    }
-    
-    type Pathname = string;
-    
-    const PAGE_MAP = new Map<Pathname, PageInformation>();
-    const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
-}
+
+export const PAGE_MAP = new Map<Pathname, PageInformation>();
+export const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
 
 const getAllSubdirectories = (dir: string, baseDir = dir) => {
     let directories: Array<string> = [];
@@ -512,8 +510,8 @@ const pageToHTML = async (
     pageName: string,
     doWrite: boolean = true,
     requiredClientModules: ShippedModules = {},
-    
     layout: BuiltLayout,
+    pathname: string = "",
 ) => {
     if (
         typeof pageElements === "string" ||
@@ -535,16 +533,77 @@ const pageToHTML = async (
     );
 
     const { internals, builtMetadata } = await generateHTMLTemplate({
-        pageURL: path.relative(DIST_DIR, pageLocation),
+        pageURL: pathname,
         head: metadata,
-        addPageScriptTag: true,
+        addPageScriptTag: doWrite,
         name: pageName,
         requiredClientModules,
         environment: options.environment,
     });
+    
+    let extraBodyHTML = "";
+    if (doWrite === false) {
+        const state = getState();
+        const pageLoadHooks = getLoadHooks();
+        const userObjectAttributes = getObjectAttributes();
+        
+        const {
+            result,
+        } = await generateClientPageData(
+            pathname,
+            state || {},
+            [...objectAttributes, ...userObjectAttributes],
+            pageLoadHooks || [],
+            DIST_DIR,
+            "page",
+            "pd",
+            false
+        );
+        
+        
+        /**
+            For SSR, we can't write page_data.js to disk,
+            since that's very silly.
+            
+            Instead, we *embed* it into the HTML.
+            
+            However, we still want page_data.js to be *importable*.
+            
+            Thus, we create an empty script of text/plain, that won't be executed.
+            Then, we create another script, which reads the text/plain,
+            creates a new Blob() in memory from it.
+            
+            Creates a URL, and makes a new page-data script in the head,
+            so that the client can then import it.
+        */
+        const sanitized = pathname === "" ? "/" : pathname;
+        
+        extraBodyHTML = `<script data-hook="true" data-pathname="${sanitized}" type="text/plain">${result}</script>`;
+        extraBodyHTML += `<script>
+            const text = document.querySelector('[data-hook="true"][data-pathname="${sanitized}"][type="text/plain"').textContent;
+            const blob = new Blob([text], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            
+            const script = document.createElement("script");
+            script.src = url;
+            script.type = "module";
+            script.setAttribute("data-page", "true");
+            script.setAttribute("data-pathname", "${sanitized}");
+            
+            document.head.appendChild(script);
+            
+            document.currentScript.remove();
+        </script>`;
+        
+        extraBodyHTML = extraBodyHTML
+            .replace(/\s+/g, " ")
+            .replace(/\s*([{}();,:])\s*/g, "$1")
+            .trim();
+            
+    }
 
     const headHTML = `<!DOCTYPE html>${layout.metadata.startHTML}${layout.scriptTag}${internals}${builtMetadata}${layout.metadata.endHTML}`;
-    const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${layout.pageContent.endHTML}`;
+    const bodyHTML = `${layout.pageContent.startHTML}${renderedPage.bodyHTML}${extraBodyHTML}${layout.pageContent.endHTML}`;
     const resultHTML = `${headHTML}${bodyHTML}`;
 
     const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
@@ -566,13 +625,9 @@ const pageToHTML = async (
         );
     
         return objectAttributes;
-    } else {
-        return {
-            objectAttributes,
-            resultHTML,
-        }
     }
-
+    
+    return resultHTML;
 };
 
 /**
@@ -589,10 +644,15 @@ const generateClientPageData = async (
     DIST_DIR: string,
     pageName: string,
     globalVariableName: string = "pd",
+    write: boolean = true,
 ) => {
-    const pageDiff = path.relative(DIST_DIR, pageLocation);
-
-    let clientPageJSText = `${globalThis.__SERVER_PAGE_DATA_BANNER__}let url="${pageDiff === "" ? "/" : `/${pageDiff}`}";`;
+    let clientPageJSText = "";
+    
+    // add in page banner.
+    // rarely used, but can be helpful in certain scenarios.
+    {
+        clientPageJSText += `${globalThis.__SERVER_PAGE_DATA_BANNER__}`;
+    }
     
     // add in data
     {
@@ -669,9 +729,10 @@ const generateClientPageData = async (
         clientPageJSText += `};`;
     }
     
-    clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
+    // deprecated. (also insecure)
+    // clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
 
-    const pageDataPath = path.join(pageLocation, `${pageName}_data.js`);
+    const pageDataPath = path.join(DIST_DIR, pageLocation, `${pageName}_data.js`);
 
     let sendHardReloadInstruction = false;
 
@@ -685,16 +746,16 @@ const generateClientPageData = async (
     // if so, and it is different
     // then the page must hard-reload.
     if (fs.existsSync(pageDataPath)) {
-        const content = fs.readFileSync(pageDataPath).toString()
+        const content = fs.readFileSync(pageDataPath).toString();
         
         if (content !== transformedResult.code) {
             sendHardReloadInstruction = true;
         }
     }
 
-    fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8",)
+    if (write) fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8", )
 
-    return { sendHardReloadInstruction, }
+    return { sendHardReloadInstruction, result: transformedResult.code }
 };
 
 const generateLayout = async (
@@ -706,11 +767,13 @@ const generateLayout = async (
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
+    
     globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
     
     let layoutElements;
     let metadataElements;
     let modules: Array<string> = [];
+    let isDynamicLayout = false;
     
     try {
         const {
@@ -728,11 +791,16 @@ const generateLayout = async (
         metadataElements = metadata;
         
         if (isDynamic === true) {
-            throw new Error("not yet supported.");
+            isDynamicLayout = isDynamic;
         }
     } catch(e) {
         throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.mjs - ${e}`);
     }
+    
+    LAYOUT_MAP.set(directory, { 
+        isDynamic: isDynamicLayout,
+        filePath: filePath,
+    })
 
     // layout content
     {    
@@ -785,12 +853,13 @@ const generateLayout = async (
     
     const renderedPage = await serverSideRenderPage(
         processedPageElements as Page,
+        directory,
     );
     
     const metadataHTML = metadataElements ? renderRecursively(metadataElements) : "";
 
     await generateClientPageData(
-        path.dirname(path.join(DIST_DIR, "dist", directory)),
+        directory,
         state || {},
         [...objectAttributes, ...foundObjectAttributes as any[]],
         pageLoadHooks || [],
@@ -907,12 +976,12 @@ const buildLayout = async (filePath: string, directory: string) => {
         };
     }
     
-    const pageURL = directory;
+    const pathname = directory === "" ? "/" : directory;
     
     return {
         pageContent: splitAt(pageContentHTML, childIndicator),
         metadata: splitAround(metadataHTML, childIndicator),
-        scriptTag: `<script data-layout="true" type="module" src="${pageURL}${pageURL === "/" ? "" : "/"}layout_data.js" defer="true"></script>`
+        scriptTag: `<script data-layout="true" type="module" src="${pathname}layout_data.js" data-pathname="${pathname}" defer="true"></script>`
     } satisfies BuiltLayout;
 };
 
@@ -1024,12 +1093,13 @@ const buildPage = async (
     let metadata;
     let modules: ShippedModules = {};
     let pageIgnoresLayout: boolean = false;
+    let isDynamicPage = false;
     
     try {
         const {
             page,
             metadata: pageMetadata,
-            isDynamicPage,
+            isDynamic,
             shippedModules,
             ignoreLayout,
         } = await import("file://" + filePath);
@@ -1045,12 +1115,19 @@ const buildPage = async (
         pageElements = page;
         metadata = pageMetadata;
         
-        if (isDynamicPage === true) {
-            return false;
+        if (isDynamic === true) {
+            isDynamicPage = isDynamic;
         }
     } catch(e) {
         throw new Error(`Error in Page: ${directory}/${name}.ts - ${e}`);
     }
+    
+    PAGE_MAP.set(directory === "" ? "/" : directory, {
+        isDynamic: isDynamicPage,
+        filePath: filePath,
+    });
+    
+    if (isDynamicPage) return false;
     
     if (modules !== undefined) {
         for (const [globalName, path] of Object.entries(modules)) {
@@ -1099,12 +1176,13 @@ const buildPage = async (
         true,
         modules,
         layout,
+        directory,
     )
 
     const {
         sendHardReloadInstruction,
     } = await generateClientPageData(
-        path.join(DIST_DIR, directory),
+        directory,
         state || {},
         [...objectAttributes, ...foundObjectAttributes as any[]],
         pageLoadHooks || [],
@@ -1113,6 +1191,129 @@ const buildPage = async (
     );
 
     return sendHardReloadInstruction === true;
+};
+
+export const buildDynamicPage = async (
+    DIST_DIR: string,
+    directory: string,
+    pageInfo: PageInformation,
+) => {
+    directory = directory === "/" ? "" : directory;
+    
+    const filePath = pageInfo.filePath;
+    
+    initializeState();
+    initializeObjectAttributes();
+    resetLoadHooks();
+    
+    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
+    
+    let pageElements: any = async (props: PageProps) => body();
+    let metadata: any = async (props: PageProps) => html();
+    let modules: ShippedModules = {};
+    let pageIgnoresLayout: boolean = false;
+    let isDynamicPage = false;
+    
+    try {
+        const {
+            page,
+            metadata: pageMetadata,
+            isDynamic,
+            shippedModules,
+            ignoreLayout,
+        } = await import("file://" + filePath);
+        
+        if (shippedModules !== undefined) {
+            modules = shippedModules;
+        }
+        
+        if (ignoreLayout) {
+            pageIgnoresLayout = true;
+        }
+        
+        pageElements = page;
+        metadata = pageMetadata;
+        
+        if (isDynamic === true) {
+            isDynamicPage = isDynamic;
+        }
+    } catch(e) {
+        throw new Error(`Error in Page: ${directory}/page.ts - ${e}`);
+    }
+    
+    if (modules !== undefined) {
+        for (const [globalName, path] of Object.entries(modules)) {
+            modulesToShip.push({ globalName, path, })
+        }
+    }
+    
+    if (
+        !metadata ||
+        metadata && typeof metadata !== "function"
+    ) {
+        console.warn(`WARNING: ${filePath} does not export a metadata function.`);
+    }
+
+    if (!pageElements) {
+        console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
+    }
+    
+    const pageProps: PageProps = {
+        pageName: directory,
+    };
+    
+    // construct layout path    
+    // /me/blog/post/page.ts
+    // checks for /post/layout.ts, then /blog/layout.ts, then /me/layout.ts
+    if (typeof pageElements === "function") {
+        if (pageElements.constructor.name === "AsyncFunction") {
+            pageElements = await pageElements(pageProps);
+        } else {
+            pageElements = pageElements(pageProps);
+        }
+    }
+    
+    const layout = await fetchPageLayoutHTML(path.dirname(filePath));
+    
+    const resultHTML = await pageToHTML(
+        path.join(DIST_DIR, directory),
+        pageElements,
+        metadata,
+        DIST_DIR,
+        "page",
+        false,
+        modules,
+        layout,
+        directory,
+    ) as any
+    
+    await shipModules()
+
+    return { resultHTML, }
+
+};
+
+const shipModules = async () => {
+    for (const plugin of modulesToShip) {
+        // dont build the same plugin multiple times. (very inefficient!)
+        {
+            if (shippedModules.has(plugin.globalName)) continue;
+            shippedModules.set(plugin.globalName, true);
+        }
+        
+        esbuild.build({
+            entryPoints: [plugin.path],
+            bundle: true,
+            outfile: path.join(DIST_DIR, "shipped", plugin.globalName + ".js"),
+            format: "iife",
+            platform: "browser",
+            globalName: plugin.globalName,
+            minify: true,
+            treeShaking: true,
+        })
+    }
+    
+    modulesToShip = [];
 };
 
 const build = async (): Promise<boolean> => {
@@ -1160,26 +1361,7 @@ const build = async (): Promise<boolean> => {
         if (doReload) shouldClientHardReload = true;
     }
     
-    {       
-        for (const plugin of modulesToShip) {
-            // dont build the same plugin multiple times. (very inefficient!)
-            {
-                if (shippedModules.has(plugin.globalName)) continue;
-                shippedModules.set(plugin.globalName, true);
-            }
-            
-            esbuild.build({
-                entryPoints: [plugin.path],
-                bundle: true,
-                outfile: path.join(DIST_DIR, "shipped", plugin.globalName + ".js"),
-                format: "iife",
-                platform: "browser",
-                globalName: plugin.globalName,
-                minify: true,
-                treeShaking: true,
-            })
-        }
-    }
+    await shipModules()
     
     const pagesBuilt = performance.now();
 
@@ -1204,8 +1386,17 @@ const build = async (): Promise<boolean> => {
         log(`Took ${Math.round(end-pagesBuilt)}ms to Build Client.`)
     }
     
-    process.send!({ event: "message", data: "set-layouts", layouts: JSON.stringify(Array.from(__SERVER_CURRENT_LAYOUTS__)), currentLayouTId: __SERVER_CURRENT_LAYOUT_ID__ });
-    process.send!({ event: "message", data: "compile-finish", });
+    if (options.server != undefined && options.server.runServer == true) {
+        startServer({
+            root: options.server.root ?? DIST_DIR,
+            environment: options.environment,
+            port: options.server.port ?? 3000,
+            host: options.server.host ?? "localhost",
+            DIST_DIR,
+        })
+    }
+    
+    process.send?.({ event: "message", data: "compile-finish", });
     
     if (shouldClientHardReload) {
         process.send!({ event: "message", data: "hard-reload", })

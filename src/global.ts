@@ -61,6 +61,21 @@ declare global {
     type PageProps = {
         pageName: string,
     };
+
+    /** Internal use only. */    
+    type PageInformation = {
+        isDynamic: boolean;
+        filePath: string;
+    };
+    
+    /** Internal use only. */    
+    type LayoutInformation = {
+        isDynamic: boolean;
+        filePath: string;
+    }
+    
+    type Pathname = string;
+    
     
     /** Modules that are shipped to the browser. */
     type ShippedModules = { [key: string]: string, };
@@ -324,15 +339,6 @@ declare global {
         onToggle?: EleganceEventListener;
     }
 
-    /*
-     * The below is all magical client stuff.
-     * So, don't use this on the server. It won't be defined!
-     */
-    /** Generated client-page data. Contains things like loadHooks, state, etc. */
-    var pd: Record<string, any>;
-    /** Generated layout-data. Contains things like loadHooks, state, etc.*/
-    var ld: Record<string, any>;
-
     var client: {
         navigateLocally: (target: string, pushState?: boolean) => any;
         fetchPage: (targetURL: URL) => Promise<Document | void>;
@@ -354,7 +360,8 @@ declare global {
         subjects: ClientSubject[],
         get: (id: number, bind?: string) => ClientSubject | undefined;
         getAll: (refs: { id: number, bind?: string }[]) => [ClientSubject["value"]];
-        observe: (subject: ClientSubject, observer: (value: any) => any, subject_key: string) => void;
+        observe: (subject: ClientSubject, observer: (value: any) => any, key: string) => void;
+        unobserve: (subject: ClientSubject, key: string,) => void;
         destroy: (subject: ClientSubject) => void,
     };
 }
