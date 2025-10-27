@@ -702,7 +702,7 @@ const generateLayout = async (
         throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.ts - ${e}`);
     }
     
-    LAYOUT_MAP.set(directory === "" ? "/" : directory, { 
+    LAYOUT_MAP.set(directory === "" ? "/" : `/${directory}`, { 
         isDynamic: isDynamicLayout,
         filePath: filePath,
     })
@@ -1052,7 +1052,7 @@ const buildPage = async (
         throw new Error(`Error in Page: ${directory}/${name}.ts - ${e}`);
     }
     
-    PAGE_MAP.set(directory === "" ? "/" : directory, {
+    PAGE_MAP.set(directory === "" ? "/" : `/${directory}`, {
         isDynamic: isDynamicPage,
         filePath: filePath,
     });

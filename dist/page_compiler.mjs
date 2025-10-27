@@ -1096,7 +1096,7 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, gene
   } catch (e) {
     throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.ts - ${e}`);
   }
-  LAYOUT_MAP2.set(directory === "" ? "/" : directory, {
+  LAYOUT_MAP2.set(directory === "" ? "/" : `/${directory}`, {
     isDynamic: isDynamicLayout,
     filePath
   });
@@ -1311,7 +1311,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   } catch (e) {
     throw new Error(`Error in Page: ${directory}/${name}.ts - ${e}`);
   }
-  PAGE_MAP.set(directory === "" ? "/" : directory, {
+  PAGE_MAP.set(directory === "" ? "/" : `/${directory}`, {
     isDynamic: isDynamicPage,
     filePath
   });
