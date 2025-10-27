@@ -341,16 +341,6 @@ var loadPage = async (previousPage = null) => {
   );
   history.replaceState(null, "", fixedUrl.href);
   {
-    const pageDataScript = document.head.querySelector(`script[data-page="true"][data-pathname="${sanitizePathname(pathname)}"]`);
-    const { data } = await import(pageDataScript.src);
-    if (!pd[pathname]) pd[pathname] = data;
-    {
-      const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
-      if (dataScript) dataScript.remove();
-    }
-    initPageData(pd[pathname], currentPage, previousPage, 1 /* STRICT */);
-  }
-  {
     const parts = window.location.pathname.split("/").filter(Boolean);
     const paths = [
       ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/")),
@@ -369,6 +359,16 @@ var loadPage = async (previousPage = null) => {
       }
       initPageData(ld[pathname], path, previousPage, 2 /* SCOPED */);
     }
+  }
+  {
+    const pageDataScript = document.head.querySelector(`script[data-page="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+    const { data } = await import(pageDataScript.src);
+    if (!pd[pathname]) pd[pathname] = data;
+    {
+      const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+      if (dataScript) dataScript.remove();
+    }
+    initPageData(pd[pathname], currentPage, previousPage, 1 /* STRICT */);
   }
   console.info(
     `Loading finished, cleanupProcedures are currently:`,

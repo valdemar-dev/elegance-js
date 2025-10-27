@@ -319,25 +319,6 @@ const loadPage = async (
     history.replaceState(null, "", fixedUrl.href);
     
     /*
-        init page state
-    */
-    {
-        const pageDataScript = document.head.querySelector(`script[data-page="true"][data-pathname="${sanitizePathname(pathname)}"]`) as HTMLScriptElement;
-        
-        const { data } = await import(pageDataScript.src);
-        if (!pd[pathname]) pd[pathname] = data;
-        
-        // remove the script that contained the string literal of the page_data
-        {
-            const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
-            
-            if (dataScript) dataScript.remove();
-        }
-        
-        initPageData(pd[pathname], currentPage, previousPage, BindLevel.STRICT);
-    }
-    
-    /*
         find all active layouts that were shipped
         load all their data
     */
@@ -370,7 +351,26 @@ const loadPage = async (
             initPageData(ld[pathname], path, previousPage, BindLevel.SCOPED);
         }
     }
-
+    
+    /*
+        init page state
+    */
+    {
+        const pageDataScript = document.head.querySelector(`script[data-page="true"][data-pathname="${sanitizePathname(pathname)}"]`) as HTMLScriptElement;
+        
+        const { data } = await import(pageDataScript.src);
+        if (!pd[pathname]) pd[pathname] = data;
+        
+        // remove the script that contained the string literal of the page_data
+        {
+            const dataScript = document.querySelector(`script[data-hook="true"][data-pathname="${sanitizePathname(pathname)}"]`);
+            
+            if (dataScript) dataScript.remove();
+        }
+        
+        initPageData(pd[pathname], currentPage, previousPage, BindLevel.STRICT);
+    }
+    
     console.info(
         `Loading finished, cleanupProcedures are currently:`,
         cleanupProcedures,
