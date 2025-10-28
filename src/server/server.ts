@@ -26,6 +26,7 @@ const MIME_TYPES: Record<string, string> = {
 
 interface ServerOptions {
     root: string;
+    pagesDirectory: string;
     port?: number;
     host?: string;
     environment?: 'production' | 'development';
@@ -34,14 +35,17 @@ interface ServerOptions {
 
 export function startServer({ 
     root, 
+    pagesDirectory,
     port = 3000, 
     host = 'localhost', 
     environment = 'production',
     DIST_DIR
 }: ServerOptions) {
     if (!root) throw new Error('Root directory must be specified.');
+    if (!pagesDirectory) throw new Error('Pages directory must be specified.');
 
     root = normalize(root).replace(/[\\/]+$/, '');
+    pagesDirectory = normalize(pagesDirectory).replace(/[\\/]+$/, '');
 
     const requestHandler = async (req: IncomingMessage, res: ServerResponse) => {
         try {
@@ -68,11 +72,11 @@ export function startServer({
             const url = new URL(req.url, `http://${req.headers.host}`);
             
             if (url.pathname.startsWith('/api/')) {
-                await handleApiRequest(root, url.pathname, req, res);
+                await handleApiRequest(pagesDirectory, url.pathname, req, res);
             } else if (PAGE_MAP.has(url.pathname)) {
-                await handlePageRequest(root, url.pathname, req, res, DIST_DIR, PAGE_MAP.get(url.pathname)!);
+                await handlePageRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR, PAGE_MAP.get(url.pathname)!);
             } else {
-                await handleStaticRequest(root, url.pathname, req, res, DIST_DIR);
+                await handleStaticRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR);
             }
 
             if (environment === 'development') {
@@ -80,6 +84,7 @@ export function startServer({
             }
         } catch (err) {
             log.error(err);
+            
             await sendResponse(req, res, 500, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Internal Server Error');
         }
     };
@@ -114,11 +119,13 @@ interface TargetInfo {
 async function getTargetInfo(root: string, pathname: string): Promise<TargetInfo> {
     const originalPathname = pathname;
     const filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, '');
+    
     if (!filePath.startsWith(root)) {
         throw new Error('Forbidden');
     }
 
     let stats: Stats | undefined;
+    
     try {
         stats = await fs.stat(filePath);
     } catch {}
@@ -135,31 +142,42 @@ async function getTargetInfo(root: string, pathname: string): Promise<TargetInfo
 
 function getMiddlewareDirs(base: string, parts: string[]): string[] {
     const middlewareDirs: string[] = [];
+    
     let current = base;
+    
     middlewareDirs.push(current);
+    
     for (const part of parts) {
         current = join(current, part);
         middlewareDirs.push(current);
     }
+    
     return middlewareDirs;
 }
 
 async function collectMiddlewares(dirs: string[]): Promise<((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[]> {
     const middlewares: ((req: IncomingMessage, res: ServerResponse, next: (err?: any) => Promise<void>) => Promise<void>)[] = [];
+    
     for (const dir of dirs) {
-        const mwPath = join(dir, 'middleware.mjs');
+        const mwPath = join(dir, 'middleware.ts');
+        
         let mwModule;
+        
         try {
             await fs.access(mwPath);
+            
             const url = pathToFileURL(mwPath).href;
+            
             mwModule = await import(url);
         } catch {
             continue;
         }
 
         const mwKeys = Object.keys(mwModule).sort();
+        
         for (const key of mwKeys) {
             const f = mwModule[key];
+            
             if (typeof f === 'function' && !middlewares.some(existing => existing === f)) {
                 middlewares.push(f);
             }
@@ -170,24 +188,26 @@ async function collectMiddlewares(dirs: string[]): Promise<((req: IncomingMessag
 
 async function handlePageRequest(
     root: string, 
+    pagesDirectory: string,
     pathname: string, 
     req: IncomingMessage, 
     res: ServerResponse, 
     DIST_DIR: string,
-    pageInfo: PageInformation
+    pageInfo: PageInformation,
 ) {
     try {
         const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
 
         const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, '');
         const parts = relDir.split(/[\\/]/).filter(Boolean);
-        const middlewareDirs = getMiddlewareDirs(root, parts);
+        const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
         const middlewares = await collectMiddlewares(middlewareDirs);
         
         let isDynamic = pageInfo.isDynamic;
         const handlerPath = isDynamic ? pageInfo.filePath : join(filePath, 'index.html');
 
         let hasHandler = false;
+        
         try {
             await fs.access(handlerPath);
             hasHandler = true;
@@ -236,7 +256,9 @@ async function handlePageRequest(
         };
 
         const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+        
         await composed(req, res);
+        
     } catch (err: any) {
         if (err.message === 'Forbidden') {
             await sendResponse(req, res, 403, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Forbidden');
@@ -246,16 +268,17 @@ async function handlePageRequest(
     }
 }
 
-async function handleStaticRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse, DIST_DIR: string) {
+async function handleStaticRequest(root: string, pagesDirectory: string, pathname: string, req: IncomingMessage, res: ServerResponse, DIST_DIR: string) {
     try {
         const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
 
         const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, '');
         const parts = relDir.split(/[\\/]/).filter(Boolean);
-        const middlewareDirs = getMiddlewareDirs(root, parts);
+        const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
         const middlewares = await collectMiddlewares(middlewareDirs);
 
         let handlerPath = filePath;
+        
         if (stats && stats.isDirectory()) {
             handlerPath = join(filePath, 'index.html');
         } else {
@@ -263,6 +286,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
         }
 
         let hasHandler = false;
+        
         try {
             await fs.access(handlerPath);
             hasHandler = true;
@@ -271,6 +295,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
         const finalHandler = async (req: IncomingMessage, res: ServerResponse) => {
             if (!hasHandler) {
                 await respondWithErrorPage(root, pathname, 404, req, res);
+                
                 return;
             }
 
@@ -283,6 +308,7 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
         };
 
         const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+        
         await composed(req, res);
     } catch (err: any) {
         if (err.message === 'Forbidden') {
@@ -293,14 +319,14 @@ async function handleStaticRequest(root: string, pathname: string, req: Incoming
     }
 }
 
-async function handleApiRequest(root: string, pathname: string, req: IncomingMessage, res: ServerResponse) {
+async function handleApiRequest(pagesDirectory: string, pathname: string, req: IncomingMessage, res: ServerResponse) {
     const apiSubPath = pathname.slice('/api/'.length);
     const parts = apiSubPath.split('/').filter(Boolean);
-    const middlewareDirs = getMiddlewareDirs(join(root, 'api'), parts);
+    const middlewareDirs = getMiddlewareDirs(join(pagesDirectory, 'api'), parts);
     const middlewares = await collectMiddlewares(middlewareDirs);
 
     const routeDir = middlewareDirs[middlewareDirs.length - 1];
-    const routePath = join(routeDir, 'route.mjs');
+    const routePath = join(routeDir, 'route.ts');
 
     let hasRoute = false;
     
@@ -330,13 +356,16 @@ async function handleApiRequest(root: string, pathname: string, req: IncomingMes
         if (!hasRoute) {
             return respondWithJsonError(req, res, 404, 'Not Found');
         }
+        
         if (typeof fn !== 'function') {
             return respondWithJsonError(req, res, 405, 'Method Not Allowed');
         }
+        
         await fn(req, res);
     };
 
     const composed = composeMiddlewares(middlewares, finalHandler, { isApi: true });
+    
     await composed(req, res);
 }
 
@@ -373,12 +402,16 @@ function composeMiddlewares(
 
             const onceNext = (nextFn: (e?: any) => Promise<void>) => {
                 let called = false;
+                
                 return async (e?: any) => {
                     if (called) {
                         log.warn('next() was called in a middleware more than once.');
+                        
                         return;
                     }
+                    
                     called = true;
+                    
                     await nextFn(e);
                 };
             };
@@ -396,6 +429,7 @@ function composeMiddlewares(
 
 async function respondWithJsonError(req: IncomingMessage, res: ServerResponse, code: number, message: string) {
     const body = JSON.stringify({ error: message });
+    
     await sendResponse(req, res, code, { 'Content-Type': 'application/json; charset=utf-8' }, body);
 }
 
@@ -406,21 +440,30 @@ async function respondWithErrorPage(root: string, pathname: string, code: number
 
     while (currentPath.startsWith(root)) {
         const candidate = join(currentPath, `${code}.html`);
+        
         if (!tried.has(candidate)) {
             try {
                 await fs.access(candidate);
+                
                 errorFilePath = candidate;
+                
                 break;
             } catch {}
+            
             tried.add(candidate);
+            
         }
+        
         const parent = dirname(currentPath);
+        
         if (parent === currentPath) break;
+        
         currentPath = parent;
     }
 
     if (!errorFilePath) {
         const fallback = join(root, `${code}.html`);
+        
         try {
             await fs.access(fallback);
             errorFilePath = fallback;
@@ -430,7 +473,9 @@ async function respondWithErrorPage(root: string, pathname: string, code: number
     if (errorFilePath) {
         try {
             const html = await fs.readFile(errorFilePath, 'utf8');
+            
             await sendResponse(req, res, code, { 'Content-Type': 'text/html; charset=utf-8' }, html);
+            
             return;
         } catch {}
     }
@@ -440,6 +485,7 @@ async function respondWithErrorPage(root: string, pathname: string, code: number
 
 function isCompressible(contentType: string): boolean {
     if (!contentType) return false;
+    
     return /text\/|javascript|json|xml|svg/.test(contentType);
 }
 
@@ -456,6 +502,7 @@ async function sendResponse(
 
     const accept = (req.headers['accept-encoding'] as string) || '';
     let encoding: string | null = null;
+    
     if (accept.match(/\bgzip\b/)) {
         encoding = 'gzip';
     } else if (accept.match(/\bdeflate\b/)) {
@@ -465,18 +512,23 @@ async function sendResponse(
     if (!encoding || !isCompressible(headers['Content-Type'] as string || '')) {
         res.writeHead(status, headers);
         res.end(body);
+        
         return;
     }
 
     const compressor = encoding === 'gzip' ? gzipAsync : deflateAsync;
+    
     try {
         const compressed = await compressor(body);
+        
         headers['Content-Encoding'] = encoding;
         headers['Vary'] = 'Accept-Encoding';
+        
         res.writeHead(status, headers);
         res.end(compressed);
     } catch (err) {
         log.error('Compression error:', err);
+        
         res.writeHead(status, headers);
         res.end(body);
     }

@@ -307,13 +307,16 @@ var MIME_TYPES = {
 };
 function startServer({
   root,
+  pagesDirectory,
   port = 3e3,
   host = "localhost",
   environment = "production",
   DIST_DIR: DIST_DIR2
 }) {
   if (!root) throw new Error("Root directory must be specified.");
+  if (!pagesDirectory) throw new Error("Pages directory must be specified.");
   root = normalize(root).replace(/[\\/]+$/, "");
+  pagesDirectory = normalize(pagesDirectory).replace(/[\\/]+$/, "");
   const requestHandler = async (req, res) => {
     try {
       if (!req.url) {
@@ -333,11 +336,11 @@ function startServer({
       }
       const url = new URL(req.url, `http://${req.headers.host}`);
       if (url.pathname.startsWith("/api/")) {
-        await handleApiRequest(root, url.pathname, req, res);
+        await handleApiRequest(pagesDirectory, url.pathname, req, res);
       } else if (PAGE_MAP.has(url.pathname)) {
-        await handlePageRequest(root, url.pathname, req, res, DIST_DIR2, PAGE_MAP.get(url.pathname));
+        await handlePageRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR2, PAGE_MAP.get(url.pathname));
       } else {
-        await handleStaticRequest(root, url.pathname, req, res, DIST_DIR2);
+        await handleStaticRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR2);
       }
       if (environment === "development") {
         log.info(req.method, "::", req.url, "-", res.statusCode);
@@ -395,7 +398,7 @@ function getMiddlewareDirs(base, parts) {
 async function collectMiddlewares(dirs) {
   const middlewares = [];
   for (const dir of dirs) {
-    const mwPath = join(dir, "middleware.mjs");
+    const mwPath = join(dir, "middleware.ts");
     let mwModule;
     try {
       await fs.access(mwPath);
@@ -414,12 +417,12 @@ async function collectMiddlewares(dirs) {
   }
   return middlewares;
 }
-async function handlePageRequest(root, pathname, req, res, DIST_DIR2, pageInfo) {
+async function handlePageRequest(root, pagesDirectory, pathname, req, res, DIST_DIR2, pageInfo) {
   try {
     const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
     const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
     const parts = relDir.split(/[\\/]/).filter(Boolean);
-    const middlewareDirs = getMiddlewareDirs(root, parts);
+    const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
     const middlewares = await collectMiddlewares(middlewareDirs);
     let isDynamic = pageInfo.isDynamic;
     const handlerPath = isDynamic ? pageInfo.filePath : join(filePath, "index.html");
@@ -471,12 +474,12 @@ async function handlePageRequest(root, pathname, req, res, DIST_DIR2, pageInfo) 
     }
   }
 }
-async function handleStaticRequest(root, pathname, req, res, DIST_DIR2) {
+async function handleStaticRequest(root, pagesDirectory, pathname, req, res, DIST_DIR2) {
   try {
     const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
     const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
     const parts = relDir.split(/[\\/]/).filter(Boolean);
-    const middlewareDirs = getMiddlewareDirs(root, parts);
+    const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
     const middlewares = await collectMiddlewares(middlewareDirs);
     let handlerPath = filePath;
     if (stats && stats.isDirectory()) {
@@ -510,13 +513,13 @@ async function handleStaticRequest(root, pathname, req, res, DIST_DIR2) {
     }
   }
 }
-async function handleApiRequest(root, pathname, req, res) {
+async function handleApiRequest(pagesDirectory, pathname, req, res) {
   const apiSubPath = pathname.slice("/api/".length);
   const parts = apiSubPath.split("/").filter(Boolean);
-  const middlewareDirs = getMiddlewareDirs(join(root, "api"), parts);
+  const middlewareDirs = getMiddlewareDirs(join(pagesDirectory, "api"), parts);
   const middlewares = await collectMiddlewares(middlewareDirs);
   const routeDir = middlewareDirs[middlewareDirs.length - 1];
-  const routePath = join(routeDir, "route.mjs");
+  const routePath = join(routeDir, "route.ts");
   let hasRoute = false;
   try {
     await fs.access(routePath);
@@ -1521,7 +1524,8 @@ var build = async () => {
         environment: options.environment,
         port: options.server.port ?? 3e3,
         host: options.server.host ?? "localhost",
-        DIST_DIR
+        DIST_DIR,
+        pagesDirectory: options.pagesDirectory
       });
     }
     process.send?.({ event: "message", data: "compile-finish" });

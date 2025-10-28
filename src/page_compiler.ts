@@ -1336,6 +1336,7 @@ const build = async (): Promise<boolean> => {
             port: options.server.port ?? 3000,
             host: options.server.host ?? "localhost",
             DIST_DIR,
+            pagesDirectory: options.pagesDirectory,
         })
     }
     
