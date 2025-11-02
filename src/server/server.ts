@@ -1,7 +1,7 @@
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'http';
-import { promises as fs, readFileSync, Stats } from 'fs';
-import { join, normalize, extname, dirname, resolve, relative } from 'path';
-import { pathToFileURL, fileURLToPath } from 'url';
+import { promises as fs, Stats } from 'fs';
+import { join, normalize, extname, dirname, } from 'path';
+import { pathToFileURL,  } from 'url';
 import { log } from "../log";
 import { gzip, deflate } from 'zlib';
 import { promisify } from 'util';
