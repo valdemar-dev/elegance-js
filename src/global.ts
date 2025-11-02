@@ -25,9 +25,6 @@ declare global {
     var __SERVER_CURRENT_OBJECT_ATTRIBUTES__: Array<ObjectAttribute<any>>
 
     var __SERVER_CURRENT_LOADHOOKS__: Array<any>
-
-    var __SERVER_CURRENT_LAYOUTS__: Map<string, number>;
-    var __SERVER_CURRENT_LAYOUT_ID__: number;
     
     /** This is prepended to page_data.js */
     var __SERVER_PAGE_DATA_BANNER__: string;

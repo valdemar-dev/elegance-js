@@ -1,14 +1,11 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 
+import { getStore } from "../context";
 import { loadHook } from "./loadHook";
 
 type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
     value: T;
 };
-
-if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-    globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
-}
 
 type Widen<T> =
     T extends number ? number :
@@ -27,18 +24,21 @@ export const state = <
 ) => {
     type ValueType = Widen<U>;
 
+    const store = getStore();
+    
     const serverStateEntry = {
-        id: __SERVER_CURRENT_STATE_ID__ += 1,
+        id: store.currentStateId += 1,
         value: value,
         type: ObjectAttributeType.STATE,
     };
-
-    globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
+    
     
     // shimmy it in
     if (Array.isArray(value)) {
         (serverStateEntry as any).reactiveMap = reactiveMap
     }
+    
+    store.currentState.push(serverStateEntry);
 
     return serverStateEntry as {
         id: number,
@@ -241,8 +241,10 @@ export const eventListener = <
 
     dependencyString += "]";
 
+    const store = getStore();
+    
     const value = {
-        id: __SERVER_CURRENT_STATE_ID__ += 1,
+        id: store.currentStateId += 1,
         type: ObjectAttributeType.STATE,
         value: new Function(
             "state",
@@ -250,20 +252,26 @@ export const eventListener = <
             `(${eventListener.toString()})(event, ...state.getAll(${dependencyString}))`
         ),
     };
-
-    globalThis.__SERVER_CURRENT_STATE__.push(value);
+    
+    store.currentState.push(value);
 
     return value;
 };
 
-export const initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
-export const getState = () => {
-    return globalThis.__SERVER_CURRENT_STATE__;
+export const initializeState = () => {
+    const store = getStore();
+    store.currentState = [];
 }
 
-export const initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+export const getState = () => {
+    return getStore().currentState;
+}
+
+export const initializeObjectAttributes = () => {
+    getStore().currentObjectAttributes = [];
+}
 export const getObjectAttributes = () => {
-    return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+    return getStore().currentObjectAttributes;
 };
 
 

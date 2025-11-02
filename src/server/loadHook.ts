@@ -1,5 +1,6 @@
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
-import { ShowDeprecationWarning } from "../internal/deprecate";
+
+import { getStore } from "../context";
 
 type ClientSubjectGeneric<T> = Omit<ClientSubject, "value"> & {
     value: T;
@@ -35,8 +36,14 @@ export type ClientLoadHook = {
     ) => (void | (() => void) | Promise<(void | (() => void))>),
 }
 
-export const resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
-export const getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
+export const resetLoadHooks = () => {
+    const store = getStore();
+    store.loadHooks = [];
+}
+export const getLoadHooks = () => {
+    const store = getStore();
+    return store.loadHooks;
+}
 
 export const loadHook = <T extends ServerSubject[]>(
     deps: LoadHookOptions<T>["deps"],
@@ -64,38 +71,9 @@ export const loadHook = <T extends ServerSubject[]>(
         ? `async (state) => await (${stringFn})(state, ...state.getAll(${dependencyString}))`
         : `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`;
 
-    globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
+    const store = getStore();
+    store.loadHooks.push({
         fn: wrapperFn,
         bind: bind || "",
-    });
-};
-
-export const createLoadHook = <T extends ServerSubject[]>(options: LoadHookOptions<T>) => {
-    ShowDeprecationWarning("WARNING: createLoadHook() is a deprecated function. Use loadHook() from elegance-js/loadHook instead.");
-    
-    const stringFn = options.fn.toString();
-
-    const deps = (options.deps || []).map(dep => ({
-        id: dep.id,
-        bind: dep.bind,
-    }));
-
-    let dependencyString = "[";
-    for (const dep of deps) {
-        dependencyString += `{id:${dep.id}`;
-        if (dep.bind) dependencyString += `,bind:${dep.bind}`;
-        dependencyString += `},`;
-    }
-    dependencyString += "]";
-
-    const isAsync = options.fn.constructor.name === "AsyncFunction";
-    
-    const wrapperFn = isAsync
-        ? `async (state) => await (${stringFn})(state, ...state.getAll(${dependencyString}))`
-        : `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`;
-
-    globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-        fn: wrapperFn,
-        bind: options.bind || "",
     });
 };
