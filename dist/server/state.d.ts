@@ -30,32 +30,12 @@ export type SetEvent<Event, Target> = Omit<Event, "currentTarget"> & {
     currentTarget: Target;
 };
 export declare const eventListener: <D extends Dependencies, E extends Event, T>(dependencies: [...D] | [], eventListener: (event: SetEvent<E, T>, ...subjects: { [K in keyof D]: ClientSubjectGeneric<D[K]["value"]>; }) => void) => {
-    id: number;
+    id: any;
     type: ObjectAttributeType;
     value: Function;
 };
-export declare const initializeState: () => never[];
-export declare const getState: () => {
-    value: unknown;
-    type: ObjectAttributeType;
-    id: number;
-    bind?: number;
-}[];
-export declare const initializeObjectAttributes: () => never[];
-export declare const getObjectAttributes: () => ({
-    type: ObjectAttributeType;
-    id: string | number;
-    value: any;
-    bind?: string;
-} | {
-    type: ObjectAttributeType;
-    refs: {
-        id: number;
-        bind?: string;
-    }[];
-    initialValues: any[];
-    update: (...value: any) => any;
-} | {
-    type: ObjectAttributeType;
-})[];
+export declare const initializeState: () => void;
+export declare const getState: () => any;
+export declare const initializeObjectAttributes: () => void;
+export declare const getObjectAttributes: () => any;
 export {};

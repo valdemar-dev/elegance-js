@@ -4,31 +4,6 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 declare global {
     type NonVoid<T> = T extends void ? never : T;
 
-    /** Deprecated. */
-    var __ELEGANCE_SERVER_DATA__: any;
-
-    /** Increment this by 1 to get a per-build unique ID. */
-    var __SERVER_CURRENT_STATE_ID__: number;
-    
-    /** Deprecated. */
-    var __SERVER_CURRENT_REF_ID__: number;
-
-    /** The global server current state for this build. */
-    var __SERVER_CURRENT_STATE__: Array<{
-        value: unknown;
-        type: ObjectAttributeType,
-        id: number;
-        bind?: number;
-    }>
-    
-    /** User defined object attributes. Mostly unused, use at your own risk. */
-    var __SERVER_CURRENT_OBJECT_ATTRIBUTES__: Array<ObjectAttribute<any>>
-
-    var __SERVER_CURRENT_LOADHOOKS__: Array<any>
-    
-    /** This is prepended to page_data.js */
-    var __SERVER_PAGE_DATA_BANNER__: string;
-
     type AnyBuiltElement = BuiltElement<ElementTags> | ChildrenLessBuiltElement<ChildrenlessElementTags>;
 
     type BuiltElement<T> = {

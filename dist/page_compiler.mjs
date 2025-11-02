@@ -2,8 +2,20 @@
 import fs2 from "fs";
 import path from "path";
 import { registerLoader, setArcTsConfig } from "ts-arc";
+
+// src/context.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+var als = new AsyncLocalStorage();
+var getStore = () => {
+  const store = als.getStore();
+  if (store === void 0)
+    throw new Error("Tried to access ALS outside of ALS context.");
+  return store;
+};
+
+// src/page_compiler.ts
 import esbuild from "esbuild";
-import { fileURLToPath as fileURLToPath2 } from "url";
+import { fileURLToPath } from "url";
 
 // src/shared/serverElements.ts
 var createBuildableElement = (tag) => {
@@ -662,28 +674,32 @@ async function sendResponse(req, res, status, headers, body2) {
 }
 
 // src/server/loadHook.ts
-var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
-var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
+var resetLoadHooks = () => {
+  const store = getStore();
+  store.loadHooks = [];
+};
+var getLoadHooks = () => {
+  const store = getStore();
+  return store.loadHooks;
+};
 
 // src/server/state.ts
-if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
-}
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
+var initializeState = () => {
+  const store = getStore();
+  store.currentState = [];
+};
 var getState = () => {
-  return globalThis.__SERVER_CURRENT_STATE__;
+  return getStore().currentState;
 };
-var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+var initializeObjectAttributes = () => {
+  getStore().currentObjectAttributes = [];
+};
 var getObjectAttributes = () => {
-  return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
+  return getStore().currentObjectAttributes;
 };
-
-// src/server/layout.ts
-var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
-if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
 
 // src/page_compiler.ts
-var __filename = fileURLToPath2(import.meta.url);
+var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 setArcTsConfig(__dirname);
 registerLoader();
@@ -1007,9 +1023,6 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
 var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd", write = true) => {
   let clientPageJSText = "";
   {
-    clientPageJSText += `${globalThis.__SERVER_PAGE_DATA_BANNER__}`;
-  }
-  {
     clientPageJSText += `export const data = {`;
     if (state) {
       clientPageJSText += `state:[`;
@@ -1072,11 +1085,13 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   if (write) fs2.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction, result: transformedResult.code };
 };
-var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, generateDynamic = false) => {
+var generateLayout = async (DIST_DIR2, filePath, directory, generateDynamic = false) => {
+  const store = getStore();
+  const id = store.currentStateId += 1;
+  const childIndicator = `<template layout-id="${id}"></template>`;
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
-  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   let layoutElements;
   let metadataElements;
   let modules = [];
@@ -1151,7 +1166,7 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, gene
     "layout",
     "ld"
   );
-  return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
+  return { pageContentHTML: renderedPage.bodyHTML, metadataHTML, childIndicator };
 };
 var builtLayouts = /* @__PURE__ */ new Map();
 var buildLayouts = async () => {
@@ -1181,17 +1196,14 @@ var buildLayouts = async () => {
   return { shouldClientHardReload };
 };
 var buildLayout = async (filePath, directory, generateDynamic = false) => {
-  const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
-  const childIndicator = `<template layout-id="${id}"></template>`;
   const result = await generateLayout(
     DIST_DIR,
     filePath,
     directory,
-    childIndicator,
     generateDynamic
   );
   if (result === false) return false;
-  const { pageContentHTML, metadataHTML } = result;
+  const { pageContentHTML, metadataHTML, childIndicator } = result;
   const splitAround = (str, sub) => {
     const i = str.indexOf(sub);
     if (i === -1) throw new Error("substring does not exist in parent string");
@@ -1216,8 +1228,8 @@ var buildLayout = async (filePath, directory, generateDynamic = false) => {
   };
 };
 var fetchPageLayoutHTML = async (dirname2) => {
-  const relative2 = path.relative(options.pagesDirectory, dirname2);
-  let split = relative2.split(path.sep).filter(Boolean);
+  const relative = path.relative(options.pagesDirectory, dirname2);
+  let split = relative.split(path.sep).filter(Boolean);
   split.push("/");
   split.reverse();
   let layouts = [];
@@ -1253,7 +1265,6 @@ var fetchPageLayoutHTML = async (dirname2) => {
   return { pageContent, metadata, scriptTag: scriptTags };
 };
 var buildPages = async (DIST_DIR2) => {
-  resetLayouts();
   const pagesDirectory = path.resolve(options.pagesDirectory);
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   let shouldClientHardReload = false;
@@ -1286,7 +1297,6 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
-  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   let pageElements;
   let metadata;
   let modules = {};
@@ -1373,7 +1383,6 @@ var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
-  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
   let pageElements = async (props) => body();
   let metadata = async (props) => html();
   let modules = {};

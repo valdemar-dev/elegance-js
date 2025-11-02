@@ -1,3 +1,13 @@
+// src/context.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+var als = new AsyncLocalStorage();
+var getStore = () => {
+  const store = als.getStore();
+  if (store === void 0)
+    throw new Error("Tried to access ALS outside of ALS context.");
+  return store;
+};
+
 // src/server/loadHook.ts
 var loadHook = (deps, fn, bind) => {
   const stringFn = fn.toString();
@@ -14,16 +24,14 @@ var loadHook = (deps, fn, bind) => {
   dependencyString += "]";
   const isAsync = fn.constructor.name === "AsyncFunction";
   const wrapperFn = isAsync ? `async (state) => await (${stringFn})(state, ...state.getAll(${dependencyString}))` : `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`;
-  globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
+  const store = getStore();
+  store.loadHooks.push({
     fn: wrapperFn,
     bind: bind || ""
   });
 };
 
 // src/server/state.ts
-if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
-}
 var eventListener = (dependencies, eventListener2) => {
   const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
   let dependencyString = "[";
@@ -33,8 +41,9 @@ var eventListener = (dependencies, eventListener2) => {
     dependencyString += `},`;
   }
   dependencyString += "]";
+  const store = getStore();
   const value = {
-    id: __SERVER_CURRENT_STATE_ID__ += 1,
+    id: store.currentStateId += 1,
     type: 1 /* STATE */,
     value: new Function(
       "state",
@@ -42,7 +51,7 @@ var eventListener = (dependencies, eventListener2) => {
       `(${eventListener2.toString()})(event, ...state.getAll(${dependencyString}))`
     )
   };
-  globalThis.__SERVER_CURRENT_STATE__.push(value);
+  store.currentState.push(value);
   return value;
 };
 

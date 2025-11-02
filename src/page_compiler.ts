@@ -27,7 +27,6 @@ import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "./server/render";
 import { getState, initializeState, initializeObjectAttributes, getObjectAttributes, } from "./server/state";
 import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
-import { resetLayouts } from "./server/layout";
 import { renderRecursively } from "./server/render";
 
 let packageDir = process.env.PACKAGE_PATH;
@@ -540,7 +539,7 @@ const pageToHTML = async (
 */
 const generateClientPageData = async (
     pageLocation: string,
-    state: typeof globalThis.__SERVER_CURRENT_STATE__,
+    state: Array<Record<any, any>>,
     objectAttributes: Array<ObjectAttribute<any>>,
     pageLoadHooks: Array<LoadHook>,
     DIST_DIR: string,
@@ -549,12 +548,6 @@ const generateClientPageData = async (
     write: boolean = true,
 ) => {
     let clientPageJSText = "";
-    
-    // add in page banner.
-    // rarely used, but can be helpful in certain scenarios.
-    {
-        clientPageJSText += `${globalThis.__SERVER_PAGE_DATA_BANNER__}`;
-    }
     
     // add in data
     {
@@ -631,9 +624,6 @@ const generateClientPageData = async (
         clientPageJSText += `};`;
     }
     
-    // deprecated. (also insecure)
-    // clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
-
     const pageDataPath = path.join(DIST_DIR, pageLocation, `${pageName}_data.js`);
 
     let sendHardReloadInstruction = false;
@@ -666,16 +656,26 @@ const generateLayout = async (
     filePath: string,
     /** Path relative to pagesDirectory. */
     directory: string,
-    /** What to squish between the start and end HTML (aka the split point). */
-    childIndicator: Child,
     /** Whether or not to generate the layout if it is dynamic */
     generateDynamic: boolean = false,
 ) => {
+    const store = getStore();
+    
+    /*
+        this is used by the layout to determine where it ends
+        in the layout, this is the "child" parameter.
+        
+        we split the built HTML of the layout at this point,
+        and squish child layouts and the page in-between.
+        
+        the client then uses this for client-side navigation
+    */
+    const id = store.currentStateId += 1;
+    const childIndicator = `<template layout-id="${id}"></template>`;
+    
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
-    
-    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
     
     let layoutElements;
     let metadataElements;
@@ -780,7 +780,7 @@ const generateLayout = async (
         "ld",
     );
 
-    return { pageContentHTML: renderedPage.bodyHTML, metadataHTML }
+    return { pageContentHTML: renderedPage.bodyHTML, metadataHTML, childIndicator }
 };
 
 type BuiltLayout = {
@@ -855,28 +855,16 @@ const buildLayout = async (
     directory: string, 
     generateDynamic: boolean = false,
 ) => {
-    /*
-        this is used by the layout to determine where it ends
-        in the layout, this is the "child" parameter.
-        
-        we split the built HTML of the layout at this point,
-        and squish child layouts and the page in-between.
-        
-        the client then uses this for client-side navigation
-    */
-    const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
-    const childIndicator = `<template layout-id="${id}"></template>`;
     
     const result = await generateLayout(
         DIST_DIR,
         filePath,
         directory,
-        childIndicator,
         generateDynamic,
     );
     
     if (result === false) return false;
-    const { pageContentHTML, metadataHTML } = result;
+    const { pageContentHTML, metadataHTML, childIndicator } = result;
     
     const splitAround = (str: string, sub: string) => {
         const i = str.indexOf(sub);
@@ -964,8 +952,6 @@ const fetchPageLayoutHTML = async (
 const buildPages = async (
     DIST_DIR: string,
 ) => {
-    resetLayouts();
-    
     const pagesDirectory = path.resolve(options.pagesDirectory);
 
     const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
@@ -1018,8 +1004,6 @@ const buildPage = async (
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
-    
-    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
     
     let pageElements;
     let metadata;
@@ -1139,8 +1123,6 @@ export const buildDynamicPage = async (
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
-    
-    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
     
     let pageElements: any = async (props: PageProps) => body();
     let metadata: any = async (props: PageProps) => html();
