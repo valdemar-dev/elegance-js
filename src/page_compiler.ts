@@ -15,7 +15,7 @@ import { registerLoader, setArcTsConfig } from "ts-arc";
 setArcTsConfig(__dirname);
 registerLoader();
 
-import { getStore } from "./context";
+import { getStore, runAls } from "./context";
     
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
@@ -855,13 +855,12 @@ const buildLayout = async (
     directory: string, 
     generateDynamic: boolean = false,
 ) => {
-    
-    const result = await generateLayout(
+    const result = await runAls({}, async () => await generateLayout(
         DIST_DIR,
         filePath,
         directory,
         generateDynamic,
-    );
+    ))
     
     if (result === false) return false;
     const { pageContentHTML, metadataHTML, childIndicator } = result;
@@ -976,7 +975,7 @@ const buildPages = async (
             }            
             
             try {
-                const hardReloadForPage = await buildPage(DIST_DIR, directory, filePath, name);
+                const hardReloadForPage = await runAls({}, async () => await buildPage(DIST_DIR, directory, filePath, name))
                 
                 if (hardReloadForPage) {
                     shouldClientHardReload = true;

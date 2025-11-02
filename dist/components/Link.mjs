@@ -1,6 +1,7 @@
 // src/context.ts
 import { AsyncLocalStorage } from "node:async_hooks";
 var als = new AsyncLocalStorage();
+var runAls = als.run;
 var getStore = () => {
   const store = als.getStore();
   if (store === void 0)

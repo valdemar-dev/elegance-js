@@ -49,6 +49,7 @@ import { registerLoader, setArcTsConfig } from "ts-arc";
 // src/context.ts
 import { AsyncLocalStorage } from "node:async_hooks";
 var als = new AsyncLocalStorage();
+var runAls = als.run;
 var getStore = () => {
   const store = als.getStore();
   if (store === void 0)
@@ -826,12 +827,12 @@ var buildLayouts = async () => {
   return { shouldClientHardReload };
 };
 var buildLayout = async (filePath, directory, generateDynamic = false) => {
-  const result = await generateLayout(
+  const result = await runAls({}, async () => await generateLayout(
     DIST_DIR,
     filePath,
     directory,
     generateDynamic
-  );
+  ));
   if (result === false) return false;
   const { pageContentHTML, metadataHTML, childIndicator } = result;
   const splitAround = (str, sub) => {
@@ -909,7 +910,7 @@ var buildPages = async (DIST_DIR2) => {
         continue;
       }
       try {
-        const hardReloadForPage = await buildPage(DIST_DIR2, directory, filePath, name);
+        const hardReloadForPage = await runAls({}, async () => await buildPage(DIST_DIR2, directory, filePath, name));
         if (hardReloadForPage) {
           shouldClientHardReload = true;
         }
