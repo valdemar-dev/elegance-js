@@ -1,9 +1,9 @@
 // src/page_compiler.ts
-import fs2 from "fs";
+import fs from "fs";
 import path from "path";
 import { registerLoader, setArcTsConfig } from "ts-arc";
 import esbuild from "esbuild";
-import { fileURLToPath as fileURLToPath2 } from "url";
+import { fileURLToPath } from "url";
 
 // src/shared/serverElements.ts
 var createBuildableElement = (tag) => {
@@ -248,419 +248,6 @@ var generateHTMLTemplate = async ({
   };
 };
 
-// src/server/server.ts
-import { createServer as createHttpServer } from "http";
-import { promises as fs } from "fs";
-import { join, normalize, extname, dirname } from "path";
-import { pathToFileURL } from "url";
-
-// src/log.ts
-var quiet = false;
-function getTimestamp() {
-  const now = /* @__PURE__ */ new Date();
-  return now.toLocaleString(void 0, {
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-}
-function color(text, code) {
-  return `\x1B[${code}m${text}\x1B[0m`;
-}
-function logInfo(...args) {
-  if (quiet) return;
-  console.info(`Elegance.JS: ${getTimestamp()} ${color("[INFO]:", 34)}`, ...args);
-}
-function logWarn(...args) {
-  if (quiet) return;
-  console.warn(`Elegance.JS: ${getTimestamp()} ${color("[WARN]:", 33)}`, ...args);
-}
-function logError(...args) {
-  console.error(`Elegance.JS: ${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
-}
-var log = {
-  info: logInfo,
-  warn: logWarn,
-  error: logError
-};
-
-// src/server/server.ts
-import { gzip, deflate } from "zlib";
-import { promisify } from "util";
-var gzipAsync = promisify(gzip);
-var deflateAsync = promisify(deflate);
-var MIME_TYPES = {
-  ".html": "text/html; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
-  ".txt": "text/plain; charset=utf-8"
-};
-function startServer({
-  root,
-  pagesDirectory,
-  port = 3e3,
-  host = "localhost",
-  environment = "production",
-  DIST_DIR: DIST_DIR2
-}) {
-  if (!root) throw new Error("Root directory must be specified.");
-  if (!pagesDirectory) throw new Error("Pages directory must be specified.");
-  root = normalize(root).replace(/[\\/]+$/, "");
-  pagesDirectory = normalize(pagesDirectory).replace(/[\\/]+$/, "");
-  const requestHandler = async (req, res) => {
-    try {
-      if (!req.url) {
-        await sendResponse(req, res, 400, { "Content-Type": "text/plain; charset=utf-8" }, "Bad Request");
-        return;
-      }
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      if (req.method === "OPTIONS") {
-        res.writeHead(204);
-        res.end();
-        if (environment === "development") {
-          log.info(req.method, "::", req.url, "-", res.statusCode);
-        }
-        return;
-      }
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      if (url.pathname.startsWith("/api/")) {
-        await handleApiRequest(pagesDirectory, url.pathname, req, res);
-      } else if (PAGE_MAP.has(url.pathname)) {
-        await handlePageRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR2, PAGE_MAP.get(url.pathname));
-      } else {
-        await handleStaticRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR2);
-      }
-      if (environment === "development") {
-        log.info(req.method, "::", req.url, "-", res.statusCode);
-      }
-    } catch (err) {
-      log.error(err);
-      await sendResponse(req, res, 500, { "Content-Type": "text/plain; charset=utf-8" }, "Internal Server Error");
-    }
-  };
-  function attemptListen(p) {
-    const server = createHttpServer(requestHandler);
-    server.on("error", (err) => {
-      if (err.code === "EADDRINUSE") {
-        attemptListen(p + 1);
-      } else {
-        console.error(err);
-      }
-    });
-    server.listen(p, host, () => {
-      log.info(`Server running at http://${host}:${p}/`);
-    });
-    return server;
-  }
-  return attemptListen(port);
-}
-async function getTargetInfo(root, pathname) {
-  const originalPathname = pathname;
-  const filePath = normalize(join(root, decodeURIComponent(pathname))).replace(/[\\/]+$/, "");
-  if (!filePath.startsWith(root)) {
-    throw new Error("Forbidden");
-  }
-  let stats;
-  try {
-    stats = await fs.stat(filePath);
-  } catch {
-  }
-  let targetDir;
-  if (stats) {
-    targetDir = stats.isDirectory() ? filePath : dirname(filePath);
-  } else {
-    targetDir = originalPathname.endsWith("/") ? filePath : dirname(filePath);
-  }
-  return { filePath, targetDir, stats };
-}
-function getMiddlewareDirs(base, parts) {
-  const middlewareDirs = [];
-  let current = base;
-  middlewareDirs.push(current);
-  for (const part of parts) {
-    current = join(current, part);
-    middlewareDirs.push(current);
-  }
-  return middlewareDirs;
-}
-async function collectMiddlewares(dirs) {
-  const middlewares = [];
-  for (const dir of dirs) {
-    const mwPath = join(dir, "middleware.ts");
-    let mwModule;
-    try {
-      await fs.access(mwPath);
-      const url = pathToFileURL(mwPath).href;
-      mwModule = await import(url);
-    } catch {
-      continue;
-    }
-    const mwKeys = Object.keys(mwModule).sort();
-    for (const key of mwKeys) {
-      const f = mwModule[key];
-      if (typeof f === "function" && !middlewares.some((existing) => existing === f)) {
-        middlewares.push(f);
-      }
-    }
-  }
-  return middlewares;
-}
-async function handlePageRequest(root, pagesDirectory, pathname, req, res, DIST_DIR2, pageInfo) {
-  try {
-    const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
-    const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
-    const parts = relDir.split(/[\\/]/).filter(Boolean);
-    const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
-    const middlewares = await collectMiddlewares(middlewareDirs);
-    let isDynamic = pageInfo.isDynamic;
-    const handlerPath = isDynamic ? pageInfo.filePath : join(filePath, "index.html");
-    let hasHandler = false;
-    try {
-      await fs.access(handlerPath);
-      hasHandler = true;
-    } catch {
-    }
-    const finalHandler = async (req2, res2) => {
-      if (!hasHandler) {
-        await respondWithErrorPage(root, pathname, 404, req2, res2);
-        return;
-      }
-      if (isDynamic) {
-        try {
-          const result = await buildDynamicPage(
-            DIST_DIR2,
-            pathname,
-            pageInfo,
-            req2,
-            res2
-          );
-          if (result === false) {
-            return;
-          }
-          const { resultHTML } = result;
-          if (resultHTML === false) {
-            return;
-          }
-          await sendResponse(req2, res2, 200, { "Content-Type": MIME_TYPES[".html"] }, resultHTML);
-        } catch (err) {
-          log.error("Error building dynamic page -", err);
-        }
-      } else {
-        const ext = extname(handlerPath).toLowerCase();
-        const contentType = MIME_TYPES[ext] || "application/octet-stream";
-        const data = await fs.readFile(handlerPath);
-        await sendResponse(req2, res2, 200, { "Content-Type": contentType }, data);
-      }
-    };
-    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
-    await composed(req, res);
-  } catch (err) {
-    if (err.message === "Forbidden") {
-      await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
-    } else {
-      throw err;
-    }
-  }
-}
-async function handleStaticRequest(root, pagesDirectory, pathname, req, res, DIST_DIR2) {
-  try {
-    const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
-    const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
-    const parts = relDir.split(/[\\/]/).filter(Boolean);
-    const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
-    const middlewares = await collectMiddlewares(middlewareDirs);
-    let handlerPath = filePath;
-    if (stats && stats.isDirectory()) {
-      handlerPath = join(filePath, "index.html");
-    } else {
-      handlerPath = filePath;
-    }
-    let hasHandler = false;
-    try {
-      await fs.access(handlerPath);
-      hasHandler = true;
-    } catch {
-    }
-    const finalHandler = async (req2, res2) => {
-      if (!hasHandler) {
-        await respondWithErrorPage(root, pathname, 404, req2, res2);
-        return;
-      }
-      const ext = extname(handlerPath).toLowerCase();
-      const contentType = MIME_TYPES[ext] || "application/octet-stream";
-      const data = await fs.readFile(handlerPath);
-      await sendResponse(req2, res2, 200, { "Content-Type": contentType }, data);
-    };
-    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
-    await composed(req, res);
-  } catch (err) {
-    if (err.message === "Forbidden") {
-      await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
-    } else {
-      throw err;
-    }
-  }
-}
-async function handleApiRequest(pagesDirectory, pathname, req, res) {
-  const apiSubPath = pathname.slice("/api/".length);
-  const parts = apiSubPath.split("/").filter(Boolean);
-  const middlewareDirs = getMiddlewareDirs(join(pagesDirectory, "api"), parts);
-  const middlewares = await collectMiddlewares(middlewareDirs);
-  const routeDir = middlewareDirs[middlewareDirs.length - 1];
-  const routePath = join(routeDir, "route.ts");
-  let hasRoute = false;
-  try {
-    await fs.access(routePath);
-    hasRoute = true;
-  } catch {
-  }
-  let fn = null;
-  let module = null;
-  if (hasRoute) {
-    try {
-      const moduleUrl = pathToFileURL(routePath).href;
-      module = await import(moduleUrl);
-      fn = module[req.method];
-    } catch (err) {
-      console.error(err);
-      return respondWithJsonError(req, res, 500, "Internal Server Error");
-    }
-  }
-  const finalHandler = async (req2, res2) => {
-    if (!hasRoute) {
-      return respondWithJsonError(req2, res2, 404, "Not Found");
-    }
-    if (typeof fn !== "function") {
-      return respondWithJsonError(req2, res2, 405, "Method Not Allowed");
-    }
-    await fn(req2, res2);
-  };
-  const composed = composeMiddlewares(middlewares, finalHandler, { isApi: true });
-  await composed(req, res);
-}
-function composeMiddlewares(mws, final, options2) {
-  return async function(req, res) {
-    let index = 0;
-    async function dispatch(err) {
-      if (err) {
-        if (options2.isApi) {
-          return respondWithJsonError(req, res, 500, err.message || "Internal Server Error");
-        } else {
-          return await respondWithErrorPage(options2.root, options2.pathname, 500, req, res);
-        }
-      }
-      if (index >= mws.length) {
-        return await final(req, res);
-      }
-      const thisMw = mws[index++];
-      const next = (e) => dispatch(e);
-      const onceNext = (nextFn) => {
-        let called = false;
-        return async (e) => {
-          if (called) {
-            log.warn("next() was called in a middleware more than once.");
-            return;
-          }
-          called = true;
-          await nextFn(e);
-        };
-      };
-      try {
-        await thisMw(req, res, onceNext(next));
-      } catch (error) {
-        await dispatch(error);
-      }
-    }
-    await dispatch();
-  };
-}
-async function respondWithJsonError(req, res, code, message) {
-  const body2 = JSON.stringify({ error: message });
-  await sendResponse(req, res, code, { "Content-Type": "application/json; charset=utf-8" }, body2);
-}
-async function respondWithErrorPage(root, pathname, code, req, res) {
-  let currentPath = normalize(join(root, decodeURIComponent(pathname)));
-  let tried = /* @__PURE__ */ new Set();
-  let errorFilePath = null;
-  while (currentPath.startsWith(root)) {
-    const candidate = join(currentPath, `${code}.html`);
-    if (!tried.has(candidate)) {
-      try {
-        await fs.access(candidate);
-        errorFilePath = candidate;
-        break;
-      } catch {
-      }
-      tried.add(candidate);
-    }
-    const parent = dirname(currentPath);
-    if (parent === currentPath) break;
-    currentPath = parent;
-  }
-  if (!errorFilePath) {
-    const fallback = join(root, `${code}.html`);
-    try {
-      await fs.access(fallback);
-      errorFilePath = fallback;
-    } catch {
-    }
-  }
-  if (errorFilePath) {
-    try {
-      const html2 = await fs.readFile(errorFilePath, "utf8");
-      await sendResponse(req, res, code, { "Content-Type": "text/html; charset=utf-8" }, html2);
-      return;
-    } catch {
-    }
-  }
-  await sendResponse(req, res, code, { "Content-Type": "text/plain; charset=utf-8" }, `${code} Error`);
-}
-function isCompressible(contentType) {
-  if (!contentType) return false;
-  return /text\/|javascript|json|xml|svg/.test(contentType);
-}
-async function sendResponse(req, res, status, headers, body2) {
-  if (typeof body2 === "string") {
-    body2 = Buffer.from(body2);
-  }
-  const accept = req.headers["accept-encoding"] || "";
-  let encoding = null;
-  if (accept.match(/\bgzip\b/)) {
-    encoding = "gzip";
-  } else if (accept.match(/\bdeflate\b/)) {
-    encoding = "deflate";
-  }
-  if (!encoding || !isCompressible(headers["Content-Type"] || "")) {
-    res.writeHead(status, headers);
-    res.end(body2);
-    return;
-  }
-  const compressor = encoding === "gzip" ? gzipAsync : deflateAsync;
-  try {
-    const compressed = await compressor(body2);
-    headers["Content-Encoding"] = encoding;
-    headers["Vary"] = "Accept-Encoding";
-    res.writeHead(status, headers);
-    res.end(compressed);
-  } catch (err) {
-    log.error("Compression error:", err);
-    res.writeHead(status, headers);
-    res.end(body2);
-  }
-}
-
 // src/server/loadHook.ts
 var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
 var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
@@ -683,7 +270,7 @@ var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
 
 // src/page_compiler.ts
-var __filename = fileURLToPath2(import.meta.url);
+var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 setArcTsConfig(__dirname);
 registerLoader();
@@ -713,17 +300,18 @@ var underline = (text) => {
 var white = (text) => {
   return `\x1B[38;2;255;247;229m${text}`;
 };
-var log2 = (...text) => {
+var log = (...text) => {
   if (options.quiet) return;
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
-var options = JSON.parse(process.env.OPTIONS);
+var options = JSON.parse(process.env.OPTIONS || "{}");
+console.log(options);
 var DIST_DIR = process.env.DIST_DIR;
 var PAGE_MAP = /* @__PURE__ */ new Map();
-var LAYOUT_MAP2 = /* @__PURE__ */ new Map();
+var LAYOUT_MAP = /* @__PURE__ */ new Map();
 var getAllSubdirectories = (dir, baseDir = dir) => {
   let directories = [];
-  const items = fs2.readdirSync(dir, { withFileTypes: true });
+  const items = fs.readdirSync(dir, { withFileTypes: true });
   for (const item of items) {
     if (item.isDirectory()) {
       const fullPath = path.join(dir, item.name);
@@ -736,10 +324,10 @@ var getAllSubdirectories = (dir, baseDir = dir) => {
 };
 var buildClient = async (DIST_DIR2) => {
   let clientString = "window.__name = (func) => func; ";
-  clientString += fs2.readFileSync(clientPath, "utf-8");
+  clientString += fs.readFileSync(clientPath, "utf-8");
   if (options.hotReload !== void 0) {
     clientString += `const watchServerPort = ${options.hotReload.port}`;
-    clientString += fs2.readFileSync(watcherPath, "utf-8");
+    clientString += fs.readFileSync(watcherPath, "utf-8");
   }
   const transformedClient = await esbuild.transform(clientString, {
     minify: options.environment === "production",
@@ -749,7 +337,7 @@ var buildClient = async (DIST_DIR2) => {
     platform: "node",
     loader: "ts"
   });
-  fs2.writeFileSync(
+  fs.writeFileSync(
     path.join(DIST_DIR2, "/client.js"),
     transformedClient.code
   );
@@ -988,11 +576,11 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
   const resultHTML = `${headHTML}${bodyHTML}`;
   const htmlLocation = path.join(pageLocation, (pageName === "page" ? "index" : pageName) + ".html");
   if (doWrite) {
-    const dirname2 = path.dirname(htmlLocation);
-    if (fs2.existsSync(dirname2) === false) {
-      fs2.mkdirSync(dirname2, { recursive: true });
+    const dirname = path.dirname(htmlLocation);
+    if (fs.existsSync(dirname) === false) {
+      fs.mkdirSync(dirname, { recursive: true });
     }
-    fs2.writeFileSync(
+    fs.writeFileSync(
       htmlLocation,
       resultHTML,
       {
@@ -1063,13 +651,13 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     console.error("Failed to transform client page js!", error);
   });
   if (!transformedResult) return { sendHardReloadInstruction };
-  if (fs2.existsSync(pageDataPath)) {
-    const content = fs2.readFileSync(pageDataPath).toString();
+  if (fs.existsSync(pageDataPath)) {
+    const content = fs.readFileSync(pageDataPath).toString();
     if (content !== transformedResult.code) {
       sendHardReloadInstruction = true;
     }
   }
-  if (write) fs2.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
+  if (write) fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction, result: transformedResult.code };
 };
 var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, generateDynamic = false) => {
@@ -1099,7 +687,7 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, gene
   } catch (e) {
     throw new Error(`Error in Page: ${directory === "" ? "/" : directory}layout.ts - ${e}`);
   }
-  LAYOUT_MAP2.set(directory === "" ? "/" : `/${directory}`, {
+  LAYOUT_MAP.set(directory === "" ? "/" : `/${directory}`, {
     isDynamic: isDynamicLayout,
     filePath
   });
@@ -1160,7 +748,7 @@ var buildLayouts = async () => {
   let shouldClientHardReload = false;
   for (const directory of subdirectories) {
     const abs = path.resolve(path.join(pagesDirectory, directory));
-    const files = fs2.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
+    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
     for (const file of files) {
       const filePath = path.join(file.parentPath, file.name);
       const name = file.name.slice(0, file.name.length - 3);
@@ -1215,16 +803,16 @@ var buildLayout = async (filePath, directory, generateDynamic = false) => {
     scriptTag: `<script data-layout="true" type="module" src="${pathname}layout_data.js" data-pathname="${pathname}" defer="true"></script>`
   };
 };
-var fetchPageLayoutHTML = async (dirname2) => {
-  const relative2 = path.relative(options.pagesDirectory, dirname2);
-  let split = relative2.split(path.sep).filter(Boolean);
+var fetchPageLayoutHTML = async (dirname) => {
+  const relative = path.relative(options.pagesDirectory, dirname);
+  let split = relative.split(path.sep).filter(Boolean);
   split.push("/");
   split.reverse();
   let layouts = [];
   for (const dir of split) {
-    if (LAYOUT_MAP2.has(dir)) {
+    if (LAYOUT_MAP.has(dir)) {
       const filePath = path.join(path.resolve(options.pagesDirectory), dir, "layout.ts");
-      const layout = LAYOUT_MAP2.get(dir);
+      const layout = LAYOUT_MAP.get(dir);
       if (layout.isDynamic) {
         const builtLayout = await buildLayout(layout.filePath, dir, true);
         if (!builtLayout) continue;
@@ -1259,7 +847,7 @@ var buildPages = async (DIST_DIR2) => {
   let shouldClientHardReload = false;
   for (const directory of subdirectories) {
     const abs = path.resolve(path.join(pagesDirectory, directory));
-    const files = fs2.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
+    const files = fs.readdirSync(abs, { withFileTypes: true }).filter((f) => f.name.endsWith(".ts"));
     for (const file of files) {
       const filePath = path.join(file.parentPath, file.name);
       const name = file.name.slice(0, file.name.length - 3);
@@ -1378,12 +966,10 @@ var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res) => {
   let metadata = async (props) => html();
   let modules = {};
   let pageIgnoresLayout = false;
-  let isDynamicPage = false;
   try {
     const {
       page,
       metadata: pageMetadata,
-      isDynamic,
       shippedModules: shippedModules2,
       ignoreLayout,
       requestHook
@@ -1403,9 +989,6 @@ var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res) => {
     }
     pageElements = page;
     metadata = pageMetadata;
-    if (isDynamic === true) {
-      isDynamicPage = isDynamic;
-    }
   } catch (e) {
     throw new Error(`Error in Page: ${directory}/page.ts - ${e}`);
   }
@@ -1475,9 +1058,9 @@ var build = async () => {
   }
   try {
     {
-      log2(bold(yellow(" -- Elegance.JS -- ")));
+      log(bold(yellow(" -- Elegance.JS -- ")));
       if (options.environment === "production") {
-        log2(
+        log(
           " - ",
           bgYellow(bold(black(" NOTE "))),
           " : ",
@@ -1485,7 +1068,7 @@ var build = async () => {
           underline("console.log() "),
           white("statements will be shown on the client, and all code will be minified.")
         );
-        log2("");
+        log("");
       }
     }
     if (options.preCompile) {
@@ -1506,28 +1089,19 @@ var build = async () => {
     await buildClient(DIST_DIR);
     const end = performance.now();
     if (options.publicDirectory) {
-      log2("Recursively copying public directory.. this may take a while.");
+      log("Recursively copying public directory.. this may take a while.");
       const src = path.relative(process.cwd(), options.publicDirectory.path);
-      if (fs2.existsSync(src) === false) {
+      if (fs.existsSync(src) === false) {
         console.warn("WARNING: Public directory not found, an attempt will be made create it..");
-        fs2.mkdirSync(src, { recursive: true });
+        fs.mkdirSync(src, { recursive: true });
       }
-      await fs2.promises.cp(src, path.join(DIST_DIR), { recursive: true });
+      await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true });
     }
     {
-      log2(`Took ${Math.round(pagesBuilt - start)}ms to Build Pages.`);
-      log2(`Took ${Math.round(end - pagesBuilt)}ms to Build Client.`);
+      log(`Took ${Math.round(pagesBuilt - start)}ms to Build Pages.`);
+      log(`Took ${Math.round(end - pagesBuilt)}ms to Build Client.`);
     }
-    if (options.server != void 0 && options.server.runServer == true) {
-      startServer({
-        root: options.server.root ?? DIST_DIR,
-        environment: options.environment,
-        port: options.server.port ?? 3e3,
-        host: options.server.host ?? "localhost",
-        DIST_DIR,
-        pagesDirectory: options.pagesDirectory
-      });
-    }
+    process.send?.({ event: "message", data: "set-pages-and-layouts", content: JSON.stringify({ pageMap: Array.from(PAGE_MAP), layoutMap: Array.from(LAYOUT_MAP) }) });
     process.send?.({ event: "message", data: "compile-finish" });
     if (shouldClientHardReload) {
       process.send({ event: "message", data: "hard-reload" });
@@ -1542,11 +1116,9 @@ var build = async () => {
   return true;
 };
 (async () => {
-  await build();
+  if (process.env.DO_BUILD === "true") await build();
 })();
 export {
-  LAYOUT_MAP2 as LAYOUT_MAP,
-  PAGE_MAP,
   buildDynamicPage,
   processPageElements
 };

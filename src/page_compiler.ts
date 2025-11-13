@@ -18,7 +18,6 @@ registerLoader();
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
-import { startServer } from "./server/server";
 import type { IncomingMessage, ServerResponse } from "http";
 
 import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
@@ -93,13 +92,14 @@ type CompilationOptions = {
     quiet: boolean;
 }
 
-let options: CompilationOptions = JSON.parse(process.env.OPTIONS as string);
+let options: CompilationOptions = JSON.parse(process.env.OPTIONS || "{}" as string);
 
+console.log(options)
 /** Contains publicly accessible files. */
 const DIST_DIR = process.env.DIST_DIR as string;
 
-export const PAGE_MAP = new Map<Pathname, PageInformation>();
-export const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
+const PAGE_MAP = new Map<Pathname, PageInformation>();
+const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
 
 const getAllSubdirectories = (dir: string, baseDir = dir) => {
     let directories: Array<string> = [];
@@ -1144,13 +1144,11 @@ export const buildDynamicPage = async (
     let metadata: any = async (props: PageProps) => html();
     let modules: ShippedModules = {};
     let pageIgnoresLayout: boolean = false;
-    let isDynamicPage = false;
     
     try {
         const {
             page,
             metadata: pageMetadata,
-            isDynamic,
             shippedModules,
             ignoreLayout,
             requestHook,
@@ -1176,10 +1174,6 @@ export const buildDynamicPage = async (
         
         pageElements = page;
         metadata = pageMetadata;
-        
-        if (isDynamic === true) {
-            isDynamicPage = isDynamic;
-        }
     } catch(e) {
         throw new Error(`Error in Page: ${directory}/page.ts - ${e}`);
     }
@@ -1233,7 +1227,6 @@ export const buildDynamicPage = async (
     await shipModules()
 
     return { resultHTML, }
-
 };
 
 const shipModules = async () => {
@@ -1329,17 +1322,7 @@ const build = async (): Promise<boolean> => {
         log(`Took ${Math.round(end-pagesBuilt)}ms to Build Client.`)
     }
     
-    if (options.server != undefined && options.server.runServer == true) {
-        startServer({
-            root: options.server.root ?? DIST_DIR,
-            environment: options.environment,
-            port: options.server.port ?? 3000,
-            host: options.server.host ?? "localhost",
-            DIST_DIR,
-            pagesDirectory: options.pagesDirectory,
-        })
-    }
-    
+    process.send?.({ event: "message", data: "set-pages-and-layouts", content: JSON.stringify({ pageMap: Array.from(PAGE_MAP), layoutMap: Array.from(LAYOUT_MAP) }), })
     process.send?.({ event: "message", data: "compile-finish", });
     
     if (shouldClientHardReload) {
@@ -1359,5 +1342,7 @@ const build = async (): Promise<boolean> => {
 };
 
 (async () => {    
-    await build();
+    // set to true by build.ts, but server imports this file so it can use buildDynamicPage(),
+    // therefore, flag.
+    if (process.env.DO_BUILD === "true") await build();
 })()

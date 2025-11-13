@@ -1,3 +1,5 @@
+export declare let PAGE_MAP: Map<any, any>;
+export declare let LAYOUT_MAP: Map<any, any>;
 type CompilationOptions = {
     postCompile?: () => any;
     preCompile?: () => any;

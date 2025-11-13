@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from 'url';
 import child_process from "node:child_process";
 import http, { IncomingMessage, ServerResponse } from "http";
+import { startServer } from "./server/server";
 
 import { log, setQuiet } from "./log";
 
@@ -31,6 +32,9 @@ const green = (text: string) => {
 const finishLog = (...text: string[]) => {
     log.info(text.map((text) => `${text}\u001b[0m`).join(""))
 };
+
+export let PAGE_MAP = new Map();
+export let LAYOUT_MAP = new Map();
 
 type CompilationOptions = {
     postCompile?: () => any,
@@ -94,9 +98,18 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         
     child = child_process.spawn("node", [filepath], { 
         stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
-        env: { ...process.env, DIST_DIR: DIST_DIR, OPTIONS: optionsString, PACKAGE_PATH: packageDir, }
+        env: { ...process.env, 
+            DIST_DIR: DIST_DIR, 
+            OPTIONS: optionsString, 
+            PACKAGE_PATH: packageDir,
+            DO_BUILD: "true",
+        }
     });
-        
+
+    // set, so that the "builder functions" in page_compiler, when called by server.ts, have valid values.
+    process.env.OPTIONS = optionsString
+    process.env.DIST_DIR = DIST_DIR
+
     child.on("error", () => {
         log.error("Failed to start child process.");
     });
@@ -124,6 +137,11 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
                 
                 options.postCompile();
             }
+        } else if (data === "set-pages-and-layouts") {
+            const { pageMap, layoutMap } = JSON.parse(message.content);
+
+            PAGE_MAP = new Map(pageMap);
+            LAYOUT_MAP = new Map(layoutMap);
         }
     });
 };
@@ -196,8 +214,17 @@ export const compile = async (props: CompilationOptions) => {
     if (!fs.existsSync(DIST_DIR)) {
         fs.mkdirSync(DIST_DIR, { recursive: true, });
     }
-    
 
+    if (options.server != undefined && options.server.runServer == true) {
+        startServer({
+            root: options.server.root ?? DIST_DIR,
+            environment: options.environment,
+            port: options.server.port ?? 3000,
+            host: options.server.host ?? "localhost",
+            DIST_DIR,
+            pagesDirectory: options.pagesDirectory,
+        })
+    }
         
     if (watch) {
         await registerListener()
@@ -252,4 +279,5 @@ export const compile = async (props: CompilationOptions) => {
     }
         
     build(DIST_DIR);
+
 };

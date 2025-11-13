@@ -5,7 +5,8 @@ import { pathToFileURL, fileURLToPath } from 'url';
 import { log } from "../log";
 import { gzip, deflate } from 'zlib';
 import { promisify } from 'util';
-import { buildDynamicPage, PAGE_MAP, LAYOUT_MAP } from "../page_compiler";
+
+import { PAGE_MAP, LAYOUT_MAP } from "../build";
 
 const gzipAsync = promisify(gzip);
 const deflateAsync = promisify(deflate);
@@ -222,6 +223,8 @@ async function handlePageRequest(
 
             if (isDynamic) {
                 try {
+                    const { buildDynamicPage } = await import("../page_compiler");
+
                     const result = await buildDynamicPage(
                         DIST_DIR,
                         pathname,
