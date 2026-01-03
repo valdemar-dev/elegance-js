@@ -9,15 +9,18 @@ Elegance has full support for Express-style middleware.
 ## Using Middleware
 First, create a **middleware.ts** file in any directory / subdirectory of **pages**.  
 From that file, any export will be treated as a middleware function, like so:
-`export async function Middleware(req, res, next) {}`  
+`export async function Middleware(req, res, next, props) {}`  
 
-This is very similar to *route handlers* for API Routes, with two key differences.    
+This is very similar to *route handlers* for API Routes, with three key differences.    
 
 1. API Routes define the *http method* they will be called for, whereas Middleware  
 is called for *every* method in the route that it is registered to.    
 
 2. The middleware is exposed to the **next()** function, which it should call to forward  
 the request to the next middleware.    
+
+3. The middleware may assign a value to any key, which will then be forwarded to both the *metadata* and and *page* functions  
+of every page that the middleware affects. Note, that this only works on dynamic pages, because they are generated per-request.    
 
 ## Useful Things
 You can register multiple middleware in a **middleware.ts** file,  

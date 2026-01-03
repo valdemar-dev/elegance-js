@@ -1078,6 +1078,7 @@ const buildPage = async (
     
     const pageProps: PageProps = {
         pageName: directory,
+        middlewareData: {},
     };
     
     // construct layout path    
@@ -1129,6 +1130,7 @@ export const buildDynamicPage = async (
     pageInfo: PageInformation,
     req: IncomingMessage, 
     res: ServerResponse,
+    middlewareData: MiddlewareData,
 ) => {
     directory = directory === "/" ? "" : directory;
     
@@ -1197,6 +1199,7 @@ export const buildDynamicPage = async (
     
     const pageProps: PageProps = {
         pageName: directory,
+        middlewareData: middlewareData,
     };
     
     // construct layout path    

@@ -919,7 +919,8 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
     console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
   }
   const pageProps = {
-    pageName: directory
+    pageName: directory,
+    middlewareData: {}
   };
   if (typeof pageElements === "function") {
     if (pageElements.constructor.name === "AsyncFunction") {
@@ -955,7 +956,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   );
   return sendHardReloadInstruction === true;
 };
-var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res) => {
+var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res, middlewareData) => {
   directory = directory === "/" ? "" : directory;
   const filePath = pageInfo.filePath;
   initializeState();
@@ -1004,7 +1005,8 @@ var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res) => {
     console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
   }
   const pageProps = {
-    pageName: directory
+    pageName: directory,
+    middlewareData
   };
   if (typeof pageElements === "function") {
     if (pageElements.constructor.name === "AsyncFunction") {

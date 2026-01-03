@@ -1004,7 +1004,8 @@ ${trace}`);
         console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
       }
       const pageProps = {
-        pageName: directory
+        pageName: directory,
+        middlewareData: {}
       };
       if (typeof pageElements === "function") {
         if (pageElements.constructor.name === "AsyncFunction") {
@@ -1040,7 +1041,7 @@ ${trace}`);
       );
       return sendHardReloadInstruction === true;
     };
-    buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res) => {
+    buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res, middlewareData) => {
       directory = directory === "/" ? "" : directory;
       const filePath = pageInfo.filePath;
       initializeState();
@@ -1089,7 +1090,8 @@ ${trace}`);
         console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
       }
       const pageProps = {
-        pageName: directory
+        pageName: directory,
+        middlewareData
       };
       if (typeof pageElements === "function") {
         if (pageElements.constructor.name === "AsyncFunction") {
@@ -1214,10 +1216,21 @@ import child_process from "node:child_process";
 import http from "http";
 
 // src/server/server.ts
-import { createServer as createHttpServer } from "http";
-import { promises as fs2 } from "fs";
-import { join, normalize, extname, dirname } from "path";
-import { pathToFileURL } from "url";
+import {
+  createServer as createHttpServer
+} from "http";
+import {
+  promises as fs2
+} from "fs";
+import {
+  join,
+  normalize,
+  extname,
+  dirname
+} from "path";
+import {
+  pathToFileURL
+} from "url";
 
 // src/log.ts
 var quiet = false;
@@ -1256,8 +1269,13 @@ var log = {
 };
 
 // src/server/server.ts
-import { gzip, deflate } from "zlib";
-import { promisify } from "util";
+import {
+  gzip,
+  deflate
+} from "zlib";
+import {
+  promisify
+} from "util";
 var gzipAsync = promisify(gzip);
 var deflateAsync = promisify(deflate);
 var MIME_TYPES = {
@@ -1288,7 +1306,9 @@ function startServer({
   const requestHandler = async (req, res) => {
     try {
       if (!req.url) {
-        await sendResponse(req, res, 400, { "Content-Type": "text/plain; charset=utf-8" }, "Bad Request");
+        await sendResponse(req, res, 400, {
+          "Content-Type": "text/plain; charset=utf-8"
+        }, "Bad Request");
         return;
       }
       res.setHeader("Access-Control-Allow-Origin", "*");
@@ -1315,7 +1335,9 @@ function startServer({
       }
     } catch (err) {
       log.error(err);
-      await sendResponse(req, res, 500, { "Content-Type": "text/plain; charset=utf-8" }, "Internal Server Error");
+      await sendResponse(req, res, 500, {
+        "Content-Type": "text/plain; charset=utf-8"
+      }, "Internal Server Error");
     }
   };
   function attemptListen(p) {
@@ -1351,7 +1373,11 @@ async function getTargetInfo(root, pathname) {
   } else {
     targetDir = originalPathname.endsWith("/") ? filePath : dirname(filePath);
   }
-  return { filePath, targetDir, stats };
+  return {
+    filePath,
+    targetDir,
+    stats
+  };
 }
 function getMiddlewareDirs(base, parts) {
   const middlewareDirs = [];
@@ -1387,12 +1413,17 @@ async function collectMiddlewares(dirs) {
 }
 async function handlePageRequest(root, pagesDirectory, pathname, req, res, DIST_DIR2, pageInfo) {
   try {
-    const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
+    const {
+      filePath,
+      targetDir,
+      stats
+    } = await getTargetInfo(root, pathname);
     const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
     const parts = relDir.split(/[\\/]/).filter(Boolean);
     const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
     const middlewares = await collectMiddlewares(middlewareDirs);
-    let isDynamic = pageInfo.isDynamic;
+    const data = {};
+    const isDynamic = pageInfo.isDynamic;
     const handlerPath = isDynamic ? pageInfo.filePath : join(filePath, "index.html");
     let hasHandler = false;
     try {
@@ -1407,37 +1438,53 @@ async function handlePageRequest(root, pagesDirectory, pathname, req, res, DIST_
       }
       if (isDynamic) {
         try {
-          const { buildDynamicPage: buildDynamicPage2 } = await Promise.resolve().then(() => (init_page_compiler(), page_compiler_exports));
+          const {
+            buildDynamicPage: buildDynamicPage2
+          } = await Promise.resolve().then(() => (init_page_compiler(), page_compiler_exports));
           const result = await buildDynamicPage2(
             DIST_DIR2,
             pathname,
             pageInfo,
             req2,
-            res2
+            res2,
+            data
           );
           if (result === false) {
             return;
           }
-          const { resultHTML } = result;
+          const {
+            resultHTML
+          } = result;
           if (resultHTML === false) {
             return;
           }
-          await sendResponse(req2, res2, 200, { "Content-Type": MIME_TYPES[".html"] }, resultHTML);
+          await sendResponse(req2, res2, 200, {
+            "Content-Type": MIME_TYPES[".html"]
+          }, resultHTML);
         } catch (err) {
           log.error("Error building dynamic page -", err);
         }
       } else {
         const ext = extname(handlerPath).toLowerCase();
         const contentType = MIME_TYPES[ext] || "application/octet-stream";
-        const data = await fs2.readFile(handlerPath);
-        await sendResponse(req2, res2, 200, { "Content-Type": contentType }, data);
+        const fileData = await fs2.readFile(handlerPath);
+        await sendResponse(req2, res2, 200, {
+          "Content-Type": contentType
+        }, fileData);
       }
     };
-    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+    const composed = composeMiddlewares(middlewares, finalHandler, {
+      isApi: false,
+      root,
+      pathname,
+      data
+    });
     await composed(req, res);
   } catch (err) {
     if (err.message === "Forbidden") {
-      await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
+      await sendResponse(req, res, 403, {
+        "Content-Type": "text/plain; charset=utf-8"
+      }, "Forbidden");
     } else {
       throw err;
     }
@@ -1445,7 +1492,11 @@ async function handlePageRequest(root, pagesDirectory, pathname, req, res, DIST_
 }
 async function handleStaticRequest(root, pagesDirectory, pathname, req, res, DIST_DIR2) {
   try {
-    const { filePath, targetDir, stats } = await getTargetInfo(root, pathname);
+    const {
+      filePath,
+      targetDir,
+      stats
+    } = await getTargetInfo(root, pathname);
     const relDir = targetDir.slice(root.length).replace(/^[\/\\]+/, "");
     const parts = relDir.split(/[\\/]/).filter(Boolean);
     const middlewareDirs = getMiddlewareDirs(pagesDirectory, parts);
@@ -1453,8 +1504,6 @@ async function handleStaticRequest(root, pagesDirectory, pathname, req, res, DIS
     let handlerPath = filePath;
     if (stats && stats.isDirectory()) {
       handlerPath = join(filePath, "index.html");
-    } else {
-      handlerPath = filePath;
     }
     let hasHandler = false;
     try {
@@ -1469,14 +1518,22 @@ async function handleStaticRequest(root, pagesDirectory, pathname, req, res, DIS
       }
       const ext = extname(handlerPath).toLowerCase();
       const contentType = MIME_TYPES[ext] || "application/octet-stream";
-      const data = await fs2.readFile(handlerPath);
-      await sendResponse(req2, res2, 200, { "Content-Type": contentType }, data);
+      const fileData = await fs2.readFile(handlerPath);
+      await sendResponse(req2, res2, 200, {
+        "Content-Type": contentType
+      }, fileData);
     };
-    const composed = composeMiddlewares(middlewares, finalHandler, { isApi: false, root, pathname });
+    const composed = composeMiddlewares(middlewares, finalHandler, {
+      isApi: false,
+      root,
+      pathname
+    });
     await composed(req, res);
   } catch (err) {
     if (err.message === "Forbidden") {
-      await sendResponse(req, res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
+      await sendResponse(req, res, 403, {
+        "Content-Type": "text/plain; charset=utf-8"
+      }, "Forbidden");
     } else {
       throw err;
     }
@@ -1516,7 +1573,9 @@ async function handleApiRequest(pagesDirectory, pathname, req, res) {
     }
     await fn(req2, res2);
   };
-  const composed = composeMiddlewares(middlewares, finalHandler, { isApi: true });
+  const composed = composeMiddlewares(middlewares, finalHandler, {
+    isApi: true
+  });
   await composed(req, res);
 }
 function composeMiddlewares(mws, final, options3) {
@@ -1547,7 +1606,7 @@ function composeMiddlewares(mws, final, options3) {
         };
       };
       try {
-        await thisMw(req, res, onceNext(next));
+        await thisMw(req, res, onceNext(next), options3.data || {});
       } catch (error) {
         await dispatch(error);
       }
@@ -1556,8 +1615,12 @@ function composeMiddlewares(mws, final, options3) {
   };
 }
 async function respondWithJsonError(req, res, code, message) {
-  const body2 = JSON.stringify({ error: message });
-  await sendResponse(req, res, code, { "Content-Type": "application/json; charset=utf-8" }, body2);
+  const body2 = JSON.stringify({
+    error: message
+  });
+  await sendResponse(req, res, code, {
+    "Content-Type": "application/json; charset=utf-8"
+  }, body2);
 }
 async function respondWithErrorPage(root, pathname, code, req, res) {
   let currentPath = normalize(join(root, decodeURIComponent(pathname)));
@@ -1589,21 +1652,23 @@ async function respondWithErrorPage(root, pathname, code, req, res) {
   if (errorFilePath) {
     try {
       const html2 = await fs2.readFile(errorFilePath, "utf8");
-      await sendResponse(req, res, code, { "Content-Type": "text/html; charset=utf-8" }, html2);
+      await sendResponse(req, res, code, {
+        "Content-Type": "text/html; charset=utf-8"
+      }, html2);
       return;
     } catch {
     }
   }
-  await sendResponse(req, res, code, { "Content-Type": "text/plain; charset=utf-8" }, `${code} Error`);
+  await sendResponse(req, res, code, {
+    "Content-Type": "text/plain; charset=utf-8"
+  }, `${code} Error`);
 }
 function isCompressible(contentType) {
   if (!contentType) return false;
   return /text\/|javascript|json|xml|svg/.test(contentType);
 }
 async function sendResponse(req, res, status, headers, body2) {
-  if (typeof body2 === "string") {
-    body2 = Buffer.from(body2);
-  }
+  let bufferBody = typeof body2 === "string" ? Buffer.from(body2) : body2;
   const accept = req.headers["accept-encoding"] || "";
   let encoding = null;
   if (accept.match(/\bgzip\b/)) {
@@ -1613,12 +1678,12 @@ async function sendResponse(req, res, status, headers, body2) {
   }
   if (!encoding || !isCompressible(headers["Content-Type"] || "")) {
     res.writeHead(status, headers);
-    res.end(body2);
+    res.end(bufferBody);
     return;
   }
   const compressor = encoding === "gzip" ? gzipAsync : deflateAsync;
   try {
-    const compressed = await compressor(body2);
+    const compressed = await compressor(bufferBody);
     headers["Content-Encoding"] = encoding;
     headers["Vary"] = "Accept-Encoding";
     res.writeHead(status, headers);
@@ -1626,7 +1691,7 @@ async function sendResponse(req, res, status, headers, body2) {
   } catch (err) {
     log.error("Compression error:", err);
     res.writeHead(status, headers);
-    res.end(body2);
+    res.end(bufferBody);
   }
 }
 
