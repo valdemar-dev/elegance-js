@@ -1,7 +1,7 @@
-// src/server/observe.ts
-var observe = (refs, update) => {
+import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
+const observe = (refs, update) => {
   const returnValue = {
-    type: 2 /* OBSERVER */,
+    type: ObjectAttributeType.OBSERVER,
     initialValues: refs.map((ref) => ref.value),
     update,
     refs: refs.map((ref) => ({

@@ -1,5 +1,4 @@
-// src/log.ts
-var quiet = false;
+let quiet = false;
 function setQuiet(value) {
   quiet = value;
 }
@@ -28,7 +27,7 @@ function logWarn(...args) {
 function logError(...args) {
   console.error(`Elegance.JS: ${getTimestamp()} ${color("[ERROR]:", 31)}`, ...args);
 }
-var log = {
+const log = {
   info: logInfo,
   warn: logWarn,
   error: logError

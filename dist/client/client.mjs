@@ -1,160 +1,21 @@
-// src/shared/serverElements.ts
-var createBuildableElement = (tag) => {
-  return (options, ...children) => ({
-    tag,
-    options: options || {},
-    children
-  });
-};
-var createChildrenlessBuildableElement = (tag) => {
-  return (options) => ({
-    tag,
-    options: options || {},
-    children: null
-  });
-};
-var childrenlessElementTags = [
-  "area",
-  "base",
-  "br",
-  "col",
-  "embed",
-  "hr",
-  "img",
-  "input",
-  "link",
-  "meta",
-  "source",
-  "track",
-  "path",
-  "rect"
-];
-var elementTags = [
-  "a",
-  "address",
-  "article",
-  "aside",
-  "audio",
-  "blockquote",
-  "body",
-  "button",
-  "canvas",
-  "caption",
-  "colgroup",
-  "data",
-  "datalist",
-  "dd",
-  "del",
-  "details",
-  "dialog",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "head",
-  "header",
-  "hgroup",
-  "html",
-  "iframe",
-  "ins",
-  "label",
-  "legend",
-  "li",
-  "main",
-  "map",
-  "meter",
-  "nav",
-  "noscript",
-  "object",
-  "ol",
-  "optgroup",
-  "option",
-  "output",
-  "p",
-  "picture",
-  "pre",
-  "progress",
-  "q",
-  "section",
-  "select",
-  "summary",
-  "table",
-  "tbody",
-  "td",
-  "template",
-  "textarea",
-  "tfoot",
-  "th",
-  "thead",
-  "time",
-  "tr",
-  "ul",
-  "video",
-  "span",
-  "script",
-  "abbr",
-  "b",
-  "bdi",
-  "bdo",
-  "cite",
-  "code",
-  "dfn",
-  "em",
-  "i",
-  "kbd",
-  "mark",
-  "rp",
-  "rt",
-  "ruby",
-  "s",
-  "samp",
-  "small",
-  "strong",
-  "sub",
-  "sup",
-  "u",
-  "wbr",
-  "title",
-  "svg"
-];
-var elements = {};
-var childrenlessElements = {};
-for (const element of elementTags) {
-  elements[element] = createBuildableElement(element);
-}
-for (const element of childrenlessElementTags) {
-  childrenlessElements[element] = createChildrenlessBuildableElement(element);
-}
-var allElements = {
-  ...elements,
-  ...childrenlessElements
-};
-
-// src/shared/bindServerElements.ts
-Object.assign(globalThis, elements);
-Object.assign(globalThis, childrenlessElements);
-
-// src/client/client.ts
+import "../shared/bindServerElements";
+import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 console.log("Elegance.JS is loading..");
-var pd = {};
-var ld = {};
+let pd = {};
+let ld = {};
+var BindLevel = /* @__PURE__ */ ((BindLevel2) => {
+  BindLevel2[BindLevel2["STRICT"] = 1] = "STRICT";
+  BindLevel2[BindLevel2["SCOPED"] = 2] = "SCOPED";
+  return BindLevel2;
+})(BindLevel || {});
+;
 Object.assign(window, {
   observe: (subjects, updateCallback) => {
     return {
       subjects,
       updateCallback,
       isAttribute: true,
-      type: 2 /* OBSERVER */
+      type: ObjectAttributeType.OBSERVER
     };
   },
   eventListener: (subjects, eventListener) => {
@@ -162,22 +23,32 @@ Object.assign(window, {
       subjects,
       eventListener,
       isAttribute: true,
-      type: 1 /* STATE */
+      type: ObjectAttributeType.STATE
     };
   }
 });
-var domParser = new DOMParser();
-var xmlSerializer = new XMLSerializer();
-var pageStringCache = /* @__PURE__ */ new Map();
-var loc = window.location;
-var doc = document;
-var cleanupProcedures = [];
-var sanitizePathname = (pn) => {
+const domParser = new DOMParser();
+const xmlSerializer = new XMLSerializer();
+const pageStringCache = /* @__PURE__ */ new Map();
+const loc = window.location;
+const doc = document;
+let cleanupProcedures = [];
+const sanitizePathname = (pn) => {
   if (!pn.endsWith("/") || pn === "/") return pn;
   return pn.slice(0, -1);
 };
-var currentPage = sanitizePathname(loc.pathname);
-var createStateManager = (subjects, bindLevel) => {
+let currentPage = sanitizePathname(loc.pathname);
+function getAllPaths(pathname) {
+  const sanitized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  const parts = sanitized.split("/").filter(Boolean);
+  const subpaths = [
+    "/",
+    ...parts.map((_, i) => "/" + parts.slice(0, i + 1).join("/"))
+  ];
+  if (sanitized === "/") return ["/"];
+  return subpaths;
+}
+const createStateManager = (subjects, bindLevel) => {
   const state = {
     subjects: subjects.map((subject) => {
       const s = {
@@ -233,7 +104,7 @@ var createStateManager = (subjects, bindLevel) => {
   };
   return state;
 };
-var initPageData = (data, currentPage2, previousPage, bindLevel) => {
+const initPageData = (data, currentPage2, previousPage, bindLevel) => {
   if (!data) {
     console.error("Data for page " + currentPage2 + " is null.");
     return;
@@ -330,7 +201,7 @@ var initPageData = (data, currentPage2, previousPage, bindLevel) => {
     }
   }
 };
-var loadPage = async (previousPage = null) => {
+const loadPage = async (previousPage = null) => {
   const fixedUrl = new URL(loc.href);
   fixedUrl.pathname = sanitizePathname(fixedUrl.pathname);
   const pathname = fixedUrl.pathname;
@@ -375,7 +246,7 @@ var loadPage = async (previousPage = null) => {
     cleanupProcedures
   );
 };
-var fetchPage = async (targetURL) => {
+const fetchPage = async (targetURL) => {
   const pathname = sanitizePathname(targetURL.pathname);
   if (pageStringCache.has(pathname)) {
     return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
@@ -416,7 +287,7 @@ var fetchPage = async (targetURL) => {
   pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
   return newDOM;
 };
-var navigateLocally = async (target, pushState = true) => {
+const navigateLocally = async (target, pushState = true) => {
   const targetURL = new URL(target);
   const pathname = sanitizePathname(targetURL.pathname);
   console.log(
@@ -500,7 +371,7 @@ window.onpopstate = async (event) => {
   await navigateLocally(target.location.href, false);
   history.replaceState(null, "", target.location.href);
 };
-var renderRecursively = (element, attributes) => {
+const renderRecursively = (element, attributes) => {
   if (typeof element === "boolean") {
     return null;
   }

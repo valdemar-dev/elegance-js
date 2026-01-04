@@ -1,5 +1,4 @@
-// src/client/render.ts
-var renderRecursively = (element) => {
+const renderRecursively = (element) => {
   if (typeof element === "boolean") {
     return null;
   }

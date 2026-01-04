@@ -1,6 +1,6 @@
-// src/client/processPageElements.ts
-var elementKey = 0;
-var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
+import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
+let elementKey = 0;
+const processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
   const lcOptionName = optionName.toLowerCase();
   const options = element.options;
   let key = options.key;
@@ -14,7 +14,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
   }
   let optionFinal = lcOptionName;
   switch (optionValue.type) {
-    case 1 /* STATE */:
+    case ObjectAttributeType.STATE:
       const SOA = optionValue;
       if (typeof SOA.value === "function") {
         delete options[optionName];
@@ -28,7 +28,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
         options[lcOptionName] = SOA.value;
       }
       break;
-    case 2 /* OBSERVER */:
+    case ObjectAttributeType.OBSERVER:
       const OOA = optionValue;
       const firstValue = OOA.update(...OOA.initialValues);
       if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
@@ -40,13 +40,13 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
       }
       optionFinal = optionName;
       break;
-    case 4 /* REFERENCE */:
+    case ObjectAttributeType.REFERENCE:
       options["ref"] = optionValue.value;
       break;
   }
   objectAttributes.push({ ...optionValue, key, attribute: optionFinal });
 };
-var processPageElements = (element, objectAttributes, parent) => {
+const processPageElements = (element, objectAttributes, parent) => {
   if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) return element;
   if (typeof element === "string") {
     return element;

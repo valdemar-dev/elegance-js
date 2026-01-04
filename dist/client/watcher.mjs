@@ -1,5 +1,4 @@
-// src/client/watcher.ts
-var eventSource = new EventSource(`http://localhost:${watchServerPort}/events`);
+const eventSource = new EventSource(`http://localhost:${watchServerPort}/events`);
 eventSource.onerror = async () => {
 };
 eventSource.onmessage = async (event) => {

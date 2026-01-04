@@ -1,34 +1,13 @@
-// src/server/loadHook.ts
-var loadHook = (deps, fn, bind) => {
-  const stringFn = fn.toString();
-  const depsArray = (deps || []).map((dep) => ({
-    id: dep.id,
-    bind: dep.bind
-  }));
-  let dependencyString = "[";
-  for (const dep of depsArray) {
-    dependencyString += `{id:${dep.id}`;
-    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
-    dependencyString += `},`;
-  }
-  dependencyString += "]";
-  const isAsync = fn.constructor.name === "AsyncFunction";
-  const wrapperFn = isAsync ? `async (state) => await (${stringFn})(state, ...state.getAll(${dependencyString}))` : `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`;
-  globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-    fn: wrapperFn,
-    bind: bind || ""
-  });
-};
-
-// src/server/state.ts
+import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
+import { loadHook } from "./loadHook";
 if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
   globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
 }
-var state = (value, options) => {
+const state = (value, options) => {
   const serverStateEntry = {
     id: __SERVER_CURRENT_STATE_ID__ += 1,
     value,
-    type: 1 /* STATE */
+    type: ObjectAttributeType.STATE
   };
   globalThis.__SERVER_CURRENT_STATE__.push(serverStateEntry);
   if (Array.isArray(value)) {
@@ -36,7 +15,7 @@ var state = (value, options) => {
   }
   return serverStateEntry;
 };
-var reactiveMap = function(template, deps) {
+const reactiveMap = function(template, deps) {
   const subject = this;
   const dependencies = state(deps || []);
   const templateFn = state(template);
@@ -67,7 +46,7 @@ var reactiveMap = function(template, deps) {
             let values = {};
             const type = attribute.type;
             switch (type) {
-              case 2 /* OBSERVER */: {
+              case ObjectAttributeType.OBSERVER: {
                 const { field, subjects, updateCallback } = attribute;
                 for (const reference of subjects) {
                   const subject3 = state2.get(reference.id, reference.bind);
@@ -91,7 +70,7 @@ var reactiveMap = function(template, deps) {
                 }
                 break;
               }
-              case 1 /* STATE */: {
+              case ObjectAttributeType.STATE: {
                 const { field, element, subjects, eventListener: eventListener2 } = attribute;
                 const lc = field.toLowerCase();
                 const fn = (event) => {
@@ -128,7 +107,7 @@ var reactiveMap = function(template, deps) {
     "map-id": subject.id
   });
 };
-var eventListener = (dependencies, eventListener2) => {
+const eventListener = (dependencies, eventListener2) => {
   const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
   let dependencyString = "[";
   for (const dep of deps) {
@@ -139,7 +118,7 @@ var eventListener = (dependencies, eventListener2) => {
   dependencyString += "]";
   const value = {
     id: __SERVER_CURRENT_STATE_ID__ += 1,
-    type: 1 /* STATE */,
+    type: ObjectAttributeType.STATE,
     value: new Function(
       "state",
       "event",
@@ -149,12 +128,12 @@ var eventListener = (dependencies, eventListener2) => {
   globalThis.__SERVER_CURRENT_STATE__.push(value);
   return value;
 };
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
-var getState = () => {
+const initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
+const getState = () => {
   return globalThis.__SERVER_CURRENT_STATE__;
 };
-var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
-var getObjectAttributes = () => {
+const initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
+const getObjectAttributes = () => {
   return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
 };
 export {

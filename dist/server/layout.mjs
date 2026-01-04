@@ -1,8 +1,7 @@
-// src/server/layout.ts
-var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
-var getLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__;
+const resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
+const getLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__;
 if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
-var createLayout = (name) => {
+const createLayout = (name) => {
   process.emitWarning(
     "Function createLayout() is deprecated. Prefer layout.ts files instead.",
     { type: "DeprecationWarning" }

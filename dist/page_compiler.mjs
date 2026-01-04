@@ -1,315 +1,54 @@
-// src/page_compiler.ts
 import fs from "fs";
 import path from "path";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { registerLoader, setArcTsConfig } from "ts-arc";
-import esbuild from "esbuild";
-import { fileURLToPath } from "url";
-
-// src/shared/serverElements.ts
-var createBuildableElement = (tag) => {
-  return (options2, ...children) => ({
-    tag,
-    options: options2 || {},
-    children
-  });
-};
-var createChildrenlessBuildableElement = (tag) => {
-  return (options2) => ({
-    tag,
-    options: options2 || {},
-    children: null
-  });
-};
-var childrenlessElementTags = [
-  "area",
-  "base",
-  "br",
-  "col",
-  "embed",
-  "hr",
-  "img",
-  "input",
-  "link",
-  "meta",
-  "source",
-  "track",
-  "path",
-  "rect"
-];
-var elementTags = [
-  "a",
-  "address",
-  "article",
-  "aside",
-  "audio",
-  "blockquote",
-  "body",
-  "button",
-  "canvas",
-  "caption",
-  "colgroup",
-  "data",
-  "datalist",
-  "dd",
-  "del",
-  "details",
-  "dialog",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "head",
-  "header",
-  "hgroup",
-  "html",
-  "iframe",
-  "ins",
-  "label",
-  "legend",
-  "li",
-  "main",
-  "map",
-  "meter",
-  "nav",
-  "noscript",
-  "object",
-  "ol",
-  "optgroup",
-  "option",
-  "output",
-  "p",
-  "picture",
-  "pre",
-  "progress",
-  "q",
-  "section",
-  "select",
-  "summary",
-  "table",
-  "tbody",
-  "td",
-  "template",
-  "textarea",
-  "tfoot",
-  "th",
-  "thead",
-  "time",
-  "tr",
-  "ul",
-  "video",
-  "span",
-  "script",
-  "abbr",
-  "b",
-  "bdi",
-  "bdo",
-  "cite",
-  "code",
-  "dfn",
-  "em",
-  "i",
-  "kbd",
-  "mark",
-  "rp",
-  "rt",
-  "ruby",
-  "s",
-  "samp",
-  "small",
-  "strong",
-  "sub",
-  "sup",
-  "u",
-  "wbr",
-  "title",
-  "svg"
-];
-var elements = {};
-var childrenlessElements = {};
-for (const element of elementTags) {
-  elements[element] = createBuildableElement(element);
-}
-for (const element of childrenlessElementTags) {
-  childrenlessElements[element] = createChildrenlessBuildableElement(element);
-}
-var allElements = {
-  ...elements,
-  ...childrenlessElements
-};
-
-// src/shared/bindServerElements.ts
-Object.assign(globalThis, elements);
-Object.assign(globalThis, childrenlessElements);
-
-// src/server/render.ts
-var renderRecursively = (element) => {
-  let returnString = "";
-  if (typeof element === "boolean") return returnString;
-  else if (typeof element === "number" || typeof element === "string") {
-    return returnString + element;
-  } else if (Array.isArray(element)) {
-    return returnString + element.join(", ");
-  }
-  returnString += `<${element.tag}`;
-  if (typeof element.options === "object") {
-    const {
-      tag: elementTag,
-      options: elementOptions,
-      children: elementChildren
-    } = element.options;
-    if (elementTag !== void 0 && elementOptions !== void 0 && elementChildren !== void 0) {
-      const children = element.children;
-      element.children = [
-        element.options,
-        ...children
-      ];
-      element.options = {};
-    } else {
-      for (const [attrName, attrValue] of Object.entries(element.options)) {
-        if (typeof attrValue === "object") {
-          throw `Attr ${attrName}, for element ${element.tag} has obj type. Got: ${JSON.stringify(element, null, 2)}`;
-        }
-        returnString += ` ${attrName.toLowerCase()}="${attrValue}"`;
-      }
-    }
-  } else if (typeof element.options !== "object" && element.options !== void 0) {
-    element.children = [element.options, ...element.children || []];
-  }
-  if (element.children === null) {
-    returnString += "/>";
-    return returnString;
-  }
-  returnString += ">";
-  for (const child of element.children) {
-    returnString += renderRecursively(child);
-  }
-  returnString += `</${element.tag}>`;
-  return returnString;
-};
-var serverSideRenderPage = async (page, pathname) => {
-  if (!page) {
-    throw `No Page Provided.`;
-  }
-  if (typeof page === "function") {
-    throw `Unbuilt page provided to ssr page.`;
-  }
-  const bodyHTML = renderRecursively(page);
-  return {
-    bodyHTML
-  };
-};
-
-// src/server/generateHTMLTemplate.ts
-var generateHTMLTemplate = async ({
-  pageURL,
-  head: head2,
-  serverData = null,
-  addPageScriptTag = true,
-  name,
-  requiredClientModules = {},
-  environment
-}) => {
-  let StartTemplate = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
-  if (environment === "production") {
-    StartTemplate += `<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">`;
-  }
-  StartTemplate += '<meta charset="UTF-8">';
-  for (const [globalName] of Object.entries(requiredClientModules)) {
-    StartTemplate += `<script data-module="true" src="/shipped/${globalName}.js" defer="true"></script>`;
-  }
-  if (addPageScriptTag === true) {
-    const sanitized = pageURL === "" ? "/" : `/${pageURL}`;
-    StartTemplate += `<script data-page="true" type="module" data-pathname="${sanitized}" src="${sanitized.endsWith("/") ? sanitized : sanitized + "/"}${name}_data.js" defer="true"></script>`;
-  }
-  StartTemplate += `<script type="module" src="/client.js" defer="true"></script>`;
-  let builtHead;
-  if (head2.constructor.name === "AsyncFunction") {
-    builtHead = await head2();
-  } else {
-    builtHead = head2();
-  }
-  let HTMLTemplate = renderRecursively(builtHead);
-  if (serverData) {
-    HTMLTemplate += serverData;
-  }
-  return {
-    internals: StartTemplate,
-    builtMetadata: HTMLTemplate
-  };
-};
-
-// src/server/loadHook.ts
-var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
-var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
-
-// src/server/state.ts
-if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
-}
-var initializeState = () => globalThis.__SERVER_CURRENT_STATE__ = [];
-var getState = () => {
-  return globalThis.__SERVER_CURRENT_STATE__;
-};
-var initializeObjectAttributes = () => globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__ = [];
-var getObjectAttributes = () => {
-  return globalThis.__SERVER_CURRENT_OBJECT_ATTRIBUTES__;
-};
-
-// src/server/layout.ts
-var resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
-if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
-
-// src/page_compiler.ts
-var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
 setArcTsConfig(__dirname);
 registerLoader();
-var packageDir = process.env.PACKAGE_PATH;
+import esbuild from "esbuild";
+import { fileURLToPath } from "url";
+import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
+import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
+import { serverSideRenderPage } from "./server/render";
+import { getState, initializeState, initializeObjectAttributes, getObjectAttributes } from "./server/state";
+import { getLoadHooks, resetLoadHooks } from "./server/loadHook";
+import { resetLayouts } from "./server/layout";
+import { renderRecursively } from "./server/render";
+let packageDir = process.env.PACKAGE_PATH;
 if (packageDir === void 0) {
   packageDir = path.resolve(__dirname, "..");
 }
-var clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
-var watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
-var shippedModules = /* @__PURE__ */ new Map();
-var modulesToShip = [];
-var yellow = (text) => {
+const clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
+const watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
+const shippedModules = /* @__PURE__ */ new Map();
+let modulesToShip = [];
+const yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
 };
-var black = (text) => {
+const black = (text) => {
   return `\x1B[38;2;0;0;0m${text}`;
 };
-var bgYellow = (text) => {
+const bgYellow = (text) => {
   return `\x1B[48;2;238;184;68m${text}`;
 };
-var bold = (text) => {
+const bold = (text) => {
   return `\x1B[1m${text}`;
 };
-var underline = (text) => {
+const underline = (text) => {
   return `\x1B[4m${text}`;
 };
-var white = (text) => {
+const white = (text) => {
   return `\x1B[38;2;255;247;229m${text}`;
 };
-var log = (...text) => {
+const log = (...text) => {
   if (options.quiet) return;
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
-var options = JSON.parse(process.env.OPTIONS || "{}");
-console.log(options);
-var DIST_DIR = process.env.DIST_DIR;
-var PAGE_MAP = /* @__PURE__ */ new Map();
-var LAYOUT_MAP = /* @__PURE__ */ new Map();
-var getAllSubdirectories = (dir, baseDir = dir) => {
+let options = JSON.parse(process.env.OPTIONS || "{}");
+const DIST_DIR = process.env.DIST_DIR;
+const PAGE_MAP = /* @__PURE__ */ new Map();
+const LAYOUT_MAP = /* @__PURE__ */ new Map();
+const getAllSubdirectories = (dir, baseDir = dir) => {
   let directories = [];
   const items = fs.readdirSync(dir, { withFileTypes: true });
   for (const item of items) {
@@ -322,7 +61,7 @@ var getAllSubdirectories = (dir, baseDir = dir) => {
   }
   return directories;
 };
-var buildClient = async (DIST_DIR2) => {
+const buildClient = async (DIST_DIR2) => {
   let clientString = "window.__name = (func) => func; ";
   clientString += fs.readFileSync(clientPath, "utf-8");
   if (options.hotReload !== void 0) {
@@ -342,8 +81,8 @@ var buildClient = async (DIST_DIR2) => {
     transformedClient.code
   );
 };
-var elementKey = 0;
-var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
+let elementKey = 0;
+const processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
   const lcOptionName = optionName.toLowerCase();
   const options2 = element.options;
   let key = options2.key;
@@ -356,7 +95,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
   }
   let optionFinal = lcOptionName;
   switch (optionValue.type) {
-    case 1 /* STATE */:
+    case ObjectAttributeType.STATE:
       const SOA = optionValue;
       if (typeof SOA.value === "function") {
         delete options2[optionName];
@@ -370,7 +109,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
         options2[lcOptionName] = SOA.value;
       }
       break;
-    case 2 /* OBSERVER */:
+    case ObjectAttributeType.OBSERVER:
       const OOA = optionValue;
       const firstValue = OOA.update(...OOA.initialValues);
       if (lcOptionName === "innertext" || lcOptionName === "innerhtml") {
@@ -382,7 +121,7 @@ var processOptionAsObjectAttribute = (element, optionName, optionValue, objectAt
       }
       optionFinal = optionName;
       break;
-    case 4 /* REFERENCE */:
+    case ObjectAttributeType.REFERENCE:
       options2["ref"] = optionValue.value;
       break;
   }
@@ -423,7 +162,7 @@ function buildTrace(stack, indent = 4) {
     return "Could not build stack-trace.";
   }
 }
-var processPageElements = (element, objectAttributes, recursionLevel, stack = []) => {
+const processPageElements = (element, objectAttributes, recursionLevel, stack = []) => {
   stack.push(element);
   try {
     if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) {
@@ -516,7 +255,7 @@ ${trace}`);
     }
   }
 };
-var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = {}, layout, pathname = "") => {
+const pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = {}, layout, pathname = "") => {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
     throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
   }
@@ -592,7 +331,7 @@ var pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageNam
   }
   return resultHTML;
 };
-var generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd", write = true) => {
+const generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd", write = true) => {
   let clientPageJSText = "";
   {
     clientPageJSText += `${globalThis.__SERVER_PAGE_DATA_BANNER__}`;
@@ -613,7 +352,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
       }
       clientPageJSText += `],`;
     }
-    const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === 1 /* STATE */);
+    const stateObjectAttributes = objectAttributes.filter((oa) => oa.type === ObjectAttributeType.STATE);
     if (stateObjectAttributes.length > 0) {
       const processed = [...stateObjectAttributes].map((soa) => {
         delete soa.type;
@@ -621,7 +360,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
       });
       clientPageJSText += `soa:${JSON.stringify(processed)},`;
     }
-    const observerObjectAttributes = objectAttributes.filter((oa) => oa.type === 2 /* OBSERVER */);
+    const observerObjectAttributes = objectAttributes.filter((oa) => oa.type === ObjectAttributeType.OBSERVER);
     if (observerObjectAttributes.length > 0) {
       let observerObjectAttributeString = "ooa:[";
       for (const observerObjectAttribute of observerObjectAttributes) {
@@ -638,8 +377,8 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
     }
     if (pageLoadHooks.length > 0) {
       clientPageJSText += "lh:[";
-      for (const loadHook2 of pageLoadHooks) {
-        clientPageJSText += `{fn:${loadHook2.fn}},`;
+      for (const loadHook of pageLoadHooks) {
+        clientPageJSText += `{fn:${loadHook.fn}},`;
       }
       clientPageJSText += "],";
     }
@@ -660,7 +399,7 @@ var generateClientPageData = async (pageLocation, state, objectAttributes, pageL
   if (write) fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction, result: transformedResult.code };
 };
-var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, generateDynamic = false) => {
+const generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, generateDynamic = false) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
@@ -741,8 +480,8 @@ var generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, gene
   );
   return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
 };
-var builtLayouts = /* @__PURE__ */ new Map();
-var buildLayouts = async () => {
+const builtLayouts = /* @__PURE__ */ new Map();
+const buildLayouts = async () => {
   const pagesDirectory = path.resolve(options.pagesDirectory);
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   let shouldClientHardReload = false;
@@ -768,7 +507,7 @@ var buildLayouts = async () => {
   }
   return { shouldClientHardReload };
 };
-var buildLayout = async (filePath, directory, generateDynamic = false) => {
+const buildLayout = async (filePath, directory, generateDynamic = false) => {
   const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
   const childIndicator = `<template layout-id="${id}"></template>`;
   const result = await generateLayout(
@@ -803,7 +542,7 @@ var buildLayout = async (filePath, directory, generateDynamic = false) => {
     scriptTag: `<script data-layout="true" type="module" src="${pathname}layout_data.js" data-pathname="${pathname}" defer="true"></script>`
   };
 };
-var fetchPageLayoutHTML = async (dirname) => {
+const fetchPageLayoutHTML = async (dirname) => {
   const relative = path.relative(options.pagesDirectory, dirname);
   let split = relative.split(path.sep).filter(Boolean);
   split.push("/");
@@ -840,7 +579,7 @@ var fetchPageLayoutHTML = async (dirname) => {
   }
   return { pageContent, metadata, scriptTag: scriptTags };
 };
-var buildPages = async (DIST_DIR2) => {
+const buildPages = async (DIST_DIR2) => {
   resetLayouts();
   const pagesDirectory = path.resolve(options.pagesDirectory);
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
@@ -870,7 +609,7 @@ var buildPages = async (DIST_DIR2) => {
     shouldClientHardReload
   };
 };
-var buildPage = async (DIST_DIR2, directory, filePath, name) => {
+const buildPage = async (DIST_DIR2, directory, filePath, name) => {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
@@ -956,7 +695,7 @@ var buildPage = async (DIST_DIR2, directory, filePath, name) => {
   );
   return sendHardReloadInstruction === true;
 };
-var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res, middlewareData) => {
+const buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res, middlewareData) => {
   directory = directory === "/" ? "" : directory;
   const filePath = pageInfo.filePath;
   initializeState();
@@ -1030,7 +769,7 @@ var buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res, middlewa
   await shipModules();
   return { resultHTML };
 };
-var shipModules = async () => {
+const shipModules = async () => {
   for (const plugin of modulesToShip) {
     {
       if (shippedModules.has(plugin.globalName)) continue;
@@ -1049,15 +788,7 @@ var shipModules = async () => {
   }
   modulesToShip = [];
 };
-var build = async () => {
-  if (options.quiet === true) {
-    console.log = function() {
-    };
-    console.error = function() {
-    };
-    console.warn = function() {
-    };
-  }
+const build = async () => {
   try {
     {
       log(bold(yellow(" -- Elegance.JS -- ")));

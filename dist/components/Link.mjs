@@ -1,52 +1,4 @@
-// src/server/loadHook.ts
-var loadHook = (deps, fn, bind) => {
-  const stringFn = fn.toString();
-  const depsArray = (deps || []).map((dep) => ({
-    id: dep.id,
-    bind: dep.bind
-  }));
-  let dependencyString = "[";
-  for (const dep of depsArray) {
-    dependencyString += `{id:${dep.id}`;
-    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
-    dependencyString += `},`;
-  }
-  dependencyString += "]";
-  const isAsync = fn.constructor.name === "AsyncFunction";
-  const wrapperFn = isAsync ? `async (state) => await (${stringFn})(state, ...state.getAll(${dependencyString}))` : `(state) => (${stringFn})(state, ...state.getAll(${dependencyString}))`;
-  globalThis.__SERVER_CURRENT_LOADHOOKS__.push({
-    fn: wrapperFn,
-    bind: bind || ""
-  });
-};
-
-// src/server/state.ts
-if (!globalThis.__SERVER_CURRENT_STATE_ID__) {
-  globalThis.__SERVER_CURRENT_STATE_ID__ = 1;
-}
-var eventListener = (dependencies, eventListener2) => {
-  const deps = dependencies.map((dep) => ({ id: dep.id, bind: dep.bind }));
-  let dependencyString = "[";
-  for (const dep of deps) {
-    dependencyString += `{id:${dep.id}`;
-    if (dep.bind) dependencyString += `,bind:${dep.bind}`;
-    dependencyString += `},`;
-  }
-  dependencyString += "]";
-  const value = {
-    id: __SERVER_CURRENT_STATE_ID__ += 1,
-    type: 1 /* STATE */,
-    value: new Function(
-      "state",
-      "event",
-      `(${eventListener2.toString()})(event, ...state.getAll(${dependencyString}))`
-    )
-  };
-  globalThis.__SERVER_CURRENT_STATE__.push(value);
-  return value;
-};
-
-// src/components/Link.ts
+import { loadHook, eventListener } from "../index";
 loadHook(
   [],
   () => {
@@ -78,7 +30,7 @@ loadHook(
     };
   }
 );
-var navigate = eventListener(
+const navigate = eventListener(
   [],
   (event) => {
     const target = new URL(event.currentTarget.href);
@@ -93,7 +45,7 @@ var navigate = eventListener(
     client2.navigateLocally(target.href);
   }
 );
-var Link = (options, ...children) => {
+const Link = (options, ...children) => {
   if (!options.href) {
     throw `Link elements must have a HREF attribute set.`;
   }

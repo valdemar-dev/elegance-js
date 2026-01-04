@@ -1,13 +1,7 @@
-// src/internal/deprecate.ts
-var ShowDeprecationWarning = (msg) => {
-  console.warn("\x1B[31m", msg, "\x1B[0m");
-  console.trace("Stack Trace:");
-};
-
-// src/server/loadHook.ts
-var resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
-var getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
-var loadHook = (deps, fn, bind) => {
+import { ShowDeprecationWarning } from "../internal/deprecate";
+const resetLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__ = [];
+const getLoadHooks = () => globalThis.__SERVER_CURRENT_LOADHOOKS__;
+const loadHook = (deps, fn, bind) => {
   const stringFn = fn.toString();
   const depsArray = (deps || []).map((dep) => ({
     id: dep.id,
@@ -27,7 +21,7 @@ var loadHook = (deps, fn, bind) => {
     bind: bind || ""
   });
 };
-var createLoadHook = (options) => {
+const createLoadHook = (options) => {
   ShowDeprecationWarning("WARNING: createLoadHook() is a deprecated function. Use loadHook() from elegance-js/loadHook instead.");
   const stringFn = options.fn.toString();
   const deps = (options.deps || []).map((dep) => ({

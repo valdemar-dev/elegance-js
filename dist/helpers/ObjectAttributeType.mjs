@@ -1,4 +1,3 @@
-// src/helpers/ObjectAttributeType.ts
 var ObjectAttributeType = /* @__PURE__ */ ((ObjectAttributeType2) => {
   ObjectAttributeType2[ObjectAttributeType2["GENERIC"] = 0] = "GENERIC";
   ObjectAttributeType2[ObjectAttributeType2["STATE"] = 1] = "STATE";

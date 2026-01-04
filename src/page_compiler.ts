@@ -94,7 +94,6 @@ type CompilationOptions = {
 
 let options: CompilationOptions = JSON.parse(process.env.OPTIONS || "{}" as string);
 
-console.log(options)
 /** Contains publicly accessible files. */
 const DIST_DIR = process.env.DIST_DIR as string;
 
@@ -1256,12 +1255,6 @@ const shipModules = async () => {
 };
 
 const build = async (): Promise<boolean> => {
-    if (options.quiet === true) {
-        console.log = function() {};
-        console.error = function() {};
-        console.warn = function() {};
-    }
-    
     try {
     // log spam
     { 

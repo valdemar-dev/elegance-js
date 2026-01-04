@@ -1,5 +1,4 @@
-// src/shared/serverElements.ts
-var createElementOptions = (obj) => {
+const createElementOptions = (obj) => {
   return function() {
     const reevaluatedObj = {};
     for (const key of Object.keys(obj)) {
@@ -17,21 +16,21 @@ var createElementOptions = (obj) => {
     return reevaluatedObj;
   };
 };
-var createBuildableElement = (tag) => {
+const createBuildableElement = (tag) => {
   return (options, ...children) => ({
     tag,
     options: options || {},
     children
   });
 };
-var createChildrenlessBuildableElement = (tag) => {
+const createChildrenlessBuildableElement = (tag) => {
   return (options) => ({
     tag,
     options: options || {},
     children: null
   });
 };
-var childrenlessElementTags = [
+const childrenlessElementTags = [
   "area",
   "base",
   "br",
@@ -47,7 +46,7 @@ var childrenlessElementTags = [
   "path",
   "rect"
 ];
-var elementTags = [
+const elementTags = [
   "a",
   "address",
   "article",
@@ -145,15 +144,15 @@ var elementTags = [
   "title",
   "svg"
 ];
-var elements = {};
-var childrenlessElements = {};
+const elements = {};
+const childrenlessElements = {};
 for (const element of elementTags) {
   elements[element] = createBuildableElement(element);
 }
 for (const element of childrenlessElementTags) {
   childrenlessElements[element] = createChildrenlessBuildableElement(element);
 }
-var allElements = {
+const allElements = {
   ...elements,
   ...childrenlessElements
 };
