@@ -142,7 +142,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
              * Pass the gathered layout and page information from the compiler subprocess back to us, the parent.
              * This is necessary for the built-in elegance server to be able to properly construct pages.
              */
-            populateServerMaps(pageMap, layoutMap)
+            populateServerMaps(new Map(pageMap), new Map(layoutMap))
         }
     });
 };

@@ -15,37 +15,37 @@ let options: CompilationOptions = JSON.parse(process.env.OPTIONS || "{}" as stri
 
 const DIST_DIR = process.env.DIST_DIR as string;
 
-const yellow = (text: string) => {
+function yellow(text: string) {
     return `\u001b[38;2;238;184;68m${text}`;
 };
 
-const black = (text: string) => {
+function black(text: string) {
     return `\u001b[38;2;0;0;0m${text}`;
 };
 
-const bgYellow = (text: string) => {
+function bgYellow(text: string) {
     return `\u001b[48;2;238;184;68m${text}`;
 };
 
-const bold = (text: string) => {
+function bold(text: string) {
     return `\u001b[1m${text}`;
 };
 
-const underline = (text: string) => {
+function underline(text: string) {
     return `\u001b[4m${text}`;
 };
 
-const white = (text: string) => {
+function white(text: string) {
     return `\u001b[38;2;255;247;229m${text}`;
 };
 
-const log = (...text: string[]) => {
+function log(...text: string[]) {
     if (options.quiet) return;
     
     return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
 };
 
-const build = async (): Promise<boolean> => {
+async function build(): Promise<boolean> {
     setCompilationOptions(options, DIST_DIR);
     try {
         { 
@@ -141,6 +141,6 @@ const build = async (): Promise<boolean> => {
     }
     
     return true
-};
+}
 
 build();

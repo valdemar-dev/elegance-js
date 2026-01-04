@@ -1101,7 +1101,7 @@ async function buildPage(
         modules,
         layout,
         directory,
-    )
+    );
 
     const {
         sendHardReloadInstruction,

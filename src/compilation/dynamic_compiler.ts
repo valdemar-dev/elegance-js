@@ -120,7 +120,8 @@ async function buildDynamicPage(
     await shipModules()
 
     return { resultHTML, }
-};
+}
+
 /** Check if a given pathname was found during the original compilation process. */
 function doesPageExist(pathname: string): boolean {
     return PAGE_MAP.has(pathname);
