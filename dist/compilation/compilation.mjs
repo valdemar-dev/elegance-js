@@ -53,17 +53,18 @@ async function buildClient(DIST_DIR2) {
     clientString += `const watchServerPort = ${options.hotReload.port};`;
     clientString += fs.readFileSync(watcherPath, "utf-8");
   }
-  await esbuild.build({
+  const transformedClient = await esbuild.transform(clientString, {
     minify: options.environment === "production",
     drop: options.environment === "production" ? ["console", "debugger"] : void 0,
     keepNames: false,
-    bundle: true,
     format: "iife",
-    entryPoints: [clientPath],
-    platform: "browser",
-    outfile: path.join(DIST_DIR2, "/client.js"),
-    loader: { ".ts": "ts" }
+    platform: "node",
+    loader: "ts"
   });
+  fs.writeFileSync(
+    path.join(DIST_DIR2, "/client.js"),
+    transformedClient.code
+  );
 }
 ;
 function processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes) {
@@ -521,7 +522,7 @@ async function buildLayout(filePath, directory, generateDynamic = false) {
   function splitAt(str, sub) {
     const i = str.indexOf(sub) + sub.length;
     if (i === -1) {
-      throw new Error(`Whilst layout ${directory}, the splitter could not be found. Make sure to use the "child" prop passed into the layout's head.`);
+      throw new Error(`Whilst layout ${directory}, the splitter could not be found. Make sure to use the "child" prop passed into the layout's metadata.`);
     }
     return {
       startHTML: str.substring(0, i),
