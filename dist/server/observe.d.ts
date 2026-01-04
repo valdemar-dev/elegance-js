@@ -3,7 +3,7 @@ export declare const observe: <T extends {
     type: ObjectAttributeType;
     value: unknown;
     id: string | number;
-    bind?: string;
+    bind?: string | undefined;
 }[]>(refs: [...T], update: (...values: { [K in keyof T]: T[K] extends {
     value: infer V;
 } ? V : never; }) => (string | number)) => {
