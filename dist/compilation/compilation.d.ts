@@ -24,8 +24,10 @@ type CompilationOptions = {
         extraWatchDirectories?: string[];
     };
 };
-declare const PAGE_MAP: Map<string, PageInformation>;
-declare const LAYOUT_MAP: Map<string, LayoutInformation>;
+declare let PAGE_MAP: Map<string, PageInformation>;
+declare let LAYOUT_MAP: Map<string, LayoutInformation>;
+/** The parent process calls this in order to set the LAYOUT_MAP and PAGE_MAP to the ones that that compiler process ended up with. */
+declare function populateServerMaps(pageMap: Map<any, any>, layoutMap: Map<any, any>): void;
 /** A list of modules that are yet to be built. */
 declare let modulesToShip: Array<{
     path: string;
@@ -134,4 +136,4 @@ declare function retrievePageAndLayoutMaps(): {
     LAYOUT_MAP: Map<string, LayoutInformation>;
     PAGE_MAP: Map<string, PageInformation>;
 };
-export { CompilationOptions, setCompilationOptions, getAllSubdirectories, retrievePageAndLayoutMaps, buildClient, processPageElements, pageToHTML, generateClientPageData, generateLayout, buildLayouts, buildLayout, fetchPageLayoutHTML, buildPages, buildPage, shipModules, PAGE_MAP, LAYOUT_MAP, modulesToShip, };
+export { CompilationOptions, setCompilationOptions, getAllSubdirectories, retrievePageAndLayoutMaps, buildClient, processPageElements, pageToHTML, generateClientPageData, generateLayout, buildLayouts, buildLayout, fetchPageLayoutHTML, buildPages, buildPage, shipModules, PAGE_MAP, LAYOUT_MAP, populateServerMaps, modulesToShip, };

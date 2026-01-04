@@ -40,8 +40,17 @@ type CompilationOptions = {
     }
 }
 
-const PAGE_MAP = new Map<Pathname, PageInformation>();
-const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
+let PAGE_MAP = new Map<Pathname, PageInformation>();
+let LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
+
+/** The parent process calls this in order to set the LAYOUT_MAP and PAGE_MAP to the ones that that compiler process ended up with. */
+function populateServerMaps(
+    pageMap: Map<any, any>, 
+    layoutMap: Map<any, any>,
+) {
+    LAYOUT_MAP = layoutMap;
+    PAGE_MAP = pageMap;
+}
 
 let options: CompilationOptions;
 let DIST_DIR: string;
@@ -1166,5 +1175,6 @@ export {
     shipModules,
     PAGE_MAP,
     LAYOUT_MAP,
+    populateServerMaps,
     modulesToShip,
 };

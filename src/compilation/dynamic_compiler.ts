@@ -1,23 +1,8 @@
 import { IncomingMessage, ServerResponse } from "http";
 import { initializeObjectAttributes, initializeState } from "../server/state";
 import { resetLoadHooks } from "../server/loadHook";
-import { fetchPageLayoutHTML, pageToHTML, shipModules, modulesToShip, setCompilationOptions, CompilationOptions } from "./compilation";
+import { fetchPageLayoutHTML, pageToHTML, shipModules, modulesToShip, setCompilationOptions, CompilationOptions, PAGE_MAP } from "./compilation";
 import path from "path";
-
-/**
- * This is the dynamic compiler, aka the one used by the built-in Elegance server in order to build dynamic pages
- */
-let LAYOUT_MAP = new Map();
-let PAGE_MAP = new Map();
-
-/** Populate layout and page map for the server, so it knows what pages exist within the project. */
-function populateServerMaps(
-    pageMap: Map<any, any>, 
-    layoutMap: Map<any, any>,
-) {
-    LAYOUT_MAP = layoutMap;
-    PAGE_MAP = pageMap;
-}
 
 /** Render a page that has been deemed dynamic. */
 async function buildDynamicPage(
@@ -136,7 +121,6 @@ function getPage(pathname: string) {
 }
 
 export {
-    populateServerMaps,
     doesPageExist,
     getPage,
     buildDynamicPage,

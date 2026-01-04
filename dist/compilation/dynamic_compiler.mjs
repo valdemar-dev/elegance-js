@@ -1,13 +1,7 @@
 import { initializeObjectAttributes, initializeState } from "../server/state";
 import { resetLoadHooks } from "../server/loadHook";
-import { fetchPageLayoutHTML, pageToHTML, shipModules, modulesToShip } from "./compilation";
+import { fetchPageLayoutHTML, pageToHTML, shipModules, modulesToShip, PAGE_MAP } from "./compilation";
 import path from "path";
-let LAYOUT_MAP = /* @__PURE__ */ new Map();
-let PAGE_MAP = /* @__PURE__ */ new Map();
-function populateServerMaps(pageMap, layoutMap) {
-  LAYOUT_MAP = layoutMap;
-  PAGE_MAP = pageMap;
-}
 async function buildDynamicPage(DIST_DIR, directory, pageInfo, req, res, middlewareData) {
   directory = directory === "/" ? "" : directory;
   const filePath = pageInfo.filePath;
@@ -95,6 +89,5 @@ function getPage(pathname) {
 export {
   buildDynamicPage,
   doesPageExist,
-  getPage,
-  populateServerMaps
+  getPage
 };

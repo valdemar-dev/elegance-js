@@ -10,7 +10,6 @@ import path from "path";
 import { fileURLToPath } from 'url';
 import { buildClient, buildLayouts, buildPages, CompilationOptions, retrievePageAndLayoutMaps, setCompilationOptions, shipModules } from "./compilation";
 
-
 let options: CompilationOptions = JSON.parse(process.env.OPTIONS || "{}" as string);
 
 const DIST_DIR = process.env.DIST_DIR as string;

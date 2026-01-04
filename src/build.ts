@@ -6,8 +6,7 @@ import http, { IncomingMessage, ServerResponse } from "http";
 import { startServer } from "./server/server";
 
 import { log, setQuiet } from "./log";
-import { populateServerMaps } from "./compilation/dynamic_compiler";
-import { CompilationOptions, setCompilationOptions } from "./compilation/compilation";
+import { CompilationOptions, populateServerMaps, setCompilationOptions } from "./compilation/compilation";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -11,8 +11,12 @@ import { getState, initializeState, initializeObjectAttributes, getObjectAttribu
 import { getLoadHooks, resetLoadHooks } from "../server/loadHook";
 import { resetLayouts } from "../server/layout";
 import { renderRecursively } from "../server/render";
-const PAGE_MAP = /* @__PURE__ */ new Map();
-const LAYOUT_MAP = /* @__PURE__ */ new Map();
+let PAGE_MAP = /* @__PURE__ */ new Map();
+let LAYOUT_MAP = /* @__PURE__ */ new Map();
+function populateServerMaps(pageMap, layoutMap) {
+  LAYOUT_MAP = layoutMap;
+  PAGE_MAP = pageMap;
+}
 let options;
 let DIST_DIR;
 let elementKey = 0;
@@ -730,6 +734,7 @@ export {
   getAllSubdirectories,
   modulesToShip,
   pageToHTML,
+  populateServerMaps,
   processPageElements,
   retrievePageAndLayoutMaps,
   setCompilationOptions,
