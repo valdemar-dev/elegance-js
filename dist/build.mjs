@@ -5,10 +5,11 @@ import child_process from "node:child_process";
 import http from "http";
 import { startServer } from "./server/server";
 import { log, setQuiet } from "./log";
+import { populateServerMaps } from "./compilation/dynamic_compiler";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageDir = path.resolve(__dirname, "..");
-const builderPath = path.resolve(packageDir, "./dist/page_compiler.mjs");
+const builderPath = path.resolve(packageDir, "dist", "compilation", "compiler_process.mjs");
 const yellow = (text) => {
   return `\x1B[38;2;238;184;68m${text}`;
 };
@@ -24,8 +25,6 @@ const green = (text) => {
 const finishLog = (...text) => {
   log.info(text.map((text2) => `${text2}\x1B[0m`).join(""));
 };
-let PAGE_MAP = /* @__PURE__ */ new Map();
-let LAYOUT_MAP = /* @__PURE__ */ new Map();
 let options = process.env.OPTIONS;
 const getAllSubdirectories = (dir, baseDir = dir) => {
   let directories = [];
@@ -90,8 +89,7 @@ const runBuild = (filepath, DIST_DIR) => {
       }
     } else if (data === "set-pages-and-layouts") {
       const { pageMap, layoutMap } = JSON.parse(message.content);
-      PAGE_MAP = new Map(pageMap);
-      LAYOUT_MAP = new Map(layoutMap);
+      populateServerMaps(pageMap, layoutMap);
     }
   });
 };
@@ -138,7 +136,7 @@ const compile = async (props) => {
     fs.mkdirSync(options.outputDirectory, { recursive: true });
     fs.writeFileSync(
       path.join(BUILD_FLAG),
-      "This file just marks this directory as one containing an Elegance Build.",
+      "This file marks this directory as one containing an Elegance Build.",
       "utf-8"
     );
   } else {
@@ -150,6 +148,7 @@ const compile = async (props) => {
   if (!fs.existsSync(DIST_DIR)) {
     fs.mkdirSync(DIST_DIR, { recursive: true });
   }
+  build(DIST_DIR);
   if (options.server != void 0 && options.server.runServer == true) {
     startServer({
       root: options.server.root ?? DIST_DIR,
@@ -196,10 +195,7 @@ const compile = async (props) => {
       currentWatchers.push(watcher);
     }
   }
-  build(DIST_DIR);
 };
 export {
-  LAYOUT_MAP,
-  PAGE_MAP,
   compile
 };

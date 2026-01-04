@@ -1,31 +1,11 @@
-import {
-  createServer as createHttpServer
-} from "http";
-import {
-  promises as fs
-} from "fs";
-import {
-  join,
-  normalize,
-  extname,
-  dirname
-} from "path";
-import {
-  pathToFileURL
-} from "url";
-import {
-  log
-} from "../log";
-import {
-  gzip,
-  deflate
-} from "zlib";
-import {
-  promisify
-} from "util";
-import {
-  PAGE_MAP
-} from "../build";
+import { createServer as createHttpServer } from "http";
+import { promises as fs } from "fs";
+import { join, normalize, extname, dirname } from "path";
+import { pathToFileURL } from "url";
+import { log } from "../log";
+import { gzip, deflate } from "zlib";
+import { promisify } from "util";
+import { doesPageExist, getPage } from "../compilation/dynamic_compiler";
 const gzipAsync = promisify(gzip);
 const deflateAsync = promisify(deflate);
 const MIME_TYPES = {
@@ -75,8 +55,8 @@ function startServer({
       const url = new URL(req.url, `http://${req.headers.host}`);
       if (url.pathname.startsWith("/api/")) {
         await handleApiRequest(pagesDirectory, url.pathname, req, res);
-      } else if (PAGE_MAP.has(url.pathname)) {
-        await handlePageRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR, PAGE_MAP.get(url.pathname));
+      } else if (doesPageExist(url.pathname)) {
+        await handlePageRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR, getPage(url.pathname));
       } else {
         await handleStaticRequest(root, pagesDirectory, url.pathname, req, res, DIST_DIR);
       }
@@ -190,7 +170,7 @@ async function handlePageRequest(root, pagesDirectory, pathname, req, res, DIST_
         try {
           const {
             buildDynamicPage
-          } = await import("../page_compiler");
+          } = await import("../compilation/dynamic_compiler");
           const result = await buildDynamicPage(
             DIST_DIR,
             pathname,

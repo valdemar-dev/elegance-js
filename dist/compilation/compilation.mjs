@@ -4,48 +4,31 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import esbuild from "esbuild";
 import { fileURLToPath } from "url";
-import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
-import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
-import { serverSideRenderPage } from "./server/render";
-import { getState, initializeState, initializeObjectAttributes, getObjectAttributes } from "./server/state";
-import { getLoadHooks, resetLoadHooks } from "./server/loadHook";
-import { resetLayouts } from "./server/layout";
-import { renderRecursively } from "./server/render";
+import { generateHTMLTemplate } from "../server/generateHTMLTemplate";
+import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
+import { serverSideRenderPage } from "../server/render";
+import { getState, initializeState, initializeObjectAttributes, getObjectAttributes } from "../server/state";
+import { getLoadHooks, resetLoadHooks } from "../server/loadHook";
+import { resetLayouts } from "../server/layout";
+import { renderRecursively } from "../server/render";
+const PAGE_MAP = /* @__PURE__ */ new Map();
+const LAYOUT_MAP = /* @__PURE__ */ new Map();
+let options;
+let DIST_DIR;
+let elementKey = 0;
+const shippedModules = /* @__PURE__ */ new Map();
+let modulesToShip = [];
 let packageDir = process.env.PACKAGE_PATH;
 if (packageDir === void 0) {
   packageDir = path.resolve(__dirname, "..");
 }
 const clientPath = path.resolve(packageDir, "./dist/client/client.mjs");
 const watcherPath = path.resolve(packageDir, "./dist/client/watcher.mjs");
-const shippedModules = /* @__PURE__ */ new Map();
-let modulesToShip = [];
-const yellow = (text) => {
-  return `\x1B[38;2;238;184;68m${text}`;
-};
-const black = (text) => {
-  return `\x1B[38;2;0;0;0m${text}`;
-};
-const bgYellow = (text) => {
-  return `\x1B[48;2;238;184;68m${text}`;
-};
-const bold = (text) => {
-  return `\x1B[1m${text}`;
-};
-const underline = (text) => {
-  return `\x1B[4m${text}`;
-};
-const white = (text) => {
-  return `\x1B[38;2;255;247;229m${text}`;
-};
-const log = (...text) => {
-  if (options.quiet) return;
-  return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
-};
-let options = JSON.parse(process.env.OPTIONS || "{}");
-const DIST_DIR = process.env.DIST_DIR;
-const PAGE_MAP = /* @__PURE__ */ new Map();
-const LAYOUT_MAP = /* @__PURE__ */ new Map();
-const getAllSubdirectories = (dir, baseDir = dir) => {
+function setCompilationOptions(newOptions, distDir) {
+  options = newOptions;
+  DIST_DIR = distDir;
+}
+function getAllSubdirectories(dir, baseDir = dir) {
   let directories = [];
   const items = fs.readdirSync(dir, { withFileTypes: true });
   for (const item of items) {
@@ -57,8 +40,9 @@ const getAllSubdirectories = (dir, baseDir = dir) => {
     }
   }
   return directories;
-};
-const buildClient = async (DIST_DIR2) => {
+}
+;
+async function buildClient(DIST_DIR2) {
   let clientString = "window.__name = (func) => func; ";
   clientString += fs.readFileSync(clientPath, "utf-8");
   if (options.hotReload !== void 0) {
@@ -77,9 +61,9 @@ const buildClient = async (DIST_DIR2) => {
     path.join(DIST_DIR2, "/client.js"),
     transformedClient.code
   );
-};
-let elementKey = 0;
-const processOptionAsObjectAttribute = (element, optionName, optionValue, objectAttributes) => {
+}
+;
+function processOptionAsObjectAttribute(element, optionName, optionValue, objectAttributes) {
   const lcOptionName = optionName.toLowerCase();
   const options2 = element.options;
   let key = options2.key;
@@ -123,7 +107,8 @@ const processOptionAsObjectAttribute = (element, optionName, optionValue, object
       break;
   }
   objectAttributes.push({ ...optionValue, key, attribute: optionFinal });
-};
+}
+;
 function buildTrace(stack, indent = 4) {
   try {
     if (!stack || stack.length === 0) return "[]";
@@ -159,7 +144,7 @@ function buildTrace(stack, indent = 4) {
     return "Could not build stack-trace.";
   }
 }
-const processPageElements = (element, objectAttributes, recursionLevel, stack = []) => {
+function processPageElements(element, objectAttributes, recursionLevel, stack = []) {
   stack.push(element);
   try {
     if (typeof element === "boolean" || typeof element === "number" || Array.isArray(element)) {
@@ -251,8 +236,9 @@ ${trace}`);
       throw e;
     }
   }
-};
-const pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = {}, layout, pathname = "") => {
+}
+;
+async function pageToHTML(pageLocation, pageElements, metadata, DIST_DIR2, pageName, doWrite = true, requiredClientModules = {}, layout, pathname = "") {
   if (typeof pageElements === "string" || typeof pageElements === "boolean" || typeof pageElements === "number" || Array.isArray(pageElements)) {
     throw new Error(`The root element of a page / layout must be a built element, not just a Child. Received: ${typeof pageElements}.`);
   }
@@ -327,8 +313,9 @@ const pageToHTML = async (pageLocation, pageElements, metadata, DIST_DIR2, pageN
     return objectAttributes;
   }
   return resultHTML;
-};
-const generateClientPageData = async (pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd", write = true) => {
+}
+;
+async function generateClientPageData(pageLocation, state, objectAttributes, pageLoadHooks, DIST_DIR2, pageName, globalVariableName = "pd", write = true) {
   let clientPageJSText = "";
   {
     clientPageJSText += `${globalThis.__SERVER_PAGE_DATA_BANNER__}`;
@@ -395,8 +382,9 @@ const generateClientPageData = async (pageLocation, state, objectAttributes, pag
   }
   if (write) fs.writeFileSync(pageDataPath, transformedResult.code, "utf-8");
   return { sendHardReloadInstruction, result: transformedResult.code };
-};
-const generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, generateDynamic = false) => {
+}
+;
+async function generateLayout(DIST_DIR2, filePath, directory, childIndicator, generateDynamic = false) {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
@@ -476,9 +464,10 @@ const generateLayout = async (DIST_DIR2, filePath, directory, childIndicator, ge
     "ld"
   );
   return { pageContentHTML: renderedPage.bodyHTML, metadataHTML };
-};
+}
+;
 const builtLayouts = /* @__PURE__ */ new Map();
-const buildLayouts = async () => {
+async function buildLayouts() {
   const pagesDirectory = path.resolve(options.pagesDirectory);
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
   let shouldClientHardReload = false;
@@ -503,8 +492,8 @@ const buildLayouts = async () => {
     }
   }
   return { shouldClientHardReload };
-};
-const buildLayout = async (filePath, directory, generateDynamic = false) => {
+}
+async function buildLayout(filePath, directory, generateDynamic = false) {
   const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
   const childIndicator = `<template layout-id="${id}"></template>`;
   const result = await generateLayout(
@@ -516,40 +505,49 @@ const buildLayout = async (filePath, directory, generateDynamic = false) => {
   );
   if (result === false) return false;
   const { pageContentHTML, metadataHTML } = result;
-  const splitAround = (str, sub) => {
+  function splitAround(str, sub) {
     const i = str.indexOf(sub);
     if (i === -1) throw new Error("substring does not exist in parent string");
     return {
       startHTML: str.substring(0, i),
       endHTML: str.substring(i + sub.length)
     };
-  };
-  const splitAt = (str, sub) => {
+  }
+  function splitAt(str, sub) {
     const i = str.indexOf(sub) + sub.length;
     if (i === -1) throw new Error("substring does not exist in parent string");
     return {
       startHTML: str.substring(0, i),
       endHTML: str.substring(i)
     };
-  };
+  }
   const pathname = directory === "" ? "/" : directory;
   return {
     pageContent: splitAt(pageContentHTML, childIndicator),
     metadata: splitAround(metadataHTML, childIndicator),
     scriptTag: `<script data-layout="true" type="module" src="${pathname}layout_data.js" data-pathname="${pathname}" defer="true"></script>`
   };
-};
-const fetchPageLayoutHTML = async (dirname) => {
+}
+;
+async function fetchPageLayoutHTML(dirname) {
   const relative = path.relative(options.pagesDirectory, dirname);
   let split = relative.split(path.sep).filter(Boolean);
   split.push("/");
   split.reverse();
   let layouts = [];
   for (const dir of split) {
-    if (LAYOUT_MAP.has(dir)) {
-      const filePath = path.join(path.resolve(options.pagesDirectory), dir, "layout.ts");
-      const layout = LAYOUT_MAP.get(dir);
-      if (layout.isDynamic) {
+    if (!LAYOUT_MAP.has(dir)) {
+      console.warn("A layout was not found within the layout map for a path:", dir, "This is normally not meant to be possible, so you might have royally screwed up.");
+      continue;
+    }
+    const filePath = path.join(path.resolve(options.pagesDirectory), dir, "layout.ts");
+    const layout = LAYOUT_MAP.get(dir);
+    if (layout.isDynamic) {
+      const builtLayout = await buildLayout(layout.filePath, dir, true);
+      if (!builtLayout) continue;
+      layouts.push(builtLayout);
+    } else {
+      if (!builtLayouts.has(filePath)) {
         const builtLayout = await buildLayout(layout.filePath, dir, true);
         if (!builtLayout) continue;
         layouts.push(builtLayout);
@@ -575,8 +573,9 @@ const fetchPageLayoutHTML = async (dirname) => {
     metadata.endHTML += layout.metadata.endHTML;
   }
   return { pageContent, metadata, scriptTag: scriptTags };
-};
-const buildPages = async (DIST_DIR2) => {
+}
+;
+async function buildPages(DIST_DIR2) {
   resetLayouts();
   const pagesDirectory = path.resolve(options.pagesDirectory);
   const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
@@ -605,8 +604,9 @@ const buildPages = async (DIST_DIR2) => {
   return {
     shouldClientHardReload
   };
-};
-const buildPage = async (DIST_DIR2, directory, filePath, name) => {
+}
+;
+async function buildPage(DIST_DIR2, directory, filePath, name) {
   initializeState();
   initializeObjectAttributes();
   resetLoadHooks();
@@ -691,82 +691,9 @@ const buildPage = async (DIST_DIR2, directory, filePath, name) => {
     name
   );
   return sendHardReloadInstruction === true;
-};
-const buildDynamicPage = async (DIST_DIR2, directory, pageInfo, req, res, middlewareData) => {
-  directory = directory === "/" ? "" : directory;
-  const filePath = pageInfo.filePath;
-  initializeState();
-  initializeObjectAttributes();
-  resetLoadHooks();
-  globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
-  let pageElements = async (props) => body();
-  let metadata = async (props) => html();
-  let modules = {};
-  let pageIgnoresLayout = false;
-  try {
-    const {
-      page,
-      metadata: pageMetadata,
-      shippedModules: shippedModules2,
-      ignoreLayout,
-      requestHook
-    } = await import("file://" + filePath);
-    if (requestHook) {
-      const hook = requestHook;
-      const doContinue = await hook(req, res);
-      if (!doContinue) {
-        return false;
-      }
-    }
-    if (shippedModules2 !== void 0) {
-      modules = shippedModules2;
-    }
-    if (ignoreLayout) {
-      pageIgnoresLayout = true;
-    }
-    pageElements = page;
-    metadata = pageMetadata;
-  } catch (e) {
-    throw new Error(`Error in Page: ${directory}/page.ts - ${e}`);
-  }
-  if (modules !== void 0) {
-    for (const [globalName, path2] of Object.entries(modules)) {
-      modulesToShip.push({ globalName, path: path2 });
-    }
-  }
-  if (!metadata || metadata && typeof metadata !== "function") {
-    console.warn(`WARNING: ${filePath} does not export a metadata function.`);
-  }
-  if (!pageElements) {
-    console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
-  }
-  const pageProps = {
-    pageName: directory,
-    middlewareData
-  };
-  if (typeof pageElements === "function") {
-    if (pageElements.constructor.name === "AsyncFunction") {
-      pageElements = await pageElements(pageProps);
-    } else {
-      pageElements = pageElements(pageProps);
-    }
-  }
-  const layout = await fetchPageLayoutHTML(path.dirname(filePath));
-  const resultHTML = await pageToHTML(
-    path.join(DIST_DIR2, directory),
-    pageElements,
-    metadata,
-    DIST_DIR2,
-    "page",
-    false,
-    modules,
-    layout,
-    directory
-  );
-  await shipModules();
-  return { resultHTML };
-};
-const shipModules = async () => {
+}
+;
+async function shipModules() {
   for (const plugin of modulesToShip) {
     {
       if (shippedModules.has(plugin.globalName)) continue;
@@ -784,71 +711,27 @@ const shipModules = async () => {
     });
   }
   modulesToShip = [];
-};
-const build = async () => {
-  try {
-    {
-      log(bold(yellow(" -- Elegance.JS -- ")));
-      if (options.environment === "production") {
-        log(
-          " - ",
-          bgYellow(bold(black(" NOTE "))),
-          " : ",
-          white("In production mode, no "),
-          underline("console.log() "),
-          white("statements will be shown on the client, and all code will be minified.")
-        );
-        log("");
-      }
-    }
-    if (options.preCompile) {
-      options.preCompile();
-    }
-    const start = performance.now();
-    let shouldClientHardReload;
-    {
-      const { shouldClientHardReload: doReload } = await buildLayouts();
-      if (doReload) shouldClientHardReload = true;
-    }
-    {
-      const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
-      if (doReload) shouldClientHardReload = true;
-    }
-    await shipModules();
-    const pagesBuilt = performance.now();
-    await buildClient(DIST_DIR);
-    const end = performance.now();
-    if (options.publicDirectory) {
-      log("Recursively copying public directory.. this may take a while.");
-      const src = path.relative(process.cwd(), options.publicDirectory.path);
-      if (fs.existsSync(src) === false) {
-        console.warn("WARNING: Public directory not found, an attempt will be made create it..");
-        fs.mkdirSync(src, { recursive: true });
-      }
-      await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true });
-    }
-    {
-      log(`Took ${Math.round(pagesBuilt - start)}ms to Build Pages.`);
-      log(`Took ${Math.round(end - pagesBuilt)}ms to Build Client.`);
-    }
-    process.send?.({ event: "message", data: "set-pages-and-layouts", content: JSON.stringify({ pageMap: Array.from(PAGE_MAP), layoutMap: Array.from(LAYOUT_MAP) }) });
-    process.send?.({ event: "message", data: "compile-finish" });
-    if (shouldClientHardReload) {
-      process.send({ event: "message", data: "hard-reload" });
-    } else {
-      process.send({ event: "message", data: "soft-reload" });
-    }
-  } catch (e) {
-    console.error("Build Failed! Received Error:");
-    console.error(e);
-    return false;
-  }
-  return true;
-};
-(async () => {
-  if (process.env.DO_BUILD === "true") await build();
-})();
+}
+;
+function retrievePageAndLayoutMaps() {
+  return { LAYOUT_MAP, PAGE_MAP };
+}
 export {
-  buildDynamicPage,
-  processPageElements
+  LAYOUT_MAP,
+  PAGE_MAP,
+  buildClient,
+  buildLayout,
+  buildLayouts,
+  buildPage,
+  buildPages,
+  fetchPageLayoutHTML,
+  generateClientPageData,
+  generateLayout,
+  getAllSubdirectories,
+  modulesToShip,
+  pageToHTML,
+  processPageElements,
+  retrievePageAndLayoutMaps,
+  setCompilationOptions,
+  shipModules
 };

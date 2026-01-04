@@ -6,58 +6,14 @@ const __dirname = path.dirname(__filename);
     
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
-import { generateHTMLTemplate } from "./server/generateHTMLTemplate";
-import type { IncomingMessage, ServerResponse } from "http";
+import { generateHTMLTemplate } from "../server/generateHTMLTemplate";
 
-import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
-import { serverSideRenderPage } from "./server/render";
-import { getState, initializeState, initializeObjectAttributes, getObjectAttributes, } from "./server/state";
-import { getLoadHooks, LoadHook, resetLoadHooks } from "./server/loadHook";
-import { resetLayouts } from "./server/layout";
-import { renderRecursively } from "./server/render";
-
-let packageDir = process.env.PACKAGE_PATH;
-if (packageDir === undefined) {
-    
-    packageDir = path.resolve(__dirname, '..');
-}
-
-const clientPath = path.resolve(packageDir, './dist/client/client.mjs');
-const watcherPath = path.resolve(packageDir, './dist/client/watcher.mjs');
-
-const shippedModules = new Map<string, true>();
-
-let modulesToShip: Array<{ path: string, globalName: string, }> = [];
-
-const yellow = (text: string) => {
-    return `\u001b[38;2;238;184;68m${text}`;
-};
-
-const black = (text: string) => {
-    return `\u001b[38;2;0;0;0m${text}`;
-};
-
-const bgYellow = (text: string) => {
-    return `\u001b[48;2;238;184;68m${text}`;
-};
-
-const bold = (text: string) => {
-    return `\u001b[1m${text}`;
-};
-
-const underline = (text: string) => {
-    return `\u001b[4m${text}`;
-};
-
-const white = (text: string) => {
-    return `\u001b[38;2;255;247;229m${text}`;
-};
-
-const log = (...text: string[]) => {
-    if (options.quiet) return;
-    
-    return console.log(text.map((text) => `${text}\u001b[0m`).join(""));
-};
+import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
+import { serverSideRenderPage } from "../server/render";
+import { getState, initializeState, initializeObjectAttributes, getObjectAttributes, } from "../server/state";
+import { getLoadHooks, LoadHook, resetLoadHooks } from "../server/loadHook";
+import { resetLayouts } from "../server/layout";
+import { renderRecursively } from "../server/render";
 
 type CompilationOptions = {
     postCompile?: () => any,
@@ -81,15 +37,34 @@ type CompilationOptions = {
     quiet: boolean;
 }
 
-let options: CompilationOptions = JSON.parse(process.env.OPTIONS || "{}" as string);
-
-/** Contains publicly accessible files. */
-const DIST_DIR = process.env.DIST_DIR as string;
-
 const PAGE_MAP = new Map<Pathname, PageInformation>();
 const LAYOUT_MAP = new Map<Pathname, LayoutInformation>();
 
-const getAllSubdirectories = (dir: string, baseDir = dir) => {
+let options: CompilationOptions;
+let DIST_DIR: string;
+
+/** A unique key that is assigned to elements that require an unique identifier. */
+let elementKey = 0;
+
+/** A list of modules (js bundles) that have already been built during this compilation process. */
+const shippedModules = new Map<string, true>();
+/** A list of modules that are yet to be built. */
+let modulesToShip: Array<{ path: string, globalName: string, }> = [];
+
+let packageDir = process.env.PACKAGE_PATH;
+if (packageDir === undefined) {
+    packageDir = path.resolve(__dirname, '..');
+}
+
+const clientPath = path.resolve(packageDir, './dist/client/client.mjs');
+const watcherPath = path.resolve(packageDir, './dist/client/watcher.mjs');
+
+function setCompilationOptions(newOptions: CompilationOptions, distDir: string) {
+    options = newOptions;
+    DIST_DIR = distDir;
+}
+
+function getAllSubdirectories(dir: string, baseDir = dir) {
     let directories: Array<string> = [];
 
     const items = fs.readdirSync(dir, { withFileTypes: true });
@@ -107,9 +82,9 @@ const getAllSubdirectories = (dir: string, baseDir = dir) => {
     return directories;
 };
 
-const buildClient = async (
+async function buildClient(
     DIST_DIR: string,
-) => {
+) {
     let clientString = "window.__name = (func) => func; "
     clientString += fs.readFileSync(clientPath, "utf-8");
 
@@ -133,14 +108,12 @@ const buildClient = async (
     );
 };
 
-let elementKey = 0;
-
-const processOptionAsObjectAttribute = (
+function processOptionAsObjectAttribute(
     element: AnyBuiltElement,
     optionName: string,
     optionValue: ObjectAttribute<any>,
     objectAttributes: Array<any>,
-) => {
+) {
     const lcOptionName = optionName.toLowerCase();
 
     const options = element.options as ElementOptions;
@@ -209,6 +182,10 @@ const processOptionAsObjectAttribute = (
     objectAttributes.push({ ...optionValue, key: key, attribute: optionFinal, });
 };
 
+/**
+ * Construct a primitive stacktrace.
+ * Used (sometimes) to tell the user where they marked something wrong on an element.
+ */
 function buildTrace(stack: any[], indent = 4): string {
     try {
         if (!stack || stack.length === 0) return '[]';
@@ -256,13 +233,17 @@ function buildTrace(stack: any[], indent = 4): string {
     }
 }
 
-
-export const processPageElements = (
+/**
+ * Recursively iterate through the elements of a given page, and "process them".
+ * This involves separating all non-serializable data into an object attributes array,
+ * and mutating `element` into something that can be serialized into HTML.
+ */
+function processPageElements(
     element: Child,
     objectAttributes: Array<any>,
     recursionLevel: number,
     stack: any[] = [],
-): Child => {
+): Child {
     stack.push(element);
     
     try {
@@ -280,6 +261,7 @@ export const processPageElements = (
             return (element);
         }
     
+        // this cannot be a function(), as the types will not work.
         const processElementOptionsAsChildAndReturn = () => {
             try {
                 const children = element.children as Child[];
@@ -390,7 +372,11 @@ export const processPageElements = (
     }
 };
 
-const pageToHTML = async (
+/**
+ * Takes in a page, and turns it into HTML.
+ * If doWrite is false, the page's HTML will be returned.
+ */
+async function pageToHTML(
     pageLocation: string,
     pageElements: Child,
     metadata: () => BuiltElement<"html">,
@@ -400,7 +386,7 @@ const pageToHTML = async (
     requiredClientModules: ShippedModules = {},
     layout: BuiltLayout,
     pathname: string = "",
-) => {
+) {
     if (
         typeof pageElements === "string" ||
         typeof pageElements === "boolean" ||
@@ -519,12 +505,12 @@ const pageToHTML = async (
 };
 
 /**
-    This uses string interpolation to generate the:
-    page_data.js file that the browser receives.
-    
-    It's *very* error-prone, so be careful if you edit this!
-*/
-const generateClientPageData = async (
+ * This uses string interpolation to generate the:
+ * page_data.js file that the browser receives.
+ *   
+ * It's *very* error-prone, so be careful if you edit this!
+ */
+async function generateClientPageData(
     pageLocation: string,
     state: typeof globalThis.__SERVER_CURRENT_STATE__,
     objectAttributes: Array<ObjectAttribute<any>>,
@@ -533,7 +519,7 @@ const generateClientPageData = async (
     pageName: string,
     globalVariableName: string = "pd",
     write: boolean = true,
-) => {
+) {
     let clientPageJSText = "";
     
     // add in page banner.
@@ -617,9 +603,6 @@ const generateClientPageData = async (
         clientPageJSText += `};`;
     }
     
-    // deprecated. (also insecure)
-    // clientPageJSText += `if(!globalThis.${globalVariableName}) { globalThis.${globalVariableName} = {}; }; globalThis.${globalVariableName}[url] = data;`;
-
     const pageDataPath = path.join(DIST_DIR, pageLocation, `${pageName}_data.js`);
 
     let sendHardReloadInstruction = false;
@@ -646,7 +629,7 @@ const generateClientPageData = async (
     return { sendHardReloadInstruction, result: transformedResult.code }
 };
 
-const generateLayout = async (
+async function generateLayout(
     DIST_DIR: string,
     /** The absolute path of the layout.ts file. */
     filePath: string,
@@ -656,7 +639,7 @@ const generateLayout = async (
     childIndicator: Child,
     /** Whether or not to generate the layout if it is dynamic */
     generateDynamic: boolean = false,
-) => {
+) {
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
@@ -730,7 +713,6 @@ const generateLayout = async (
         }
     }
 
-
     const state = getState();
     const pageLoadHooks = getLoadHooks();
     const objectAttributes = getObjectAttributes();
@@ -795,7 +777,7 @@ type BuiltLayout = {
 */
 const builtLayouts = new Map<string, BuiltLayout>();
 
-const buildLayouts = async () => {
+async function buildLayouts() {
     const pagesDirectory = path.resolve(options.pagesDirectory);
 
     const subdirectories = [...getAllSubdirectories(pagesDirectory), ""];
@@ -836,11 +818,11 @@ const buildLayouts = async () => {
     return { shouldClientHardReload };
 }
 
-const buildLayout = async (
+async function buildLayout(
     filePath: string, 
     directory: string, 
     generateDynamic: boolean = false,
-) => {
+) {
     /*
         this is used by the layout to determine where it ends
         in the layout, this is the "child" parameter.
@@ -864,7 +846,7 @@ const buildLayout = async (
     if (result === false) return false;
     const { pageContentHTML, metadataHTML } = result;
     
-    const splitAround = (str: string, sub: string) => {
+    function splitAround(str: string, sub: string) {
         const i = str.indexOf(sub);
         if (i === -1) throw new Error("substring does not exist in parent string");
         
@@ -874,7 +856,7 @@ const buildLayout = async (
         };
     }
     
-    const splitAt = (str: string, sub: string) => {
+    function splitAt(str: string, sub: string) {
         const i = str.indexOf(sub) + sub.length;
         if (i === -1) throw new Error("substring does not exist in parent string");
         
@@ -893,9 +875,12 @@ const buildLayout = async (
     } satisfies BuiltLayout;
 };
 
-const fetchPageLayoutHTML = async (
+/**
+ * Iterate through the found layouts, and construct the necessary wrapper HTML for a given page.
+ */
+async function fetchPageLayoutHTML(
     dirname: string
-) => {
+) {
     const relative = path.relative(options.pagesDirectory, dirname);
     
     let split = relative.split(path.sep).filter(Boolean);
@@ -905,14 +890,34 @@ const fetchPageLayoutHTML = async (
     let layouts: BuiltLayout[] = [];
     
     for (const dir of split) {
-        if (LAYOUT_MAP.has(dir)) {
-            const filePath = path.join(path.resolve(options.pagesDirectory), dir, "layout.ts");
+        if (!LAYOUT_MAP.has(dir)) {
+            console.warn("A layout was not found within the layout map for a path:", dir, "This is normally not meant to be possible, so you might have royally screwed up.");
+
+            continue;
+        }
+
+        const filePath = path.join(path.resolve(options.pagesDirectory), dir, "layout.ts");
+        
+        const layout = LAYOUT_MAP.get(dir)!;
+        
+        /**
+         * Normally, dynamic layouts are not built,
+         * however, if a page is requesting it's layout, it will force the generation of any given layout.
+         */
+        if (layout.isDynamic) {
+            const builtLayout = await buildLayout(layout.filePath, dir, true);
+            if (!builtLayout) continue;
             
-            const layout = LAYOUT_MAP.get(dir)!;
-            
-            if (layout.isDynamic) {
+            layouts.push(builtLayout);
+        } else {
+            if (!builtLayouts.has(filePath)) {
+                /** 
+                 * Normally layouts that are not dynamic, should already be built.
+                 * However, the parent process has no knowledge of built layouts, and thus, it rebuilds the layout.
+                 * This is an inefficiency, but I found it easier to implement, and as it only duplicates the build of each layout *once* (should take no more than 20ms),
+                 * I find this acceptable.
+                 */
                 const builtLayout = await buildLayout(layout.filePath, dir, true);
-                
                 if (!builtLayout) continue;
                 
                 layouts.push(builtLayout);
@@ -947,9 +952,9 @@ const fetchPageLayoutHTML = async (
     return { pageContent, metadata, scriptTag: scriptTags, };
 };
 
-const buildPages = async (
+async function buildPages(
     DIST_DIR: string,
-) => {
+) {
     resetLayouts();
     
     const pagesDirectory = path.resolve(options.pagesDirectory);
@@ -995,12 +1000,12 @@ const buildPages = async (
     };
 };
 
-const buildPage = async (
+async function buildPage(
     DIST_DIR: string,
     directory: string,
     filePath: string,
     name: string,
-) => {
+) {
     initializeState();
     initializeObjectAttributes();
     resetLoadHooks();
@@ -1112,115 +1117,7 @@ const buildPage = async (
     return sendHardReloadInstruction === true;
 };
 
-export const buildDynamicPage = async (
-    DIST_DIR: string,
-    directory: string,
-    pageInfo: PageInformation,
-    req: IncomingMessage, 
-    res: ServerResponse,
-    middlewareData: MiddlewareData,
-) => {
-    directory = directory === "/" ? "" : directory;
-    
-    const filePath = pageInfo.filePath;
-    
-    initializeState();
-    initializeObjectAttributes();
-    resetLoadHooks();
-    
-    globalThis.__SERVER_PAGE_DATA_BANNER__ = "";
-    
-    let pageElements: any = async (props: PageProps) => body();
-    let metadata: any = async (props: PageProps) => html();
-    let modules: ShippedModules = {};
-    let pageIgnoresLayout: boolean = false;
-    
-    try {
-        const {
-            page,
-            metadata: pageMetadata,
-            shippedModules,
-            ignoreLayout,
-            requestHook,
-        } = await import("file://" + filePath);
-        
-        if (requestHook) {
-            const hook = requestHook as RequestHook;
-            
-            const doContinue = await hook(req, res);
-            
-            if (!doContinue) {
-                return false;
-            }
-        }
-        
-        if (shippedModules !== undefined) {
-            modules = shippedModules;
-        }
-        
-        if (ignoreLayout) {
-            pageIgnoresLayout = true;
-        }
-        
-        pageElements = page;
-        metadata = pageMetadata;
-    } catch(e) {
-        throw new Error(`Error in Page: ${directory}/page.ts - ${e}`);
-    }
-    
-    if (modules !== undefined) {
-        for (const [globalName, path] of Object.entries(modules)) {
-            modulesToShip.push({ globalName, path, })
-        }
-    }
-    
-    if (
-        !metadata ||
-        metadata && typeof metadata !== "function"
-    ) {
-        console.warn(`WARNING: ${filePath} does not export a metadata function.`);
-    }
-
-    if (!pageElements) {
-        console.warn(`WARNING: ${filePath} should export a const page, which is of type () => BuiltElement<"body">.`);
-    }
-    
-    const pageProps: PageProps = {
-        pageName: directory,
-        middlewareData: middlewareData,
-    };
-    
-    // construct layout path    
-    // /me/blog/post/page.ts
-    // checks for /post/layout.ts, then /blog/layout.ts, then /me/layout.ts
-    if (typeof pageElements === "function") {
-        if (pageElements.constructor.name === "AsyncFunction") {
-            pageElements = await pageElements(pageProps);
-        } else {
-            pageElements = pageElements(pageProps);
-        }
-    }
-    
-    const layout = await fetchPageLayoutHTML(path.dirname(filePath));
-    
-    const resultHTML = await pageToHTML(
-        path.join(DIST_DIR, directory),
-        pageElements,
-        metadata,
-        DIST_DIR,
-        "page",
-        false,
-        modules,
-        layout,
-        directory,
-    ) as any
-    
-    await shipModules()
-
-    return { resultHTML, }
-};
-
-const shipModules = async () => {
+async function shipModules() {
     for (const plugin of modulesToShip) {
         // dont build the same plugin multiple times. (very inefficient!)
         {
@@ -1243,91 +1140,28 @@ const shipModules = async () => {
     modulesToShip = [];
 };
 
-const build = async (): Promise<boolean> => {
-    try {
-    // log spam
-    { 
-        log(bold(yellow(" -- Elegance.JS -- ")));
-    
-        if (options.environment === "production") {
-            log(
-                " - ",
-                bgYellow(bold(black(" NOTE "))),
-                " : ", 
-                white("In production mode, no "), 
-                underline("console.log() "),
-                white("statements will be shown on the client, and all code will be minified."));
-    
-            log("");
-        }
-    }
-    
-    if (options.preCompile) {
-        options.preCompile();
-    }
-    
-    const start = performance.now();
-    
-    let shouldClientHardReload
+/** Retrieve a list of the pages and layouts that were found during the original compilation process. */
+function retrievePageAndLayoutMaps() {
+    return { LAYOUT_MAP, PAGE_MAP };
+}
 
-    {
-        const { shouldClientHardReload: doReload } = await buildLayouts();
-        
-        if (doReload) shouldClientHardReload = true;
-    }
-    
-    {
-        const { shouldClientHardReload: doReload } = await buildPages(path.resolve(DIST_DIR));
-        
-        if (doReload) shouldClientHardReload = true;
-    }
-    
-    await shipModules()
-    
-    const pagesBuilt = performance.now();
-
-    await buildClient(DIST_DIR);
-
-    const end = performance.now();
-
-    if (options.publicDirectory) {
-        log("Recursively copying public directory.. this may take a while.")
-        const src = path.relative(process.cwd(), options.publicDirectory.path)
-        
-        if (fs.existsSync(src) === false) {
-            console.warn("WARNING: Public directory not found, an attempt will be made create it..")
-            fs.mkdirSync(src, { recursive: true, });
-        }
-
-        await fs.promises.cp(src, path.join(DIST_DIR), { recursive: true, });
-    }
-
-    {
-        log(`Took ${Math.round(pagesBuilt-start)}ms to Build Pages.`)
-        log(`Took ${Math.round(end-pagesBuilt)}ms to Build Client.`)
-    }
-    
-    process.send?.({ event: "message", data: "set-pages-and-layouts", content: JSON.stringify({ pageMap: Array.from(PAGE_MAP), layoutMap: Array.from(LAYOUT_MAP) }), })
-    process.send?.({ event: "message", data: "compile-finish", });
-    
-    if (shouldClientHardReload) {
-        process.send!({ event: "message", data: "hard-reload", })
-    } else {
-        process.send!({ event: "message", data: "soft-reload", })
-    }
-    
-    } catch(e) {
-        console.error("Build Failed! Received Error:");
-        console.error(e);
-        
-        return false
-    }
-    
-    return true
+export {
+    CompilationOptions,
+    setCompilationOptions,
+    getAllSubdirectories,
+    retrievePageAndLayoutMaps,
+    buildClient,
+    processPageElements,
+    pageToHTML,
+    generateClientPageData,
+    generateLayout,
+    buildLayouts,
+    buildLayout,
+    fetchPageLayoutHTML,
+    buildPages,
+    buildPage,
+    shipModules,
+    PAGE_MAP,
+    LAYOUT_MAP,
+    modulesToShip,
 };
-
-(async () => {    
-    // set to true by build.ts, but server imports this file so it can use buildDynamicPage(),
-    // therefore, flag.
-    if (process.env.DO_BUILD === "true") await build();
-})()

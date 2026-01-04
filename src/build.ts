@@ -6,13 +6,14 @@ import http, { IncomingMessage, ServerResponse } from "http";
 import { startServer } from "./server/server";
 
 import { log, setQuiet } from "./log";
+import { populateServerMaps } from "./compilation/dynamic_compiler";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const packageDir = path.resolve(__dirname, '..');
 
-const builderPath = path.resolve(packageDir, './dist/page_compiler.mjs');
+const builderPath = path.resolve(packageDir, "dist", "compilation", "compiler_process.mjs");
 
 const yellow = (text: string) => {
     return `\u001b[38;2;238;184;68m${text}`;
@@ -32,9 +33,6 @@ const green = (text: string) => {
 const finishLog = (...text: string[]) => {
     log.info(text.map((text) => `${text}\u001b[0m`).join(""))
 };
-
-export let PAGE_MAP = new Map();
-export let LAYOUT_MAP = new Map();
 
 type CompilationOptions = {
     postCompile?: () => any,
@@ -140,8 +138,11 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         } else if (data === "set-pages-and-layouts") {
             const { pageMap, layoutMap } = JSON.parse(message.content);
 
-            PAGE_MAP = new Map(pageMap);
-            LAYOUT_MAP = new Map(layoutMap);
+            /** 
+             * Pass the gathered layout and page information from the compiler subprocess back to us, the parent.
+             * This is necessary for the built-in elegance server to be able to properly construct pages.
+             */
+            populateServerMaps(pageMap, layoutMap)
         }
     });
 };
@@ -200,7 +201,7 @@ export const compile = async (props: CompilationOptions) => {
         
         fs.writeFileSync(
             path.join(BUILD_FLAG),
-            "This file just marks this directory as one containing an Elegance Build.",
+            "This file marks this directory as one containing an Elegance Build.",
             "utf-8",
         );
     } else {
@@ -214,6 +215,8 @@ export const compile = async (props: CompilationOptions) => {
     if (!fs.existsSync(DIST_DIR)) {
         fs.mkdirSync(DIST_DIR, { recursive: true, });
     }
+
+    build(DIST_DIR);
 
     if (options.server != undefined && options.server.runServer == true) {
         startServer({
@@ -277,7 +280,4 @@ export const compile = async (props: CompilationOptions) => {
             currentWatchers.push(watcher);
         }
     }
-        
-    build(DIST_DIR);
-
 };
