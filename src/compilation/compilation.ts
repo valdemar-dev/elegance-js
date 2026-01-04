@@ -21,6 +21,8 @@ type CompilationOptions = {
     environment: "production" | "development",
     pagesDirectory: string,
     outputDirectory: string,
+    /** Suppress native elegance logs. */
+    quiet?: boolean,
     publicDirectory?: {
         path: string,
     },
@@ -33,8 +35,9 @@ type CompilationOptions = {
     hotReload?: {
         port: number,
         hostname: string,
-    },
-    quiet: boolean;
+        /** Directories to watch for hot-reloading other than just the pagesDirectory. */
+        extraWatchDirectories?: string[],
+    }
 }
 
 const PAGE_MAP = new Map<Pathname, PageInformation>();

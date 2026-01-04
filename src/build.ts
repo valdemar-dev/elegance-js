@@ -7,6 +7,7 @@ import { startServer } from "./server/server";
 
 import { log, setQuiet } from "./log";
 import { populateServerMaps } from "./compilation/dynamic_compiler";
+import { CompilationOptions, setCompilationOptions } from "./compilation/compilation";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,31 +34,6 @@ const green = (text: string) => {
 const finishLog = (...text: string[]) => {
     log.info(text.map((text) => `${text}\u001b[0m`).join(""))
 };
-
-type CompilationOptions = {
-    postCompile?: () => any,
-    preCompile?: () => any,
-    environment: "production" | "development",
-    pagesDirectory: string,
-    outputDirectory: string,
-    /** Suppress native elegance logs. */
-    quiet?: boolean,
-    publicDirectory?: {
-        path: string,
-    },
-    server?: {
-        runServer: boolean,
-        root?: string,
-        port?: number,
-        host?: string,
-    },
-    hotReload?: {
-        port: number,
-        hostname: string,
-        /** Directories to watch for hot-reloading other than just the pagesDirectory. */
-        extraWatchDirectories?: string[],
-    }
-}
 
 let options: CompilationOptions = process.env.OPTIONS as any;
 
@@ -149,6 +125,8 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
 
 const build = (DIST_DIR: string) => {
     runBuild(builderPath, DIST_DIR);
+
+    setCompilationOptions(options, DIST_DIR);
 };
 
 let isTimedOut = false;

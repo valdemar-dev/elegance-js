@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from "http";
 import { initializeObjectAttributes, initializeState } from "../server/state";
 import { resetLoadHooks } from "../server/loadHook";
-import { fetchPageLayoutHTML, pageToHTML, shipModules, modulesToShip } from "./compilation";
+import { fetchPageLayoutHTML, pageToHTML, shipModules, modulesToShip, setCompilationOptions, CompilationOptions } from "./compilation";
 import path from "path";
 
 /**
@@ -11,7 +11,10 @@ let LAYOUT_MAP = new Map();
 let PAGE_MAP = new Map();
 
 /** Populate layout and page map for the server, so it knows what pages exist within the project. */
-function populateServerMaps(pageMap: Map<any, any>, layoutMap: Map<any, any>) {
+function populateServerMaps(
+    pageMap: Map<any, any>, 
+    layoutMap: Map<any, any>,
+) {
     LAYOUT_MAP = layoutMap;
     PAGE_MAP = pageMap;
 }

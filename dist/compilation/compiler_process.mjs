@@ -6,29 +6,36 @@ import { fileURLToPath } from "url";
 import { buildClient, buildLayouts, buildPages, retrievePageAndLayoutMaps, setCompilationOptions, shipModules } from "./compilation";
 let options = JSON.parse(process.env.OPTIONS || "{}");
 const DIST_DIR = process.env.DIST_DIR;
-const yellow = (text) => {
+function yellow(text) {
   return `\x1B[38;2;238;184;68m${text}`;
-};
-const black = (text) => {
+}
+;
+function black(text) {
   return `\x1B[38;2;0;0;0m${text}`;
-};
-const bgYellow = (text) => {
+}
+;
+function bgYellow(text) {
   return `\x1B[48;2;238;184;68m${text}`;
-};
-const bold = (text) => {
+}
+;
+function bold(text) {
   return `\x1B[1m${text}`;
-};
-const underline = (text) => {
+}
+;
+function underline(text) {
   return `\x1B[4m${text}`;
-};
-const white = (text) => {
+}
+;
+function white(text) {
   return `\x1B[38;2;255;247;229m${text}`;
-};
-const log = (...text) => {
+}
+;
+function log(...text) {
   if (options.quiet) return;
   return console.log(text.map((text2) => `${text2}\x1B[0m`).join(""));
-};
-const build = async () => {
+}
+;
+async function build() {
   setCompilationOptions(options, DIST_DIR);
   try {
     {
@@ -91,5 +98,5 @@ const build = async () => {
     return false;
   }
   return true;
-};
+}
 build();

@@ -86,7 +86,6 @@ async function buildDynamicPage(DIST_DIR, directory, pageInfo, req, res, middlew
   await shipModules();
   return { resultHTML };
 }
-;
 function doesPageExist(pathname) {
   return PAGE_MAP.has(pathname);
 }

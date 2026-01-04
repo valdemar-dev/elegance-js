@@ -6,6 +6,7 @@ import http from "http";
 import { startServer } from "./server/server";
 import { log, setQuiet } from "./log";
 import { populateServerMaps } from "./compilation/dynamic_compiler";
+import { setCompilationOptions } from "./compilation/compilation";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageDir = path.resolve(__dirname, "..");
@@ -89,12 +90,13 @@ const runBuild = (filepath, DIST_DIR) => {
       }
     } else if (data === "set-pages-and-layouts") {
       const { pageMap, layoutMap } = JSON.parse(message.content);
-      populateServerMaps(pageMap, layoutMap);
+      populateServerMaps(new Map(pageMap), new Map(layoutMap));
     }
   });
 };
 const build = (DIST_DIR) => {
   runBuild(builderPath, DIST_DIR);
+  setCompilationOptions(options, DIST_DIR);
 };
 let isTimedOut = false;
 const currentWatchers = [];
