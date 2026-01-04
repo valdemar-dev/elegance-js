@@ -50,7 +50,7 @@ async function buildClient(DIST_DIR2) {
   let clientString = "window.__name = (func) => func; ";
   clientString += fs.readFileSync(clientPath, "utf-8");
   if (options.hotReload !== void 0) {
-    clientString += `const watchServerPort = ${options.hotReload.port}`;
+    clientString += `const watchServerPort = ${options.hotReload.port};`;
     clientString += fs.readFileSync(watcherPath, "utf-8");
   }
   const transformedClient = await esbuild.transform(clientString, {

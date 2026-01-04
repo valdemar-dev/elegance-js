@@ -101,7 +101,7 @@ async function buildClient(
     clientString += fs.readFileSync(clientPath, "utf-8");
 
     if (options.hotReload !== undefined) {
-        clientString += `const watchServerPort = ${options.hotReload.port}`;
+        clientString += `const watchServerPort = ${options.hotReload.port};`;
         clientString += fs.readFileSync(watcherPath, "utf-8");
     }
 
