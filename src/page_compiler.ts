@@ -3,17 +3,6 @@ import path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-/** 
-    Ignore this error, this program was made *for* elegance, but I was too lazy to add typescript types (since I made it into a cli, with api support later)
-    This function below just registers a node module loader, which let's us transpile TypeScript into JS on-the-fly.
-    
-    I am aware tsx exists, however I felt that something smaller and simpler was more suited for Elegance.
-*/
-//@ts-ignore
-import { registerLoader, setArcTsConfig } from "ts-arc";
-setArcTsConfig(__dirname);
-registerLoader();
     
 import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
