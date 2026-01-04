@@ -96,7 +96,7 @@ const runBuild = (filepath: string, DIST_DIR: string) => {
         child.kill('SIGKILL');
     }
         
-    child = child_process.spawn("node", [filepath], { 
+    child = child_process.spawn("node", ["--import","ts-arc/register", filepath], { 
         stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
         env: { ...process.env, 
             DIST_DIR: DIST_DIR, 
