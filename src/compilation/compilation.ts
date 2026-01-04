@@ -105,19 +105,17 @@ async function buildClient(
         clientString += fs.readFileSync(watcherPath, "utf-8");
     }
 
-    const transformedClient = await esbuild.transform(clientString, {
+    await esbuild.build({
         minify: options.environment === "production",
         drop: options.environment === "production" ? ["console", "debugger"] : undefined,
         keepNames: false,
+        bundle: true,
         format: "iife",
-        platform: "node", 
-        loader: "ts",
+        entryPoints: [clientPath],
+        platform: "browser", 
+        outfile: path.join(DIST_DIR, "/client.js"),
+        loader: { ".ts": "ts", },
     });
-    
-    fs.writeFileSync(
-        path.join(DIST_DIR, "/client.js"),
-        transformedClient.code,
-    );
 };
 
 function processOptionAsObjectAttribute(
@@ -860,7 +858,9 @@ async function buildLayout(
     
     function splitAround(str: string, sub: string) {
         const i = str.indexOf(sub);
-        if (i === -1) throw new Error("substring does not exist in parent string");
+        if (i === -1) {
+            throw new Error(`Whilst layout ${directory}, the splitter could not be found. Make sure to use the "child" prop passed into the layout.`)
+        }
         
         return {
             startHTML: str.substring(0, i),
@@ -870,7 +870,9 @@ async function buildLayout(
     
     function splitAt(str: string, sub: string) {
         const i = str.indexOf(sub) + sub.length;
-        if (i === -1) throw new Error("substring does not exist in parent string");
+        if (i === -1) {
+            throw new Error(`Whilst layout ${directory}, the splitter could not be found. Make sure to use the "child" prop passed into the layout's head.`)
+        }
         
         return {
             startHTML: str.substring(0, i),
