@@ -8,6 +8,8 @@ import esbuild from "esbuild";
 import { fileURLToPath } from 'url';
 import { generateHTMLTemplate } from "../server/generateHTMLTemplate";
 
+import crypto from "crypto";
+
 import { ObjectAttributeType } from "../helpers/ObjectAttributeType";
 import { serverSideRenderPage } from "../server/render";
 import { getState, initializeState, initializeObjectAttributes, getObjectAttributes, } from "../server/state";
@@ -830,6 +832,10 @@ async function buildLayouts() {
     return { shouldClientHardReload };
 }
 
+function hashDirectory(directory: string) {
+    return crypto.createHash("md5").update(directory).digest("hex");
+}
+
 async function buildLayout(
     filePath: string, 
     directory: string, 
@@ -844,7 +850,7 @@ async function buildLayout(
         
         the client then uses this for client-side navigation
     */
-    const id = globalThis.__SERVER_CURRENT_STATE_ID__ += 1;
+    const id = hashDirectory(directory);
     const childIndicator = `<template layout-id="${id}"></template>`;
     
     const result = await generateLayout(
@@ -935,6 +941,8 @@ async function fetchPageLayoutHTML(
                  */
                 const builtLayout = await buildLayout(layout.filePath, dir, true);
                 if (!builtLayout) continue;
+
+                builtLayouts.set(filePath, builtLayout);
                 
                 layouts.push(builtLayout);
             } else {
