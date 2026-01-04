@@ -6,7 +6,7 @@ type ServerSubject = {
     type: ObjectAttributeType;
     value: unknown;
     id: number;
-    bind?: string;
+    bind?: string | undefined;
 };
 type LoadHookOptions<T extends ServerSubject[]> = {
     fn: (state: State, ...subjects: {
@@ -17,7 +17,7 @@ type LoadHookOptions<T extends ServerSubject[]> = {
 };
 export type LoadHook = {
     fn: string;
-    bind: number | string;
+    bind?: string | undefined;
 };
 export type ClientLoadHook = {
     bind: string;
