@@ -1,1 +1,1 @@
-export declare const renderRecursively: (element: Child) => HTMLElement | DocumentFragment | Text | null;
+export declare const renderRecursively: (element: Child) => any;

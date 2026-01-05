@@ -1,44 +1,143 @@
-type IPCRequest = {
-    /** Send this back using process.send() and a reply in order to resolve a request. */
-    id: number;
+/**
+ * This file contains the functions used by compiler_process to compile pages.
+ */
 
-    /** What the parent process wants us to do. */
-    action: string;
 
-    /** Arbitrary data set by the parent process. */
-    content: any;
+import path from "path";
+import { AnyElement, EleganceElement, ElementOptions, invalidElementError, SpecialElementOption } from "../elements/element";
+
+
+/** Context of a page that will / is being compiled. */
+type PageCompilationContext = {
+    /** The absolute path to the .ts file containing the module for this page. */
+    modulePath: string,
+    
+    /** The slash starting relative pathname (relative to pagesDirectory) of this page. */
+    pathname: string,
+
+    /** 
+     * An id counter starting from 0, that is incremented once per generateID() call, 
+     * and is used in conjunction with the pathname to generate unique static IDs (order-dependent) 
+     */
+    idCounter: number,
 };
 
-const PAGE_MAP = new Map();
-const LAYOUT_MAP = new Map();
+type CompilerOptions = {
+    pagesDirectory: string;
+};
 
-async function gatherPages(requestId: number) {}
+let compilerOptions: CompilerOptions;
 
-async function compileStaticPages(requestId: number) {}
-
-async function compileDynamicPage(requestId:number, pathname: string) {}
-
-function resolveRequest(requestId: number, content: any) {
-    process.send?.({ requestId, content, });
+function setCompilerOptions(newOptions: CompilerOptions) {
+    compilerOptions = newOptions;
 }
 
-process.on("message", (request: IPCRequest) => {
-    switch (request.action) {
-        case "compile-static-pages":
-            compileStaticPages(request.id);
+function generateID(compilationContext: PageCompilationContext) {
+    compilationContext.idCounter += 1;
+}
 
-            break;
-        case "gather-pages":
-            gatherPages(request.id);
+function generatePageCompilationContext(pathname: string): PageCompilationContext {
+    const modulePath = path.join(compilerOptions.pagesDirectory, pathname);
 
-            break;
-        case "compile-dynamic-page":
-            compileDynamicPage(request.id, request.content);
+    return {
+        pathname: pathname,
+        modulePath: modulePath,
+        idCounter: 0,
+    };
+}
 
-            break;
+/** The result of turning an element into a string and extracting any special options from it. */
+type SerializationResult = { serializedElement: string, specialOptions: SpecialElementOption[] };
+
+function serializeEleganceElement(element: EleganceElement<any>): SerializationResult {
+    let serializedElement = "";
+    let specialOptions: SpecialElementOption[] = [];
+
+    serializedElement += `<${element.tag}`;
+    
+    // Process options.
+    {
+        const options = Object.entries(element.options);
+
+        if (options.length > 0) {
+            for (const [optionName, optionValue] of options) {
+                serializedElement += ` ${optionName}="${optionValue}"`;
+            }
+        }
     }
-});
 
-// This prevents node from exiting.
-// The compiler only exits after the parent process tells it to.
-setTimeout(() => {}, 1000);
+    serializedElement += ">";
+    
+    // Process children.
+    {
+        if (element.children === null) {
+
+            return { serializedElement, specialOptions, };
+        }
+
+        if (element.children.length > 0) {
+            for (const child of element.children) {
+                const result = serializeElement(child);
+
+                serializedElement += result.serializedElement;
+                specialOptions.push(...result.specialOptions);
+            }
+        }
+    }
+
+    serializedElement += `</${element.tag}>`;
+
+    return { serializedElement, specialOptions, };
+}
+
+function serializeElement(element: AnyElement): SerializationResult {
+    let specialOptions: SpecialElementOption[] = [];
+    let serializedElement: string;
+
+    switch (typeof element) {
+    case "object":
+        if (Array.isArray(element)) {
+            serializedElement = element.join(", ");
+
+            break;
+        }
+
+        if (element instanceof EleganceElement) {
+            const entries = Object.entries(element.options);
+
+            for (const [optionName, optionValue] of entries) {
+                if (optionValue instanceof SpecialElementOption) {
+                    const { clientToken } = optionValue.serialize(element, optionName);
+
+                }
+            }
+
+            const result = serializeEleganceElement(element);
+
+            serializedElement = result.serializedElement;
+            specialOptions = result.specialOptions;
+
+            break;
+        }
+
+        throw invalidElementError(element, "Arbitrary objects are not valid children.")
+    case "boolean":
+        serializedElement = `${element}`;
+        break;
+    case "number":
+        serializedElement = element.toString();
+        break;
+    case "string":
+        serializedElement = element;
+        break;
+    default:
+        throw invalidElementError(element, "The typeof of this element as not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.");
+    }
+
+    return { serializedElement, specialOptions, };
+}
+
+export {
+    setCompilerOptions,
+    serializeElement,
+}

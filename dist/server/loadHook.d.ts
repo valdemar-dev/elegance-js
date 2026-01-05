@@ -24,7 +24,7 @@ export type ClientLoadHook = {
     fn: (state: State) => (void | (() => void) | Promise<(void | (() => void))>);
 };
 export declare const resetLoadHooks: () => never[];
-export declare const getLoadHooks: () => any[];
+export declare const getLoadHooks: () => any;
 export declare const loadHook: <T extends ServerSubject[]>(deps: LoadHookOptions<T>["deps"], fn: LoadHookOptions<T>["fn"], bind?: LoadHookOptions<T>["bind"]) => void;
 export declare const createLoadHook: <T extends ServerSubject[]>(options: LoadHookOptions<T>) => void;
 export {};

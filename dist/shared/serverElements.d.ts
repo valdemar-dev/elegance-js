@@ -6,6 +6,6 @@ declare const childrenlessElements: {
     [key: string]: EleganceChildrenlessElement<ChildrenlessElementTags>;
 };
 declare const allElements: {
-    [x: string]: EleganceElement<ElementTags> | EleganceChildrenlessElement<ChildrenlessElementTags>;
+    [x: string]: any;
 };
 export { elements, childrenlessElements, createElementOptions, allElements };
