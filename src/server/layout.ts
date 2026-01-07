@@ -1,7 +1,9 @@
+import { relative } from "node:path";
 import { AnyElement } from "../elements/element";
+import { CompilerOptions } from "../compilation/compiler";
 
-type LayoutConstructor = (() => AnyElement) | (() => Promise<AnyElement>);
-type LayoutMetadataConstructor = (() => AnyElement) | (() => Promise<AnyElement>);
+type LayoutConstructor = ((child: AnyElement) => AnyElement) | ((child: AnyElement) => Promise<AnyElement>);
+type LayoutMetadataConstructor = ((child: AnyElement) => AnyElement) | ((child: AnyElement) => Promise<AnyElement>);
 
 /**
  * Described the formatted supported exports of a given page.
@@ -25,9 +27,16 @@ type LayoutInformation = {
     exports: LayoutExports,
 };
 
+function invalidLayoutError(compilerOptions: CompilerOptions, modulePath: string, reason: string) {
+    const relativePath = relative(compilerOptions.pagesDirectory, modulePath);
+
+    return new Error(`The layout at path: "${relativePath}" is invalid.\n${reason}`);
+}
+
 export {
     LayoutInformation,
     LayoutExports,
     LayoutConstructor,
-    LayoutMetadataConstructor
+    LayoutMetadataConstructor,
+    invalidLayoutError,
 }

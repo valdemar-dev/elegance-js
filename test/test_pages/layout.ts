@@ -1,8 +1,8 @@
 export const layout = (child: any) => {
-    return html();
+    return html(child);
 };
 
-export const metadata = () => {
-    return head();
+export const metadata = (child: any) => {
+    return head(child);
 };
 export const isDynamic = false;

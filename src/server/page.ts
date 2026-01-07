@@ -28,7 +28,7 @@ type PageInformation = {
     exports: PageExports,
 
     /** An in-order list of the layouts that apply to this page. */
-    layouts: LayoutInformation[],
+    applicableLayouts: LayoutInformation[],
 };
 
 function invalidPageError(compilerOptions: CompilerOptions, modulePath: string, reason: string) {
