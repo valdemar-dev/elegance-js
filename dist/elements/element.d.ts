@@ -1,20 +1,20 @@
 /** Any valid element that has not been constructed via the use of an element constructor such as h1() */
-type ElementLiteral = boolean | number | string | Array<any> | Record<any, any>;
+type ElementLiteral = boolean | number | string | Array<any>;
 type AnyElement = EleganceElement<any> | ElementLiteral;
 type ElementChildren = AnyElement[];
 /** Element options of this type will be made into field="value.toString()" */
 type ElementOptionLiteral = number | string | Record<any, any>;
 type ProcessSpecialElementOption = (element: EleganceElement<any>, optionName: string, value: any) => void;
+/** A piece of data that is sent to the client, and processed upon page load. */
+type ClientToken = any;
 /** Represents an option that should be treated differently by the compiler (eg. stored into the page_data) */
-declare class SpecialElementOption {
-    value: any;
+declare abstract class SpecialElementOption {
     /**
-     * Take this SpecialElementOption, modify the element to display it properly,
-     * and return the object attribute to the compiler
-     */
-    processCallback: ProcessSpecialElementOption;
-    constructor(value: any, processCallback: ProcessSpecialElementOption);
-    process(element: EleganceElement<any>, optionName: string): void;
+     * Make the special element option mutate it's position in the element to
+     * it's final state, and return it's client data token. */
+    abstract serialize(element: EleganceElement<any>, optionName: string): {
+        clientToken: ClientToken;
+    };
 }
 type ElementOptions = Record<string, SpecialElementOption | ElementOptionLiteral>;
 /**
@@ -36,9 +36,14 @@ declare function invalidElementError(element: AnyElement, reason: string): Error
 declare class EleganceElement<CanHaveChildren extends boolean> {
     readonly tag: keyof HTMLElementTagNameMap;
     readonly options: ElementOptions;
+    /**
+     * The unique key of this element.
+     * It is undefined until it is manually generated.
+     */
+    key?: string;
     children: CanHaveChildren extends true ? ElementChildren : null;
-    constructor(tag: keyof HTMLElementTagNameMap, options: ElementOptionsOrChildElement, children: ElementChildren | null);
-    canHaveChildren(): boolean;
+    constructor(tag: keyof HTMLElementTagNameMap, options: ElementOptionsOrChildElement | undefined, children: ElementChildren | null);
+    canHaveChildren<V extends CanHaveChildren>(): this is EleganceElement<true>;
 }
 export { EleganceElement, SpecialElementOption, invalidElementError, };
-export type { EleganceElementBuilder, AnyElement, ElementChildren, AllElementTags, HtmlElementTags, HtmlChildrenlessElementTags, SvgElementTags, SvgChildrenlessElementTags, MathMLElementTags, MathMLChildrenlessElementTags, ElementOptions, ElementOptionsOrChildElement, };
+export type { EleganceElementBuilder, AnyElement, ElementChildren, AllElementTags, HtmlElementTags, HtmlChildrenlessElementTags, SvgElementTags, SvgChildrenlessElementTags, MathMLElementTags, MathMLChildrenlessElementTags, ElementOptions, ProcessSpecialElementOption, ElementOptionsOrChildElement, };

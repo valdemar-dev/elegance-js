@@ -197,7 +197,7 @@ const mathmlElementTags = [
 const elements = {};
 const childrenlessElements = {};
 function createElementBuilder(tag) {
-  return ((options, ...children) => new EleganceElement(tag, options, children || []));
+  return ((options, ...children) => new EleganceElement(tag, options, children));
 }
 function createChildrenlessElementBuilder(tag) {
   return ((options) => new EleganceElement(tag, options, null));

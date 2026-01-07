@@ -15,15 +15,21 @@ type ElementOptionLiteral = number | string | Record<any, any>;
 
 type ProcessSpecialElementOption = (element: EleganceElement<any>, optionName: string, value: any) => void;
 
-/** A piece of data that is sent to the client, and processed upon page load. */
-type ClientToken = any;
-
-/** Represents an option that should be treated differently by the compiler (eg. stored into the page_data) */
+/** 
+ * An option that should be treated differently by the compiler.
+ * It should implement the serialize() method, which is then called when the option instance is encountered.
+ * It may return a ClientDataToken, or null (in which case it's not sent to the client).
+ */
 abstract class SpecialElementOption {
-    /** 
-     * Make the special element option mutate it's position in the element to
-     * it's final state, and return it's client data token. */
-    abstract serialize(element: EleganceElement<any>, optionName: string): { clientToken: ClientToken, }
+    /**
+     * Mutate this option in the element to it's serializeable state.
+     */
+    abstract mutate(element: EleganceElement<any>, optionName: string): void
+
+    /**
+     * Convert this special element option into a string.
+     */
+    abstract serialize(element: EleganceElement<any>, optionName: string): string
 }
 
 type ElementOptions = Record<string, SpecialElementOption | ElementOptionLiteral>;
@@ -109,6 +115,12 @@ class EleganceElement<
 > {
     readonly tag: keyof HTMLElementTagNameMap;
     readonly options: ElementOptions;
+
+    /** 
+     * The unique key of this element. 
+     * Use getElementKey() in from the compiler to retrieve this value
+     */
+    key?: string;
 
     children: CanHaveChildren extends true
         ? ElementChildren

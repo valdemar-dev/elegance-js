@@ -1,21 +1,33 @@
-export const resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = new Map();
-export const getLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__;
+import { AnyElement } from "../elements/element";
 
-if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
+type LayoutConstructor = (() => AnyElement) | (() => Promise<AnyElement>);
+type LayoutMetadataConstructor = (() => AnyElement) | (() => Promise<AnyElement>);
 
-export const createLayout = (name: string) => {
-    process.emitWarning(
-        'Function createLayout() is deprecated. Prefer layout.ts files instead.',
-        { type: 'DeprecationWarning' }
-    );
-
-    const layouts = globalThis.__SERVER_CURRENT_LAYOUTS__;
-
-    if (layouts.has(name)) return layouts.get(name)!;
-
-    const id = globalThis.__SERVER_CURRENT_LAYOUT_ID__ += 1;
-
-    layouts.set(name, id);
-
-    return id;
+/**
+ * Described the formatted supported exports of a given page.
+ */
+type LayoutExports = {
+    isDynamic: boolean,
+    layoutConstructor: LayoutConstructor,
+    layoutMetadataConstructor: LayoutMetadataConstructor,
 };
+
+/**
+ * Holds information about a given user-defined layout within the project.
+ */
+type LayoutInformation = {
+    /** The absolute path to the .ts file containing the module for this page. */
+    modulePath: string,
+
+    /** The pathname of this page relative to pagesDirectory */
+    pathname: string,
+
+    exports: LayoutExports,
+};
+
+export {
+    LayoutInformation,
+    LayoutExports,
+    LayoutConstructor,
+    LayoutMetadataConstructor
+}
