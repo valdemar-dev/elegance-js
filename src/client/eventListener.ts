@@ -13,7 +13,7 @@ class EventListener extends SpecialElementOption {
         this.dependencies = dependencies;
     }
 
-    serialize(element: EleganceElement<any>, optionName: string) {
+    serialize(optionName: string) {
         let result = "{"
 
         result += `optionName:"${optionName}",`,

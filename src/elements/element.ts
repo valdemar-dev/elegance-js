@@ -29,8 +29,8 @@ abstract class SpecialElementOption {
     /**
      * Convert this special element option into a string.
      */
-    abstract serialize(element: EleganceElement<any>, optionName: string): string
-}
+    abstract serialize(optionName: string): string
+} 
 
 type ElementOptions = Record<string, SpecialElementOption | ElementOptionLiteral>;
 

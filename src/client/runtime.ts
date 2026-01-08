@@ -6,14 +6,6 @@ type ClientSubject = {
     value: any,
 };
 
-enum ClientDataTokenType {
-
-};
-
-type ClientDataToken = {
-    type: ClientDataTokenType;
-} & Record<string, any>;
-
 class StateManager {
     private readonly subjects: Map<string, ClientSubject> = new Map()
 
@@ -59,7 +51,7 @@ function sanitizePathname(pathname: string = ""): string {
     return pathname;
 }
 
-async function getPageData(pathname: string): ClientDataToken {
+async function getPageData(pathname: string) {
     /** Find the correct script tag in head. */
     const dataScriptTag = document.head.querySelector(`script[data-page="true"][data-pathname="${pathname}"]`) as HTMLScriptElement | null;
     if (!dataScriptTag) {
@@ -67,6 +59,14 @@ async function getPageData(pathname: string): ClientDataToken {
     }
 
     const { data } = await import(dataScriptTag.src);
+
+    const { eventListeners, observers } = data;
+
+    if (!eventListeners || !observers) {
+        throw new Error("Possibly malformed page data");
+    }
+
+    console.log(data)
 
     return data;
 }
@@ -78,8 +78,6 @@ async function loadPage(previousPage?: string) {
     const pathname = sanitizePathname(window.location.pathname);
 
     const pageData = await getPageData(pathname);
-
-    stateManager.loadValues();
 }
 
 loadPage();
