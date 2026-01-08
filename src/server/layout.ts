@@ -3,7 +3,7 @@ import { AnyElement } from "../elements/element";
 import { CompilerOptions } from "../compilation/compiler";
 
 type LayoutConstructor = ((child: AnyElement) => AnyElement) | ((child: AnyElement) => Promise<AnyElement>);
-type LayoutMetadataConstructor = ((child: AnyElement) => AnyElement) | ((child: AnyElement) => Promise<AnyElement>);
+type LayoutMetadataConstructor = (() => AnyElement[]) | (() => Promise<AnyElement[]>);
 
 /**
  * Described the formatted supported exports of a given page.

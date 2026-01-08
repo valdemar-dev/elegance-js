@@ -57,16 +57,11 @@ type CompiledLayout = {
     serializedClientDataTokens: string[],
 
     /** Compiled result of the layoutMetadataConstructor */
-    layoutMetadataHTMLStart: string,
-    layoutMetadataHTMLEnd: string,
+    layoutMetadataHTML: string,
 };
 
 type CompiledPage = {
     pageHTML: string,
-
-    serializedClientDataTokens: string[],
-
-    pageMetadataHTML: string,
 };
 
 /** The result of turning an element into a string and extracting any special options from it. */
@@ -246,7 +241,16 @@ function serializeElement(
     switch (typeof element) {
     case "object":
         if (Array.isArray(element)) {
-            serializedElement = element.join(", ");
+            let serializedElements = "";
+
+            for (const subElement of element) {
+                const serializationResult = serializeElement(compilationContext, subElement);
+                
+                serializedElements += serializationResult.serializedElement;
+                serializedClientDataTokens.push(...serializationResult.serializedClientDataTokens);
+            }
+
+            serializedElement = serializedElements;
 
             break;
         }
@@ -289,28 +293,32 @@ function serializeElement(
 }
 
 async function generatePageDataScript(compilationContext: PageCompilationContext, serializedClientDataTokens: string[]) {
-    let scriptString = `export const data = [${serializedClientDataTokens.join(",")}];\n`;
+    let dataScriptContent = `export const data = [${serializedClientDataTokens.join(",")}];\n`;
 
-    const transformedResult = await esbuild.transform(scriptString, { minify: true, });
-    scriptString = transformedResult.code;
-    
-    let fullPath = path.join(
-        getDistDir(), 
-        compilationContext.pathname, 
-        "page_data.js",
-    );
-    
-    let dataDidChange = false;
+    const transformedResult = await esbuild.transform(dataScriptContent, { minify: true, });
+    dataScriptContent = transformedResult.code;
 
-    if (existsSync(fullPath)) {
-        const existingContent = readFileSync(fullPath);
+    let dataScript = `<script data-hook="true" data-pathname="${compilationContext.pathname}" type="text/plain">${dataScriptContent}</script>`;
+    let dataLoaderScript = `<script>
+            const text = document.querySelector('[data-hook="true"][data-pathname="${compilationContext.pathname}"][type="text/plain"').textContent;
+            const blob = new Blob([text], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            
+            const script = document.createElement("script");
+            script.src = url;
+            script.type = "module";
+            script.setAttribute("data-page", "true");
+            script.setAttribute("data-pathname", "${compilationContext.pathname}");
+            
+            document.head.appendChild(script);
+            
+            document.currentScript.remove();
+        </script>`
+            .replace(/\s+/g, " ")
+            .replace(/\s*([{}();,:])\s*/g, "$1")
+            .trim();
 
-        if (existingContent.toString() !== scriptString) {
-            dataDidChange = true;
-        }
-    }
-
-    return { scriptString, fullPath, dataDidChange };
+    return dataScript + dataLoaderScript;
 }
 
 /** 
@@ -464,7 +472,26 @@ async function gatherAllLayouts(): Promise<Map<string, LayoutInformation>> {
     return layoutMap;
 }
 
-async function compileStaticPage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage> {
+const compiledStaticLayouts = new Map<string, CompiledLayout>();
+async function getCompiledLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout> {
+    if (layoutInformation.exports.isDynamic === true) {
+        return await compileLayout(layoutInformation);
+    }
+
+    if (compiledStaticLayouts.has(layoutInformation.pathname)) {
+        return compiledStaticLayouts.get(layoutInformation.pathname)!;
+    }
+
+    const compiledLayout = await compileLayout(layoutInformation);
+    compiledStaticLayouts.set(layoutInformation.pathname, compiledLayout);
+
+    return compiledLayout;
+}
+
+async function compileStaticPage(
+    allLayouts: Map<string, LayoutInformation>, 
+    pageInformation: PageInformation
+): Promise<CompiledPage> {
     if (pageInformation.exports.isDynamic === true) {
         throw internalCompilerError("Attempted to compile a dynamic page using compileStaticPageToDisk()");
     }
@@ -499,45 +526,107 @@ async function compileStaticPage(allLayouts: Map<string, LayoutInformation>, pag
     const pageHTML = pageSerializationResult.serializedElement;
     const pageMetadataHTML = pageMetadataSerializationResult.serializedElement;
 
-    
-    // go through the layouts, and construct the end-stage page html
-    {
-        let layoutHTMlStart = ""; 
+    let finalHTML: string = "";
 
-        for (const layoutInformation of pageInformation.applicableLayouts) {
-            
+    // go through the layouts, and construct the end-stage page html
+    if (pageInformation.applicableLayouts.length > 0) {
+        finalHTML += "<!DOCTYPE html>"; 
+
+        const rootLayout = pageInformation.applicableLayouts[0];
+        const compiledRootLayout = await getCompiledLayout(rootLayout, allLayouts);
+
+        const htmlTagIndex = compiledRootLayout.layoutHTMLStart.indexOf("<html");
+        const htmlTagEndIndex = compiledRootLayout.layoutHTMLStart.indexOf(">");
+
+        if (htmlTagIndex === -1 || htmlTagEndIndex === -1) {
+            throw invalidLayoutError(compilerOptions, rootLayout.modulePath, "The root layout must start with an html() element.");
         }
 
-        let layoutHTMLEnd = "";
+        const beforeHead = compiledRootLayout.layoutHTMLStart.substring(0, htmlTagEndIndex + 1);
+        const afterHead = compiledRootLayout.layoutHTMLStart.substring(htmlTagEndIndex + 1);
+
+        // gather the content of the head element, and inject it right after the <html> opening tag
+        let headContent = "";
+        {
+            headContent += "<head>";
+
+            for (const layoutInformation of pageInformation.applicableLayouts) {
+                    const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
+
+                    headContent += compiledLayout.layoutMetadataHTML;
+                }
+                
+                headContent += pageMetadataHTML
+
+            headContent += "</head>";
+        }
+
+        finalHTML += beforeHead + headContent + afterHead;
+
+        // skip the root layout, since we already added it in.
+        for (let i = 1; i < pageInformation.applicableLayouts.length; i++) {
+            const layoutInformation = pageInformation.applicableLayouts[i];
+
+            const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
+
+            finalHTML += compiledLayout.layoutHTMLStart;
+        }
+
+        finalHTML += pageHTML
+
+        for (const layoutInformation of [...pageInformation.applicableLayouts].reverse()) {
+            const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
+
+            finalHTML += compiledLayout.layoutHTMLEnd;
+        }
+
+    } else {
+        finalHTML += `<html lang="en-us">`;
+            finalHTML += "<head>";
+                finalHTML += pageMetadataHTML;
+            finalHTML += "</head>";
+            
+            finalHTML += "<body>";
+                finalHTML += pageHTML;
+
+                const allPageClientDataTokens = [
+                    ...pageSerializationResult.serializedClientDataTokens, 
+                    ...pageMetadataSerializationResult.serializedClientDataTokens,
+                ];
+
+                const pageDataScript = await generatePageDataScript(compilationContext, allPageClientDataTokens);
+
+                finalHTML += pageDataScript;
+            finalHTML += "</body>";
+        finalHTML += `</html>`;
     }
-    
-
-    const allPageClientDataTokens = [
-        ...pageSerializationResult.serializedClientDataTokens, 
-        ...pageMetadataSerializationResult.serializedClientDataTokens,
-    ];
-
-    const pageData = await generatePageDataScript(compilationContext, pageSerializationResult.serializedClientDataTokens);
 
     const compiledPage = {
-        pageHTML: pageHTML,
-        pageMetadataHTML: pageMetadataHTML,
-        serializedClientDataTokens: [],
+        pageHTML: finalHTML,
     };
 
     return compiledPage;
 }
 
-async function compileStaticPages(allLayouts: Map<string, LayoutInformation>, allPages: Map<string, PageInformation>) {
+async function compileStaticPages(
+    allLayouts: Map<string, LayoutInformation>, 
+    allPages: Map<string, PageInformation>
+) {
+    const compiledPages = new Map();
+
     for (const [pagePathname, pageInformation] of allPages) {
         if (pageInformation.exports.isDynamic === true) continue;
 
-        await compileStaticPage(allLayouts, pageInformation);
+        const compiledPage = await compileStaticPage(allLayouts, pageInformation);
+        
+        compiledPages.set(pagePathname, compiledPage);
     }
+
+    return compiledPages;
 }
 
-async function comipledStaticLayoutToDisk(layoutInformation: LayoutInformation): Promise<void> {
-    const compiledLayout = await compileStaticLayout(layoutInformation);
+async function compileStaticLayoutToDisk(layoutInformation: LayoutInformation): Promise<void> {
+    const compiledLayout = await compileLayout(layoutInformation);
 
     const directory = path.join(getDistDir(), layoutInformation.pathname);
     const htmlFullPath = path.join(directory, "layout.html");
@@ -545,15 +634,11 @@ async function comipledStaticLayoutToDisk(layoutInformation: LayoutInformation):
     const jsFullPath = path.join(directory, "layout_data.js");
 
     writeFileSync(htmlFullPath, compiledLayout.layoutHTMLStart + compiledLayout.layoutHTMLEnd);
-    writeFileSync(htmlMetadataFullPath, compiledLayout.layoutMetadataHTMLStart + compiledLayout.layoutMetadataHTMLEnd);
+    writeFileSync(htmlMetadataFullPath, compiledLayout.layoutMetadataHTML);
     writeFileSync(jsFullPath, compiledLayout.serializedClientDataTokens.join(","));
 }
 
-async function compileStaticLayout<WriteToDisk extends boolean>(layoutInformation: LayoutInformation): Promise<CompiledLayout> {
-    if (layoutInformation.exports.isDynamic === true) {
-        throw internalCompilerError("Attempted to compile a dynamic layout using compileStaticLayout()");
-    }
-
+async function compileLayout(layoutInformation: LayoutInformation): Promise<CompiledLayout> {
     const compilationContext = generateLayoutCompilationContext(layoutInformation.pathname);
 
     const exports = layoutInformation.exports;
@@ -578,9 +663,9 @@ async function compileStaticLayout<WriteToDisk extends boolean>(layoutInformatio
     let layoutRootMetadataElement: AnyElement;
     {
         if (isAsyncFunction(layoutMetadataConstructor)) {
-            layoutRootMetadataElement = await layoutMetadataConstructor(markerElement);
+            layoutRootMetadataElement = await layoutMetadataConstructor();
         } else {
-            layoutRootMetadataElement = (layoutMetadataConstructor(markerElement) as AnyElement);
+            layoutRootMetadataElement = (layoutMetadataConstructor() as AnyElement);
         }
     }
 
@@ -591,32 +676,18 @@ async function compileStaticLayout<WriteToDisk extends boolean>(layoutInformatio
     const layoutMetadataHTML = layoutMetadataSerializationResult.serializedElement;
 
     const layoutHTMLMarkerElementIndex = layoutHTML.indexOf(markerElement);
-    const layoutMetadataHTMLMarkerElementIndex = layoutHTML.indexOf(markerElement);
 
     // Ensure marker element is present.
-    {
-        if (layoutHTMLMarkerElementIndex === -1) {
-            throw invalidLayoutError(compilerOptions, layoutInformation.modulePath, "The marker element was not found in the compiled layout HTML. Make sure to use the \"child\" paramater passed into the layout function.");
-        }
-
-        if (layoutMetadataHTMLMarkerElementIndex === -1) {
-            throw invalidLayoutError(compilerOptions, layoutInformation.modulePath, "The marker element was not found in the compiled layout metadata HTML. Make sure to use the \"child\" paramater passed into the metadata function.");
-        }
+    if (layoutHTMLMarkerElementIndex === -1) {
+        throw invalidLayoutError(compilerOptions, layoutInformation.modulePath, "The marker element was not found in the compiled layout HTML. Make sure to use the \"child\" paramater passed into the layout function.");
     }
 
     /**
      * Split *after* the marker element, always leaving it at the layoutHTML start,
-     * this let's us replace all the children *after* it for client-side navigation.
+     * this let's us replace all the children *after* it, for client-side navigation.
      */
     const layoutHTMLStart = layoutHTML.slice(0, layoutHTMLMarkerElementIndex + markerElement.length);
     const layoutHTMLEnd = layoutHTML.slice(layoutHTMLMarkerElementIndex + markerElement.length);
-
-    /**
-     * Split *around* the marker element, as to not leave it in the result html.
-     * We remove it, since it's not necessary for client-side navigation.
-     */
-    const layoutMetadataHTMLStart = layoutMetadataHTML.slice(0, layoutMetadataHTMLMarkerElementIndex);
-    const layoutMetadataHTMLEnd = layoutMetadataHTML.slice(layoutMetadataHTMLMarkerElementIndex + markerElement.length);
 
     const serializedClientDataTokens = [
         ...layoutSerializationResult.serializedClientDataTokens, 
@@ -626,26 +697,11 @@ async function compileStaticLayout<WriteToDisk extends boolean>(layoutInformatio
     const compiledLayout = {
         layoutHTMLStart: layoutHTMLStart,
         layoutHTMLEnd: layoutHTMLEnd,
-        layoutMetadataHTMLStart: layoutMetadataHTMLStart,
-        layoutMetadataHTMLEnd: layoutMetadataHTMLEnd,
+        layoutMetadataHTML: layoutMetadataHTML,
         serializedClientDataTokens: serializedClientDataTokens,
     };
 
     return compiledLayout;
-}
-
-async function compileStaticLayouts(allLayouts: Map<string, LayoutInformation>): Promise<Map<string, CompiledLayout>> {
-    const compiledLayouts = new Map();
-
-    for (const [layoutPathname, layoutInformation] of allLayouts) {
-        if (layoutInformation.exports.isDynamic === true) continue;
-
-        const result = await compileStaticLayout(layoutInformation);
-
-        compiledLayouts.set(layoutPathname, result);
-    }
-
-    return compiledLayouts;
 }
 
 /** 
@@ -657,12 +713,9 @@ async function compileEntireProject() {
     const allLayouts = await gatherAllLayouts();
     const allPages = await gatherAllPages(allLayouts);
 
-    const compiledStaticLayouts = await compileStaticLayouts(allLayouts);
     const compiledStaticPages = await compileStaticPages(allLayouts, allPages);
 
-    console.log(compiledStaticLayouts)
-    console.log(compiledStaticPages)
-
+    console.log(compiledStaticPages);
 }
 
 /** 

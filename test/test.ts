@@ -3,7 +3,7 @@
  * It's not actual testing, it's more like sanity-testing.
  */
 import { allElements, } from "../src/elements/element_list";
-import { compileEntireProject, compileStaticPageToDisk, generatePageCompilationContext, generatePageDataScript, serializeElement, setCompilerOptions, } from "../src/compilation/compiler";
+import { compileEntireProject, generatePageCompilationContext, generatePageDataScript, serializeElement, setCompilerOptions, } from "../src/compilation/compiler";
 
 (async () => {
     setCompilerOptions({
