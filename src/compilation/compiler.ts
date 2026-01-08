@@ -300,7 +300,9 @@ async function generatePageDataScript(compilationContext: PageCompilationContext
 
     let dataScript = `<script data-hook="true" data-pathname="${compilationContext.pathname}" type="text/plain">${dataScriptContent}</script>`;
     let dataLoaderScript = `<script>
-            const text = document.querySelector('[data-hook="true"][data-pathname="${compilationContext.pathname}"][type="text/plain"').textContent;
+            const dataScript = document.querySelector('[data-hook="true"][data-pathname="${compilationContext.pathname}"][type="text/plain"');
+            const text = dataScript.textContent;
+            dataScript.remove();
             const blob = new Blob([text], { type: 'text/javascript' });
             const url = URL.createObjectURL(blob);
             
@@ -313,10 +315,7 @@ async function generatePageDataScript(compilationContext: PageCompilationContext
             document.head.appendChild(script);
             
             document.currentScript.remove();
-        </script>`
-            .replace(/\s+/g, " ")
-            .replace(/\s*([{}();,:])\s*/g, "$1")
-            .trim();
+        </script>`;
 
     return dataScript + dataLoaderScript;
 }
@@ -529,7 +528,7 @@ async function compilePage(
         pageSerializationResult = serializeElement(compilationContext, pageRootElement);
         pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
     } catch(e) {
-        console.error(`Failed to serialize the elements of layout with pathname: "${pageInformation.pathname}"`);
+        console.error(`Failed to serialize the elements of a page with the pathname: "${pageInformation.pathname}"`);
         throw e;
     }
 
@@ -553,6 +552,10 @@ async function compilePage(
 
         if (htmlTagIndex === -1 || htmlTagEndIndex === -1) {
             throw invalidLayoutError(compilerOptions, rootLayout.modulePath, "The root layout must start with an html() element.");
+        }
+
+        if (compiledRootLayout.layoutHTMLStart.includes("<body") === false) {
+            throw invalidLayoutError(compilerOptions, rootLayout.modulePath, "The root layout must contain the body() element.");
         }
 
         const beforeHead = compiledRootLayout.layoutHTMLStart.substring(0, htmlTagEndIndex + 1);
@@ -589,15 +592,25 @@ async function compilePage(
 
         finalHTML += pageHTML
 
-
-        const pageDataScript = await generatePageDataScript(compilationContext, allClientDataTokens);
-        finalHTML += pageDataScript;
+        let endString = "";
 
         for (const layoutInformation of [...pageInformation.applicableLayouts].reverse()) {
             const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
 
-            finalHTML += compiledLayout.layoutHTMLEnd;
+            endString += compiledLayout.layoutHTMLEnd;
         }
+
+        const htmlEndTagIndex = endString.indexOf("</body>");
+        if (htmlEndTagIndex === -1) {
+            throw internalCompilerError("Failed to find </body> tag whilst compiling a page");
+        }
+
+        const beforeEndTag = endString.substring(0, htmlEndTagIndex);
+        const afterEndTag = endString.substring(htmlEndTagIndex);
+
+        const pageDataScript = await generatePageDataScript(compilationContext, allClientDataTokens);
+        finalHTML += beforeEndTag + pageDataScript + afterEndTag;
+
 
     } else {
         finalHTML += `<html lang="en-us">`;
@@ -630,7 +643,7 @@ async function compilePage(
 async function compileStaticPages(
     allLayouts: Map<string, LayoutInformation>, 
     allPages: Map<string, PageInformation>
-) {
+): Promise<Map<string, CompiledPage>> {
     const compiledPages = new Map();
 
     for (const [pagePathname, pageInformation] of allPages) {
@@ -668,7 +681,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
      * Use a marker element to denote the separation point of the start and end of the layout.
      */
     const layoutId = generateLayoutId(layoutInformation);
-    const markerElement = `<template layout-id="${layoutId}">`;
+    const markerElement = `<template layout-id="${layoutId}"></template>`;
 
     let layoutRootElement: AnyElement;
     {
@@ -695,7 +708,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         layoutSerializationResult = serializeElement(compilationContext, layoutRootElement);
         layoutMetadataSerializationResult = serializeElement(compilationContext, layoutRootMetadataElement);
     } catch(e) {
-        console.error(`Failed to serialize the elements of layout with pathname: "${layoutInformation.pathname}"`);
+        console.error(`Failed to serialize the elements of a layout with the pathname: "${layoutInformation.pathname}"`);
         throw e;
     }
 
@@ -742,7 +755,7 @@ async function compileEntireProject() {
 
     const compiledStaticPages = await compileStaticPages(allLayouts, allPages);
 
-    console.log(compiledStaticPages);
+    console.log(compiledStaticPages)
 }
 
 /** 

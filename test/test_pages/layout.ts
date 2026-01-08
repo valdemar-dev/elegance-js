@@ -1,5 +1,5 @@
 export const layout = (child: any) => {
-    return html(child);
+    return html(body(ol(li(child))));
 };
 
 export const metadata = () => {
