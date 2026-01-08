@@ -12,4 +12,6 @@ import { compileEntireProject, generatePageCompilationContext, generatePageDataS
     });
 
     await compileEntireProject();
+
+    throw "make the move from serializedclientdatatoken to specialoption, and then categorize them, so you can send them more optimally to the browser."
 })();
