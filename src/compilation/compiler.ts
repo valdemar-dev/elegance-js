@@ -235,7 +235,7 @@ function serializeElement(
     let serializedElement: string;
 
     if (element === undefined || element === null) {
-        throw invalidElementError(element, "Undefined and null is not valid elements.");
+        throw invalidElementError(element, "Undefined and null are not valid elements.");
     }
 
     switch (typeof element) {
@@ -488,14 +488,17 @@ async function getCompiledLayout(layoutInformation: LayoutInformation, allLayout
     return compiledLayout;
 }
 
-async function compileStaticPage(
+async function compilePageToDisk(
+    allLayouts: Map<string, LayoutInformation>, 
+    pageInformation: PageInformation
+): Promise<void> {
+    const compiledPage = await compilePage(allLayouts, pageInformation);
+}
+
+async function compilePage(
     allLayouts: Map<string, LayoutInformation>, 
     pageInformation: PageInformation
 ): Promise<CompiledPage> {
-    if (pageInformation.exports.isDynamic === true) {
-        throw internalCompilerError("Attempted to compile a dynamic page using compileStaticPageToDisk()");
-    }
-    
     const compilationContext = generatePageCompilationContext(pageInformation.pathname);
 
     const exports = pageInformation.exports;
@@ -520,17 +523,27 @@ async function compileStaticPage(
         }
     }
 
-    const pageSerializationResult = serializeElement(compilationContext, pageRootElement);
-    const pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
+    let pageSerializationResult: SerializationResult;
+    let pageMetadataSerializationResult: SerializationResult;
+    try {
+        pageSerializationResult = serializeElement(compilationContext, pageRootElement);
+        pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
+    } catch(e) {
+        console.error(`Failed to serialize the elements of layout with pathname: "${pageInformation.pathname}"`);
+        throw e;
+    }
 
     const pageHTML = pageSerializationResult.serializedElement;
     const pageMetadataHTML = pageMetadataSerializationResult.serializedElement;
 
-    let finalHTML: string = "";
+    let finalHTML: string = "<!DOCTYPE html>";
 
     // go through the layouts, and construct the end-stage page html
     if (pageInformation.applicableLayouts.length > 0) {
-        finalHTML += "<!DOCTYPE html>"; 
+        const allClientDataTokens = [
+            ...pageSerializationResult.serializedClientDataTokens,
+            ...pageMetadataSerializationResult.serializedClientDataTokens,
+        ];
 
         const rootLayout = pageInformation.applicableLayouts[0];
         const compiledRootLayout = await getCompiledLayout(rootLayout, allLayouts);
@@ -554,6 +567,8 @@ async function compileStaticPage(
                     const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
 
                     headContent += compiledLayout.layoutMetadataHTML;
+
+                    allClientDataTokens.push(...compiledLayout.serializedClientDataTokens);
                 }
                 
                 headContent += pageMetadataHTML
@@ -574,6 +589,10 @@ async function compileStaticPage(
 
         finalHTML += pageHTML
 
+
+        const pageDataScript = await generatePageDataScript(compilationContext, allClientDataTokens);
+        finalHTML += pageDataScript;
+
         for (const layoutInformation of [...pageInformation.applicableLayouts].reverse()) {
             const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
 
@@ -589,12 +608,12 @@ async function compileStaticPage(
             finalHTML += "<body>";
                 finalHTML += pageHTML;
 
-                const allPageClientDataTokens = [
+                const allClientDataTokens = [
                     ...pageSerializationResult.serializedClientDataTokens, 
                     ...pageMetadataSerializationResult.serializedClientDataTokens,
                 ];
 
-                const pageDataScript = await generatePageDataScript(compilationContext, allPageClientDataTokens);
+                const pageDataScript = await generatePageDataScript(compilationContext, allClientDataTokens);
 
                 finalHTML += pageDataScript;
             finalHTML += "</body>";
@@ -617,7 +636,7 @@ async function compileStaticPages(
     for (const [pagePathname, pageInformation] of allPages) {
         if (pageInformation.exports.isDynamic === true) continue;
 
-        const compiledPage = await compileStaticPage(allLayouts, pageInformation);
+        const compiledPage = await compilePage(allLayouts, pageInformation);
         
         compiledPages.set(pagePathname, compiledPage);
     }
@@ -625,7 +644,7 @@ async function compileStaticPages(
     return compiledPages;
 }
 
-async function compileStaticLayoutToDisk(layoutInformation: LayoutInformation): Promise<void> {
+async function compileLayoutToDisk(layoutInformation: LayoutInformation): Promise<void> {
     const compiledLayout = await compileLayout(layoutInformation);
 
     const directory = path.join(getDistDir(), layoutInformation.pathname);
@@ -669,8 +688,16 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         }
     }
 
-    const layoutSerializationResult = serializeElement(compilationContext, layoutRootElement);
-    const layoutMetadataSerializationResult = serializeElement(compilationContext, layoutRootMetadataElement);
+    let layoutSerializationResult: SerializationResult;
+    let layoutMetadataSerializationResult: SerializationResult;
+
+    try {
+        layoutSerializationResult = serializeElement(compilationContext, layoutRootElement);
+        layoutMetadataSerializationResult = serializeElement(compilationContext, layoutRootMetadataElement);
+    } catch(e) {
+        console.error(`Failed to serialize the elements of layout with pathname: "${layoutInformation.pathname}"`);
+        throw e;
+    }
 
     const layoutHTML = layoutSerializationResult.serializedElement;
     const layoutMetadataHTML = layoutMetadataSerializationResult.serializedElement;
@@ -738,4 +765,8 @@ export {
     serializeElement,
     generatePageDataScript,
     compileEntireProject,
+
+    compileEntireProjectToDisk,
+    compilePageToDisk,
+    compileLayoutToDisk,
 }
