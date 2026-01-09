@@ -1,30 +1,48 @@
 
-import { allElements } from "../elements/element_list";
+import type { ServerSubject } from "./state";
 
-type ClientSubject = {
-    id: string,
-    value: any,
-};
+type ClientSubjectObserver<T> = (newValue: T) => void;
+
+class ClientSubject<T extends any> {
+    readonly id: string;
+    _value: T;
+
+    private readonly observers: ClientSubjectObserver<T>[] = [];
+
+    constructor(id: string, value: T) {
+        this._value = value;
+        this.id = id;
+    }
+
+    set value(newValue: T) {
+        this._value = newValue;
+
+        for (const observer of this.observers) {
+            observer(newValue);
+        }
+    }
+}
 
 class StateManager {
-    private readonly subjects: Map<string, ClientSubject> = new Map()
+    private readonly subjects: Map<string, ClientSubject<any>> = new Map()
 
     constructor() {}
 
-    loadValues(values: ClientSubject[], doOverwrite: boolean = false) {
+    loadValues(values: ServerSubject<any>[], doOverwrite: boolean = false) {
         for (const value of values) {
             if (this.subjects.has(value.id) && doOverwrite === false) continue;
 
-            this.subjects.set(value.id, value);
+            const clientSubject = new ClientSubject(value.id, value.value);
+            this.subjects.set(value.id, clientSubject);
         }
     }
 
-    get(id: string): ClientSubject | undefined {
+    get(id: string): ClientSubject<any> | undefined {
         return this.subjects.get(id)
     }
 
-    getAll(ids: string[]): Array<ClientSubject | undefined> {
-        const results: Array<ClientSubject | undefined> = [];
+    getAll(ids: string[]): Array<ClientSubject<any> | undefined> {
+        const results: Array<ClientSubject<any> | undefined> = [];
 
         for (const id of ids) {
             results.push(this.get(id));
@@ -41,7 +59,6 @@ function sanitizePathname(pathname: string = ""): string {
     if (!pathname) return "/";
 
     pathname = "/" + pathname;
-
     pathname = pathname.replace(/\/+/g, "/");
 
     if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -60,24 +77,22 @@ async function getPageData(pathname: string) {
 
     const { data } = await import(dataScriptTag.src);
 
-    const { eventListeners, observers } = data;
+    const { subjects, eventListeners, observers } = data;
 
-    if (!eventListeners || !observers) {
+    if (!eventListeners || !observers || !subjects) {
         throw new Error("Possibly malformed page data");
     }
-
-    console.log(data)
 
     return data;
 }
 
 async function loadPage(previousPage?: string) {
-    // ensure the existence of element builders in the browser
-    Object.assign(globalThis, allElements);
-
     const pathname = sanitizePathname(window.location.pathname);
 
     const pageData = await getPageData(pathname);
+    const { subjects } = pageData;
+
+    stateManager.loadValues(subjects);
 }
 
 loadPage();
