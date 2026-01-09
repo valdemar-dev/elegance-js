@@ -1,5 +1,3 @@
-import util from "util";
-
 /** Any valid element that has not been constructed via the use of an element constructor such as h1() */
 type ElementLiteral = boolean | 
     number | 
@@ -103,12 +101,6 @@ function isAnElement(value: any): value is AnyElement {
     return false;
 }
 
-function invalidElementError(element: AnyElement, reason: string): Error {
-    const message = "The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element.\n" + reason;
-
-    return new Error(message);
-}
-
 /** Represents an element that has been constructed via the use of an element constructor such as h1() */
 class EleganceElement<
     CanHaveChildren extends boolean,
@@ -137,7 +129,8 @@ class EleganceElement<
 
         if (isAnElement(options)) {
             if (this.canHaveChildren() === false) {
-                throw invalidElementError(this, "The options of an element may not be an element, if the element cannot have children.");
+                console.error("The element:", this, "is an invalid element. Reason:")
+                throw "The options of an element may not be an element, if the element cannot have children.";
             }
 
             this.children.unshift(options)
@@ -158,7 +151,6 @@ export {
     EleganceElement,
 
     SpecialElementOption,
-    invalidElementError,
 }
 
 export type {

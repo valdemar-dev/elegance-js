@@ -5,25 +5,23 @@
 
 import path from "path";
 import crypto from "crypto";
-import { AnyElement, EleganceElement, ElementOptions, invalidElementError, SpecialElementOption } from "../elements/element";
-import { Dirent, existsSync, mkdirSync, readdirSync, readFileSync, writeFile, writeFileSync } from "fs";
+import { AnyElement, EleganceElement, ElementOptions, SpecialElementOption } from "../elements/element";
+import { Dirent, exists, existsSync, mkdirSync, readdirSync, readFile, readFileSync, writeFile, writeFileSync } from "fs";
 import esbuild, { transform } from "esbuild";
 import { invalidPageError, PageConstructor, PageExports, PageInformation, PageMetadataConstructor } from "../server/page";
 import { invalidLayoutError, LayoutExports, LayoutInformation } from "../server/layout";
-
-// make sure to hook every element builder into the global scope
 import { allElements } from "../elements/element_list";
 import { isAsyncFunction } from "util/types";
 import { EventListener } from "../client/eventListener";
 import { Observer } from "../client/observer";
 import { fileURLToPath } from "url";
+import util from "util";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// make sure to hook every element builder into the global scope
 Object.assign(globalThis, allElements);
-
-const clientTsPath = path.join(__dirname, "..", "client", "runtime.ts");
 
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
@@ -103,6 +101,12 @@ function setCompilerOptions(newOptions: CompilerOptions) {
     compilerOptions = newOptions;
 }
 
+function invalidElementError(element: AnyElement, reason: string): Error {
+    const message = "The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element.\n" + reason;
+
+    return new Error(message);
+}
+
 /** 
  * Generate a stable, page-specific & order-dependent unique-identifier. 
  * NOTE: This function will throw if it fails to generate a hash after 100+ attempts.
@@ -175,6 +179,9 @@ function getElementKey(compilationContext: PageCompilationContext, element: Eleg
 function generatePageCompilationContext(pathname: string): PageCompilationContext {
     pathname = sanitizePathname(pathname);
 
+    const absPath = path.join(getDistDir(), pathname);
+    if (!existsSync(absPath)) mkdirSync(absPath, { recursive: true });
+
     return {
         pathname: pathname,
         idCounter: 0,
@@ -184,6 +191,9 @@ function generatePageCompilationContext(pathname: string): PageCompilationContex
 
 function generateLayoutCompilationContext(pathname: string): LayoutCompilationContext {
     pathname = sanitizePathname(pathname);
+
+    const absPath = path.join(getDistDir(), pathname);
+    if (!existsSync(absPath)) mkdirSync(absPath, { recursive: true });
 
     return {
         pathname: pathname,
@@ -528,8 +538,20 @@ async function compilePageToDisk(
     pageInformation: PageInformation
 ): Promise<void> {
     const compiledPage = await compilePage(allLayouts, pageInformation);
+
+    const targetPath = path.join(
+        getDistDir(),
+        pageInformation.pathname,
+        "index.html",
+    );
+
+    writeFileSync(targetPath, compiledPage.pageHTML )
 }
 
+/** Returns the standard children of <head> that must exist on every page independent of it's content. */
+function getEnforcedMetadata(): string {
+    return `<script defer="true" src="/client.js"></script>`;
+}
 async function compilePage(
     allLayouts: Map<string, LayoutInformation>, 
     pageInformation: PageInformation
@@ -602,6 +624,8 @@ async function compilePage(
         {
             headContent += "<head>";
 
+            headContent += getEnforcedMetadata();
+
             for (const layoutInformation of pageInformation.applicableLayouts) {
                     const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
 
@@ -652,6 +676,8 @@ async function compilePage(
         finalHTML += `<html lang="en-us">`;
             finalHTML += "<head>";
                 finalHTML += pageMetadataHTML;
+                finalHTML += getEnforcedMetadata();
+
             finalHTML += "</head>";
             
             finalHTML += "<body>";
@@ -686,6 +712,23 @@ async function compileStaticPages(
         if (pageInformation.exports.isDynamic === true) continue;
 
         const compiledPage = await compilePage(allLayouts, pageInformation);
+        
+        compiledPages.set(pagePathname, compiledPage);
+    }
+
+    return compiledPages;
+}
+
+async function compileStaticPagesToDisk(
+    allLayouts: Map<string, LayoutInformation>, 
+    allPages: Map<string, PageInformation>
+): Promise<Map<string, CompiledPage>> {
+    const compiledPages = new Map();
+
+    for (const [pagePathname, pageInformation] of allPages) {
+        if (pageInformation.exports.isDynamic === true) continue;
+
+        const compiledPage = await compilePageToDisk(allLayouts, pageInformation);
         
         compiledPages.set(pagePathname, compiledPage);
     }
@@ -780,6 +823,36 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
     return compiledLayout;
 }
 
+/**
+ * Transpile the client runtime from typescript into javascript and place it into the dist directory
+ */
+async function transpileClientRuntime() {
+    const clientTsPath = path.join(__dirname, "..", "client", "runtime.ts");
+
+    if (!existsSync(clientTsPath)) {
+        throw internalCompilerError("Failed to find the client runtime at path:" + clientTsPath);
+    }
+
+    const targetPath = path.join(
+        getDistDir(),
+        "client.js",
+    );
+
+    await esbuild.build({
+        bundle: true,
+        entryPoints: [clientTsPath],
+        outfile: targetPath,
+        format: "iife",
+        platform: "browser",
+        minify: true,
+        external: ["util"],
+        treeShaking: true,
+        loader: {
+            ".ts": "ts",
+        },
+    });
+}
+
 /** 
  * Run the general compilation process for the project. 
  * This compiles all static-pages & static-layouts, as well as gathers a list of every page (dynamic and static) & layout (dynamic and static).
@@ -789,10 +862,13 @@ async function compileEntireProject() {
     const allLayouts = await gatherAllLayouts();
     const allPages = await gatherAllPages(allLayouts);
 
-    const compiledStaticPages = await compileStaticPages(allLayouts, allPages);
+    const compiledStaticPages = await compileStaticPagesToDisk(allLayouts, allPages);
 
+    await transpileClientRuntime();
     console.log(compiledStaticPages)
 }
+
+
 
 /** 
  * Run the general compilation process for the project. 
