@@ -1,12 +1,20 @@
 import { EleganceElement, SpecialElementOption } from "../elements/element";
 import { compilerStore } from "../compilation/compiler";
 import { ServerSubject } from "./state";
+import { ClientSubject } from "./runtime";
 
 type SetEvent<E extends Event, T extends EventTarget> =
     E & { target: T; currentTarget: T };
+ 
+type ToClient<T> =
+    T extends ServerSubject<infer V>
+        ? ClientSubject<V>
+        : never;
 
 type EventListenerCallback<T extends ServerSubject<any>> =
-    (event: SetEvent<any, any>, ...dependencies: T[]) => void;
+    (event: SetEvent<any, any>, ...dependencies: ToClient<T>[]) => void;
+
+
 
 class EventListenerOption extends SpecialElementOption {
     id: string;
@@ -47,7 +55,7 @@ class EventListener<T extends ServerSubject<any>> {
         let result = "{"; 
         result += `id:"${this.id}",`;
         result += `callback:${this.callback.toString()},`; 
-        result += `dependencies:[${this.dependencies.map(d => "\"${d}\"").join("\",\"")}],`; 
+        result += `dependencies:[${this.dependencies.map(d => `"${d}"`).join("\",\"")}],`; 
         result += "}"; 
 
         return result; 

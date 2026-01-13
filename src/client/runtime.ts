@@ -8,13 +8,17 @@ type ClientSubjectObserver<T> = (newValue: T) => void;
 
 class ClientSubject<T extends any> {
     readonly id: string;
-    _value: T;
+    private _value: T;
 
     private readonly observers: ClientSubjectObserver<T>[] = [];
 
     constructor(id: string, value: T) {
         this._value = value;
         this.id = id;
+    }
+
+    get value(): T {
+        return this._value;
     }
 
     set value(newValue: T) {
@@ -57,10 +61,10 @@ class StateManager {
 
 class ClientEventListener {
     id: string;
-    callback: EventListenerCallback;
+    callback: EventListenerCallback<any>;
     dependencies: string[];
 
-    constructor(id: string, callback: EventListenerCallback, depencencies: string[]) {
+    constructor(id: string, callback: EventListenerCallback<any>, depencencies: string[]) {
         this.id = id;
         this.callback = callback;
         this.dependencies = depencencies;
@@ -68,7 +72,7 @@ class ClientEventListener {
 
     call(ev: Event) {
         const dependencies = stateManager.getAll(this.dependencies);
-
+        console.log(this.dependencies, dependencies);
         this.callback(ev, ...dependencies);
     }
 }
@@ -87,7 +91,7 @@ class EventListenerManager {
 
     constructor() {}
 
-    loadValues(serverEventListeners: EventListener[], doOverride: boolean = false) {
+    loadValues(serverEventListeners: EventListener<any>[], doOverride: boolean = false) {
         for (const serverEventListener of serverEventListeners) {
             if (this.eventListeners.has(serverEventListener.id) && doOverride === false) continue;
 
@@ -176,7 +180,11 @@ async function loadPage(previousPage?: string) {
         //@ts-ignore
         DEV_BUILD: globalThis.ELEGANCE = {};
         //@ts-ignore
-        DEV_BUILD: globalThis.ELEGANCE.debugData = pageData
+        DEV_BUILD: globalThis.ELEGANCE.pageData = pageData;
+        //@ts-ignore
+        DEV_BUILD: globalThis.ELEGANCE.stateManager = stateManager;
+        //@ts-ignore
+        DEV_BUILD: globalThis.ELEGANCE.eventListenerManager = eventListenerManager;
     }
 
     stateManager.loadValues(subjects);

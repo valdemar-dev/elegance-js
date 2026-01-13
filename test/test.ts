@@ -9,7 +9,7 @@ import { compileEntireProject, generatePageCompilationContext, generatePageDataS
     setCompilerOptions({
         pagesDirectory: "./test_pages",
         outputDirectory: ".elegance",
-        environment: "production",
+        environment: "development",
     });
 
     await compileEntireProject();
