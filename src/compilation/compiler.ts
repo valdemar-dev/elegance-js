@@ -11,7 +11,7 @@ import esbuild from "esbuild";
 import { invalidPageError, PageExports, PageInformation } from "../server/page";
 import { invalidLayoutError, LayoutExports, LayoutInformation } from "../server/layout";
 import { allElements } from "../elements/element_list";
-import { Observer } from "../client/observer";
+import { observer, ObserverOption, ServerObserver } from "../client/observer";
 import { fileURLToPath } from "url";
 import util from "util";
 import { AsyncLocalStorage } from "async_hooks";
@@ -89,6 +89,7 @@ type CompilerStore = {
     generateId: () => string,
     addServerSubject: (serverSubject: ServerSubject<any>) => void,
     addEventListener: (eventListener: EventListener<any>) => void,
+    addServerObserver: (serverObserver: ServerObserver<any>) => void,
 };
 
 const compilerStore = new AsyncLocalStorage<CompilerStore>();
@@ -329,9 +330,14 @@ function serializeElement(
 async function generatePageDataScript(
     compilationContext: PageCompilationContext, 
     specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[],
-    serverSubjects: ServerSubject<any>[],
-    eventListeners: EventListener<any>[],
+    clientTokens: {
+        serverSubjects: ServerSubject<any>[],
+        eventListeners: EventListener<any>[],
+        serverObservers: ServerObserver<any>[],
+    },
 ) {
+    const { serverSubjects, eventListeners, serverObservers } = clientTokens;
+
     let dataScriptContent = `export const data = {`;
 
     {
@@ -372,9 +378,18 @@ async function generatePageDataScript(
     }
     
     {
-        const observerOptions = specialElementOptions.filter(seo => seo.optionValue instanceof Observer);
-
         dataScriptContent += "observers:[";
+        for (const serverObserver of serverObservers) {
+            dataScriptContent += serverObserver.serialize();
+            dataScriptContent += ",";
+        }
+        dataScriptContent += "],";
+    }
+
+    {
+        const observerOptions = specialElementOptions.filter(seo => seo.optionValue instanceof ObserverOption);
+
+        dataScriptContent += "observerOptions:[";
         for (const observerOption of observerOptions) {
             const observer = observerOption.optionValue;
             const optionName = observerOption.optionName;
@@ -616,14 +631,19 @@ async function compilePage(
      */
     const serverSubjects: ServerSubject<any>[] = [];
     const eventListeners: EventListener<any>[] = [];
+    const serverObservers: ServerObserver<any>[] = [];
     const storeTools: CompilerStore = {
         generateId: () => generateId(compilationContext),
         addServerSubject: (subject) => {
             serverSubjects.push(subject);
         },
 
-        addEventListener: (eventListener: EventListener<any>) => {
+        addEventListener: (eventListener) => {
             eventListeners.push(eventListener);
+        },
+
+        addServerObserver: (serverObserver) => {
+            serverObservers.push(serverObserver)
         }
     };
 
@@ -647,6 +667,7 @@ async function compilePage(
 
     const allServerSubjects = [ ...serverSubjects, ];
     const allEventListeners = [ ...eventListeners, ];
+    const allServerObservers = [ ...serverObservers ];
 
     const allSpecialElementOptions = [
         ...pageSerializationResult.specialElementOptions, 
@@ -727,7 +748,12 @@ async function compilePage(
         const beforeEndTag = endString.substring(0, htmlEndTagIndex);
         const afterEndTag = endString.substring(htmlEndTagIndex);
 
-        const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allServerSubjects, allEventListeners);
+        const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, {
+            serverSubjects: allServerSubjects, 
+            eventListeners: allEventListeners,
+            serverObservers: allServerObservers
+        });
+
         finalHTML += beforeEndTag + pageDataScript + afterEndTag;
     } else {
         finalHTML += `<html lang="en-us">`;
@@ -739,7 +765,11 @@ async function compilePage(
             finalHTML += "<body>";
                 finalHTML += pageHTML;
 
-                const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allServerSubjects, allEventListeners);
+                const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, {
+                    serverSubjects: allServerSubjects, 
+                    eventListeners: allEventListeners,
+                    serverObservers: allServerObservers,
+                });
 
                 finalHTML += pageDataScript;
             finalHTML += "</body>";
@@ -820,6 +850,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
      */
     const serverSubjects: ServerSubject<any>[] = [];
     const eventListeners: EventListener<any>[] = [];
+    const serverObservers: ServerObserver<any>[] = [];
     const storeTools: CompilerStore = {
         generateId: () => generateId(compilationContext),
         addServerSubject: (subject) => {
@@ -828,6 +859,10 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
 
         addEventListener: (eventListener) => {
             eventListeners.push(eventListener);
+        },
+
+        addServerObserver: (serverObserver) => {
+            serverObservers.push(serverObserver);
         }
     };
 

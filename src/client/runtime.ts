@@ -1,8 +1,10 @@
 
 import type { EventListener, EventListenerCallback, EventListenerOption } from "./eventListener";
+import { ObserverCallback, ServerObserver } from "./observer";
 import type { ServerSubject } from "./state";
 
 declare let DEV_BUILD: boolean;
+declare let PROD_BUILD: boolean;
 
 type ClientSubjectObserver<T> = (newValue: T) => void;
 
@@ -10,7 +12,7 @@ class ClientSubject<T extends any> {
     readonly id: string;
     private _value: T;
 
-    private readonly observers: ClientSubjectObserver<T>[] = [];
+    private readonly observers: Map<string, ClientSubjectObserver<T>> = new Map();
 
     constructor(id: string, value: T) {
         this._value = value;
@@ -24,9 +26,17 @@ class ClientSubject<T extends any> {
     set value(newValue: T) {
         this._value = newValue;
 
-        for (const observer of this.observers) {
+        for (const observer of this.observers.values()) {
             observer(newValue);
         }
+    }
+
+    observe(id: string, callback: (newValue: T) => void) {
+        if (this.observers.has(id)) {
+            this.observers.delete(id);
+        }
+
+        this.observers.set(id, callback);
     }
 }
 
@@ -59,6 +69,19 @@ class StateManager {
     }
 }
 
+
+type ClientEventListenerOption = {
+    /** The html attribute name this option should be attached to */
+    option: string,
+    /** The key of the element this option should be attached to. */
+    key: string,
+    /** The event listener id this option is referencing. */ 
+    id: string,
+}
+
+/**
+ * An event listener after it has been generated on the server, processed into pagedata, and reconstructed on the client.
+ */
 class ClientEventListener {
     id: string;
     callback: EventListenerCallback<any>;
@@ -73,17 +96,8 @@ class ClientEventListener {
     call(ev: Event) {
         const dependencies = stateManager.getAll(this.dependencies);
         console.log(this.dependencies, dependencies);
-        this.callback(ev, ...dependencies);
+        this.callback(ev as any, ...dependencies);
     }
-}
-
-type ClientEventListenerOption = {
-    /** The html attribute name this option should be attached to */
-    option: string,
-    /** The key of the element this option should be attached to. */
-    key: string,
-    /** The event listener id this option is referencing. */ 
-    id: string,
 }
 
 class EventListenerManager {
@@ -125,6 +139,95 @@ class EventListenerManager {
     }
 }
 
+
+type ClientObserverOption = {
+    /** The html attribute name this option should be attached to */
+    option: string,
+    /** The key of the element this option should be attached to. */
+    key: string,
+    /** The event listener id this option is referencing. */ 
+    id: string,
+}
+
+class ClientObserver {
+    id: string;
+    callback: ObserverCallback<any>;
+    dependencies: string[];
+    
+    subjectValues: ClientSubject<any>["value"][] = [];
+
+    private readonly elements: { element: Element, optionName: string }[] = [];
+
+    constructor(id: string, callback: ObserverCallback<any>, depencencies: string[]) {
+        this.id = id;
+        this.callback = callback;
+        this.dependencies = depencencies;
+
+        const initialValues = stateManager.getAll(this.dependencies);
+
+        for (const initialValue of initialValues) {
+            const idx = this.subjectValues.length;
+            this.subjectValues.push(initialValue.value);
+
+            initialValue.observe(this.id, (newValue) => {
+                this.subjectValues[idx] = newValue;
+
+                this.call();
+            });
+        }
+    }
+
+    /**
+     * Add an element to update when this observer updates.
+     */
+    addElement(element: Element, optionName: string) {
+        this.elements.push({ element, optionName });
+    }
+
+    call() {
+        const newValue = this.callback(...this.subjectValues);
+
+        for (const { element, optionName } of this.elements) {
+            (element as any)[optionName] = newValue;
+        }
+
+    }
+}
+
+class ObserverManager {
+    private readonly clientObservers: Map<string, ClientObserver> = new Map();
+
+    constructor() {}
+
+    loadValues(serverObservers: ServerObserver<any>[], doOverride: boolean = false) {
+        for (const serverObserver of serverObservers) {
+            if (this.clientObservers.has(serverObserver.id) && doOverride === false) continue;
+
+            const clientObserver = new ClientObserver(serverObserver.id, serverObserver.callback, serverObserver.dependencies);
+            this.clientObservers.set(clientObserver.id, clientObserver);
+        }
+    }
+
+    hookCallbacks(observerOptions: ClientObserverOption[]) {
+        for (const observerOption of observerOptions) {
+            const element = document.querySelector(`[key="${observerOption.key}"]`) as HTMLElement;
+            if (!element) {
+                DEV_BUILD && errorOut("Possibly corrupted HTML, failed to find element with key " + observerOption.key + " for event listener.");
+                return;
+            }
+
+            const observer = this.clientObservers.get(observerOption.id);
+            if (!observer) {
+                DEV_BUILD && errorOut("Invalid ObserverOption: Observer with id \”" + observerOption.id + "\" does not exist.");
+                return;
+            }
+
+            observer.addElement(element, observerOption.option);
+        }
+    }
+}
+
+const observerManager = new ObserverManager();
 const eventListenerManager = new EventListenerManager();
 const stateManager = new StateManager();
 
@@ -152,10 +255,16 @@ async function getPageData(pathname: string) {
 
     const { data } = await import(dataScriptTag.src);
 
-    const { subjects, eventListeners, eventListenerOptions, observers } = data;
+    const { 
+        subjects, 
+        eventListeners, 
+        eventListenerOptions, 
+        observers, 
+        observerOptions
+    } = data;
 
-    if (!eventListenerOptions || !eventListeners || !observers || !subjects) {
-        DEV_BUILD && errorOut("Possibly malformed page data");
+    if (!eventListenerOptions || !eventListeners || !observers || !subjects || !observerOptions) {
+        DEV_BUILD && errorOut(`Possibly malformed page data ${data}`);
         return;
     }
 
@@ -174,6 +283,8 @@ async function loadPage(previousPage?: string) {
         subjects, 
         eventListenerOptions, 
         eventListeners,
+        observers,
+        observerOptions
     } = pageData;
 
     {
@@ -185,12 +296,17 @@ async function loadPage(previousPage?: string) {
         DEV_BUILD: globalThis.ELEGANCE.stateManager = stateManager;
         //@ts-ignore
         DEV_BUILD: globalThis.ELEGANCE.eventListenerManager = eventListenerManager;
+        //@ts-ignore
+        DEV_BUILD: globalThis.ELEGANCE.observerManager = observerManager;
     }
 
     stateManager.loadValues(subjects);
 
     eventListenerManager.loadValues(eventListeners);
     eventListenerManager.hookCallbacks(eventListenerOptions);
+
+    observerManager.loadValues(observers);
+    observerManager.hookCallbacks(observerOptions);
 }
 
 loadPage();
