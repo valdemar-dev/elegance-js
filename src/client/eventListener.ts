@@ -1,40 +1,79 @@
 import { EleganceElement, SpecialElementOption } from "../elements/element";
+import { compilerStore } from "../compilation/compiler";
+import { ServerSubject } from "./state";
 
-type EventListenerCallback = () => void;
+type SetEvent<E extends Event, T extends EventTarget> =
+    E & { target: T; currentTarget: T };
 
-class EventListener extends SpecialElementOption {
-    callback: EventListenerCallback;
-    dependencies: any[];
+type EventListenerCallback<T extends ServerSubject<any>> =
+    (event: SetEvent<any, any>, ...dependencies: T[]) => void;
 
-    constructor(callback: EventListenerCallback, dependencies: any[]) {
+class EventListenerOption extends SpecialElementOption {
+    id: string;
+    
+    constructor(id: string) {
         super();
 
-        this.callback = callback;
-        this.dependencies = dependencies;
+        this.id = id;
     }
 
-    serialize(optionName: string) {
-        let result = "{"
+    mutate(element: EleganceElement<any>, optionName: string): void {
+        delete element.options[optionName];
+    }
 
-        result += `optionName:"${optionName}",`,
-        result += `callback:${this.callback},`,
-        result += `dependencies:[${this.dependencies}]`,
-
+    serialize(optionName: string, elementKey: string): string {
+        let result = "{";
+        result += `option:"${optionName.toLowerCase()}",`;
+        result += `key:"${elementKey}",`;
+        result += `id:"${this.id}"`;
         result += "}";
 
         return result;
     }
+}
 
-    mutate(element: EleganceElement<any>, optionName: string) {
-        delete element.options[optionName];
+class EventListener<T extends ServerSubject<any>> {
+    id: string;
+    callback: EventListenerCallback<T>;
+    dependencies: string[];
+
+    constructor(id: string, callback: EventListenerCallback<T>, dependencies: T[]) {
+        this.id = id;
+        this.callback = callback;
+        this.dependencies = dependencies.map(d => d.id);
+    }
+
+    serialize(): string { 
+        let result = "{"; 
+        result += `id:"${this.id}",`;
+        result += `callback:${this.callback.toString()},`; 
+        result += `dependencies:[${this.dependencies.map(d => "\"${d}\"").join("\",\"")}],`; 
+        result += "}"; 
+
+        return result; 
     }
 }
 
-function eventListener(callback: EventListenerCallback, dependencies: any[]) {
-    return new EventListener(callback, dependencies);
+function eventListener<T extends ServerSubject<any>>(
+    callback: EventListenerCallback<T>,
+    dependencies: T[]
+) {
+    const store = compilerStore.getStore();
+    if (!store) throw new Error("Illegal invocation of eventListener(). Ensure that the eventListener() function is only called inside components, and never at the top-level of a page or layout.");
+
+    const id = store.generateId();
+    const listener = new EventListener(id, callback, dependencies);
+    store.addEventListener(listener);
+    return new EventListenerOption(id);
 }
 
 export {
     eventListener,
-    EventListener,
+    EventListenerOption,
+    EventListener
+}
+
+export type {
+    EventListenerCallback,
+    SetEvent,
 }

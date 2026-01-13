@@ -15,8 +15,6 @@ type ProcessSpecialElementOption = (element: EleganceElement<any>, optionName: s
 
 /** 
  * An option that should be treated differently by the compiler.
- * It should implement the serialize() method, which is then called when the option instance is encountered.
- * It may return a ClientDataToken, or null (in which case it's not sent to the client).
  */
 abstract class SpecialElementOption {
     /**
@@ -27,7 +25,7 @@ abstract class SpecialElementOption {
     /**
      * Convert this special element option into a string.
      */
-    abstract serialize(optionName: string): string
+    abstract serialize(optionName: string, elementKey: string): string
 } 
 
 type ElementOptions = Record<string, SpecialElementOption | ElementOptionLiteral>;

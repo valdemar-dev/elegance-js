@@ -1,5 +1,8 @@
 
+import type { EventListener, EventListenerCallback, EventListenerOption } from "./eventListener";
 import type { ServerSubject } from "./state";
+
+declare let DEV_BUILD: boolean;
 
 type ClientSubjectObserver<T> = (newValue: T) => void;
 
@@ -41,17 +44,84 @@ class StateManager {
         return this.subjects.get(id)
     }
 
-    getAll(ids: string[]): Array<ClientSubject<any> | undefined> {
-        const results: Array<ClientSubject<any> | undefined> = [];
+    getAll(ids: string[]): Array<ClientSubject<any>> {
+        const results: Array<ClientSubject<any>> = [];
 
         for (const id of ids) {
-            results.push(this.get(id));
+            results.push(this.get(id)!);
         }
         
         return results;
     }
 }
 
+class ClientEventListener {
+    id: string;
+    callback: EventListenerCallback;
+    dependencies: string[];
+
+    constructor(id: string, callback: EventListenerCallback, depencencies: string[]) {
+        this.id = id;
+        this.callback = callback;
+        this.dependencies = depencencies;
+    }
+
+    call(ev: Event) {
+        const dependencies = stateManager.getAll(this.dependencies);
+
+        this.callback(ev, ...dependencies);
+    }
+}
+
+type ClientEventListenerOption = {
+    /** The html attribute name this option should be attached to */
+    option: string,
+    /** The key of the element this option should be attached to. */
+    key: string,
+    /** The event listener id this option is referencing. */ 
+    id: string,
+}
+
+class EventListenerManager {
+    private readonly eventListeners: Map<string, ClientEventListener> = new Map();
+
+    constructor() {}
+
+    loadValues(serverEventListeners: EventListener[], doOverride: boolean = false) {
+        for (const serverEventListener of serverEventListeners) {
+            if (this.eventListeners.has(serverEventListener.id) && doOverride === false) continue;
+
+            const clientEventListener = new ClientEventListener(serverEventListener.id, serverEventListener.callback, serverEventListener.dependencies);
+            this.eventListeners.set(clientEventListener.id, clientEventListener);
+        }
+    }
+
+    hookCallbacks(eventListenerOptions: ClientEventListenerOption[]) {
+        for (const eventListenerOption of eventListenerOptions) {
+            const element = document.querySelector(`[key="${eventListenerOption.key}"]`) as HTMLElement;
+            if (!element) {
+                DEV_BUILD && errorOut("Possibly corrupted HTML, failed to find element with key " + eventListenerOption.key + " for event listener.");
+                return;
+            }
+
+            const eventListener = this.eventListeners.get(eventListenerOption.id);
+            if (!eventListener) {
+                DEV_BUILD && errorOut("Invalid EventListenerOption: Event listener with id \”" + eventListenerOption.id + "\" does not exist.");
+                return;
+            }
+
+            (element as any)[eventListenerOption.option] = (ev: Event) => {
+                eventListener.call(ev);
+            };
+        }
+    }
+
+    get(id: string) { 
+        return this.eventListeners.get(id);
+    }
+}
+
+const eventListenerManager = new EventListenerManager();
 const stateManager = new StateManager();
 
 /** Take any directory pathname, and make it into this format: /path */
@@ -72,27 +142,51 @@ async function getPageData(pathname: string) {
     /** Find the correct script tag in head. */
     const dataScriptTag = document.head.querySelector(`script[data-page="true"][data-pathname="${pathname}"]`) as HTMLScriptElement | null;
     if (!dataScriptTag) {
-        throw new Error("Failed to find script tag for query:" + `script[data-page="true"][data-pathname="${pathname}"]`);
+        DEV_BUILD && ("Failed to find script tag for query:" + `script[data-page="true"][data-pathname="${pathname}"]`);
+        return;
     }
 
     const { data } = await import(dataScriptTag.src);
 
-    const { subjects, eventListeners, observers } = data;
+    const { subjects, eventListeners, eventListenerOptions, observers } = data;
 
-    if (!eventListeners || !observers || !subjects) {
-        throw new Error("Possibly malformed page data");
+    if (!eventListenerOptions || !eventListeners || !observers || !subjects) {
+        DEV_BUILD && errorOut("Possibly malformed page data");
+        return;
     }
 
     return data;
 }
 
+function errorOut(message: string) {
+    throw new Error(message);
+} 
+
 async function loadPage(previousPage?: string) {
     const pathname = sanitizePathname(window.location.pathname);
 
     const pageData = await getPageData(pathname);
-    const { subjects } = pageData;
+    const { 
+        subjects, 
+        eventListenerOptions, 
+        eventListeners,
+    } = pageData;
+
+    {
+        //@ts-ignore
+        DEV_BUILD: globalThis.ELEGANCE = {};
+        //@ts-ignore
+        DEV_BUILD: globalThis.ELEGANCE.debugData = pageData
+    }
 
     stateManager.loadValues(subjects);
+
+    eventListenerManager.loadValues(eventListeners);
+    eventListenerManager.hookCallbacks(eventListenerOptions);
 }
 
 loadPage();
+
+export type {
+    ClientSubject,
+}

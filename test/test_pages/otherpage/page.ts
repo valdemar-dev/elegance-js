@@ -1,14 +1,16 @@
+import { eventListener } from "../../../src/client/eventListener";
 import { state } from "../../../src/client/state";
 
-export const page = () => {
-    state("1");
-    state("2");
-    state("3");
-    state("4");
-    state("5");
-    state("6");
+export const page = () => { 
+    const counter = state(1);
 
-    return div("This is other-page");
+    const myEventListener = eventListener((_, counter) => {
+        alert("HELLO!");
+    }, [counter]);
+
+    return div({
+        onClick: myEventListener,
+    }, "This is otherpage");
 
 };
 
