@@ -1,6 +1,7 @@
 
 import type { EventListener, EventListenerCallback, EventListenerOption } from "./eventListener";
-import { ObserverCallback, ServerObserver } from "./observer";
+import type { LoadHookCleanupFunction, LoadHook } from "./loadHook";
+import type { ObserverCallback, ServerObserver } from "./observer";
 import type { ServerSubject } from "./state";
 
 declare let DEV_BUILD: boolean;
@@ -227,9 +228,66 @@ class ObserverManager {
     }
 }
 
+
+type CleanupProcedure = {
+    pathname?: string,
+    kind: LoadHookKind,
+    cleanupFunction: LoadHookCleanupFunction,
+};
+
+enum LoadHookKind {
+    LAYOUT_LOADHOOK,
+    PAGE_LOADHOOK,
+};
+
+class LoadHookManager {
+    private cleanupProcedures: CleanupProcedure[] = [];
+
+    constructor() {
+    }
+
+    loadValues(loadHooks: LoadHook<any>[]) {
+        for (const loadHook of loadHooks) {
+            const depencencies = stateManager.getAll(loadHook.dependencies);
+
+            console.log(depencencies);
+
+            const cleanupFunction = loadHook.callback(...depencencies);
+            if (cleanupFunction) {
+                this.cleanupProcedures.push({ 
+                    kind: loadHook.kind,
+                    cleanupFunction: cleanupFunction,
+                    pathname: loadHook.pathname,
+                })
+            }
+        }
+    }
+
+    callCleanupFunctions() {
+        let remainingProcedures: CleanupProcedure[] = [];
+
+        for (const cleanupProcedure of this.cleanupProcedures) {
+            if (cleanupProcedure.kind === LoadHookKind.LAYOUT_LOADHOOK) {
+                const isInScope = sanitizePathname(window.location.pathname).startsWith(cleanupProcedure.pathname!);
+
+                if (isInScope) {
+                    remainingProcedures.push(cleanupProcedure);
+
+                    continue;
+                }
+            }
+            
+            cleanupProcedure.cleanupFunction();
+        }
+
+        this.cleanupProcedures = remainingProcedures;
+    }
+}
+
 const observerManager = new ObserverManager();
 const eventListenerManager = new EventListenerManager();
 const stateManager = new StateManager();
+const loadHookManager = new LoadHookManager();
 
 
 const pageStringCache = new Map<string, string>();
@@ -288,6 +346,7 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     return newDOM;
 };
 
+/*
 const navigateLocally = async (target: string, pushState: boolean = true) => {
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
@@ -300,11 +359,9 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     for (const cleanupProcedure of [...cleanupProcedures]) {
         const isInScope = pathname.startsWith(cleanupProcedure.page);
         
-        if (
-            !isInScope || cleanupProcedure.bindLevel === BindLevel.STRICT
-        ) {
+        if (!isInScope) {
             try {
-                cleanupProcedure.cleanupFunction();
+                cleanupProcedure();
             } catch(e) {
                 console.error(e);
                 
@@ -390,6 +447,7 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
 };
+*/
 
 /** Take any directory pathname, and make it into this format: /path */
 function sanitizePathname(pathname: string = ""): string {
@@ -445,7 +503,8 @@ async function loadPage(previousPage?: string) {
         eventListenerOptions, 
         eventListeners,
         observers,
-        observerOptions
+        observerOptions,
+        loadHooks
     } = pageData;
 
     {
@@ -468,6 +527,8 @@ async function loadPage(previousPage?: string) {
 
     observerManager.loadValues(observers);
     observerManager.hookCallbacks(observerOptions);
+
+    loadHookManager.loadValues(loadHooks);
 }
 
 loadPage();

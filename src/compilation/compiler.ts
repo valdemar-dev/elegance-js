@@ -17,6 +17,7 @@ import util from "util";
 import { AsyncLocalStorage } from "async_hooks";
 import { ServerSubject } from "../client/state";
 import { EventListenerOption, EventListener } from "../client/eventListener";
+import { LoadHook } from "../client/loadHook";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,12 @@ type PageCompilationContext = {
      */
     idCounter: number,
     usedHashes: string[],
+
+    /**
+     * Used by some tools to determine whether or not the current context is a page or a layout,
+     * useful for stuff like loadHooks, which behave differently in layouts and pages.
+     */
+    kind: "page" | "layout",
 };
 
 /** Context of a layout that is currently being compiled. */
@@ -48,6 +55,12 @@ type LayoutCompilationContext = {
      */
     idCounter: number,
     usedHashes: string[],
+
+    /**
+     * Used by some tools to determine whether or not the current context is a page or a layout,
+     * useful for stuff like loadHooks, which behave differently in layouts and pages.
+     */
+    kind: "layout" | "page",
 };
 
 type CompilerOptions = {
@@ -68,6 +81,7 @@ type CompiledLayout = {
 
     serverSubjects: ServerSubject<any>[],
     eventListeners: EventListener<any>[],
+    loadHooks: LoadHook<any>[],
 
     /** Compiled result of the layoutMetadataConstructor */
     layoutMetadataHTML: string,
@@ -90,6 +104,9 @@ type CompilerStore = {
     addServerSubject: (serverSubject: ServerSubject<any>) => void,
     addEventListener: (eventListener: EventListener<any>) => void,
     addServerObserver: (serverObserver: ServerObserver<any>) => void,
+    addLoadHook: (loadHook: LoadHook<any>) => void,
+
+    compilationContext: PageCompilationContext | LayoutCompilationContext,
 };
 
 const compilerStore = new AsyncLocalStorage<CompilerStore>();
@@ -204,6 +221,7 @@ function generatePageCompilationContext(pathname: string): PageCompilationContex
         pathname: pathname,
         idCounter: 0,
         usedHashes: [],
+        kind: "page",
     };
 }
 
@@ -217,6 +235,7 @@ function generateLayoutCompilationContext(pathname: string): LayoutCompilationCo
         pathname: pathname,
         idCounter: 0,
         usedHashes: [],
+        kind: "layout",
     };
 }
 
@@ -273,6 +292,13 @@ function serializeEleganceElement(
     return { serializedElement, specialElementOptions  };
 }
 
+/**
+ * Take any element, and turn it into a valid HTML string.
+ * Throw an error whenever an element is considered invalid.
+ * @param compilationContext The context of the page or layout that we're compiling
+ * @param element The element to serialize.
+ * @returns The serialized element, and any special options that were encountered.
+ */
 function serializeElement(
     compilationContext: PageCompilationContext,
     element: AnyElement,
@@ -327,6 +353,18 @@ function serializeElement(
     return { serializedElement, specialElementOptions };
 }
 
+/**
+ * This function uses string interpolation to transform client tokens and special element options into a script tag that is then sent to the client.
+ * The client tokens are not *fully* serialized, but the necessary components to re-create them as client versions of the corresponding thing *are* serialized.
+ * For example, the serialize() method of EventListener is not sent, but it's callback, id, and dependencies (as ids) are.
+ * String interpolation is dangerous and error-prone, so if you're going to add something to this function, ensure you know what you're doing,
+ * and make sure to also edit runtime.ts to handle the clientTokens that you send to the browser. I did not create separate datatypes in the runtime for the intermediary forms of things like EventListeners, 
+ * LoadHooks, etc, for I did not feel it necessary, but do not that these types do not exactly line up 100%.
+ * @param compilationContext The current context of what we're compiling, can be either layout or page compilation context.
+ * @param specialElementOptions An array of special element options that were found during serialization of the elements of whatever we're currently compiling
+ * @param clientTokens An array of tokens that will be serialized and shipped within the pageDataScript.
+ * @returns A string containing the page data <script> tag.
+ */
 async function generatePageDataScript(
     compilationContext: PageCompilationContext, 
     specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[],
@@ -334,9 +372,10 @@ async function generatePageDataScript(
         serverSubjects: ServerSubject<any>[],
         eventListeners: EventListener<any>[],
         serverObservers: ServerObserver<any>[],
+        loadHooks: LoadHook<any>[],
     },
 ) {
-    const { serverSubjects, eventListeners, serverObservers } = clientTokens;
+    const { serverSubjects, eventListeners, serverObservers, loadHooks } = clientTokens;
 
     let dataScriptContent = `export const data = {`;
 
@@ -350,6 +389,15 @@ async function generatePageDataScript(
             dataScriptContent += `{id:"${id}",value:${value}},`;
         }
 
+        dataScriptContent += "],";
+    }
+
+    {
+        dataScriptContent += "loadHooks:[";
+        for (const loadHook of loadHooks) {
+            dataScriptContent += loadHook.serialize();
+            dataScriptContent += ",";
+        }
         dataScriptContent += "],";
     }
 
@@ -632,6 +680,7 @@ async function compilePage(
     const serverSubjects: ServerSubject<any>[] = [];
     const eventListeners: EventListener<any>[] = [];
     const serverObservers: ServerObserver<any>[] = [];
+    const loadHooks: LoadHook<any>[] = [];
     const storeTools: CompilerStore = {
         generateId: () => generateId(compilationContext),
         addServerSubject: (subject) => {
@@ -644,7 +693,13 @@ async function compilePage(
 
         addServerObserver: (serverObserver) => {
             serverObservers.push(serverObserver)
-        }
+        },
+
+        addLoadHook(loadHook) {
+            loadHooks.push(loadHook);
+        },
+
+        compilationContext,
     };
 
     let pageRootElement = await compilerStore.run(storeTools, async () => {
@@ -668,6 +723,7 @@ async function compilePage(
     const allServerSubjects = [ ...serverSubjects, ];
     const allEventListeners = [ ...eventListeners, ];
     const allServerObservers = [ ...serverObservers ];
+    const allLoadHooks = [ ...loadHooks ];
 
     const allSpecialElementOptions = [
         ...pageSerializationResult.specialElementOptions, 
@@ -751,7 +807,8 @@ async function compilePage(
         const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, {
             serverSubjects: allServerSubjects, 
             eventListeners: allEventListeners,
-            serverObservers: allServerObservers
+            serverObservers: allServerObservers,
+            loadHooks: allLoadHooks,
         });
 
         finalHTML += beforeEndTag + pageDataScript + afterEndTag;
@@ -769,6 +826,7 @@ async function compilePage(
                     serverSubjects: allServerSubjects, 
                     eventListeners: allEventListeners,
                     serverObservers: allServerObservers,
+                    loadHooks: allLoadHooks,
                 });
 
                 finalHTML += pageDataScript;
@@ -851,6 +909,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
     const serverSubjects: ServerSubject<any>[] = [];
     const eventListeners: EventListener<any>[] = [];
     const serverObservers: ServerObserver<any>[] = [];
+    const loadHooks: LoadHook<any>[] = [];
     const storeTools: CompilerStore = {
         generateId: () => generateId(compilationContext),
         addServerSubject: (subject) => {
@@ -863,7 +922,13 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
 
         addServerObserver: (serverObserver) => {
             serverObservers.push(serverObserver);
-        }
+        },
+
+        addLoadHook(loadHook) {
+            loadHooks.push(loadHook);
+        },
+
+        compilationContext,
     };
 
     let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor(markerElement));
@@ -912,6 +977,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         specialElementOptions: specialElementOptions,
         serverSubjects: layoutServerSubjects,
         eventListeners: eventListeners,
+        loadHooks: loadHooks,
     };
 
     return compiledLayout;

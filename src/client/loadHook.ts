@@ -3,31 +3,47 @@ import { compilerStore } from "../compilation/compiler";
 import { ServerSubject } from "./state";
 import { ClientSubject } from "./runtime";
 
-type SetEvent<E extends Event = Event, T extends EventTarget = EventTarget> =
-    E & { target: T; currentTarget: T };
-
 type ToClientTuple<T extends readonly ServerSubject<any>[]> = {
     [K in keyof T]: T[K] extends ServerSubject<infer V> ? ClientSubject<V> : never;
 };
 
-type LoadHookCleanupFunction = (() => void) | void;
+enum LoadHookKind {
+    LAYOUT_LOADHOOK,
+    PAGE_LOADHOOK,
+};
+
+type LoadHookCleanupFunction = (() => void);
 
 type LoadHookCallback<T extends readonly ServerSubject<any>[]> =
-    (event: SetEvent, ...dependencies: ToClientTuple<T>) => LoadHookCleanupFunction;
+    (...dependencies: ToClientTuple<T>) => LoadHookCleanupFunction | void;
 
 class LoadHook<T extends readonly ServerSubject<any>[]> {
-    pathname: string;
+    pathname?: string;
+    kind: LoadHookKind;
     callback: LoadHookCallback<T>;
     dependencies: string[];
 
-    constructor(pathname: string, callback: LoadHookCallback<T>, dependencies: [...T]) {
+    constructor(callback: LoadHookCallback<T>, dependencies: [...T], kind: LoadHookKind, pathname?: string) {
         this.pathname = pathname;
         this.callback = callback;
+        this.kind = kind;
         this.dependencies = dependencies.map(d => d.id);
     }
 
     serialize(): string {
-        return `{pathname:\"${this.pathname}\",callback:${this.callback.toString()},dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}]}`;
+        let result = "{";
+        result += `callback:${this.callback.toString()},`;
+        result += `dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}],`;
+
+        result += `kind:${this.kind}`;
+
+        if (this.kind === LoadHookKind.LAYOUT_LOADHOOK && this.pathname) {
+            result += `,pathname:\"${this.pathname}\"`;
+        }
+
+        result += "}";
+
+        return result;
     }
 }
 
@@ -46,8 +62,12 @@ function loadHook<T extends readonly ServerSubject<any>[]>(
     const store = compilerStore.getStore();
     if (!store) throw new Error("Illegal invocation of loadHook(). Ensure that the loadHook() function is only called inside components, and never at the top-level of a page or layout.");
 
-    const id = store.generateId();
-    const listener = new LoadHook<T>(id, callback, dependencies);
+    const isLayoutLoadHook = store.compilationContext.kind === "layout";
+    
+    const loadHookKind = isLayoutLoadHook === true ? LoadHookKind.LAYOUT_LOADHOOK : LoadHookKind.PAGE_LOADHOOK
+    const pathname = loadHookKind === LoadHookKind.LAYOUT_LOADHOOK ? store.compilationContext.pathname : undefined;
+
+    const listener = new LoadHook<T>(callback, dependencies, loadHookKind, pathname);
 
     store.addLoadHook(listener);
 }
@@ -59,6 +79,7 @@ export {
 
 export type {
     LoadHookCallback,
-    SetEvent,
-    ToClientTuple
+    ToClientTuple,
+    LoadHookCleanupFunction,
+    LoadHookKind,
 };
