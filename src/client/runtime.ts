@@ -231,6 +231,166 @@ const observerManager = new ObserverManager();
 const eventListenerManager = new EventListenerManager();
 const stateManager = new StateManager();
 
+
+const pageStringCache = new Map<string, string>();
+const domParser = new DOMParser();
+const xmlSerializer = new XMLSerializer();
+
+const fetchPage = async (targetURL: URL): Promise<Document | void> => {
+    const pathname = sanitizePathname(targetURL.pathname);
+
+    if (pageStringCache.has(pathname)) {
+        return domParser.parseFromString(pageStringCache.get(pathname)!, "text/html");
+    }
+
+    const res = await fetch(targetURL);
+
+    const newDOM = domParser.parseFromString(await res.text(), "text/html");
+    
+    {
+        const dataScripts = Array.from(newDOM.querySelectorAll('script[data-module="true"]')) as HTMLScriptElement[]
+        
+        const currentScripts = Array.from(document.head.querySelectorAll('script[data-module="true"]')) as HTMLScriptElement[]
+        
+        for (const dataScript of dataScripts) {
+            const existing = currentScripts.find(s => s.src === dataScript.src);
+            
+            if (existing) {
+                continue
+            }
+            
+            document.head.appendChild(dataScript);
+        }
+    }
+    
+    // get page script
+    {
+        const pageDataScript = newDOM.querySelector('script[data-page="true"]') as HTMLScriptElement
+        
+        if (!pageDataScript) {
+            return;
+        }
+    
+        await import(pageDataScript.src);
+    }
+    
+    // get layout scripts
+    {
+        const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]')) as HTMLScriptElement[]
+        
+        for (const script of layoutDataScripts) {
+            await import(script.src);
+        }
+    }
+
+    pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
+
+    return newDOM;
+};
+
+const navigateLocally = async (target: string, pushState: boolean = true) => {
+    const targetURL = new URL(target);
+    const pathname = sanitizePathname(targetURL.pathname);
+
+    let newPage = await fetchPage(targetURL);
+    if (!newPage) return;
+
+    if (pathname === sanitizePathname(window.location.pathname)) return;
+
+    for (const cleanupProcedure of [...cleanupProcedures]) {
+        const isInScope = pathname.startsWith(cleanupProcedure.page);
+        
+        if (
+            !isInScope || cleanupProcedure.bindLevel === BindLevel.STRICT
+        ) {
+            try {
+                cleanupProcedure.cleanupFunction();
+            } catch(e) {
+                console.error(e);
+                
+                return;
+            }
+            
+            cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
+        }
+    } 
+    
+    let oldPageLatest = document.body;
+    let newPageLatest = newPage.body;
+    
+    {
+        const newPageLayouts = Array.from(newPage.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
+        const oldPageLayouts = Array.from(document.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
+        
+        const size = Math.min(newPageLayouts.length, oldPageLayouts.length);
+        
+        for (let i = 0; i < size; i++) {
+            const newPageLayout = newPageLayouts[i];
+            const oldPageLayout = oldPageLayouts[i];
+            
+            const newLayoutId = newPageLayout.getAttribute("layout-id")!;
+            const oldLayoutId = oldPageLayout.getAttribute("layout-id")!;
+            
+            if (newLayoutId !== oldLayoutId) {
+                break
+            }
+            
+            oldPageLatest = oldPageLayout.nextElementSibling! as HTMLElement;
+            newPageLatest = newPageLayout.nextElementSibling! as HTMLElement;
+        }
+    }
+    
+    oldPageLatest.replaceWith(newPageLatest);
+    
+    {   
+        // Gracefully replace head.
+        // document.head.replaceWith(); causes FOUC on Chromium browsers.
+        document.head.querySelector("title")?.replaceWith(
+            newPage.head.querySelector("title") ?? ""
+        )
+        
+        const update = (targetList: HTMLElement[], matchAgainst: HTMLElement[], action: (node: HTMLElement) => void) => {
+            for (const target of targetList) {
+                const matching = matchAgainst.find(n => n.isEqualNode(target));
+                
+                if (matching) {
+                    continue;
+                }
+                
+                action(target);
+            }
+        };
+        
+        // add new tags and reomve old ones
+        const oldTags = Array.from([
+            ...Array.from(document.head.querySelectorAll("link")),
+            ...Array.from(document.head.querySelectorAll("meta")),
+            ...Array.from(document.head.querySelectorAll("script")),
+            ...Array.from(document.head.querySelectorAll("base")),
+            ...Array.from(document.head.querySelectorAll("style")),
+        ]);
+        
+        const newTags = Array.from([
+            ...Array.from(newPage.head.querySelectorAll("link")),
+            ...Array.from(newPage.head.querySelectorAll("meta")),
+            ...Array.from(newPage.head.querySelectorAll("script")),
+            ...Array.from(newPage.head.querySelectorAll("base")),
+            ...Array.from(newPage.head.querySelectorAll("style")),
+        ]);
+        
+        update(newTags, oldTags, (node) => document.head.appendChild(node));
+        update(oldTags, newTags, (node) => node.remove());
+    }
+
+    if (pushState) history.pushState(null, "", targetURL.href); 
+    
+    await loadPage(pathname);
+
+    if (targetURL.hash) {
+        document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
+    }
+};
+
 /** Take any directory pathname, and make it into this format: /path */
 function sanitizePathname(pathname: string = ""): string {
     if (!pathname) return "/";
@@ -279,6 +439,7 @@ async function loadPage(previousPage?: string) {
     const pathname = sanitizePathname(window.location.pathname);
 
     const pageData = await getPageData(pathname);
+
     const { 
         subjects, 
         eventListenerOptions, 

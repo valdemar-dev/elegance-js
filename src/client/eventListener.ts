@@ -61,7 +61,7 @@ function eventListener<T extends readonly ServerSubject<any>[]>(
     const id = store.generateId();
     const listener = new EventListener<T>(id, callback, dependencies);
 
-    store.addEventListener(listener as unknown as EventListener<readonly ServerSubject<any>[]>);
+    store.addEventListener(listener);
 
     return new EventListenerOption(id);
 }

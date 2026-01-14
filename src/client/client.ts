@@ -537,7 +537,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         update(newTags, oldTags, (node) => document.head.appendChild(node));
         update(oldTags, newTags, (node) => node.remove());
     }
-    
 
     if (pushState) history.pushState(null, "", targetURL.href); 
     
@@ -548,7 +547,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     if (targetURL.hash) {
         doc.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
-
 };
 
 window.onpopstate = async (event: PopStateEvent) => {
