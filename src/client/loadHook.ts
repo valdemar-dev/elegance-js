@@ -52,6 +52,10 @@ class LoadHook<T extends readonly ServerSubject<any>[]> {
  * It may return a cleanup function which will be called when the loadHook goes out of scope.
  * If it is declared within a layout, is it pathname scoped, and it's cleanupFunction will be called when the layout is no longer active.
  * Eg. Navigation from /recipes/cake to /recipes will call the cleanup of /recipes/cake's page, and it's layout, but not /recipes, since it's pathname is in the new pathname we're navigating to. 
+ * 
+ * **IMPORTANT**: The callback is *browser-code*, and thus does not have any context of your page.ts or layout.ts file. 
+ * The callback function is sent *literally* to the browser, as-is.
+ * 
  * @param callback The browser-side contextless code the loadHook will run.
  * @param dependencies A dependency of state that will be passed into this loadHook
  */

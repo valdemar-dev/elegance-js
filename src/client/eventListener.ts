@@ -51,6 +51,18 @@ class EventListener<T extends readonly ServerSubject<any>[]> {
     }
 }
 
+/**
+ * Creates, an event listener, which is a callback that is called when the event that it is attached to, is triggered.
+ * If you intend to use the same eventListener many times, declare it once, and use the returned special element option as the reference to it.
+ * This ships less code to the browser.
+ * 
+ * **IMPORTANT**: The callback is *browser-code*, and thus does not have any context of your page.ts or layout.ts file. 
+ * The callback function is sent *literally* to the browser, as-is.
+ * 
+ * @param callback The function to be called when the event that this eventListener is attached to is triggered.
+ * @param dependencies An array of ServerSubject's that should be passed into the callback when it is run.
+ * @returns A special element option that you can use as a value on an option of an EleganceElement.
+ */
 function eventListener<T extends readonly ServerSubject<any>[]>(
     callback: EventListenerCallback<T>,
     dependencies: [...T]

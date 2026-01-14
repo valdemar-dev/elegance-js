@@ -18,6 +18,7 @@ export const page = () => {
         return () => {
             clearInterval(timerId);
         }
+        
     }, [counter]);
 
     return div({
