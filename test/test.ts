@@ -8,6 +8,7 @@ import { compileEntireProject, generatePageCompilationContext, generatePageDataS
 (async () => {
     setCompilerOptions({
         pagesDirectory: "./test_pages",
+        publicDirectory: "./public",
         outputDirectory: ".elegance",
         environment: "development",
     });

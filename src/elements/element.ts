@@ -28,7 +28,7 @@ abstract class SpecialElementOption {
     abstract serialize(optionName: string, elementKey: string): string
 } 
 
-type ElementOptions = Record<string, SpecialElementOption | ElementOptionLiteral>;
+type ElementOptions = Record<string, SpecialElementOption> | ElementOptionLiteral;
 
 /** 
  * Purely for syntax reasons, you can use an element as the options parameter
@@ -139,7 +139,7 @@ class EleganceElement<
         }
     }
 
-    canHaveChildren<V extends CanHaveChildren>(): this is EleganceElement<true> {
+    canHaveChildren(): this is EleganceElement<true> {
         return this.children !== null;
     }
 }

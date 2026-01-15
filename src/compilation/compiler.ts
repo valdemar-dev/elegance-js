@@ -6,7 +6,7 @@
 import path from "path";
 import crypto from "crypto";
 import { AnyElement, EleganceElement, SpecialElementOption } from "../elements/element";
-import { Dirent, existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
+import { cpSync, Dirent, existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
 import esbuild from "esbuild";
 import { invalidPageError, PageExports, PageInformation } from "../server/page";
 import { invalidLayoutError, LayoutExports, LayoutInformation } from "../server/layout";
@@ -68,6 +68,8 @@ type CompilerOptions = {
 
     environment: "production" | "development",
 
+    publicDirectory: string;
+
     outputDirectory: string;
 };
 
@@ -111,6 +113,9 @@ type CompilerStore = {
 
 const compilerStore = new AsyncLocalStorage<CompilerStore>();
 
+/**
+ * Get the current dist dir. If it does not exist, it will be created.
+ */
 function getDistDir() {
     const fullPath = path.join(compilerOptions.outputDirectory, "DIST");
 
@@ -124,9 +129,14 @@ function getDistDir() {
 function setCompilerOptions(newOptions: CompilerOptions) {
     newOptions.pagesDirectory = path.resolve(newOptions.pagesDirectory);
     newOptions.outputDirectory = path.resolve(newOptions.outputDirectory);
+    newOptions.publicDirectory = path.resolve(newOptions.publicDirectory);
 
     if (existsSync(newOptions.pagesDirectory) === false) {
         throw new Error(newOptions.pagesDirectory + " does not exist, and thus cannot be used as the pagesDirectory.");
+    }
+
+    if (existsSync(newOptions.publicDirectory) === false) {
+        throw new Error(newOptions.publicDirectory + " does not exist, and thus cannot be used as the publicDirectory");
     }
 
     if (existsSync(newOptions.outputDirectory) === false) {
@@ -1035,7 +1045,14 @@ async function compileEntireProject() {
     const compiledStaticPages = await compileStaticPagesToDisk(allLayouts, allPages);
 
     await transpileClientRuntime();
-    console.log(compiledStaticPages)
+
+    cpSync(compilerOptions.publicDirectory, getDistDir(), { recursive: true, });
+
+    return {
+        allPages,
+        allLayouts,
+        compiledStaticPages,
+    }
 }
 
 

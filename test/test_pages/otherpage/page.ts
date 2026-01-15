@@ -6,10 +6,6 @@ import { state } from "../../../src/client/state";
 export const page = () => {
     const counter = state(1);
 
-    const myEventListener = eventListener((_, counter) => {
-        counter.value += 1;
-    }, [counter]);
-
     loadHook((counter) => {
         const timerId = setInterval(() => {
             counter.value++;
@@ -18,14 +14,11 @@ export const page = () => {
         return () => {
             clearInterval(timerId);
         }
-        
     }, [counter]);
 
     return div({
-        onClick: myEventListener,
-        innerText: observer((counter) => {
-            return counter.toString();
-        }, [counter]),
+        onClick: eventListener((_, counter) => counter.value++, [counter]),
+        innerText: observer((c) => c.toString(), [counter]),
     }, "This is otherpage");
 };
 
