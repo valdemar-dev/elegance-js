@@ -1068,7 +1068,9 @@ async function compileEntireProjectToDisk() {
 }
 
 export type {
-    CompilerOptions
+    CompilerOptions,
+    CompiledLayout,
+    CompiledPage,
 }
 
 export {
