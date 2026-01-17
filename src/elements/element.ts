@@ -28,7 +28,7 @@ abstract class SpecialElementOption {
     abstract serialize(optionName: string, elementKey: string): string
 } 
 
-type ElementOptions = Record<string, SpecialElementOption> | ElementOptionLiteral;
+type ElementOptions = Record<string, string | number | SpecialElementOption> | ElementOptionLiteral;
 
 /** 
  * Purely for syntax reasons, you can use an element as the options parameter
@@ -85,8 +85,8 @@ type AllElementTags =
 
 type EleganceElementBuilder<Tag extends AllElementTags> =
   Tag extends HtmlChildrenlessElementTags | SvgChildrenlessElementTags | MathMLChildrenlessElementTags
-    ? (options: ElementOptions) => EleganceElement<false>
-    : (options: ElementOptions, ...children: ElementChildren) => EleganceElement<true>;
+    ? (options?: ElementOptions) => EleganceElement<false>
+    : (options?: ElementOptions, ...children: ElementChildren) => EleganceElement<true>;
 
 /** Check if any given value can be classified as an element. */
 function isAnElement(value: any): value is AnyElement {

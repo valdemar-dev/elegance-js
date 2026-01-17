@@ -6,13 +6,13 @@
 import path from "path";
 import crypto from "crypto";
 import { AnyElement, EleganceElement, SpecialElementOption } from "../elements/element";
-import { cpSync, Dirent, existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
+import { cpSync, Dirent, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import esbuild from "esbuild";
 import { invalidPageError, PageExports, PageInformation } from "../server/page";
 import { invalidLayoutError, LayoutExports, LayoutInformation } from "../server/layout";
 import { allElements } from "../elements/element_list";
 import { observer, ObserverOption, ServerObserver } from "../client/observer";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import util from "util";
 import { AsyncLocalStorage } from "async_hooks";
 import { ServerSubject } from "../client/state";
@@ -71,6 +71,20 @@ type CompilerOptions = {
     publicDirectory: string;
 
     outputDirectory: string;
+
+    /**
+     * **NOTE: Be careful with this!**
+     * page.ts and layout.ts are compiled in isolated v8 modules, for hot-reload and stability purposes.
+     * However, there might be times where you have some kind of database instance you need to reference, etc. inside of your page or layout.
+     * For this purpose, you can pass in any value and have it be defined in the *global scope* of that particular module.
+     * 
+     * You should be *very* careful that you do not *assign values* into the globalThis that is passed in to the module, since then, the module cannot be gc'd.
+     * If the module cannot be gc'd, every time that it is hot-reloaded it will leak memory, which is obviously bad.
+     * 
+     * The same practice applies for the usage of process event listeners inside of pages and layouts, as well as uncleaned intervals and timeouts.
+     * You *may* expose a cleanup() function within a page to get rid of any unintended side-effects.
+     */
+    extendedGlobals: any[],
 };
 
 type CompiledLayout = {
@@ -101,6 +115,11 @@ type SerializationResult = {
 
 let compilerOptions: CompilerOptions;
 
+/**
+ * We use asynclocalstorage instead of globals to get rid of race conditions.
+ * We run the code inside asynclocalstorage, and then all of the values get dumped into here instead of globalThis.
+ * A much cleaner approach than previous.
+ */
 type CompilerStore = {
     generateId: () => string,
     addServerSubject: (serverSubject: ServerSubject<any>) => void,
@@ -656,7 +675,7 @@ async function getCompiledLayout(layoutInformation: LayoutInformation, allLayout
 async function compilePageToDisk(
     allLayouts: Map<string, LayoutInformation>, 
     pageInformation: PageInformation
-): Promise<void> {
+): Promise<CompiledPage> {
     const compiledPage = await compilePage(allLayouts, pageInformation);
 
     const targetPath = path.join(
@@ -665,7 +684,9 @@ async function compilePageToDisk(
         "index.html",
     );
 
-    writeFileSync(targetPath, compiledPage.pageHTML )
+    writeFileSync(targetPath, compiledPage.pageHTML)
+
+    return compiledPage;
 }
 
 /** Returns the standard children of <head> that must exist on every page independent of it's content. */
@@ -1041,6 +1062,7 @@ async function transpileClientRuntime() {
 async function compileEntireProject() {
     const allLayouts = await gatherAllLayouts();
     const allPages = await gatherAllPages(allLayouts);
+    const allStatusCodePages = new Map<string, PageInformation>();
 
     const compiledStaticPages = await compileStaticPagesToDisk(allLayouts, allPages);
 
@@ -1051,10 +1073,11 @@ async function compileEntireProject() {
     return {
         allPages,
         allLayouts,
+        allStatusCodePages,
         compiledStaticPages,
+        compiledStaticLayouts,
     }
 }
-
 
 
 /** 
@@ -1076,6 +1099,7 @@ export type {
 export {
     setCompilerOptions,
     generatePageCompilationContext,
+    generateLayoutCompilationContext,
     serializeElement,
     generatePageDataScript,
     compileEntireProject,
@@ -1085,4 +1109,9 @@ export {
     compileLayoutToDisk,
 
     compilerStore,
+
+    compilerOptions,
+
+    compilePage,
+    compileLayout,
 }

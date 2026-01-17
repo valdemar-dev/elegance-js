@@ -35,7 +35,7 @@
   "license": "MIT",
   "dependencies": {
     "esbuild": "^0.25.9",
-    "ts-arc": "^1.1.28"
+    "ts-arc": "^1.1.29"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.0.3",

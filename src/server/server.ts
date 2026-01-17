@@ -3,14 +3,15 @@
  * This server can be used to run your project.
  * 
  * It's HTTP only, so if you want HTTPS, use a proxy.
- * 
  */
 
-import { CompiledLayout, CompiledPage } from "../compilation/compiler";
+import { join, normalize, resolve } from "path";
+import { CompiledLayout, CompiledPage, compilerOptions, CompilerOptions } from "../compilation/compiler";
 import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
 
-import { createServer, IncomingMessage, ServerResponse, } from "http";
+import { createServer, IncomingMessage, Server, ServerResponse, } from "http";
+import { existsSync, readFileSync } from "fs";
 
 type ServerOptions = {
     /** If a port is not available, it will increment the port +1 in a loop until it finds a valid one. */
@@ -19,44 +20,66 @@ type ServerOptions = {
     hostname: string;
 
     /** Whether or not to use the built-in api handler. */
-    runAPI: boolean;
+    serveAPI: boolean;
 
-    /** A path to the directory containing the files that are allowed to be served via requests. */
-    serveDir: string;
+    /** 
+     * Setting this to true allows dynamic pages to be compiled whenever a user requests them.
+     */
+    allowDynamic: boolean;
 
-    /** Set this to false to get 404's on dynamic pages instead of compiling them per-request. */
-    allowDynamicCompilation: boolean;
+    /** 
+     * Setting this to true will make statuscode pages like 404.ts be returned in-favor of simple HTTP error codes.
+     */
+    allowStatusCodePages: boolean;
 
-    allLayouts: LayoutInformation[],
-    allPages: PageInformation[],
+    /**
+     * If basename is /my-website/, and the user makes a request to `/my-website/home`,
+     * the page that we will look for will be `/home`.
+     */
+    base?: string;
 
-    builtStaticPages: CompiledPage[],
-    buildStaticLayouts: CompiledLayout[],
+    /** These are gathered by the compiler, you just need to pass them in. */
+    allLayouts: Map<string, LayoutInformation>,
+    /** These are gathered by the compiler, you just need to pass them in. */
+    allPages: Map<string, PageInformation>,
+    /** These are gathered by the compiler, you just need to pass them in. */
+    allStatusCodePages: Map<string, PageInformation>,
+    /** These are gathered by the compiler, you just need to pass them in. */
+    builtStaticPages: Map<string, CompiledPage>,
+    /** These are gathered by the compiler, you just need to pass them in. */
+    builtStaticLayouts: Map<string, CompiledLayout>,
 }
 
 async function handleAPIRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
-    
+    const options = compilerOptions;
 }
 
-async function startServer(options: ServerOptions) {
-    let port = options.port ?? 3000;
+type ServerStartupResult = {
+    /** The port that we ended up actually using (might differ from the one given, if it was not available) */
+    port: number;
+};
+
+function removePrefix(str: string, prefix: string) {
+    return str.startsWith(prefix) ? str.slice(prefix.length) : str;
+}
+
+let serverOptions: ServerOptions;
+
+/**
+ * Starts the Elegance server and distributes the DIST directory to the public.
+ */
+async function serveProject(startupServerOptions: ServerOptions): Promise<ServerStartupResult> {
+    serverOptions = startupServerOptions;
+
+    if (serverOptions.base && serverOptions.base.startsWith("/") === false) {
+        throw new Error("Failed to serve the Elegance project, the `base` option in the startUpServerOptions must start with a / in order to be a valid pathname. Currently, it is:" + serverOptions.base);
+    }
+
+    let port = serverOptions.port ?? 3000;
     
-    const server = createServer(async (req, res) => {
-        if (!req.url) {
-            res.statusCode = 400;
-            res.end("Bad request.");
+    const server = createServer(requestHandler);
 
-            return;
-        }
-
-        const url = new URL(req.url);
-        const pathname = url.pathname;
-
-        if (url.pathname.startsWith("/api/")) {
-            return handleAPIRequest(req, res, pathname);
-        }
-    })
-
+    /** Prefer to sacrifice port desireability in-exchange for getting the thing running */
     server.on("error", (error: any) => {
         if (error.code === "EADDRINUSE") {
             setTimeout(() => {
@@ -66,5 +89,118 @@ async function startServer(options: ServerOptions) {
         }
     })
 
-    server.listen(options.port);
+    server.listen(serverOptions.port, serverOptions.hostname);
+
+    return {
+        port,
+    };
+}
+
+async function respondWithStatusCodePage(req: IncomingMessage, res: ServerResponse, pathname: string, statusCode: number) {
+    // build the dynamic page here
+    // applicable layouts are already here, we have to just find the matching one.
+    // if pathname is /home we should respond with /home/(code).ts, going upwards until we find the right one 
+}
+
+async function respondWithStatusCode(req: IncomingMessage, res: ServerResponse, pathname: string, statusCode: number, message: string) {
+    if (serverOptions.allStatusCodePages) {
+        return respondWithStatusCodePage(req, res, pathname, statusCode);
+    }
+
+    res.statusCode = statusCode;
+    res.end(message);
+}
+
+/**
+ * Ensure a given pathname is safe, and does not escape the root directory.
+ * @param userInputPath The path to turn into a safe path 
+ * @returns A safe path, or null if the path was not safe, or does not exist.
+ */
+async function getSafePath(userInputPath: string): Promise<string | null> {
+    const rootDirectory = resolve(join(compilerOptions.outputDirectory, "DIST"));
+
+    const decodedPath = decodeURIComponent(userInputPath);
+
+    const normalizedPath = normalize(decodedPath).replace(/^(\.\.(\/|\\|$))+/, '');
+
+    const finalPath = join(rootDirectory, normalizedPath);
+
+    const resolvedFinalPath = resolve(finalPath);
+
+    if (!resolvedFinalPath.startsWith(rootDirectory) || existsSync(resolvedFinalPath) === false) {
+        return null;
+    }
+
+    return resolvedFinalPath;
+}
+
+async function handlePageRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
+    const pageInformation = serverOptions.allPages.get(pathname)!;
+
+    if (pageInformation.exports.isDynamic) {
+        if (serverOptions.allowDynamic === false) {
+            return respondWithStatusCode(req, res, pathname, 404, "Page not found.");
+        }
+
+        return;
+    }
+
+    const { pageHTML } = serverOptions.builtStaticPages.get(pathname)!
+
+    res.statusCode = 200;
+    res.end(pageHTML);
+}
+
+async function handleFileRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
+    const safePath = await getSafePath(pathname);
+
+    if (!safePath) {
+        return respondWithStatusCode(req, res, pathname, 404, "File not found.");
+    }
+
+    res.statusCode = 200;
+    res.end(readFileSync(safePath));
+}
+
+
+async function runMiddleware(req: IncomingMessage, res: ServerResponse, pathname: string) {
+
+}
+
+async function requestHandler(req: IncomingMessage, res: ServerResponse) {
+    if (!req.url) {
+        res.statusCode = 400;
+        res.end("Bad request.");
+
+        return;
+    }
+
+    const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`);
+
+    if (serverOptions.base && url.pathname.startsWith(serverOptions.base) === false) {
+        res.statusCode = 501;
+        res.end("Path does not start with basename.");
+
+        return;
+    }
+
+    const pathname = serverOptions.base ? removePrefix(serverOptions.base!, url.pathname) : url.pathname;
+    
+    runMiddleware(req, res, pathname);
+
+    if (!res.writable) return;
+
+    if (pathname.startsWith("/api/")) {
+        return handleAPIRequest(req, res, pathname);
+    }
+
+    if (serverOptions.allPages.has(pathname)) {
+        return handlePageRequest(req, res, pathname);
+    }
+
+    return handleFileRequest(req, res, pathname);
+}
+
+export {
+    serveProject,
 }
