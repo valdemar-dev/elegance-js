@@ -6,7 +6,7 @@
 import path from "path";
 import crypto from "crypto";
 import { AnyElement, EleganceElement, SpecialElementOption } from "../elements/element";
-import { cpSync, Dirent, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { cpSync, Dirent, existsSync, FSWatcher, lstatSync, mkdirSync, readdirSync, readFileSync, watch, writeFileSync } from "fs";
 import esbuild from "esbuild";
 import { invalidPageError, PageExports, PageInformation } from "../server/page";
 import { invalidLayoutError, LayoutExports, LayoutInformation } from "../server/layout";
@@ -18,6 +18,7 @@ import { AsyncLocalStorage } from "async_hooks";
 import { ServerSubject } from "../client/state";
 import { EventListenerOption, EventListener } from "../client/eventListener";
 import { LoadHook } from "../client/loadHook";
+import { formattedLog, formatToLog, LogLevel } from "../server/log";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,19 +73,7 @@ type CompilerOptions = {
 
     outputDirectory: string;
 
-    /**
-     * **NOTE: Be careful with this!**
-     * page.ts and layout.ts are compiled in isolated v8 modules, for hot-reload and stability purposes.
-     * However, there might be times where you have some kind of database instance you need to reference, etc. inside of your page or layout.
-     * For this purpose, you can pass in any value and have it be defined in the *global scope* of that particular module.
-     * 
-     * You should be *very* careful that you do not *assign values* into the globalThis that is passed in to the module, since then, the module cannot be gc'd.
-     * If the module cannot be gc'd, every time that it is hot-reloaded it will leak memory, which is obviously bad.
-     * 
-     * The same practice applies for the usage of process event listeners inside of pages and layouts, as well as uncleaned intervals and timeouts.
-     * You *may* expose a cleanup() function within a page to get rid of any unintended side-effects.
-     */
-    extendedGlobals: any[],
+    doHotReload: boolean;
 };
 
 type CompiledLayout = {
@@ -166,9 +155,7 @@ function setCompilerOptions(newOptions: CompilerOptions) {
 }
 
 function invalidElementError(element: AnyElement, reason: string): Error {
-    const message = "The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element.\n" + reason;
-
-    return new Error(message);
+    return new Error("The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element.\n" + reason);
 }
 
 /** 
@@ -537,7 +524,10 @@ async function walkDirectory(fullPath: string, callback: (file: Dirent) => Promi
  * This file *should* be the first thing that imports a page.
  */
 async function getPageExports(modulePath: string): Promise<PageExports> {
-    const rawExports = await import("file://" + modulePath);
+    const rawExports = await import("file://" + modulePath).catch((err: unknown) => {
+        console.error(`Encountered an error in file:\n    ${modulePath}`);
+        throw err;
+    });
 
     let isDynamic = rawExports?.isDynamic === true
 
@@ -747,7 +737,7 @@ async function compilePage(
         pageSerializationResult = serializeElement(compilationContext, pageRootElement);
         pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
     } catch(e) {
-        console.error(`Failed to serialize the elements of a page with the pathname: "${pageInformation.pathname}"`);
+        formattedLog(LogLevel.ERROR, `Failed to serialize the elements of a page with the pathname: "${pageInformation.pathname}"`);
         throw e;
     }
 
@@ -1054,12 +1044,109 @@ async function transpileClientRuntime() {
     });
 }
 
+function createRecursiveWatcher(
+    targetDir: string,
+    callback: (path: string) => Promise<void>
+): void {
+    const watchers = new Map<string, FSWatcher>();
+    const timeouts = new Map<string, NodeJS.Timeout>();
+
+    function debouncedCallback(fullPath: string): void {
+        const existingTimeout = timeouts.get(fullPath);
+        if (existingTimeout) {
+            clearTimeout(existingTimeout);
+        }
+
+        const timeout = setTimeout(async function() {
+            try {
+                await callback(fullPath);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                timeouts.delete(fullPath);
+            }
+        }, 100);
+
+        timeouts.set(fullPath, timeout);
+    }
+
+    function unregisterWatcher(path: string): void {
+        for (const [dir, watcher] of watchers.entries()) {
+            if (dir === path || dir.startsWith(path + '/')) {
+                watcher.close();
+                watchers.delete(dir);
+                
+                const timeout = timeouts.get(dir);
+                if (timeout) {
+                    clearTimeout(timeout);
+                    timeouts.delete(dir);
+                }
+            }
+        }
+    }
+
+    function registerWatcher(dirPath: string): void {
+        if (watchers.has(dirPath)) return;
+
+        try {
+            const watcher = watch(dirPath, { recursive: false }, function(event, filename) {
+                if (!filename) return;
+
+                const fullPath = path.join(dirPath, filename);
+
+                try {
+                    const stats = lstatSync(fullPath);
+                    if (stats.isDirectory()) {
+                        registerWatcher(fullPath);
+                    }
+                    debouncedCallback(fullPath);
+                } catch (err: any) {
+                    if (err.code === 'ENOENT') {
+                        unregisterWatcher(fullPath);
+                        debouncedCallback(fullPath);
+                    }
+                }
+            });
+
+            watcher.on('error', function() {
+                unregisterWatcher(dirPath);
+            });
+
+            watchers.set(dirPath, watcher);
+
+            const files = readdirSync(dirPath);
+            for (const file of files) {
+                const childPath = path.join(dirPath, file);
+                try {
+                    if (lstatSync(childPath).isDirectory()) {
+                        registerWatcher(childPath);
+                    }
+                } catch (e) {}
+            }
+        } catch (e) {}
+    }
+
+    registerWatcher(targetDir);
+}
+
 /** 
  * Run the general compilation process for the project. 
  * This compiles all static-pages & static-layouts, as well as gathers a list of every page (dynamic and static) & layout (dynamic and static).
  * It also recursively copies your public directory into the distribution directory.
+ * If doHotReload is true, it will also enable hot-reloading.
  */
 async function compileEntireProject() {
+    const gracefulErr = (err: unknown) => { console.error(err); }
+
+    process.on("uncaughtException", gracefulErr);
+    process.on("unhandledRejection", gracefulErr);
+
+    if (compilerOptions.doHotReload) {
+        createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
+            process.send?.(`restart-me`)
+        })
+    }
+
     const allLayouts = await gatherAllLayouts();
     const allPages = await gatherAllPages(allLayouts);
     const allStatusCodePages = new Map<string, PageInformation>();
@@ -1069,6 +1156,9 @@ async function compileEntireProject() {
     await transpileClientRuntime();
 
     cpSync(compilerOptions.publicDirectory, getDistDir(), { recursive: true, });
+
+    process.off("uncaughtException", gracefulErr);
+    process.off("unhandledRejection", gracefulErr);
 
     return {
         allPages,

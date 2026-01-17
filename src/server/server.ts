@@ -5,13 +5,13 @@
  * It's HTTP only, so if you want HTTPS, use a proxy.
  */
 
-import { join, normalize, resolve } from "path";
+import { join, normalize, relative, resolve } from "path";
 import { CompiledLayout, CompiledPage, compilerOptions, CompilerOptions } from "../compilation/compiler";
 import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
 
 import { createServer, IncomingMessage, Server, ServerResponse, } from "http";
-import { existsSync, readFileSync } from "fs";
+import { Dirent, existsSync, readdirSync, readFileSync } from "fs";
 
 type ServerOptions = {
     /** If a port is not available, it will increment the port +1 in a loop until it finds a valid one. */
@@ -50,9 +50,21 @@ type ServerOptions = {
     builtStaticLayouts: Map<string, CompiledLayout>,
 }
 
-async function handleAPIRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
-    const options = compilerOptions;
-}
+type MiddlewareFunction = (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>;
+
+type MiddlewareExports = {
+    middleware: MiddlewareFunction,
+};
+
+type MiddlewareInformation = {
+    /** The absolute path to the .ts file containing the module for this middleware. */
+    modulePath: string,
+
+    /** The pathname of this middleware relative to pagesDirectory */
+    pathname: string,
+
+    exports: MiddlewareExports,
+};
 
 type ServerStartupResult = {
     /** The port that we ended up actually using (might differ from the one given, if it was not available) */
@@ -65,35 +77,50 @@ function removePrefix(str: string, prefix: string) {
 
 let serverOptions: ServerOptions;
 
-/**
- * Starts the Elegance server and distributes the DIST directory to the public.
- */
-async function serveProject(startupServerOptions: ServerOptions): Promise<ServerStartupResult> {
-    serverOptions = startupServerOptions;
+async function handleAPIRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
+    const options = compilerOptions;
+}
 
-    if (serverOptions.base && serverOptions.base.startsWith("/") === false) {
-        throw new Error("Failed to serve the Elegance project, the `base` option in the startUpServerOptions must start with a / in order to be a valid pathname. Currently, it is:" + serverOptions.base);
+/** 
+ * Go through a directory, including all it's subdirectories, 
+ * and call callback() for each file.
+ */
+async function walkDirectory(fullPath: string, callback: (file: Dirent) => Promise<void>) {
+    const stack: Dirent[] = [];
+
+    stack.push(...readdirSync(fullPath, { withFileTypes: true, }));
+
+    while (true) {
+        const entry = stack.pop();
+        if (!entry) break;
+
+        if (entry.isDirectory()) {
+            const fullPath = join(entry.parentPath, entry.name);
+
+            stack.push(...readdirSync(fullPath, { withFileTypes: true, }));
+
+            continue;
+        }
+
+        if (!entry.isFile()) continue;
+
+        await callback(entry);
+    }
+}
+
+/** Take any directory pathname, and make it into this format: /path */
+function sanitizePathname(pathname: string = ""): string {
+    if (!pathname) return "/";
+
+    pathname = "/" + pathname;
+
+    pathname = pathname.replace(/\/+/g, "/");
+
+    if (pathname.length > 1 && pathname.endsWith("/")) {
+        pathname = pathname.slice(0, -1);
     }
 
-    let port = serverOptions.port ?? 3000;
-    
-    const server = createServer(requestHandler);
-
-    /** Prefer to sacrifice port desireability in-exchange for getting the thing running */
-    server.on("error", (error: any) => {
-        if (error.code === "EADDRINUSE") {
-            setTimeout(() => {
-                port += 1;
-                server.listen(port);
-            }, 500)
-        }
-    })
-
-    server.listen(serverOptions.port, serverOptions.hostname);
-
-    return {
-        port,
-    };
+    return pathname;
 }
 
 async function respondWithStatusCodePage(req: IncomingMessage, res: ServerResponse, pathname: string, statusCode: number) {
@@ -162,9 +189,79 @@ async function handleFileRequest(req: IncomingMessage, res: ServerResponse, path
     res.end(readFileSync(safePath));
 }
 
+function getPathSubparts(path: string) {
+    const rawParts = path.split('/').filter(Boolean);
+    const parts = [...rawParts];
+
+    if (parts.length > 0 && parts[parts.length - 1].includes('.')) {
+        parts.pop();
+    }
+
+    const result = ['/'];
+    let current = '';
+
+    for (const part of parts) {
+        current += '/' + part;
+        result.push(current);
+    }
+
+    return result;
+}
+
+const allMiddleware = new Map<string, MiddlewareInformation>();
+async function gatherMiddleware() {
+    await walkDirectory(compilerOptions.pagesDirectory, async (file) => {
+        if (file.name !== "middleware.ts") return;
+
+        const pathname = sanitizePathname(relative(compilerOptions.pagesDirectory, file.parentPath));
+        const fullPath = join(file.parentPath, file.name);
+
+        const { middleware } = await import("file://" + fullPath);
+        if (!middleware || typeof middleware !== "function") {
+            throw new Error(`In file: "${fullPath}":\nThe export middleware is not of type "function". Got: ${typeof middleware}`);
+        }
+
+        const middlewareInformation: MiddlewareInformation = {
+            exports: {
+                middleware,
+            },
+            modulePath: fullPath,
+            pathname: pathname,
+        };
+
+        allMiddleware.set(pathname, middlewareInformation);
+    });
+} 
 
 async function runMiddleware(req: IncomingMessage, res: ServerResponse, pathname: string) {
+    const parts = getPathSubparts(pathname);
 
+    const middlewares: MiddlewareInformation[] = [];
+    for (const part of parts) {
+        if (allMiddleware.has(part) === false) {
+            continue;
+        }
+
+        middlewares.push(allMiddleware.get(part)!);
+    }
+
+    if (middlewares.length < 1) return;
+
+    const next = (idx: number) => {
+        if (idx >= middlewares.length) {
+            return;
+        }
+
+        const middleware = middlewares[idx];
+
+        const localNext = () => {
+            next(idx + 1);
+        };
+        
+        middleware.exports.middleware(req, res, localNext);
+    };
+
+    next(0);
 }
 
 async function requestHandler(req: IncomingMessage, res: ServerResponse) {
@@ -199,6 +296,39 @@ async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     }
 
     return handleFileRequest(req, res, pathname);
+}
+
+/**
+ * Starts the Elegance server and distributes the DIST directory to the public.
+ */
+async function serveProject(startupServerOptions: ServerOptions): Promise<ServerStartupResult> {
+    serverOptions = startupServerOptions;
+
+    if (serverOptions.base && serverOptions.base.startsWith("/") === false) {
+        throw new Error("Failed to serve the Elegance project, the `base` option in the startUpServerOptions must start with a / in order to be a valid pathname. Currently, it is:" + serverOptions.base);
+    }
+
+    await gatherMiddleware();
+
+    let port = serverOptions.port ?? 3000;
+    
+    const server = createServer(requestHandler);
+
+    /** Prefer to sacrifice port desireability in-exchange for getting the thing running */
+    server.on("error", (error: any) => {
+        if (error.code === "EADDRINUSE") {
+            setTimeout(() => {
+                port += 1;
+                server.listen(port);
+            }, 500)
+        }
+    })
+
+    server.listen(serverOptions.port, serverOptions.hostname);
+
+    return {
+        port,
+    };
 }
 
 export {
