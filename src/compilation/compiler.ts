@@ -158,7 +158,7 @@ function setCompilerOptions(newOptions: CompilerOptions) {
 function invalidElementError(element: AnyElement, fullPath: string[], reason: string): string {
     const stacktrace = formatStacktrace(fullPath);
 
-    return (stacktrace + "\n" + "The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element. Reason:\n" + reason);
+    return ("Direct Parent Trace:\n" + stacktrace + "\n" + "The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element. Reason:\n" + reason);
 }
 
 /** 
@@ -332,7 +332,7 @@ function serializeElement(
     let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
 
     if (element === undefined || element === null) {
-        throw invalidElementError(element, fullPath, `Undefined and null are not allowed as elements`);
+        throw invalidElementError(element, fullPath, `Undefined and null are not allowed as elements.`);
     }
 
     switch (typeof element) {
@@ -362,7 +362,7 @@ function serializeElement(
             break;
         }
 
-        throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.\nStacktrace:\n${formatStacktrace(fullPath)}`);
+        throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
     case "boolean":
         serializedElement = `${element}`;
         break;
@@ -373,10 +373,36 @@ function serializeElement(
         serializedElement = element;
         break;
     default:
-        throw invalidElementError(element, fullPath, `The typeof of this element is not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.\nStacktrace:\n${formatStacktrace(fullPath)}`);
+        throw invalidElementError(element, fullPath, `The typeof of this element is not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.`);
     }
 
     return { serializedElement, specialElementOptions };
+}
+
+function prettyObj(obj: any, level: number = 0): string {
+    const ind = '  '.repeat(level);
+    const entries = Object.entries(obj);
+    
+    if (entries.length === 0) return '{}';
+
+    let str = '{\n';
+
+    for (const [key, value] of entries) {
+        let valRepr: string;
+
+        if (typeof value === 'object' && value !== null) {
+            valRepr = prettyObj(value, level + 1);
+        } else {
+            valRepr = JSON.stringify(value);
+        }
+
+        str += `${ind}  ${key}: ${valRepr},\n`;
+    }
+
+    str = str.slice(0, -2); // remove trailing commad
+    str += `\n${ind}}`;
+
+    return str;
 }
 
 function getElementRepr(element: AnyElement): string {
@@ -386,41 +412,62 @@ function getElementRepr(element: AnyElement): string {
     if (typeof element === 'string') return `"${element.replace(/"/g, '\\"')}"`;
     if (typeof element === 'number') return element.toString();
     if (typeof element === 'boolean') return element.toString();
-
+    
     if (Array.isArray(element)) {
         return `Array(length: ${element.length})`;
     }
 
     if (element instanceof EleganceElement) {
         const tag = (element as any).tag || 'unknown';
-
-        let optionsStr = '';
-
         const options = (element as any).options || {};
 
-        if (typeof options === 'object' && options !== null) {
-
-        optionsStr = Object.entries(options)
-            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-            .join(', ');
+        if (Object.keys(options).length === 0) {
+            return `${tag}({})`;
         }
-        
-        return `${tag}({${optionsStr}})`;
+
+        return `${tag}(${prettyObj(options)})`;
     }
 
     return `Unknown(${typeof element})`;
 }
 
 function formatStacktrace(path: string[]): string {
-    return path
-        .map((repr, index) => {
-            const prefix = '  '.repeat(index) + '> ';
-            if (index === path.length - 1) {
-                return prefix + `\x1b[41;30m${repr}\x1b[0m`;
-            }
-            return prefix + repr;
-        })
-        .join('\n');
+    let lastReprColumn = 0;
+    const result: string[] = [];
+
+    path.forEach((repr, index) => {
+        const isLast = index === path.length - 1;
+        const lines = repr.split('\n');
+
+        let prefix = '';
+
+        if (index > 0) {
+            prefix = ' '.repeat(lastReprColumn + 1) + '∟> ';
+        }
+
+        let firstLine = prefix + lines[0];
+
+        if (isLast) {
+            firstLine = prefix + `\x1b[41;30m${lines[0]}`;
+        }
+
+        result.push(firstLine);
+
+        const reprColumn = lines[0].search(/\S|$/);
+        lastReprColumn = prefix.length + reprColumn;
+
+        for (let i = 1; i < lines.length; i++) {
+            const subLine = ' '.repeat(prefix.length) + lines[i];
+            
+            result.push(subLine);
+        }
+
+        if (isLast) {
+            result[result.length - 1] += `\x1b[0m`;
+        }
+    });
+
+    return result.join('\n');
 }
 
 /**
@@ -541,7 +588,7 @@ async function generatePageDataScript(
             document.head.appendChild(script);
             
             document.currentScript.remove();
-        </script>`;
+        </script>`.replace(" ", "").replace("\n", "");
 
     return dataScript + dataLoaderScript;
 }
@@ -791,7 +838,7 @@ async function compilePage(
         pageSerializationResult = serializeElement(compilationContext, pageRootElement);
         pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
     } catch(e) {
-        formattedLog(LogLevel.ERROR, `Failed to serialize the elements of page: "${pageInformation.pathname}"`);
+        formattedLog(LogLevel.ERROR, `${pageInformation.pathname}/page.ts - Element serialization failed.`);
         throw e;
     }
 
@@ -1017,7 +1064,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         layoutSerializationResult = serializeElement(compilationContext, layoutRootElement);
         layoutMetadataSerializationResult = serializeElement(compilationContext, layoutRootMetadataElement);
     } catch(e) {
-        console.error(`Failed to serialize the elements of a layout with the pathname: "${layoutInformation.pathname}"`);
+        console.error(`${layoutInformation.pathname}/layout.ts - Failed to serialize elements.`);
         throw e;
     }
 

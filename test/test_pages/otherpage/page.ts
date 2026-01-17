@@ -19,7 +19,13 @@ export const page = () => {
     return div({
         onClick: eventListener((_, counter) => counter.value++, [counter]),
         innerText: observer((c) => c.toString(), [counter]),
-    }, "This is otherpage");
+    }, 
+        "This is otherpage",
+
+        div({
+            class: "what the flip"
+        }, undefined),
+    );
 };
 
 export const metadata = () => {
