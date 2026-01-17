@@ -154,8 +154,11 @@ function setCompilerOptions(newOptions: CompilerOptions) {
     compilerOptions = newOptions;
 }
 
-function invalidElementError(element: AnyElement, reason: string): Error {
-    return new Error("The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element.\n" + reason);
+
+function invalidElementError(element: AnyElement, fullPath: string[], reason: string): string {
+    const stacktrace = formatStacktrace(fullPath);
+
+    return ("The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element. Reason:\n" + reason + "\n" + stacktrace);
 }
 
 /** 
@@ -257,8 +260,10 @@ function generateLayoutCompilationContext(pathname: string): LayoutCompilationCo
 
 function serializeEleganceElement(
     compilationContext: PageCompilationContext,
-    element: EleganceElement<any>
+    element: EleganceElement<any>,
+    path: string[] = [],
 ): SerializationResult {
+
     let serializedElement = "";
     let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
 
@@ -295,7 +300,7 @@ function serializeEleganceElement(
 
         if (element.children.length > 0) {
             for (const child of element.children) {
-                const result = serializeElement(compilationContext, child)
+                const result = serializeElement(compilationContext, child, path)
 
                 serializedElement += result.serializedElement;
                 specialElementOptions.push(...result.specialElementOptions);
@@ -318,12 +323,16 @@ function serializeEleganceElement(
 function serializeElement(
     compilationContext: PageCompilationContext,
     element: AnyElement,
+    path: string[] = [],
 ): SerializationResult {
+    const currentRepr = getElementRepr(element);
+    const fullPath = [...path, currentRepr];
+
     let serializedElement: string;
     let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
 
     if (element === undefined || element === null) {
-        throw invalidElementError(element, "Undefined and null are not valid elements.");
+        throw invalidElementError(element, fullPath, `Undefined and null are not allowed as elements`);
     }
 
     switch (typeof element) {
@@ -331,9 +340,10 @@ function serializeElement(
         if (Array.isArray(element)) {
             let serializedElements = "";
 
-            for (const subElement of element) {
-                const serializationResult = serializeElement(compilationContext, subElement);
-                
+            for (const [index, subElement] of element.entries()) {
+                const childPath = [...path, `${currentRepr} at index ${index}`];
+                const serializationResult = serializeElement(compilationContext, subElement, childPath);
+
                 serializedElements += serializationResult.serializedElement;
                 specialElementOptions.push(...serializationResult.specialElementOptions);
             }
@@ -344,7 +354,7 @@ function serializeElement(
         }
 
         if (element instanceof EleganceElement) {
-            const result = serializeEleganceElement(compilationContext, element);
+            const result = serializeEleganceElement(compilationContext, element, fullPath);
 
             serializedElement = result.serializedElement;
             specialElementOptions.push(...result.specialElementOptions);
@@ -352,7 +362,7 @@ function serializeElement(
             break;
         }
 
-        throw invalidElementError(element, "This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.")
+        throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.\nStacktrace:\n${formatStacktrace(fullPath)}`);
     case "boolean":
         serializedElement = `${element}`;
         break;
@@ -363,10 +373,54 @@ function serializeElement(
         serializedElement = element;
         break;
     default:
-        throw invalidElementError(element, "The typeof of this element as not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.");
+        throw invalidElementError(element, fullPath, `The typeof of this element is not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.\nStacktrace:\n${formatStacktrace(fullPath)}`);
     }
 
     return { serializedElement, specialElementOptions };
+}
+
+function getElementRepr(element: AnyElement): string {
+    if (element === null) return 'null';
+    if (element === undefined) return 'undefined';
+
+    if (typeof element === 'string') return `"${element.replace(/"/g, '\\"')}"`;
+    if (typeof element === 'number') return element.toString();
+    if (typeof element === 'boolean') return element.toString();
+
+    if (Array.isArray(element)) {
+        return `Array(length: ${element.length})`;
+    }
+
+    if (element instanceof EleganceElement) {
+        const tag = (element as any).tag || 'unknown';
+
+        let optionsStr = '';
+
+        const options = (element as any).options || {};
+
+        if (typeof options === 'object' && options !== null) {
+
+        optionsStr = Object.entries(options)
+            .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+            .join(', ');
+        }
+        
+        return `${tag}({${optionsStr}})`;
+    }
+
+    return `Unknown(${typeof element})`;
+}
+
+function formatStacktrace(path: string[]): string {
+    return path
+        .map((repr, index) => {
+            const prefix = '  '.repeat(index) + '> ';
+            if (index === path.length - 1) {
+                return prefix + `\x1b[41;30m${repr}\x1b[0m`;
+            }
+            return prefix + repr;
+        })
+        .join('\n');
 }
 
 /**
@@ -737,7 +791,7 @@ async function compilePage(
         pageSerializationResult = serializeElement(compilationContext, pageRootElement);
         pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
     } catch(e) {
-        formattedLog(LogLevel.ERROR, `Failed to serialize the elements of a page with the pathname: "${pageInformation.pathname}"`);
+        formattedLog(LogLevel.ERROR, `Failed to serialize the elements of page: "${pageInformation.pathname}"`);
         throw e;
     }
 
@@ -1143,7 +1197,7 @@ async function compileEntireProject() {
 
     if (compilerOptions.doHotReload) {
         createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
-            process.send?.(`restart-me`)
+            process.send?.(`restart-me`);
         })
     }
 

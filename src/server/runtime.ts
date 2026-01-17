@@ -13,8 +13,8 @@ function startEleganceRuntime(file: string) {
 }
 
 function restartEleganceRuntime() {
-    if (child) {
-        child.kill(9);
+    if (child && child.killed === false) {
+        child.kill();
     }
  
     child = spawn("node", ["--import","ts-arc/register", childPath], { 
@@ -24,7 +24,7 @@ function restartEleganceRuntime() {
 
     child.on("message", (content: string) => {
         if (content === "restart-me") {
-            formatLog(LogLevel.INFO, "hot-reloading..");
+            formattedLog(LogLevel.INFO, "hot-reloading..");
             restartEleganceRuntime()
         }
     })

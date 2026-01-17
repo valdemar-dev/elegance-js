@@ -19,35 +19,46 @@ function formatToLog(level: LogLevel, ...args: unknown[]) {
         throw new Error("Can't log with LogLevel none.");
     }
 
-    let color: string;
-    let msg: string;
+    let tag: string;
+    let tagColor: string;
+    let msgColor: string;
+
     switch (level) {
         case LogLevel.ERROR:
-            msg = "[ERROR]";
-            color = "\x1b[41m\x1b[30m";
+            tag = "[ERROR]";
+            tagColor = "\x1b[41;30m"; // red bg, black text
+            msgColor = "\x1b[31m";    // red text
             break;
         case LogLevel.WARN:
-            msg = "[WARN]";
-            color = "\x1b[33m";
+            tag = "[WARN]";
+            tagColor = "\x1b[43;30m"; // yellow bg, black text
+            msgColor = "\x1b[33m";    // yellow text
             break;
         case LogLevel.INFO:
-            msg = "[INFO]";
-            color = "\x1b[36m";
+            tag = "[INFO]";
+            tagColor = "\x1b[44;37m"; // blue bg, white text
+            msgColor = "\x1b[36m";    // cyan text
             break;
         case LogLevel.DEBUG:
-            msg = "[DEBUG]";
-            color = "\x1b[90m";
+            tag = "[DEBUG]";
+            tagColor = "\x1b[45;37m"; // magenta bg, white text
+            msgColor = "\x1b[90m";    // gray text
             break;
     }
-    
-    const CLEAR_COLOR = "\x1b[0m";
+
     const ts = new Date().toLocaleTimeString("en-us");
 
-    const formatArgs = [`${ts} Elegance-JS ${color}${msg}: `, `${color}`,...args, "\x1b[0m"];
+    const formattedArgs = [
+        `${ts} Elegance-JS `,
+        `${tagColor}${tag}\x1b[0m`,
+        ": ",
+        msgColor,
+        ...args,
+        "\x1b[0m"
+    ];
 
-    return formatArgs.map(arg => {
-        if (typeof arg === 'string') return arg;
-
+    return formattedArgs.map(arg => {
+        if (typeof arg === "string") return arg;
         return util.inspect(arg, { colors: false, depth: null });
     }).join('');
 }
