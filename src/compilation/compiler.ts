@@ -158,7 +158,7 @@ function setCompilerOptions(newOptions: CompilerOptions) {
 function invalidElementError(element: AnyElement, fullPath: string[], reason: string): string {
     const stacktrace = formatStacktrace(fullPath);
 
-    return ("The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element. Reason:\n" + reason + "\n" + stacktrace);
+    return (stacktrace + "\n" + "The element \"" + util.inspect(element, { depth: 1, colors: true, }) + "\" is an invalid element. Reason:\n" + reason);
 }
 
 /** 

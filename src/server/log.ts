@@ -50,8 +50,7 @@ function formatToLog(level: LogLevel, ...args: unknown[]) {
 
     const formattedArgs = [
         `${ts} Elegance-JS `,
-        `${tagColor}${tag}\x1b[0m`,
-        ": ",
+        `${tagColor}${tag}\x1b[0m `,
         msgColor,
         ...args,
         "\x1b[0m"

@@ -2,7 +2,6 @@ import { compileEntireProject, setCompilerOptions, } from "../src/compilation/co
 import { serveProject, } from "../src/server/server";
 
 async function runtime() {
-    console.log("starting runtime.")
     setCompilerOptions({
         pagesDirectory: "./test_pages",
         publicDirectory: "./public",
