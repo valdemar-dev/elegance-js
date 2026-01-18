@@ -203,6 +203,8 @@ class ClientObserver {
                 this.call();
             });
         }
+
+        this.call();
     }
 
     /**
@@ -251,6 +253,7 @@ class ObserverManager {
             }
 
             observer.addElement(element, observerOption.option);
+            observer.call();
         }
     }
 }

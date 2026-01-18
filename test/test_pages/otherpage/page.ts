@@ -2,25 +2,31 @@ import { eventListener } from "../../../src/client/eventListener";
 import { loadHook } from "../../../src/client/loadHook";
 import { observer } from "../../../src/client/observer";
 import { state } from "../../../src/client/state";
+import { clientPackages } from "../../../src/compilation/compiler"; 
+import path from "path";
+
+import clientModule from "./clientModule";
+
+clientPackages({
+    clientModule: path.resolve(import.meta.dirname, "./clientModule"),
+});
 
 export const page = () => {
-    const counter = state(1);
+    const message = state("HELLOTHERE");
 
-    loadHook((counter) => {
-        const timerId = setInterval(() => {
-            counter.value++;
-        }, 100);
+    loadHook((message) => {
+        const timerId = setTimeout(() => {
+            message.value = "SCREW YOU";
+        }, 10000);
 
         return () => {
             clearInterval(timerId);
         }
-    }, [counter]);
+    }, [message]);
 
     return div({
-        onClick: eventListener((_, counter) => counter.value++, [counter]),
-        innerText: observer((c) => c.toString(), [counter]),
+        innerText: observer((c) => c.toString(), [message]),
     }, 
-        "This is otherpage",
 
         div({
             class: "what the flip"

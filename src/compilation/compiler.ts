@@ -258,6 +258,50 @@ function generateLayoutCompilationContext(pathname: string): LayoutCompilationCo
     };
 }
 
+const builtPackages = new Map<string, true>();
+/**
+ * Make a set list of package available in the browser.
+ * Each package will be bundled individually, and placed in publicDirectory/DIST/__packages/, under their respective globalname + ".js".
+ * 
+ * 
+ * Note that this will bundle the *entire* library, which can be quite large.
+ * 
+ * Check if the library you're shipping has a browser-friendly version for use.
+ * Each package is only ever built once, but every file that wants to use the package must re-call clientPackages(), to ensure the appropriate script-tag is added to the page's HTML. 
+ * 
+ * If a layout calls clientPackages, thus generating the <script> tag, you should not call it in the page, since it's unnecessary.
+ * 
+ * **NOTE:** This currently only works with JS files and node_modules packages. ESBuild cannot resolve local typescript files.
+ * @param packages Key-value pair of globalName and packagePath.
+ */
+function clientPackages(packages: { [globalName: string]: string, }) {
+    for (const [globalName, packagePath] of Object.entries(packages)) {
+        if (builtPackages.has(globalName+packagePath)) {
+            continue;
+        }
+
+        const fullPath = packagePath;
+
+        esbuild.build({
+            entryPoints: [fullPath],
+            bundle: true,
+            outfile: path.join(getDistDir(), "__packages", globalName + ".js"),
+            format: "iife",
+            platform: "browser",
+            globalName: globalName,
+            loader: {
+                ".ts": "ts",
+                ".js": "ts",
+            },
+            minify: true,
+            treeShaking: true,
+        }).catch((error) => {
+            formattedLog(LogLevel.ERROR, "Failed to ship package \"", globalName, "\".")
+            console.error(error);
+        });
+    }
+}
+
 function serializeEleganceElement(
     compilationContext: PageCompilationContext,
     element: EleganceElement<any>,
@@ -500,7 +544,10 @@ async function generatePageDataScript(
         dataScriptContent += "subjects:[";
 
         for (const serverSubject of serverSubjects) {
-            const value = serverSubject.value.toString();
+            let value = serverSubject.value.toString();
+            if (typeof value === "string") {
+                value = `"${value}"`
+            }
             const id = serverSubject.id;
 
             dataScriptContent += `{id:"${id}",value:${value}},`;
@@ -1307,4 +1354,6 @@ export {
 
     compilePage,
     compileLayout,
+
+    clientPackages,
 }
