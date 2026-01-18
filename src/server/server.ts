@@ -300,6 +300,7 @@ async function requestHandler(req: IncomingMessage, res: ServerResponse) {
 
 /**
  * Starts the Elegance server and distributes the DIST directory to the public.
+ * If hot-reloading is enabled, this also tells the clients to refresh the page.
  */
 async function serveProject(startupServerOptions: ServerOptions): Promise<ServerStartupResult> {
     serverOptions = startupServerOptions;
@@ -313,6 +314,10 @@ async function serveProject(startupServerOptions: ServerOptions): Promise<Server
     let port = serverOptions.port ?? 3000;
     
     const server = createServer(requestHandler);
+
+    if (compilerOptions.doHotReload) {
+        process.send?.("hot-reload-finish")
+    }
 
     /** Prefer to sacrifice port desireability in-exchange for getting the thing running */
     server.on("error", (error: any) => {

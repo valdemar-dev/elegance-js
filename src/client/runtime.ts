@@ -9,6 +9,17 @@ declare let PROD_BUILD: boolean;
 
 type ClientSubjectObserver<T> = (newValue: T) => void;
 
+DEV_BUILD: {
+    const hotReload = new EventSource("http://localhost:4000/elegance-hot-reload");
+    
+    hotReload.onmessage = (event) => {
+        if (event.data === "hot-reload") {
+            console.log("Reloading page...");
+            window.location.reload();
+        }
+    };
+}
+
 class ClientSubject<T extends any> {
     readonly id: string;
     private _value: T;

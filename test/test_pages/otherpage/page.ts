@@ -24,7 +24,7 @@ export const page = () => {
 
         div({
             class: "what the flip"
-        }, undefined),
+        }),
     );
 };
 

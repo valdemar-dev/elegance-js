@@ -28,8 +28,6 @@ async function runtime() {
         builtStaticPages: compiledStaticPages,
         builtStaticLayouts: compiledStaticLayouts,
     });
-
-    console.log(port)
 }
 
 runtime();

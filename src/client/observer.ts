@@ -21,7 +21,7 @@ class ObserverOption extends SpecialElementOption {
     }
 
     mutate(element: EleganceElement<any>, optionName: string): void {
-        delete element.options[optionName];
+        delete (element.options as Record<string, unknown>)[optionName];
     }
 
     serialize(optionName: string, elementKey: string): string {
