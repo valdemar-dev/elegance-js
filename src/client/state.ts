@@ -29,15 +29,12 @@ function state<T>(value: T, options?: StateCreationOptions): ServerSubject<T> {
 
     const serverSubject = new ServerSubject(subjectId, value);
 
-    store.addServerSubject(serverSubject);
+    store.addClientToken(serverSubject);
 
     return serverSubject
 }
 
 export {
     state,
-}
-
-export type {
     ServerSubject,
 }

@@ -85,7 +85,7 @@ function observer<T extends ServerSubject<any>>(
     const id = store.generateId();
     const listener = new ServerObserver(id, callback, dependencies);
     
-    store.addServerObserver(listener);
+    store.addClientToken(listener);
 
     return new ObserverOption(id);
 }

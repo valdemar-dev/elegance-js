@@ -73,7 +73,7 @@ function loadHook<T extends readonly ServerSubject<any>[]>(
 
     const listener = new LoadHook<T>(callback, dependencies, loadHookKind, pathname);
 
-    store.addLoadHook(listener);
+    store.addClientToken(listener);
 }
 
 export {
