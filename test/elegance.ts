@@ -1,17 +1,25 @@
+import { execSync } from "child_process";
 import { compileEntireProject, setCompilerOptions, } from "../src/compilation/compiler";
 import { serveProject, } from "../src/server/server";
+import path from "path";
 
 async function runtime() {
+    const pagesDirectory = path.resolve("./test_pages");
+    const publicDirectory = path.resolve("./public");
+    const outputDirectory = path.resolve(".elegance");
+
     setCompilerOptions({
-        pagesDirectory: "./test_pages",
-        publicDirectory: "./public",
-        outputDirectory: ".elegance",
+        pagesDirectory: pagesDirectory,
+        publicDirectory: publicDirectory,
+        outputDirectory: outputDirectory,
         environment: "development",
 
         doHotReload: true,
     });
 
     const { allLayouts, allPages, allStatusCodePages, compiledStaticLayouts, compiledStaticPages, } = await compileEntireProject();
+
+    execSync(`npx @tailwindcss/cli -i ${path.join(pagesDirectory, "input.css")} -o ${path.join(outputDirectory, "DIST", "index.css")}`);
 
     const { port } = await serveProject({
         port: 3000,

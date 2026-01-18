@@ -315,10 +315,6 @@ async function serveProject(startupServerOptions: ServerOptions): Promise<Server
     
     const server = createServer(requestHandler);
 
-    if (compilerOptions.doHotReload) {
-        process.send?.("hot-reload-finish")
-    }
-
     /** Prefer to sacrifice port desireability in-exchange for getting the thing running */
     server.on("error", (error: any) => {
         if (error.code === "EADDRINUSE") {
@@ -330,6 +326,10 @@ async function serveProject(startupServerOptions: ServerOptions): Promise<Server
     })
 
     server.listen(serverOptions.port, serverOptions.hostname);
+
+    if (compilerOptions.doHotReload) {
+        process.send?.("hot-reload-finish")
+    }
 
     return {
         port,
