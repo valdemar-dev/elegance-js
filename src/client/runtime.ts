@@ -9,16 +9,32 @@ declare let PROD_BUILD: boolean;
 
 type ClientSubjectObserver<T> = (newValue: T) => void;
 
-DEV_BUILD: {
-    const hotReload = new EventSource("http://localhost:4000/elegance-hot-reload");
-    
-    hotReload.onmessage = (event) => {
-        if (event.data === "hot-reload") {
-            console.log("Reloading page...");
-            window.location.reload();
-        }
-    };
-}
+DEV_BUILD && (() => {
+    let isErrored = false;
+
+    (function connect() {
+        const es = new EventSource("http://localhost:4000/elegance-hot-reload");
+
+        es.onopen = () => {
+            if (isErrored) {
+                window.location.reload();
+            }
+        };
+
+        es.onmessage = (event: MessageEvent) => {
+            if (event.data === "hot-reload") {
+                window.location.reload();
+            }
+        };
+
+        es.onerror = () => {
+            isErrored = true;
+            es.close();
+            
+            setTimeout(connect, 2000);
+        };
+    })();
+})();
 
 class ClientSubject<T extends any> {
     readonly id: string;

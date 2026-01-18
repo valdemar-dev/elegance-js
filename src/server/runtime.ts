@@ -25,6 +25,8 @@ function startEleganceRuntime(file: string) {
                 "Access-Control-Allow-Origin": "*"
             });
 
+            res.write(":ok\n\n");
+
             clients.add(res);
 
             req.on("close", () => {
