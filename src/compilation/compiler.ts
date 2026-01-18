@@ -270,8 +270,32 @@ const builtPackages = new Map<string, true>();
  * **NOTE:** This currently only works with JS files and node_modules packages. ESBuild cannot resolve local typescript files.
  * @param packages Key-value pair of globalName and packagePath.
  */
+class ShippedPackage {
+    globalName: string;
+    packagePath: string;
+
+    constructor(globalName: string, packagePath: string) {
+        this.globalName = globalName;
+        this.packagePath = packagePath;
+    }
+
+    serialize(): string {
+        return `<script data-package="true" src="/__packages/${this.globalName}.js" defer="true"></script>`;
+    }
+}
+
 function clientPackages(packages: { [globalName: string]: string, }) {
     for (const [globalName, packagePath] of Object.entries(packages)) {
+        const store = compilerStore.getStore();
+
+        if (!store) {
+            throw formattedLog(LogLevel.ERROR, "Invalid invocation of clientPackages(). Ensure this function is never called outside of a page or layout constructor.")
+        }
+
+        const shippedPackage = new ShippedPackage(globalName, packagePath);
+
+        store?.addClientToken(shippedPackage);
+
         if (builtPackages.has(globalName+packagePath)) {
             continue;
         }
@@ -287,7 +311,9 @@ function clientPackages(packages: { [globalName: string]: string, }) {
             globalName: globalName,
             loader: {
                 ".ts": "ts",
-                ".js": "ts",
+                ".js": "js",
+                ".cjs": "js",
+                ".mjs": "js",
             },
             minify: true,
             treeShaking: true,
@@ -631,7 +657,13 @@ async function generatePageDataScript(
             document.currentScript.remove();
         </script>`.replace(" ", "").replace("\n", "");
 
-    return dataScript + dataLoaderScript;
+    const shippedPackages = clientTokens.filter(t => t instanceof ShippedPackage);
+    let packagesString = "";
+    for (const shippedPackage of shippedPackages) {
+        packagesString += shippedPackage.serialize();
+    }
+
+    return dataScript + dataLoaderScript + packagesString;
 }
 
 /** 
@@ -823,7 +855,7 @@ async function compilePageToDisk(
 
 /** Returns the standard children of <head> that must exist on every page independent of it's content. */
 function getEnforcedMetadata(): string {
-    return `<script defer="true" src="/client.js"></script>`;
+    return `<meta charset="utf-8"><script defer="true" src="/client.js"></script>`;
 }
 async function compilePage(
     allLayouts: Map<string, LayoutInformation>, 

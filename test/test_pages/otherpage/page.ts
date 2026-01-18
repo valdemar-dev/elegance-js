@@ -5,13 +5,13 @@ import { state } from "../../../src/client/state";
 import { clientPackages } from "../../../src/compilation/compiler"; 
 import path from "path";
 
-import clientModule from "./clientModule";
-
-clientPackages({
-    clientModule: path.resolve(import.meta.dirname, "./clientModule"),
-});
+import * as THREE from "three/build/three.cjs";
 
 export const page = () => {
+    clientPackages({
+        THREE: "three/build/three.cjs",
+    });
+
     const message = state("HELLOTHERE");
 
     loadHook((message) => {
