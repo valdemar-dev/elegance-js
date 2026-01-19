@@ -280,7 +280,7 @@ class ShippedPackage {
     }
 
     serialize(): string {
-        return `<script data-package="true" src="/__packages/${this.globalName}.js" defer="true"></script>`;
+        return `<script data-package="true" src="/__packages/${this.globalName}.js"></script>`;
     }
 }
 
@@ -314,6 +314,9 @@ function clientPackages(packages: { [globalName: string]: string, }) {
                 ".js": "js",
                 ".cjs": "js",
                 ".mjs": "js",
+            },
+            footer: {
+                "js": `;window.${globalName}=${globalName};`,
             },
             minify: true,
             treeShaking: true,
@@ -663,7 +666,7 @@ async function generatePageDataScript(
         packagesString += shippedPackage.serialize();
     }
 
-    return dataScript + dataLoaderScript + packagesString;
+    return packagesString + dataScript + dataLoaderScript;
 }
 
 /** 

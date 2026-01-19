@@ -4019,3 +4019,4 @@ three/build/three.module.js:
    * SPDX-License-Identifier: MIT
    *)
 */
+;window.THREE=THREE;

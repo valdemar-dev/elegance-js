@@ -11,7 +11,7 @@ import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
 
 import { createServer, IncomingMessage, Server, ServerResponse, } from "http";
-import { Dirent, existsSync, readdirSync, readFileSync } from "fs";
+import { Dirent, existsSync, readdirSync, readFileSync, statSync } from "fs";
 
 type ServerOptions = {
     /** If a port is not available, it will increment the port +1 in a loop until it finds a valid one. */
@@ -178,6 +178,21 @@ async function handlePageRequest(req: IncomingMessage, res: ServerResponse, path
     res.end(pageHTML);
 }
 
+const mimeByExt: Record<string, string> = {
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".css": "text/css",
+    ".js": "text/javascript",
+    ".mjs": "text/javascript",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".txt": "text/plain",
+};
+
 async function handleFileRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
     const safePath = await getSafePath(pathname);
 
@@ -185,7 +200,15 @@ async function handleFileRequest(req: IncomingMessage, res: ServerResponse, path
         return respondWithStatusCode(req, res, pathname, 404, "File not found.");
     }
 
+    if (statSync(safePath).isDirectory()) {
+        return respondWithStatusCode(req, res, pathname, 400, "Bad request.");
+    }
+
+    const ext = safePath.slice(safePath.lastIndexOf(".")).toLowerCase();
+    const mime = mimeByExt[ext] ?? "application/octet-stream";
+
     res.statusCode = 200;
+    res.setHeader("Content-Type", mime);
     res.end(readFileSync(safePath));
 }
 
@@ -281,7 +304,7 @@ async function requestHandler(req: IncomingMessage, res: ServerResponse) {
         return;
     }
 
-    const pathname = serverOptions.base ? removePrefix(serverOptions.base!, url.pathname) : url.pathname;
+    const pathname = sanitizePathname(serverOptions.base ? removePrefix(serverOptions.base!, url.pathname) : url.pathname);
     
     runMiddleware(req, res, pathname);
 
