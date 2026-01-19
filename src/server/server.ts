@@ -348,11 +348,11 @@ async function serveProject(startupServerOptions: ServerOptions): Promise<Server
         }
     })
 
-    server.listen(serverOptions.port, serverOptions.hostname);
-
-    if (compilerOptions.doHotReload) {
-        process.send?.("hot-reload-finish")
-    }
+    server.listen({ port: serverOptions.port, hostname: serverOptions.hostname, }, () => {
+        if (compilerOptions.doHotReload) {
+            process.send?.("hot-reload-finish")
+        }
+    });
 
     return {
         port,
