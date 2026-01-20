@@ -565,15 +565,9 @@ async function generatePageDataScript(
 
     {
         dataScriptContent += "subjects:[";
-
+ 
         for (const serverSubject of serverSubjects) {
-            let value = serverSubject.value.toString();
-            if (typeof value === "string") {
-                value = `"${value}"`
-            }
-            const id = serverSubject.id;
-
-            dataScriptContent += `{id:"${id}",value:${value}},`;
+            dataScriptContent += serverSubject.serialize() + ",";
         }
 
         dataScriptContent += "],";

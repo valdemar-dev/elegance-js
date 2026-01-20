@@ -1,4 +1,6 @@
 import { compilerStore } from "../compilation/compiler";
+import { EleganceElement } from "../elements/element";
+import { loadHook } from "./loadHook";
 
 type StateCreationOptions = {
     /**
@@ -16,7 +18,69 @@ class ServerSubject<T extends any> {
         this.id = id;
         this.value = value;
     }
+
+    reactiveMap(template: (entry: T extends (infer U)[] ? U : never) => EleganceElement<any>) {
+        if (!template) {
+            throw new Error("No template provided for reactiveMap.");
+        }
+
+        if (Array.isArray(this.value) === false) {
+            throw new Error("Reactive maps can only be used on arrays.");
+        }
+
+        const templateState = state(template);
+        loadHook((templateState, thisState) => {
+            let trackedElements: Element[] = [];
+
+            function updateCallback(value: any) {
+                for (const elem of trackedElements) {
+                    elem.remove();
+                }
+
+                trackedElements = [];
+
+                for (const value of thisState.value as any[]) {
+                    const result = templateState.value(value);
+                }
+
+                addNewElements();
+            };
+
+            const callbackId = Date.now().toString();
+            thisState.observe(callbackId, updateCallback);
+
+            return () => {
+                thisState.unobserve(callbackId);
+            };
+        }, [templateState, this]);
+    }
+
+    serialize(): string {
+        let result = `{id:"${this.id}",value:`;
+
+
+        switch (typeof this.value) {
+        case "string":
+            result += `"${this.value}"`;
+            break;
+        case "function":
+            result += `${(this.value as any).toString()}`;
+            break;
+        case "object":
+            if (Array.isArray(this.value)) {
+                result += `${JSON.stringify(this.value)}`;
+                break;
+            }
+        default:
+            result += JSON.stringify(this.value);
+            break;
+        }
+
+        result += "}";
+        return result;
+    }
 }
+
 function state<T>(value: T, options?: StateCreationOptions): ServerSubject<T> {
     const store = compilerStore.getStore();
     

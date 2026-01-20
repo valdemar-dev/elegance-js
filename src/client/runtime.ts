@@ -66,6 +66,10 @@ class ClientSubject<T extends any> {
 
         this.observers.set(id, callback);
     }
+
+    unobserve(id: string) {
+        this.observers.delete(id);
+    }
 }
 
 class StateManager {
