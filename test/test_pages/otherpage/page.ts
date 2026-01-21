@@ -5,7 +5,7 @@ export const page = () => {
     const arrayState = state([1,2,3]);
     const test = state("hello");
 
-    loadHook((arrayState, test) => {
+    loadHook((arrayState) => {
         const timerId = setInterval(() => {
             arrayState.value.push(arrayState.value.length+1);
             arrayState.triggerObesrvers();
@@ -13,7 +13,7 @@ export const page = () => {
             if (Math.random() > 0.7) {
                 arrayState.value = [];
             }
-        }, 1000);
+        }, 1);
 
         return () => {
             clearInterval(timerId);
