@@ -1,21 +1,24 @@
-import { observer } from "../../../src/client/observer";
 import { state } from "../../../src/client/state";
 import { loadHook } from "../../../src/client/loadHook";
-import { eventListener } from "../../../src/client/eventListener";
 
 export const page = () => {
     const arrayState = state([1,2,3]);
     const test = state("hello");
 
     loadHook((arrayState, test) => {
-        setTimeout(() => {
-            arrayState.value.push(2);
-        }, 1000)
-    }, [arrayState, test]);
+        const timerId = setInterval(() => {
+            arrayState.value.push(arrayState.value.length+1);
+            arrayState.triggerObesrvers();
 
-    eventListener((_, arrayState) => {
-        arrayState
-    }, [arrayState]);
+            if (Math.random() > 0.7) {
+                arrayState.value = [];
+            }
+        }, 1000);
+
+        return () => {
+            clearInterval(timerId);
+        }
+    }, [arrayState, test]);
 
     return div({
         class: "flex flex-col gap-4"

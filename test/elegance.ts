@@ -12,7 +12,7 @@ async function runtime() {
         pagesDirectory: pagesDirectory,
         publicDirectory: publicDirectory,
         outputDirectory: outputDirectory,
-        environment: "production",
+        environment: "development",
 
         doHotReload: true,
     });

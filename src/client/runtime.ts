@@ -155,6 +155,12 @@ class ClientSubject<T> {
         }
     }
 
+    triggerObesrvers() {
+        for (const observer of this.observers.values()) {
+            observer(this._value);
+        }
+    }
+
     observe(id: string, callback: (newValue: T) => void) {
         if (this.observers.has(id)) {
             this.observers.delete(id);
