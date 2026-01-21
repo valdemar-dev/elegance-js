@@ -19,8 +19,15 @@ class ServerSubject<T extends any> {
         this.value = value;
     }
 
-    reactiveMap(template: (entry: T extends (infer U)[] ? U : never) => EleganceElement<any>) {
-        if (!template) {
+    /**
+     * Create a client-side reactiveMap, that dynamically updates itself whenever the subject changes.
+     * 
+     * **IMPORTANT** `callback` is sent literally to the browser, and thus doesn't have access to server-side variables, and is untrusted.
+     * @param callback Client side templating function that gets each entry of T, and returns an EleganceElement.
+     * @returns An HTML represent used to track the position of the reactive map.
+     */
+    reactiveMap(callback: (entry: T extends (infer U)[] ? U : never) => EleganceElement<any>): EleganceElement<true> {
+        if (!callback) {
             throw new Error("No template provided for reactiveMap.");
         }
 
@@ -28,31 +35,52 @@ class ServerSubject<T extends any> {
             throw new Error("Reactive maps can only be used on arrays.");
         }
 
-        const templateState = state(template);
-        loadHook((templateState, thisState) => {
-            let trackedElements: Element[] = [];
+        const store = compilerStore.getStore();
+        if (!store) {
+            throw new Error("reactiveMap() can only be invoked during the build process of a page or layout.");
+        }
 
-            function updateCallback(value: any) {
+        const mapId = state(store.generateId());
+
+        const templateState = state(callback);
+
+        loadHook((templateState, thisState, mapId) => {
+            let trackedElements: Node[] = [];
+
+            function updateCallback() {
+                const mapTemplateElement = document.querySelector(`template[map-id="${mapId.value}"]`);
+                if(!mapTemplateElement) {
+                    DEV_BUILD: throw new Error("The DOM has been mutated and no longer contains the required template element to create an track the reactiveMap of subject with id: " + thisState.id);
+                    return;
+                }
+
                 for (const elem of trackedElements) {
-                    elem.remove();
+                    elem.parentElement?.removeChild(elem);
                 }
 
                 trackedElements = [];
 
                 for (const value of thisState.value as any[]) {
                     const result = templateState.value(value);
-                }
 
-                addNewElements();
-            };
+                    const instanceHTML = eleganceClient.createHTMLElementFromElement(result);
+
+                    mapTemplateElement.parentElement?.insertBefore(instanceHTML.root, mapTemplateElement);
+
+                    trackedElements.push(instanceHTML.root);
+                }
+            }
 
             const callbackId = Date.now().toString();
             thisState.observe(callbackId, updateCallback);
+            updateCallback();
 
             return () => {
                 thisState.unobserve(callbackId);
             };
-        }, [templateState, this]);
+        }, [templateState, this, mapId]);
+
+        return template({ "map-id": mapId.value, });
     }
 
     serialize(): string {
@@ -81,6 +109,14 @@ class ServerSubject<T extends any> {
     }
 }
 
+/**
+ * Create a reactive ServerSubject which will be serialized and sent to the browser.
+ * 
+ * Once in the callback of a loadHook, eventListener, etc. it will become a *ClientSubject*.
+ * @param value Any value you want to be accessible in the browser. Value is sent literally as-is. Functions are supported.
+ * @param options Set options for the state (usually unused)
+ * @returns An instance of ServerSubject you can use as a reference to this state in functions like `loadHook()`
+ */
 function state<T>(value: T, options?: StateCreationOptions): ServerSubject<T> {
     const store = compilerStore.getStore();
     

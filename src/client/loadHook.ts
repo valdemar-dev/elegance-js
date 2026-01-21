@@ -1,11 +1,7 @@
 import { EleganceElement, SpecialElementOption } from "../elements/element";
 import { compilerStore } from "../compilation/compiler";
 import { ServerSubject } from "./state";
-import { ClientSubject } from "./runtime";
-
-type ToClientTuple<T extends readonly ServerSubject<any>[]> = {
-    [K in keyof T]: T[K] extends ServerSubject<infer V> ? ClientSubject<V> : never;
-};
+import type { ClientSubject } from "./runtime";
 
 enum LoadHookKind {
     LAYOUT_LOADHOOK,
@@ -14,10 +10,10 @@ enum LoadHookKind {
 
 type LoadHookCleanupFunction = (() => void);
 
-type LoadHookCallback<T extends readonly ServerSubject<any>[]> =
-    (...dependencies: ToClientTuple<T>) => LoadHookCleanupFunction | void;
+type LoadHookCallback<D extends readonly ServerSubject<unknown>[]> =
+    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => LoadHookCleanupFunction | void;
 
-class LoadHook<T extends readonly ServerSubject<any>[]> {
+class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
     pathname?: string;
     kind: LoadHookKind;
     callback: LoadHookCallback<T>;
@@ -59,7 +55,7 @@ class LoadHook<T extends readonly ServerSubject<any>[]> {
  * @param callback The browser-side contextless code the loadHook will run.
  * @param dependencies A dependency of state that will be passed into this loadHook
  */
-function loadHook<T extends readonly ServerSubject<any>[]>(
+function loadHook<const T extends readonly ServerSubject<unknown>[]>(
     callback: LoadHookCallback<T>,
     dependencies: [...T]
 ) {
@@ -83,7 +79,6 @@ export {
 
 export type {
     LoadHookCallback,
-    ToClientTuple,
     LoadHookCleanupFunction,
     LoadHookKind,
 };

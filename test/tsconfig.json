@@ -1,8 +1,19 @@
 {
-    "compilerOptions": {
-        "esModuleInterop": true,
-        "module": "nodenext",
-        "moduleResolution": "nodenext"
-    },
-    "include": ["./env.d.ts", "./**/*.ts"]
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "strictFunctionTypes": false,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": [
+        "ES2022",
+        "dom"
+    ]
+  },
+  "include": ["src/**/*.ts", "**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

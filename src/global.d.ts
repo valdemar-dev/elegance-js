@@ -1,6 +1,32 @@
-import { EleganceElementBuilder } from "./elements/element";
+import { AnyElement, EleganceElementBuilder, SpecialElementOption } from "./elements/element";
+import {
+    StateManager,
+    ObserverManager,
+    LoadHookManager,
+    EventListenerManager,
+} from "./client/runtime";
 
 declare global {
+    /**
+     * **IMPORTANT** These values are only available in the *browser* runtime.
+     */
+    var eleganceClient: {
+        createHTMLElementFromElement: (element: AnyElement) => { root: Node, specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[]; };
+    }
+
+    /**
+     * **IMPORTANT** These values are only available in the *browser* runtime.
+     * **IMPORTANT** These values are only available in dev builds, and are stripped out from production builds for security reasons.
+     */
+    var devtools: {
+        pageData: PageData<any>;
+
+        stateManager: StateManager;
+        eventListenerManager: EventListenerManager;
+        observerManager: ObserverManager;
+        loadHookManager: LoadHookManager;
+    }
+
     var area: EleganceElementBuilder<"area">;
     var base: EleganceElementBuilder<"base">;
     var br: EleganceElementBuilder<"br">;

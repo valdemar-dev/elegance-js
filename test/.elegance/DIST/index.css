@@ -8,6 +8,7 @@
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
       "Liberation Mono", "Courier New", monospace;
     --color-red-400: oklch(0.704 0.191 22.216);
+    --spacing: 0.25rem;
     --default-font-family: var(--font-sans);
     --default-font-feature-settings: var(--font-sans--font-feature-settings);
     --default-font-variation-settings: var(
@@ -182,14 +183,26 @@
   .block {
     display: block;
   }
+  .flex {
+    display: flex;
+  }
   .hidden {
     display: none;
   }
   .hidden\! {
     display: none !important;
   }
+  .table {
+    display: table;
+  }
   .shrink {
     flex-shrink: 1;
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .gap-4 {
+    gap: calc(var(--spacing) * 4);
   }
   .bg-red-400 {
     background-color: var(--color-red-400);

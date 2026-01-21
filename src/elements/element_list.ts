@@ -65,14 +65,14 @@ function createElementBuilder<Tag extends AllElementTags>(
     tag: Tag
 ): EleganceElementBuilder<Tag> {
     return ((options: ElementOptionsOrChildElement, ...children: ElementChildren) => 
-        new EleganceElement(tag as any, options, children));
+        new EleganceElement(tag as any, options, children)) as EleganceElementBuilder<Tag>;
 }
 
 function createChildrenlessElementBuilder<Tag extends AllElementTags>(
     tag: Tag
 ): EleganceElementBuilder<Tag> {
     return ((options: ElementOptionsOrChildElement) =>
-        new EleganceElement(tag as any, options, null));
+        new EleganceElement(tag as any, options, null)) as EleganceElementBuilder<Tag>;
 }
 
 for (const tag of htmlElementTags) elements[tag] = createElementBuilder(tag);

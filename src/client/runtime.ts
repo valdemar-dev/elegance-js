@@ -4,6 +4,95 @@ import type { LoadHookCleanupFunction, LoadHook } from "./loadHook";
 import type { ObserverCallback, ServerObserver } from "./observer";
 import type { ServerSubject } from "./state";
 
+import { allElements } from "../elements/element_list";
+import type { AnyElement, } from "../elements/element";
+import { SpecialElementOption, EleganceElement } from "../elements/element";
+
+Object.assign(window, allElements);
+
+interface SerializationResult {
+  root: Node;
+  specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[];
+}
+
+function createHTMLElementFromEleganceElement(
+    element: EleganceElement<any>,
+): SerializationResult {
+    let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
+    const domElement = document.createElement(element.tag);
+
+    // Process options.
+    {
+        const entries = Object.entries(element.options);
+        for (const [optionName, optionValue] of entries) {
+            if (optionValue instanceof SpecialElementOption) {
+                optionValue.mutate(element, optionName);
+     
+                const elementKey = (Math.random() * 10000).toString();
+     
+                specialElementOptions.push({ elementKey, optionName, optionValue });
+            } else {
+                domElement.setAttribute(optionName, `${optionValue}`);
+            }
+        }
+    }
+
+    if (element.key) {
+        domElement.setAttribute("key", element.key);
+    }
+
+    // Process children.
+    {
+        if (element.children !== null) {
+            for (const child of element.children) {
+                const result = createHTMLElementFromElement(child);
+     
+                domElement.appendChild(result.root);
+                specialElementOptions.push(...result.specialElementOptions);
+            }
+        }
+    }
+
+  return { root: domElement, specialElementOptions };
+}
+
+function createHTMLElementFromElement(
+    element: AnyElement,
+): SerializationResult {
+    let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
+
+    if (element === undefined || element === null) {
+        throw new Error(`Undefined and null are not allowed as elements.`);
+    }
+
+    switch (typeof element) {
+    case "object":
+        if (Array.isArray(element)) {
+            const fragment = document.createDocumentFragment();
+            for (const subElement of element) {
+            const result = createHTMLElementFromElement(subElement);
+            fragment.appendChild(result.root);
+            specialElementOptions.push(...result.specialElementOptions);
+            }
+            return { root: fragment, specialElementOptions };
+        }
+        if (element instanceof EleganceElement) {
+            return createHTMLElementFromEleganceElement(element);
+        }
+    throw new Error(`This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
+    case "boolean":
+    case "number":
+    case "string":
+        const text = typeof element === "string" ? element : element.toString();
+        const textNode = document.createTextNode(text);
+  
+        return { root: textNode, specialElementOptions: [] };
+    default:
+        throw new Error(`The typeof of this element is not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.`);
+    }
+}
+
+
 declare let DEV_BUILD: boolean;
 declare let PROD_BUILD: boolean;
 
@@ -36,7 +125,14 @@ DEV_BUILD && (() => {
     })();
 })();
 
-class ClientSubject<T extends any> {
+/**
+ * A ServerSubject that has been serialized, shipped to the browser, and re-created as it's final form.
+ * 
+ * Setting the `value` of this ClientSubject will trigger it's observers callbacks.
+ * 
+ * To listen for changes in `value`, you may call the `observe()` method.
+ */
+class ClientSubject<T> {
     readonly id: string;
     private _value: T;
 
@@ -127,7 +223,6 @@ class ClientEventListener {
 
     call(ev: Event) {
         const dependencies = stateManager.getAll(this.dependencies);
-        console.log(this.dependencies, dependencies);
         this.callback(ev as any, ...dependencies);
     }
 }
@@ -283,8 +378,6 @@ class LoadHookManager {
     loadValues(loadHooks: LoadHook<any>[]) {
         for (const loadHook of loadHooks) {
             const depencencies = stateManager.getAll(loadHook.dependencies);
-
-            console.log(depencencies);
 
             const cleanupFunction = loadHook.callback(...depencencies);
             if (cleanupFunction) {
@@ -541,17 +634,18 @@ async function loadPage(previousPage?: string) {
         loadHooks
     } = pageData;
 
-    {
-        //@ts-ignore
-        DEV_BUILD: globalThis.ELEGANCE = {};
-        //@ts-ignore
-        DEV_BUILD: globalThis.ELEGANCE.pageData = pageData;
-        //@ts-ignore
-        DEV_BUILD: globalThis.ELEGANCE.stateManager = stateManager;
-        //@ts-ignore
-        DEV_BUILD: globalThis.ELEGANCE.eventListenerManager = eventListenerManager;
-        //@ts-ignore
-        DEV_BUILD: globalThis.ELEGANCE.observerManager = observerManager;
+    DEV_BUILD: {
+        globalThis.devtools = {
+            pageData,
+            stateManager,
+            eventListenerManager,
+            observerManager,
+            loadHookManager,
+        }
+    }
+
+    globalThis.eleganceClient = {
+        createHTMLElementFromElement
     }
 
     stateManager.loadValues(subjects);
@@ -567,6 +661,10 @@ async function loadPage(previousPage?: string) {
 
 loadPage();
 
-export type {
+export {
     ClientSubject,
+    StateManager,
+    ObserverManager,
+    LoadHookManager,
+    EventListenerManager,
 }

@@ -1151,7 +1151,7 @@ async function transpileClientRuntime() {
         outfile: targetPath,
         format: "iife",
         platform: "browser",
-        minify: true,
+        minify: compilerOptions.environment === "production",
         external: ["util"],
         treeShaking: true,
         loader: {
@@ -1167,6 +1167,8 @@ async function transpileClientRuntime() {
             "PROD_BUILD": "false",
             "DEV_BUILD": "true",
         },
+
+        sourcemap: compilerOptions.environment === "production" ? undefined : "inline",
     });
 }
 
