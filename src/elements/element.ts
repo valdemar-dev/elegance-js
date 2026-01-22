@@ -149,6 +149,8 @@ export {
     EleganceElement,
 
     SpecialElementOption,
+
+    isAnElement,
 }
 
 export type {

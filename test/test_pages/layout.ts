@@ -1,5 +1,11 @@
 export const layout = (child: any) => {
-    return html(body(ol(li(child))));
+    return html(
+        body({
+            class: "bg-black text-white"
+        },
+            child,
+        )
+    );
 };
 
 export const metadata = () => {

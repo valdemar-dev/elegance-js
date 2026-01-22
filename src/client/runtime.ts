@@ -10,6 +10,10 @@ import { SpecialElementOption, EleganceElement } from "../elements/element";
 
 Object.assign(window, allElements);
 
+// these are both defined in the build of this in the esbuild build call
+declare let DEV_BUILD: boolean;
+declare let PROD_BUILD: boolean;
+
 interface SerializationResult {
   root: Node;
   specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[];
@@ -92,10 +96,6 @@ function createHTMLElementFromElement(
     }
 }
 
-
-declare let DEV_BUILD: boolean;
-declare let PROD_BUILD: boolean;
-
 type ClientSubjectObserver<T> = (newValue: T) => void;
 
 DEV_BUILD && (() => {
@@ -155,12 +155,25 @@ class ClientSubject<T> {
         }
     }
 
-    triggerObesrvers() {
+    /**
+     * Manually trigger each of this subject's observers, with the subject's current value.
+     * 
+     * Useful if you're mutating for example fields of an object, or pushing to an array.
+     */
+    triggerObservers() {
         for (const observer of this.observers.values()) {
             observer(this._value);
         }
     }
 
+    /**
+     * Add a new observer to this subject, `callback` is called whenever the value setter is called on this subject.
+     * 
+     * Note: if an ID is already in use it's callback will just be overwritten with whatever you give it.
+     * 
+     * @param id The unique id of this observer
+     * @param callback Called whenever the value of this subject changes.
+     */
     observe(id: string, callback: (newValue: T) => void) {
         if (this.observers.has(id)) {
             this.observers.delete(id);
@@ -169,6 +182,10 @@ class ClientSubject<T> {
         this.observers.set(id, callback);
     }
 
+    /**
+     * Remove an observer from this subject.
+     * @param id The unique id of the observer.
+     */
     unobserve(id: string) {
         this.observers.delete(id);
     }
@@ -422,7 +439,6 @@ const eventListenerManager = new EventListenerManager();
 const stateManager = new StateManager();
 const loadHookManager = new LoadHookManager();
 
-
 const pageStringCache = new Map<string, string>();
 const domParser = new DOMParser();
 const xmlSerializer = new XMLSerializer();
@@ -651,7 +667,8 @@ async function loadPage(previousPage?: string) {
     }
 
     globalThis.eleganceClient = {
-        createHTMLElementFromElement
+        createHTMLElementFromElement,
+        fetchPage,
     }
 
     stateManager.loadValues(subjects);
