@@ -120,7 +120,7 @@ DEV_BUILD && (() => {
             isErrored = true;
             es.close();
             
-            setTimeout(connect, 2000);
+            setTimeout(connect, 1000);
         };
     })();
 })();
@@ -503,8 +503,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
-
-    if (pathname === sanitizePathname(window.location.pathname)) return;
     
     let oldPageLatest = document.body;
     let newPageLatest = newPage.body;
@@ -531,6 +529,7 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         }
     }
     
+    console.log(oldPageLatest, newPageLatest)
     oldPageLatest.replaceWith(newPageLatest);
     
     // Gracefully replace head.
@@ -577,7 +576,7 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     
     loadHookManager.callCleanupFunctions();
 
-    await loadPage(pathname);
+    await loadPage();
 
     if (targetURL.hash) {
         document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
@@ -628,7 +627,17 @@ function errorOut(message: string) {
     throw new Error(message);
 } 
 
-async function loadPage(previousPage?: string) {
+async function loadPage() {
+    window.onpopstate = async (event: PopStateEvent) => {
+        event.preventDefault();
+
+        const target = event.target as Window;
+
+        await navigateLocally(target.location.href, false);
+
+        history.replaceState(null, "", target.location.href);
+    };
+
     const pathname = sanitizePathname(window.location.pathname);
 
     const pageData = await getPageData(pathname);

@@ -1304,8 +1304,6 @@ async function compileEntireProject() {
         createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
             process.send?.(`restart-me`);
         })
-
-        process.send?.("enable-hot-reload")
     }
 
     const allLayouts = await gatherAllLayouts();

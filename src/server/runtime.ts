@@ -62,18 +62,20 @@ function restartEleganceRuntime() {
         }
 
         if (content === "hot-reload-finish") {
+            if (!serverIsActive) {
+                serverIsActive = true;
+
+                server.listen(4000, () => {
+                    formattedLog(LogLevel.INFO, "Hot-reload server listening on port 4000");
+                });
+            }
+
             for (const client of clients) {
                 client.write("data: hot-reload\n\n");
             }
         }
 
         if (content === "enable-hot-reload") {
-            if (serverIsActive) return;
-            serverIsActive = true;
-
-            server.listen(4000, () => {
-                formattedLog(LogLevel.INFO, "Hot-reload server listening on port 4000");
-            });
         }
 
         if (content === "disable-hot-reload") {

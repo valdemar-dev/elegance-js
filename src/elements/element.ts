@@ -38,55 +38,55 @@ type ElementOptions = Record<string, string | number | SpecialElementOption> | E
 type ElementOptionsOrChildElement = ElementOptions | AnyElement;
 
 type HtmlChildrenlessElementTags =
-  | "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input"
-  | "link" | "meta" | "param" | "source" | "track" | "wbr";
+    | "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input"
+    | "link" | "meta" | "param" | "source" | "track" | "wbr";
 
 type HtmlElementTags =
-  | "a" | "abbr" | "address" | "article" | "aside" | "audio" | "b" | "bdi" | "bdo"
-  | "blockquote" | "body" | "button" | "canvas" | "caption" | "cite" | "code" | "colgroup"
-  | "data" | "datalist" | "dd" | "del" | "details" | "dfn" | "dialog" | "div" | "dl" | "dt"
-  | "em" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3"
-  | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "i" | "iframe" | "ins"
-  | "kbd" | "label" | "legend" | "li" | "main" | "map" | "mark" | "menu" | "meter" | "nav"
-  | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture"
-  | "pre" | "progress" | "q" | "rp" | "rt" | "ruby" | "s" | "samp" | "script" | "search"
-  | "section" | "select" | "slot" | "small" | "span" | "strong" | "style" | "sub" | "summary"
-  | "sup" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead"
-  | "time" | "title" | "tr" | "u" | "ul" | "var" | "video";
+    | "a" | "abbr" | "address" | "article" | "aside" | "audio" | "b" | "bdi" | "bdo"
+    | "blockquote" | "body" | "button" | "canvas" | "caption" | "cite" | "code" | "colgroup"
+    | "data" | "datalist" | "dd" | "del" | "details" | "dfn" | "dialog" | "div" | "dl" | "dt"
+    | "em" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3"
+    | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "i" | "iframe" | "ins"
+    | "kbd" | "label" | "legend" | "li" | "main" | "map" | "mark" | "menu" | "meter" | "nav"
+    | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture"
+    | "pre" | "progress" | "q" | "rp" | "rt" | "ruby" | "s" | "samp" | "script" | "search"
+    | "section" | "select" | "slot" | "small" | "span" | "strong" | "style" | "sub" | "summary"
+    | "sup" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead"
+    | "time" | "title" | "tr" | "u" | "ul" | "var" | "video";
 
 type SvgChildrenlessElementTags =
-  | "path" | "circle" | "ellipse" | "line" | "polygon" | "polyline" | "stop";
+    | "path" | "circle" | "ellipse" | "line" | "polygon" | "polyline" | "stop";
 
 type SvgElementTags =
-  | "svg" | "g" | "text" | "tspan" | "textPath" | "defs" | "symbol" | "use"
-  | "image" | "clipPath" | "mask" | "pattern" | "linearGradient" | "radialGradient"
-  | "filter" | "marker" | "view"
-  | "feBlend" | "feColorMatrix" | "feComponentTransfer" | "feComposite"
-  | "feConvolveMatrix" | "feDiffuseLighting" | "feDisplacementMap" | "feDistantLight"
-  | "feFlood" | "feFuncA" | "feFuncB" | "feFuncG" | "feFuncR" | "feGaussianBlur"
-  | "feImage" | "feMerge" | "feMergeNode" | "feMorphology" | "feOffset" | "fePointLight"
-  | "feSpecularLighting" | "feSpotLight" | "feTile" | "feTurbulence";
+    | "svg" | "g" | "text" | "tspan" | "textPath" | "defs" | "symbol" | "use"
+    | "image" | "clipPath" | "mask" | "pattern" | "linearGradient" | "radialGradient"
+    | "filter" | "marker" | "view"
+    | "feBlend" | "feColorMatrix" | "feComponentTransfer" | "feComposite"
+    | "feConvolveMatrix" | "feDiffuseLighting" | "feDisplacementMap" | "feDistantLight"
+    | "feFlood" | "feFuncA" | "feFuncB" | "feFuncG" | "feFuncR" | "feGaussianBlur"
+    | "feImage" | "feMerge" | "feMergeNode" | "feMorphology" | "feOffset" | "fePointLight"
+    | "feSpecularLighting" | "feSpotLight" | "feTile" | "feTurbulence";
 
 type MathMLChildrenlessElementTags =
-  | "mi" | "mn" | "mo";
+    | "mi" | "mn" | "mo";
 
 type MathMLElementTags =
-  | "math" | "ms" | "mtext" | "mrow" | "mfenced" | "msup" | "msub" | "msubsup"
-  | "mfrac" | "msqrt" | "mroot" | "mtable" | "mtr" | "mtd" | "mstyle"
-  | "menclose" | "mmultiscripts";
+    | "math" | "ms" | "mtext" | "mrow" | "mfenced" | "msup" | "msub" | "msubsup"
+    | "mfrac" | "msqrt" | "mroot" | "mtable" | "mtr" | "mtd" | "mstyle"
+    | "menclose" | "mmultiscripts";
 
 type AllElementTags =
-  | HtmlChildrenlessElementTags
-  | HtmlElementTags
-  | SvgChildrenlessElementTags
-  | SvgElementTags
-  | MathMLChildrenlessElementTags
-  | MathMLElementTags;
+    | HtmlChildrenlessElementTags
+    | HtmlElementTags
+    | SvgChildrenlessElementTags
+    | SvgElementTags
+    | MathMLChildrenlessElementTags
+    | MathMLElementTags;
 
 type EleganceElementBuilder<Tag extends AllElementTags> =
-  Tag extends HtmlChildrenlessElementTags | SvgChildrenlessElementTags | MathMLChildrenlessElementTags
-    ? (options?: ElementOptions) => EleganceElement<false>
-    : (options?: ElementOptions, ...children: ElementChildren) => EleganceElement<true>;
+    Tag extends HtmlChildrenlessElementTags | SvgChildrenlessElementTags | MathMLChildrenlessElementTags
+        ? (options?: ElementOptions) => EleganceElement<false>
+        : (options?: ElementOptions, ...children: ElementChildren) => EleganceElement<true>;
 
 /** Check if any given value can be classified as an element. */
 function isAnElement(value: any): value is AnyElement {
