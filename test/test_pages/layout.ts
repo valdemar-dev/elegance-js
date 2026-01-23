@@ -3,6 +3,12 @@ export const layout = (child: any) => {
         body({
             class: "bg-black text-white"
         },
+            div({
+                class: "h-8 bg-yellow-400",
+            },
+                p({ class: "text-black" }, "header"),
+            ),
+
             child,
         )
     );
