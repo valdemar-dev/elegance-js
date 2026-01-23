@@ -1,4 +1,12 @@
+import { loadHook } from "../../src/client/loadHook";
+
 export const layout = (child: any) => {
+    loadHook(() => {
+        eleganceClient.onNavigate(() => {
+            console.log("NAVIGATING CUHH NAVIGATING CUHH");
+        });
+    }, []);
+
     return html(
         body({
             class: "bg-black text-white"

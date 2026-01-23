@@ -488,14 +488,21 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
         script.setAttribute("data-pathname", `${pathname}`);
         
         newDOM.head.appendChild(script);
-
-        console.log(script);
     }
 
     pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
 
     return newDOM;
 };
+
+
+type NavigationCallback = (pathname: string) => any;
+
+let navigationCallbacks: NavigationCallback[] = [];
+
+function onNavigate(callback: NavigationCallback) {
+    navigationCallbacks.push(callback);
+}
 
 const navigateLocally = async (target: string, pushState: boolean = true) => {
     const targetURL = new URL(target);
@@ -529,7 +536,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         }
     }
     
-    console.log(oldPageLatest, newPageLatest)
     oldPageLatest.replaceWith(newPageLatest);
     
     // Gracefully replace head.
@@ -575,6 +581,14 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     if (pushState) history.pushState(null, "", targetURL.href); 
     
     loadHookManager.callCleanupFunctions();
+
+    {
+        for (const callback of navigationCallbacks) {
+            callback(pathname);
+        }
+
+        navigationCallbacks = [];
+    }
 
     await loadPage();
 
@@ -664,7 +678,8 @@ async function loadPage() {
     globalThis.eleganceClient = {
         createHTMLElementFromElement,
         fetchPage,
-        navigateLocally
+        navigateLocally,
+        onNavigate,
     }
 
     stateManager.loadValues(subjects);
