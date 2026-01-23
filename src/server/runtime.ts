@@ -15,7 +15,8 @@ function startEleganceRuntime(file: string) {
     formattedLog(LogLevel.INFO, "Starting Elegance..");
 
     server = createServer((req: IncomingMessage, res: ServerResponse) => {
-        formattedLog(LogLevel.INFO, "Received hot-reload listener.");
+        formattedLog(LogLevel.DEBUG, "Received hot-reload listener.");
+        
         if (req.url === "/elegance-hot-reload") {
 
             res.writeHead(200, {

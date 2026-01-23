@@ -23,7 +23,11 @@ export function page() {
         {
             target: "/blog",
             name: "Blog",
-        }
+        },
+        {
+            target: "/what-time-is-it",
+            name: "What time is it?",
+        },
     ];
 
     return div(

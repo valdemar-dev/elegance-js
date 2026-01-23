@@ -3,8 +3,8 @@ import { CompilerOptions } from "../compilation/compiler";
 import { AnyElement } from "../elements/element";
 import { LayoutInformation } from "./layout";
 
-type PageConstructor = (() => AnyElement) | (() => Promise<AnyElement>);
-type PageMetadataConstructor = (() => AnyElement) | (() => Promise<AnyElement>);
+type PageConstructor = ((props: Record<string, any>) => AnyElement) | ((props: Record<string, any>) => Promise<AnyElement>);
+type PageMetadataConstructor = ((props: Record<string, any>) => AnyElement) | ((props: Record<string, any>) => Promise<AnyElement>);
 
 /**
  * Described the formatted supported exports of a given page.

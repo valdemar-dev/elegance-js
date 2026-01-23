@@ -885,7 +885,8 @@ function getEnforcedMetadata(): string {
 }
 async function compilePage(
     allLayouts: Map<string, LayoutInformation>, 
-    pageInformation: PageInformation
+    pageInformation: PageInformation,
+    props: Record<string, any> = {},
 ): Promise<CompiledPage> {
     const compilationContext = generatePageCompilationContext(pageInformation.pathname);
 
@@ -911,11 +912,11 @@ async function compilePage(
     };
 
     let pageRootElement = await compilerStore.run(storeTools, async () => {
-        return await pageConstructor();
+        return await pageConstructor(props);
     })
 
     let pageRootMetadataElement = await compilerStore.run(storeTools, async () => {
-        return await pageMetadataConstructor();
+        return await pageMetadataConstructor(props);
     })
 
     let pageSerializationResult: SerializationResult;
@@ -925,6 +926,7 @@ async function compilePage(
         pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
     } catch(e) {
         formattedLog(LogLevel.ERROR, `${pageInformation.pathname}/page.ts - Element serialization failed.`);
+        
         throw e;
     }
 

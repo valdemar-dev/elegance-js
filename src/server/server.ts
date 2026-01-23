@@ -225,6 +225,11 @@ async function handlePageRequest(req: IncomingMessage, res: ServerResponse, path
             return respondWithStatusCode(req, res, pathname, 404, "Page not found.");
         }
 
+        const result = await compilePage(serverOptions.allLayouts, pageInformation);
+
+        res.statusCode = 200;
+        res.end(result.pageHTML);
+
         return;
     }
 
