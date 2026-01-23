@@ -515,13 +515,10 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     
     let oldPageLatest = document.body;
     let newPageLatest = newPage.body;
-    
-    const selector = document.head.querySelectorAll;
-    const selectorNew = newPage.head.querySelectorAll;
 
     {
-        const newPageLayouts = newArray(selectorNew("template[layout-id]")) as HTMLTemplateElement[];
-        const oldPageLayouts = newArray(selector("template[layout-id]")) as HTMLTemplateElement[];
+        const newPageLayouts = newArray(newPage.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
+        const oldPageLayouts = newArray(document.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
         
         const size = Math.min(newPageLayouts.length, oldPageLayouts.length);
         
@@ -540,6 +537,9 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
             newPageLatest = newPageLayout.nextElementSibling! as HTMLElement;
         }
     }
+
+    const head = document.head;
+    const newHead = newPage.head;
     
     oldPageLatest.replaceWith(newPageLatest);
     
@@ -564,19 +564,19 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         
         // add new tags and reomve old ones
         const oldTags = [
-            ...newArray(selector("link")),
-            ...newArray(selector("meta")),
-            ...newArray(selector("script")),
-            ...newArray(selector("base")),
-            ...newArray(selector("style")),
+            ...newArray(head.querySelectorAll("link")),
+            ...newArray(head.querySelectorAll("meta")),
+            ...newArray(head.querySelectorAll("script")),
+            ...newArray(head.querySelectorAll("base")),
+            ...newArray(head.querySelectorAll("style")),
         ];
         
         const newTags = [
-            ...newArray(selectorNew("link")),
-            ...newArray(selectorNew("meta")),
-            ...newArray(selectorNew("script")),
-            ...newArray(selectorNew("base")),
-            ...newArray(selectorNew("style")),
+            ...newArray(newHead.querySelectorAll("link")),
+            ...newArray(newHead.querySelectorAll("meta")),
+            ...newArray(newHead.querySelectorAll("script")),
+            ...newArray(newHead.querySelectorAll("base")),
+            ...newArray(newHead.querySelectorAll("style")),
         ];
         
         update(newTags, oldTags, (node) => document.head.appendChild(node));
