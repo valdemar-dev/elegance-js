@@ -1182,6 +1182,7 @@ async function transpileClientRuntime() {
         outfile: targetPath,
         format: "iife",
         platform: "browser",
+        target: "esnext",
         minify: compilerOptions.environment === "production",
         external: ["util"],
         treeShaking: true,

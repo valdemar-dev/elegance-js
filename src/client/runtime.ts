@@ -14,9 +14,11 @@ Object.assign(window, allElements);
 declare let DEV_BUILD: boolean;
 declare let PROD_BUILD: boolean;
 
+const newArray = Array.from;
+
 interface SerializationResult {
-  root: Node;
-  specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[];
+    root: Node;
+    specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[];
 }
 
 function createHTMLElementFromEleganceElement(
@@ -455,9 +457,9 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     const newDOM = domParser.parseFromString(await res.text(), "text/html");
     
     {
-        const dataScripts = Array.from(newDOM.querySelectorAll('script[data-package="true"]')) as HTMLScriptElement[]
+        const dataScripts = newArray(newDOM.querySelectorAll('script[data-package="true"]')) as HTMLScriptElement[]
         
-        const currentScripts = Array.from(document.head.querySelectorAll('script[data-package="true"]')) as HTMLScriptElement[]
+        const currentScripts = newArray(document.head.querySelectorAll('script[data-package="true"]')) as HTMLScriptElement[]
         
         for (const dataScript of dataScripts) {
             const existing = currentScripts.find(s => s.src === dataScript.src);
@@ -514,9 +516,12 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     let oldPageLatest = document.body;
     let newPageLatest = newPage.body;
     
+    const selector = document.head.querySelectorAll;
+    const selectorNew = newPage.head.querySelectorAll;
+
     {
-        const newPageLayouts = Array.from(newPage.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
-        const oldPageLayouts = Array.from(document.querySelectorAll("template[layout-id]")) as HTMLTemplateElement[];
+        const newPageLayouts = newArray(selectorNew("template[layout-id]")) as HTMLTemplateElement[];
+        const oldPageLayouts = newArray(selector("template[layout-id]")) as HTMLTemplateElement[];
         
         const size = Math.min(newPageLayouts.length, oldPageLayouts.length);
         
@@ -558,21 +563,21 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         };
         
         // add new tags and reomve old ones
-        const oldTags = Array.from([
-            ...Array.from(document.head.querySelectorAll("link")),
-            ...Array.from(document.head.querySelectorAll("meta")),
-            ...Array.from(document.head.querySelectorAll("script")),
-            ...Array.from(document.head.querySelectorAll("base")),
-            ...Array.from(document.head.querySelectorAll("style")),
-        ]);
+        const oldTags = [
+            ...newArray(selector("link")),
+            ...newArray(selector("meta")),
+            ...newArray(selector("script")),
+            ...newArray(selector("base")),
+            ...newArray(selector("style")),
+        ];
         
-        const newTags = Array.from([
-            ...Array.from(newPage.head.querySelectorAll("link")),
-            ...Array.from(newPage.head.querySelectorAll("meta")),
-            ...Array.from(newPage.head.querySelectorAll("script")),
-            ...Array.from(newPage.head.querySelectorAll("base")),
-            ...Array.from(newPage.head.querySelectorAll("style")),
-        ]);
+        const newTags = [
+            ...newArray(selectorNew("link")),
+            ...newArray(selectorNew("meta")),
+            ...newArray(selectorNew("script")),
+            ...newArray(selectorNew("base")),
+            ...newArray(selectorNew("style")),
+        ];
         
         update(newTags, oldTags, (node) => document.head.appendChild(node));
         update(oldTags, newTags, (node) => node.remove());
@@ -654,8 +659,6 @@ async function loadPage() {
 
     const pathname = sanitizePathname(window.location.pathname);
 
-    const pageData = await getPageData(pathname);
-
     const { 
         subjects, 
         eventListenerOptions, 
@@ -663,11 +666,18 @@ async function loadPage() {
         observers,
         observerOptions,
         loadHooks
-    } = pageData;
+    } = await getPageData(pathname);
 
     DEV_BUILD: {
         globalThis.devtools = {
-            pageData,
+            pageData: {
+                subjects, 
+                eventListenerOptions, 
+                eventListeners,
+                observers,
+                observerOptions,
+                loadHooks
+            },
             stateManager,
             eventListenerManager,
             observerManager,

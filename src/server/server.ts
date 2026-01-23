@@ -12,6 +12,10 @@ import { PageInformation } from "./page";
 
 import { createServer, IncomingMessage, Server, ServerResponse, } from "http";
 import { Dirent, existsSync, readdirSync, readFileSync, statSync } from "fs";
+import * as zlib from "zlib";
+import { promisify } from "util";
+
+const gzipAsync = promisify(zlib.gzip);
 
 type ServerOptions = {
     /** If a port is not available, it will increment the port +1 in a loop until it finds a valid one. */
@@ -134,15 +138,13 @@ async function handleAPIRequest(req: IncomingMessage, res: ServerResponse, pathn
 
     if (!route) {
         res.statusCode = 404;
-        res.end("Route does not exist.");
-
+        await sendResponse(req, res, "Route does not exist.");
         return;
     }
 
     if (!req.method) {
         res.statusCode = 400;
-        res.end("Bad request");
-
+        await sendResponse(req, res, "Bad request");
         return;
     }
 
@@ -150,8 +152,7 @@ async function handleAPIRequest(req: IncomingMessage, res: ServerResponse, pathn
 
     if (!method) {
         res.statusCode = 405;
-        res.end("Method not allowed");
-
+        await sendResponse(req, res, "Method not allowed");
         return;
     }
 
@@ -251,19 +252,16 @@ async function respondWithStatusCodePage(
 ) {
     const statusCodePage = getStatusCodePage(statusCode, pathname);
     
-    console.log(statusCodePage);
-
     if (!statusCodePage) {
         res.statusCode = statusCode;
-        res.end(message);
-
+        await sendResponse(req, res, message);
         return;
     }
 
     const compiledPage = await compilePage(serverOptions.allLayouts, statusCodePage);
 
     res.statusCode = 200;
-    res.end(compiledPage.pageHTML);
+    await sendResponse(req, res, compiledPage.pageHTML, "text/html");
 }
 
 async function respondWithStatusCode(req: IncomingMessage, res: ServerResponse, pathname: string, statusCode: number, message: string) {
@@ -272,7 +270,7 @@ async function respondWithStatusCode(req: IncomingMessage, res: ServerResponse, 
     }
 
     res.statusCode = statusCode;
-    res.end(message);
+    await sendResponse(req, res, message);
 }
 
 /**
@@ -309,15 +307,14 @@ async function handlePageRequest(req: IncomingMessage, res: ServerResponse, path
         const result = await compilePage(serverOptions.allLayouts, pageInformation);
 
         res.statusCode = 200;
-        res.end(result.pageHTML);
-
+        await sendResponse(req, res, result.pageHTML, "text/html");
         return;
     }
 
     const { pageHTML } = serverOptions.builtStaticPages.get(pathname)!
 
     res.statusCode = 200;
-    res.end(pageHTML);
+    await sendResponse(req, res, pageHTML, "text/html");
 }
 
 const mimeByExt: Record<string, string> = {
@@ -344,8 +341,7 @@ async function handleFileRequest(req: IncomingMessage, res: ServerResponse, path
 
     if (statSync(safePath).isDirectory()) {
         res.statusCode = 400;
-        res.end("Target file is a directory.");
-
+        await sendResponse(req, res, "Target file is a directory.");
         return;
     }
 
@@ -353,8 +349,7 @@ async function handleFileRequest(req: IncomingMessage, res: ServerResponse, path
     const mime = mimeByExt[ext] ?? "application/octet-stream";
 
     res.statusCode = 200;
-    res.setHeader("Content-Type", mime);
-    res.end(readFileSync(safePath));
+    await sendResponse(req, res, readFileSync(safePath), mime);
 }
 
 function getPathSubparts(path: string) {
@@ -432,11 +427,35 @@ async function runMiddleware(req: IncomingMessage, res: ServerResponse, pathname
     next(0);
 }
 
+async function sendResponse(
+    req: IncomingMessage,
+    res: ServerResponse,
+    data: string | Buffer,
+    contentType: string = "text/plain"
+) {
+    let buffer: Buffer = typeof data === "string" ? Buffer.from(data) : data;
+    const acceptEncoding = req.headers["accept-encoding"] as string || "";
+
+    if (acceptEncoding.match(/\bgzip\b/)) {
+        try {
+            buffer = await gzipAsync(buffer);
+            res.setHeader("Content-Encoding", "gzip");
+            res.setHeader("Vary", "Accept-Encoding");
+        } catch (err) {
+            console.error("Gzip compression error:", err);
+            // Fallback to uncompressed
+        }
+    }
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Length", buffer.length.toString());
+    res.end(buffer);
+}
+
 async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     if (!req.url) {
         res.statusCode = 400;
-        res.end("Bad request.");
-
+        await sendResponse(req, res, "Bad request.");
         return;
     }
 
@@ -444,8 +463,7 @@ async function requestHandler(req: IncomingMessage, res: ServerResponse) {
 
     if (serverOptions.base && url.pathname.startsWith(serverOptions.base) === false) {
         res.statusCode = 501;
-        res.end("Path does not start with basename.");
-
+        await sendResponse(req, res, "Path does not start with basename.");
         return;
     }
 
