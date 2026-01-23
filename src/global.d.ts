@@ -14,6 +14,7 @@ declare global {
     var eleganceClient: {
         createHTMLElementFromElement: (element: AnyElement) => { root: Node, specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[]; };
         fetchPage: (targetURL: URL) => Promise<Document | void>;
+        navigateLocally: (target: string, pushState: boolean) => Promise<void>;
     }
 
     /**

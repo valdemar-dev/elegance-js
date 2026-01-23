@@ -4,7 +4,8 @@ import { AnyElement, ElementOptionsOrChildElement, isAnElement } from "../../src
 function Link(options: ElementOptionsOrChildElement, ...children: AnyElement[]) {
     const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
         event.preventDefault();
-        eleganceClient.fetchPage(new URL(event.currentTarget.href));
+
+        eleganceClient.navigateLocally(event.currentTarget.href, true);
     }, []);
 
     const extraOptions = typeof options === "object" ? options : {};

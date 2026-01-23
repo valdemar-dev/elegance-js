@@ -455,9 +455,9 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     const newDOM = domParser.parseFromString(await res.text(), "text/html");
     
     {
-        const dataScripts = Array.from(newDOM.querySelectorAll('script[data-module="true"]')) as HTMLScriptElement[]
+        const dataScripts = Array.from(newDOM.querySelectorAll('script[data-package="true"]')) as HTMLScriptElement[]
         
-        const currentScripts = Array.from(document.head.querySelectorAll('script[data-module="true"]')) as HTMLScriptElement[]
+        const currentScripts = Array.from(document.head.querySelectorAll('script[data-package="true"]')) as HTMLScriptElement[]
         
         for (const dataScript of dataScripts) {
             const existing = currentScripts.find(s => s.src === dataScript.src);
@@ -472,22 +472,24 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     
     // get page script
     {
-        const pageDataScript = newDOM.querySelector('script[data-page="true"]') as HTMLScriptElement
-        
-        if (!pageDataScript) {
-            return;
-        }
+        const pageDataScript = newDOM.querySelector(`script[data-hook="true"][data-pathname="${pathname}"]`) as HTMLScriptElement
     
-        await import(pageDataScript.src);
-    }
-    
-    // get layout scripts
-    {
-        const layoutDataScripts = Array.from(newDOM.querySelectorAll('script[data-layout="true"]')) as HTMLScriptElement[]
+        const text = pageDataScript.textContent;
+
+        pageDataScript.remove();
+        const blob = new Blob([text], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
         
-        for (const script of layoutDataScripts) {
-            await import(script.src);
-        }
+        const script = document.createElement("script");
+
+        script.src = url;
+        script.type = "module";
+        script.setAttribute("data-page", "true");
+        script.setAttribute("data-pathname", `${pathname}`);
+        
+        newDOM.head.appendChild(script);
+
+        console.log(script);
     }
 
     pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
@@ -495,7 +497,6 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     return newDOM;
 };
 
-/*
 const navigateLocally = async (target: string, pushState: boolean = true) => {
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
@@ -504,22 +505,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     if (!newPage) return;
 
     if (pathname === sanitizePathname(window.location.pathname)) return;
-
-    for (const cleanupProcedure of [...cleanupProcedures]) {
-        const isInScope = pathname.startsWith(cleanupProcedure.page);
-        
-        if (!isInScope) {
-            try {
-                cleanupProcedure();
-            } catch(e) {
-                console.error(e);
-                
-                return;
-            }
-            
-            cleanupProcedures.splice(cleanupProcedures.indexOf(cleanupProcedure), 1);
-        }
-    } 
     
     let oldPageLatest = document.body;
     let newPageLatest = newPage.body;
@@ -548,9 +533,9 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     
     oldPageLatest.replaceWith(newPageLatest);
     
+    // Gracefully replace head.
+    // document.head.replaceWith(); causes FOUC on Chromium browsers.
     {   
-        // Gracefully replace head.
-        // document.head.replaceWith(); causes FOUC on Chromium browsers.
         document.head.querySelector("title")?.replaceWith(
             newPage.head.querySelector("title") ?? ""
         )
@@ -590,13 +575,14 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
 
     if (pushState) history.pushState(null, "", targetURL.href); 
     
+    loadHookManager.callCleanupFunctions();
+
     await loadPage(pathname);
 
     if (targetURL.hash) {
         document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
 };
-*/
 
 /** Take any directory pathname, and make it into this format: /path */
 function sanitizePathname(pathname: string = ""): string {
@@ -669,6 +655,7 @@ async function loadPage(previousPage?: string) {
     globalThis.eleganceClient = {
         createHTMLElementFromElement,
         fetchPage,
+        navigateLocally
     }
 
     stateManager.loadValues(subjects);
