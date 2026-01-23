@@ -5,18 +5,20 @@ type ElementChildren = AnyElement[];
 /** Element options of this type will be made into field="value.toString()" */
 type ElementOptionLiteral = number | string | Record<any, any>;
 type ProcessSpecialElementOption = (element: EleganceElement<any>, optionName: string, value: any) => void;
-/** A piece of data that is sent to the client, and processed upon page load. */
-type ClientToken = any;
-/** Represents an option that should be treated differently by the compiler (eg. stored into the page_data) */
+/**
+ * An option that should be treated differently by the compiler.
+ */
 declare abstract class SpecialElementOption {
     /**
-     * Make the special element option mutate it's position in the element to
-     * it's final state, and return it's client data token. */
-    abstract serialize(element: EleganceElement<any>, optionName: string): {
-        clientToken: ClientToken;
-    };
+     * Mutate this option in the element to it's serializeable state.
+     */
+    abstract mutate(element: EleganceElement<any>, optionName: string): void;
+    /**
+     * Convert this special element option into a string.
+     */
+    abstract serialize(optionName: string, elementKey: string): string;
 }
-type ElementOptions = Record<string, SpecialElementOption | ElementOptionLiteral>;
+type ElementOptions = Record<string, string | number | SpecialElementOption> | ElementOptionLiteral;
 /**
  * Purely for syntax reasons, you can use an element as the options parameter
  * when creating an element using an element builder.
@@ -30,20 +32,21 @@ type SvgElementTags = "svg" | "g" | "text" | "tspan" | "textPath" | "defs" | "sy
 type MathMLChildrenlessElementTags = "mi" | "mn" | "mo";
 type MathMLElementTags = "math" | "ms" | "mtext" | "mrow" | "mfenced" | "msup" | "msub" | "msubsup" | "mfrac" | "msqrt" | "mroot" | "mtable" | "mtr" | "mtd" | "mstyle" | "menclose" | "mmultiscripts";
 type AllElementTags = HtmlChildrenlessElementTags | HtmlElementTags | SvgChildrenlessElementTags | SvgElementTags | MathMLChildrenlessElementTags | MathMLElementTags;
-type EleganceElementBuilder<Tag extends AllElementTags> = Tag extends HtmlChildrenlessElementTags | SvgChildrenlessElementTags | MathMLChildrenlessElementTags ? (options: ElementOptions) => EleganceElement<false> : (options: ElementOptions, ...children: ElementChildren) => EleganceElement<true>;
-declare function invalidElementError(element: AnyElement, reason: string): Error;
+type EleganceElementBuilder<Tag extends AllElementTags> = Tag extends HtmlChildrenlessElementTags | SvgChildrenlessElementTags | MathMLChildrenlessElementTags ? (options?: ElementOptions) => EleganceElement<false> : (options?: ElementOptions, ...children: ElementChildren) => EleganceElement<true>;
+/** Check if any given value can be classified as an element. */
+declare function isAnElement(value: any): value is AnyElement;
 /** Represents an element that has been constructed via the use of an element constructor such as h1() */
 declare class EleganceElement<CanHaveChildren extends boolean> {
     readonly tag: keyof HTMLElementTagNameMap;
     readonly options: ElementOptions;
     /**
      * The unique key of this element.
-     * It is undefined until it is manually generated.
+     * Use getElementKey() in from the compiler to retrieve this value
      */
     key?: string;
     children: CanHaveChildren extends true ? ElementChildren : null;
     constructor(tag: keyof HTMLElementTagNameMap, options: ElementOptionsOrChildElement | undefined, children: ElementChildren | null);
-    canHaveChildren<V extends CanHaveChildren>(): this is EleganceElement<true>;
+    canHaveChildren(): this is EleganceElement<true>;
 }
-export { EleganceElement, SpecialElementOption, invalidElementError, };
+export { EleganceElement, SpecialElementOption, isAnElement, };
 export type { EleganceElementBuilder, AnyElement, ElementChildren, AllElementTags, HtmlElementTags, HtmlChildrenlessElementTags, SvgElementTags, SvgChildrenlessElementTags, MathMLElementTags, MathMLChildrenlessElementTags, ElementOptions, ProcessSpecialElementOption, ElementOptionsOrChildElement, };

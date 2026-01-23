@@ -1,19 +1,9 @@
-const resetLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__ = /* @__PURE__ */ new Map();
-const getLayouts = () => globalThis.__SERVER_CURRENT_LAYOUTS__;
-if (!globalThis.__SERVER_CURRENT_LAYOUT_ID__) globalThis.__SERVER_CURRENT_LAYOUT_ID__ = 1;
-const createLayout = (name) => {
-  process.emitWarning(
-    "Function createLayout() is deprecated. Prefer layout.ts files instead.",
-    { type: "DeprecationWarning" }
-  );
-  const layouts = globalThis.__SERVER_CURRENT_LAYOUTS__;
-  if (layouts.has(name)) return layouts.get(name);
-  const id = globalThis.__SERVER_CURRENT_LAYOUT_ID__ += 1;
-  layouts.set(name, id);
-  return id;
-};
+import { relative } from "node:path";
+function invalidLayoutError(compilerOptions, modulePath, reason) {
+  const relativePath = relative(compilerOptions.pagesDirectory, modulePath);
+  return new Error(`The layout at path: "${relativePath}" is invalid.
+${reason}`);
+}
 export {
-  createLayout,
-  getLayouts,
-  resetLayouts
+  invalidLayoutError
 };

@@ -479,7 +479,7 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
         const text = pageDataScript.textContent;
 
         pageDataScript.remove();
-        const blob = new Blob([text], { type: 'text/javascript' });
+        const blob = new Blob([text!], { type: 'text/javascript' });
         const url = URL.createObjectURL(blob);
         
         const script = document.createElement("script");

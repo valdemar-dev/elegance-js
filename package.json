@@ -3,6 +3,8 @@
   "version": "2.1.23",
   "description": "Web-Framework",
   "type": "module",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "bin": {
     "dev": "./scripts/ts-arc-dev.js",
     "prod": "./scripts/ts-arc-prod.js",
@@ -10,7 +12,7 @@
     "native": "./scripts/native-test.js"
   },
   "scripts": {
-    "build": "esbuild --format=esm --platform=node --bundle=false --outdir=./dist --out-extension:.js=.mjs \"./src/**/*.ts\" && esbuild --format=iife --platform=browser --bundle=true --outfile=./dist/client/client.mjs --out-extension:.js=.mjs ./src/client/client.ts  && tsc ",
+    "build": "esbuild --format=esm --platform=node --bundle=false --outdir=./dist --out-extension:.js=.mjs \"./src/**/*.ts\" && tsc ",
     "compile-docs": "node ./dist/compile_docs.mjs --environment=development",
     "compile-docs-bun": "bun run ./dist/compile_docs.mjs --environment=development",
     "prepare": "npm run build"
@@ -20,11 +22,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.mjs"
-    },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "import": "./dist/*.mjs",
-      "require": "./dist/*.mjs"
     }
   },
   "files": [
