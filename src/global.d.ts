@@ -138,6 +138,7 @@ declare global {
     var th: EleganceElementBuilder<"th">;
     var thead: EleganceElementBuilder<"thead">;
     var time: EleganceElementBuilder<"time">;
+    var title: EleganceElementBuilder<"title">;
     var tr: EleganceElementBuilder<"tr">;
     var u: EleganceElementBuilder<"u">;
     var ul: EleganceElementBuilder<"ul">;

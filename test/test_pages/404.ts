@@ -13,7 +13,7 @@ export function page() {
     },
         p({
             innerText: observer((p) => {
-                return `The ${pathname} does not exist.`;
+                return `The pathname ${p} does not exist.`;
             }, [pathname])
         }),
     )

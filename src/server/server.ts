@@ -223,6 +223,8 @@ function getStatusCodePage(
         const pageInfo = pages.get(candidate);
 
         if (pageInfo) {
+            pageInfo.pathname = pathname;
+
             return pageInfo;
         }
 
@@ -249,6 +251,8 @@ async function respondWithStatusCodePage(
 ) {
     const statusCodePage = getStatusCodePage(statusCode, pathname);
     
+    console.log(statusCodePage);
+
     if (!statusCodePage) {
         res.statusCode = statusCode;
         res.end(message);
@@ -340,7 +344,7 @@ async function handleFileRequest(req: IncomingMessage, res: ServerResponse, path
 
     if (statSync(safePath).isDirectory()) {
         res.statusCode = 400;
-        res.end("Bad request.");
+        res.end("Target file is a directory.");
 
         return;
     }

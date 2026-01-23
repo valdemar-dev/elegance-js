@@ -229,9 +229,6 @@ function getElementKey(compilationContext: PageCompilationContext, element: Eleg
 function generatePageCompilationContext(pathname: string): PageCompilationContext {
     pathname = sanitizePathname(pathname);
 
-    const absPath = path.join(getDistDir(), pathname);
-    if (!existsSync(absPath)) mkdirSync(absPath, { recursive: true });
-
     return {
         pathname: pathname,
         idCounter: 0,
@@ -867,6 +864,9 @@ async function compilePageToDisk(
     pageInformation: PageInformation
 ): Promise<CompiledPage> {
     const compiledPage = await compilePage(allLayouts, pageInformation);
+
+    const absPath = path.join(getDistDir(), pageInformation.pathname);
+    if (!existsSync(absPath)) mkdirSync(absPath, { recursive: true });
 
     const targetPath = path.join(
         getDistDir(),
