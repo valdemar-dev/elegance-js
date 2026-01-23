@@ -6,7 +6,7 @@
  */
 
 import { join, normalize, relative, resolve } from "path";
-import { CompiledLayout, CompiledPage, compilerOptions, CompilerOptions } from "../compilation/compiler";
+import { CompiledLayout, CompiledPage, compilerOptions, CompilerOptions, generatePageCompilationContext } from "../compilation/compiler";
 import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
 
@@ -123,15 +123,66 @@ function sanitizePathname(pathname: string = ""): string {
     return pathname;
 }
 
-async function respondWithStatusCodePage(req: IncomingMessage, res: ServerResponse, pathname: string, statusCode: number) {
-    // build the dynamic page here
-    // applicable layouts are already here, we have to just find the matching one.
-    // if pathname is /home we should respond with /home/(code).ts, going upwards until we find the right one 
+function getStatusCodePage(
+    statusCode: number,
+    pathname: string,
+) {
+    const pages = serverOptions.allStatusCodePages;
+    let currentPath = pathname;
+
+    if (!currentPath.startsWith("/")) {
+        currentPath = "/" + currentPath;
+    }
+
+    while (true) {
+        let candidate: string;
+
+        if (currentPath === "/") {
+            candidate = `/${statusCode}`;
+        } else {
+            candidate = `${currentPath.replace(/\/$/, "")}/${statusCode}`;
+        }
+
+        const pageInfo = pages.get(candidate);
+
+        if (pageInfo) {
+            return pageInfo;
+        }
+
+        if (currentPath === "/") {
+            break;
+        }
+
+        const lastSlash = currentPath.lastIndexOf("/");
+
+        if (lastSlash <= 0) {
+            currentPath = "/";
+        } else {
+            currentPath = currentPath.slice(0, lastSlash);
+        }
+    }
+}
+
+async function respondWithStatusCodePage(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    statusCode: number,
+    message: string,
+) {
+    const statusCodePage = getStatusCodePage(statusCode, pathname);
+    
+    if (!statusCodePage) {
+        res.statusCode = statusCode;
+        res.end(message);
+    }
+
+    generatePageCompilationContext(pathname);
 }
 
 async function respondWithStatusCode(req: IncomingMessage, res: ServerResponse, pathname: string, statusCode: number, message: string) {
-    if (serverOptions.allStatusCodePages) {
-        return respondWithStatusCodePage(req, res, pathname, statusCode);
+    if (serverOptions.allowStatusCodePages === true) {
+        return respondWithStatusCodePage(req, res, pathname, statusCode, message);
     }
 
     res.statusCode = statusCode;
