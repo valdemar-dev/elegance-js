@@ -794,6 +794,35 @@ async function gatherAllPages(allLayouts: Map<string, LayoutInformation>): Promi
     return pageMap;
 }
 
+async function gatherAllStatusCodePages(allLayouts: Map<string, LayoutInformation>): Promise<Map<string, PageInformation>> {
+    const pageMap = new Map();
+
+    await walkDirectory(compilerOptions.pagesDirectory, async (file) => {
+        const re = /\b\d{3}\.ts\b/;
+
+        if (re.test(file.name) === false) return;
+
+        const code = file.name.slice(0, file.name.length - 3);
+
+        const fullPath = path.join(file.parentPath, file.name);
+        const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
+
+        const exports = await getPageExports(fullPath);
+        const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
+
+        const pageInformation: PageInformation = {
+            modulePath: fullPath,
+            exports: exports,
+            pathname: pathname + code,
+            applicableLayouts: applicablePageLayouts,
+        };
+
+        pageMap.set(pathname + code, pageInformation);
+    })
+
+    return pageMap;
+}
+
 async function gatherAllLayouts(): Promise<Map<string, LayoutInformation>> {
     const layoutMap = new Map();
 
@@ -1279,7 +1308,7 @@ async function compileEntireProject() {
 
     const allLayouts = await gatherAllLayouts();
     const allPages = await gatherAllPages(allLayouts);
-    const allStatusCodePages = new Map<string, PageInformation>();
+    const allStatusCodePages = await gatherAllStatusCodePages(allLayouts);
 
     const compiledStaticPages = await compileStaticPagesToDisk(allLayouts, allPages);
 

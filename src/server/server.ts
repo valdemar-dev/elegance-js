@@ -6,7 +6,7 @@
  */
 
 import { join, normalize, relative, resolve } from "path";
-import { CompiledLayout, CompiledPage, compilerOptions, CompilerOptions, generatePageCompilationContext } from "../compilation/compiler";
+import { CompiledLayout, CompiledPage, compilePage, compilerOptions, CompilerOptions, generatePageCompilationContext } from "../compilation/compiler";
 import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
 
@@ -175,9 +175,14 @@ async function respondWithStatusCodePage(
     if (!statusCodePage) {
         res.statusCode = statusCode;
         res.end(message);
+
+        return;
     }
 
-    generatePageCompilationContext(pathname);
+    const compiledPage = await compilePage(serverOptions.allLayouts, statusCodePage);
+
+    res.statusCode = 200;
+    res.end(compiledPage.pageHTML);
 }
 
 async function respondWithStatusCode(req: IncomingMessage, res: ServerResponse, pathname: string, statusCode: number, message: string) {
@@ -248,11 +253,14 @@ async function handleFileRequest(req: IncomingMessage, res: ServerResponse, path
     const safePath = await getSafePath(pathname);
 
     if (!safePath) {
-        return respondWithStatusCode(req, res, pathname, 404, "File not found.");
+        return respondWithStatusCodePage(req, res, pathname, 404, "File not found.");
     }
 
     if (statSync(safePath).isDirectory()) {
-        return respondWithStatusCode(req, res, pathname, 400, "Bad request.");
+        res.statusCode = 400;
+        res.end("Bad request.");
+
+        return;
     }
 
     const ext = safePath.slice(safePath.lastIndexOf(".")).toLowerCase();

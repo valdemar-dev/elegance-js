@@ -26,7 +26,7 @@ async function runtime() {
         hostname: "0.0.0.0",
         
         allowDynamic: true,
-        allowStatusCodePages: false, 
+        allowStatusCodePages: true, 
         serveAPI: true,
         
         allLayouts,
