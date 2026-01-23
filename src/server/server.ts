@@ -66,6 +66,27 @@ type MiddlewareInformation = {
     exports: MiddlewareExports,
 };
 
+type APIRouteFunction = (req: IncomingMessage, res: ServerResponse) => Promise<any>;
+
+type APIRouteExports = {
+    methods: {
+        POST: APIRouteFunction | undefined,
+        GET: APIRouteFunction | undefined,
+        PUT: APIRouteFunction | undefined,
+        DELETE: APIRouteFunction | undefined,
+        OPTIONS: APIRouteFunction | undefined,    
+    },
+}
+type APIRouteInformation = {
+    /** The absolute path to the .ts file containing the module for this middleware. */
+    modulePath: string,
+
+    /** The pathname of this middleware relative to pagesDirectory */
+    pathname: string,
+
+    exports: APIRouteExports,
+}
+
 type ServerStartupResult = {
     /** The port that we ended up actually using (might differ from the one given, if it was not available) */
     port: number;
@@ -77,8 +98,64 @@ function removePrefix(str: string, prefix: string) {
 
 let serverOptions: ServerOptions;
 
+const allAPIRoutes = new Map<string, APIRouteInformation>();
+async function gatherAPIRoutes() {
+    await walkDirectory(compilerOptions.pagesDirectory, async (file) => {
+        if (file.name !== "route.ts") return;
+
+        const pathname = sanitizePathname(relative(compilerOptions.pagesDirectory, file.parentPath));
+        const fullPath = join(file.parentPath, file.name);
+
+        const { POST, GET, PUT, DELETE, OPTIONS  } = await import("file://" + fullPath);
+
+        const methods = {POST, GET, PUT, DELETE, OPTIONS};
+
+        for (const [name, method] of Object.entries(methods)) {
+            if (method && typeof method !== "function") {
+                throw new Error(`In file: "${fullPath}":\nThe export ${method} is not of type "function". Got: ${typeof method}`);
+            }
+        }
+
+        const apiRouteInformation: APIRouteInformation = {
+            exports: {
+                methods,
+            },
+            modulePath: fullPath,
+            pathname: pathname,
+        };
+
+        allAPIRoutes.set(pathname, apiRouteInformation);
+    });
+} 
+
+
 async function handleAPIRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
-    const options = compilerOptions;
+    const route = allAPIRoutes.get(pathname);
+
+    if (!route) {
+        res.statusCode = 404;
+        res.end("Route does not exist.");
+
+        return;
+    }
+
+    if (!req.method) {
+        res.statusCode = 400;
+        res.end("Bad request");
+
+        return;
+    }
+
+    const method = route.exports.methods[req.method as keyof typeof route.exports.methods];
+
+    if (!method) {
+        res.statusCode = 405;
+        res.end("Method not allowed");
+
+        return;
+    }
+
+    method(req, res);
 }
 
 /** 
@@ -397,6 +474,7 @@ async function serveProject(startupServerOptions: ServerOptions): Promise<Server
     }
 
     await gatherMiddleware();
+    await gatherAPIRoutes();
 
     let port = serverOptions.port ?? 3000;
     

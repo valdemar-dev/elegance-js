@@ -7,16 +7,16 @@ export function page() {
 
     loadHook((time) => {
         time.value = Date.now();
-        
+
         const timerId = setInterval(() => {
             time.value += 11;
-        }, 11)
+        }, 11);
 
         return () => clearInterval(timerId);
     }, [time])
 
     return div({
-        innerText: observer((t) => `The time is: ${t}`, [time])
+        innerText: observer((t) => `The time is: ${new Date(t).toLocaleTimeString("en-us")}`, [time])
     });
 }
 
