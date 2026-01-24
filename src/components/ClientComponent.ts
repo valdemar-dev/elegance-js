@@ -5,7 +5,7 @@ import { compilerStore } from "../compilation/compiler";
 import { EleganceElement } from "../elements/element";
 
 type ClientComponentCallback<D extends readonly ServerSubject<unknown>[]> =
-    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => void;
+    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => EleganceElement<any>;
 
 /**
  * Create a component that will be client-side rendered.
@@ -26,7 +26,6 @@ function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(
     dependencies: [...T]
 ): EleganceElement<true> {
     const callbackState = state(callback);
-    const dependenciesState = state(dependencies);  
 
     const store = compilerStore.getStore();
 
@@ -36,11 +35,41 @@ function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(
 
     const componentId = state(store.generateId());
 
-    const depIds = state(dependencies.map(d => d.id));
-    
-    loadHook((componentId, ...depIds) => {
-        console.log(...dependencies);
-    }, [componentId, ...dependencies]);
+    loadHook((componentId, callback, ...dependencies) => {
+        let node: Node | undefined;
+
+        function update() {
+            if (node) (node as any).remove();
+
+            const element = callback.value(...dependencies);
+
+            const HTMLElement = eleganceClient.createHTMLElementFromElement(element);
+
+            node = HTMLElement.root;
+
+            const trackedElement = document.querySelector(`template[component-id="${componentId.value}"]`);
+            if (!trackedElement) return;
+
+            trackedElement.parentElement!.insertBefore(HTMLElement.root, trackedElement);
+        }
+
+        const observers: { subject: ClientSubject<any>, id: string, }[] = [];
+        for (const dep of dependencies) {
+            const id = `${Math.random() * 1000 + Date.now()}`;
+
+            dep.observe(id, update);
+            observers.push({ subject: dep, id, });
+        }
+
+        update();
+
+        return () => {
+            for (const observer of observers) {
+                observer.subject.unobserve(observer.id);
+            }
+        }
+
+    }, [componentId, callbackState, ...dependencies]);
 
     return template({
         "component-id": componentId.value,

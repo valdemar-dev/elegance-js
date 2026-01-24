@@ -1,4 +1,4 @@
-import { ClientComponent, state } from "elegance-js";
+import { ClientComponent, loadHook, state } from "elegance-js";
 
 type RandomData = {
     content: string;
@@ -17,6 +17,14 @@ export function page() {
             name: "What time is it?",
         },
     ];
+
+    loadHook((clientData) => {
+        const timeoutId = setTimeout(() => {
+            clientData.value = { content: "HI!", };
+        }, 1000)
+
+        return () => clearTimeout(timeoutId);
+    }, [clientData]);
 
     return ClientComponent((clientData) => {
         if (clientData.value === null) {
