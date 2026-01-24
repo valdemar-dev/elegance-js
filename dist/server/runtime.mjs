@@ -8,8 +8,8 @@ const clients = /* @__PURE__ */ new Set();
 let server;
 let serverIsActive = false;
 function startEleganceRuntime(file) {
-  childPath = resolve(file);
   formattedLog(LogLevel.INFO, "Starting Elegance..");
+  childPath = resolve(file);
   server = createServer((req, res) => {
     formattedLog(LogLevel.DEBUG, "Received hot-reload listener.");
     if (req.url === "/elegance-hot-reload") {

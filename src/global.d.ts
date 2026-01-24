@@ -20,6 +20,7 @@ declare global {
 
     /**
      * **IMPORTANT** These values are only available in the *browser* runtime.
+     * 
      * **IMPORTANT** These values are only available in dev builds, and are stripped out from production builds for security reasons.
      */
     var devtools: {

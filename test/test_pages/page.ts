@@ -1,25 +1,12 @@
-import { eventListener, SetEvent } from "../../src/client/eventListener";
-import { AnyElement, ElementOptionsOrChildElement, isAnElement } from "../../src/elements/element";
+import { ClientComponent, state } from "elegance-js";
 
-function Link(options: ElementOptionsOrChildElement, ...children: AnyElement[]) {
-    const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
-        event.preventDefault();
-
-        eleganceClient.navigateLocally(event.currentTarget.href, true);
-    }, []);
-
-    const extraOptions = typeof options === "object" ? options : {};
-    const firstChild = isAnElement(options) ? options : undefined;
-
-    return a({
-        onClick: handler,
-        ...extraOptions,
-    },
-        ...(firstChild ? [firstChild, ...children] : children)
-    );
-}
+type RandomData = {
+    content: string;
+};
 
 export function page() {
+    const clientData = state<RandomData | null>(null);
+
     const links = [
         {
             target: "/blog",
@@ -31,15 +18,13 @@ export function page() {
         },
     ];
 
-    return div(
-        "mapped links",
-        br(),
-        ...links.map(v => Link({ 
-            href: v.target 
-        }, 
-            v.name,
-        ))
-    );
+    return ClientComponent((clientData) => {
+        if (clientData.value === null) {
+            return div("Loading...");
+        }
+
+        return div(clientData.value.content);
+    }, [clientData]);
 }
 
 export function metadata() {

@@ -10,9 +10,9 @@ const clients: Set<ServerResponse> = new Set();
 let server: Server;
 let serverIsActive: boolean = false;
 function startEleganceRuntime(file: string) {
-    childPath = resolve(file);
-
     formattedLog(LogLevel.INFO, "Starting Elegance..");
+
+    childPath = resolve(file);
 
     server = createServer((req: IncomingMessage, res: ServerResponse) => {
         formattedLog(LogLevel.DEBUG, "Received hot-reload listener.");

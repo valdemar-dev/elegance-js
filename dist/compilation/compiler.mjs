@@ -16,7 +16,6 @@ import { LoadHook } from "../client/loadHook";
 import { formattedLog, LogLevel } from "../server/log";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-Object.assign(globalThis, allElements);
 let compilerOptions;
 const compilerStore = new AsyncLocalStorage();
 function getDistDir() {
@@ -211,6 +210,7 @@ function serializeElement(compilationContext, element, path2 = []) {
         specialElementOptions.push(...result.specialElementOptions);
         break;
       }
+      console.log(div() instanceof EleganceElement, EleganceElement);
       throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
     case "boolean":
       serializedElement = `${element}`;
@@ -345,10 +345,10 @@ async function generatePageDataScript(compilationContext, specialElementOptions,
     const observerOptions = specialElementOptions.filter((seo) => seo.optionValue instanceof ObserverOption);
     dataScriptContent += "observerOptions:[";
     for (const observerOption of observerOptions) {
-      const observer2 = observerOption.optionValue;
+      const observer = observerOption.optionValue;
       const optionName = observerOption.optionName;
       const elementKey = observerOption.elementKey;
-      const result = observer2.serialize(optionName, elementKey);
+      const result = observer.serialize(optionName, elementKey);
       dataScriptContent += `${result},`;
     }
     dataScriptContent += "]";
@@ -709,7 +709,7 @@ async function compileLayout(layoutInformation) {
   return compiledLayout;
 }
 async function transpileClientRuntime() {
-  const clientTsPath = path.join(__dirname, "..", "client", "runtime.ts");
+  const clientTsPath = path.join(__dirname, "..", "client", "runtime.mjs");
   if (!existsSync(clientTsPath)) {
     throw internalCompilerError("Failed to find the client runtime at path:" + clientTsPath);
   }
@@ -814,6 +814,7 @@ function createRecursiveWatcher(targetDir, callback) {
   registerWatcher(targetDir);
 }
 async function compileEntireProject() {
+  Object.assign(globalThis, allElements);
   const gracefulErr = (err) => {
     console.error(err);
   };

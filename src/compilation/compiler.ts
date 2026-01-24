@@ -11,8 +11,8 @@ import esbuild from "esbuild";
 import { invalidPageError, PageExports, PageInformation } from "../server/page";
 import { invalidLayoutError, LayoutExports, LayoutInformation } from "../server/layout";
 import { allElements } from "../elements/element_list";
-import { observer, ObserverOption, ServerObserver } from "../client/observer";
-import { fileURLToPath, pathToFileURL } from "url";
+import { ObserverOption, ServerObserver } from "../client/observer";
+import { fileURLToPath } from "url";
 import util from "util";
 import { AsyncLocalStorage } from "async_hooks";
 import { ServerSubject } from "../client/state";
@@ -22,9 +22,6 @@ import { formattedLog, formatToLog, LogLevel } from "../server/log";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// make sure to hook every element builder into the global scope
-Object.assign(globalThis, allElements);
 
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
@@ -427,6 +424,8 @@ function serializeElement(
 
             break;
         }
+
+        console.log(div() instanceof EleganceElement, EleganceElement)
 
         throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
     case "boolean":
@@ -1165,7 +1164,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
  * Transpile the client runtime from typescript into javascript and place it into the dist directory
  */
 async function transpileClientRuntime() {
-    const clientTsPath = path.join(__dirname, "..", "client", "runtime.ts");
+    const clientTsPath = path.join(__dirname, "..", "client", "runtime.mjs");
 
     if (!existsSync(clientTsPath)) {
         throw internalCompilerError("Failed to find the client runtime at path:" + clientTsPath);
@@ -1296,6 +1295,9 @@ function createRecursiveWatcher(
  * If doHotReload is true, it will also enable hot-reloading.
  */
 async function compileEntireProject() {
+    // make sure to hook every element builder into the global scope
+    Object.assign(globalThis, allElements);
+
     const gracefulErr = (err: unknown) => { console.error(err); }
 
     process.on("uncaughtException", gracefulErr);

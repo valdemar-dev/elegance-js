@@ -3,3 +3,7 @@ export * from "./client/eventListener";
 export * from "./client/loadHook";
 export * from "./client/state";
 export * from "./server/runtime";
+export * from "./components/Link";
+export * from "./components/ClientComponent";
+export * from "./server/server";
+export * from "./compilation/compiler";

@@ -1,4 +1,4 @@
-import { loadHook } from "../../src/client/loadHook";
+import { loadHook } from "elegance-js";
 
 export const layout = (child: any) => {
     loadHook(() => {

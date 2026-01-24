@@ -1,7 +1,249 @@
-import { allElements } from "../elements/element_list";
-import { SpecialElementOption, EleganceElement } from "../elements/element";
+// src/elements/element.ts
+var SpecialElementOption = class {
+};
+function isAnElement(value) {
+  if (value !== null && value !== void 0 && (typeof value !== "object" || Array.isArray(value) || value instanceof EleganceElement)) return true;
+  return false;
+}
+var EleganceElement = class {
+  constructor(tag, options = {}, children) {
+    this.tag = tag;
+    this.children = children;
+    if (isAnElement(options)) {
+      if (this.canHaveChildren() === false) {
+        console.error("The element:", this, "is an invalid element. Reason:");
+        throw "The options of an element may not be an element, if the element cannot have children.";
+      }
+      this.children.unshift(options);
+      this.options = {};
+    } else {
+      this.options = options;
+    }
+  }
+  canHaveChildren() {
+    return this.children !== null;
+  }
+};
+
+// src/elements/element_list.ts
+var htmlChildrenlessElementTags = [
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr"
+];
+var htmlElementTags = [
+  "a",
+  "abbr",
+  "address",
+  "article",
+  "aside",
+  "audio",
+  "b",
+  "bdi",
+  "bdo",
+  "blockquote",
+  "body",
+  "button",
+  "canvas",
+  "caption",
+  "cite",
+  "code",
+  "colgroup",
+  "data",
+  "datalist",
+  "dd",
+  "del",
+  "details",
+  "dfn",
+  "dialog",
+  "div",
+  "dl",
+  "dt",
+  "em",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "head",
+  "header",
+  "hgroup",
+  "html",
+  "i",
+  "iframe",
+  "ins",
+  "kbd",
+  "label",
+  "legend",
+  "li",
+  "main",
+  "map",
+  "mark",
+  "menu",
+  "meter",
+  "nav",
+  "noscript",
+  "object",
+  "ol",
+  "optgroup",
+  "option",
+  "output",
+  "p",
+  "picture",
+  "pre",
+  "progress",
+  "q",
+  "rp",
+  "rt",
+  "ruby",
+  "s",
+  "samp",
+  "script",
+  "search",
+  "section",
+  "select",
+  "slot",
+  "small",
+  "span",
+  "strong",
+  "style",
+  "sub",
+  "summary",
+  "sup",
+  "table",
+  "tbody",
+  "td",
+  "template",
+  "textarea",
+  "tfoot",
+  "th",
+  "thead",
+  "time",
+  "title",
+  "tr",
+  "u",
+  "ul",
+  "var",
+  "video"
+];
+var svgChildrenlessElementTags = [
+  "path",
+  "circle",
+  "ellipse",
+  "line",
+  "polygon",
+  "polyline",
+  "stop"
+];
+var svgElementTags = [
+  "svg",
+  "g",
+  "text",
+  "tspan",
+  "textPath",
+  "defs",
+  "symbol",
+  "use",
+  "image",
+  "clipPath",
+  "mask",
+  "pattern",
+  "linearGradient",
+  "radialGradient",
+  "filter",
+  "marker",
+  "view",
+  "feBlend",
+  "feColorMatrix",
+  "feComponentTransfer",
+  "feComposite",
+  "feConvolveMatrix",
+  "feDiffuseLighting",
+  "feDisplacementMap",
+  "feDistantLight",
+  "feFlood",
+  "feFuncA",
+  "feFuncB",
+  "feFuncG",
+  "feFuncR",
+  "feGaussianBlur",
+  "feImage",
+  "feMerge",
+  "feMergeNode",
+  "feMorphology",
+  "feOffset",
+  "fePointLight",
+  "feSpecularLighting",
+  "feSpotLight",
+  "feTile",
+  "feTurbulence"
+];
+var mathmlChildrenlessElementTags = [
+  "mi",
+  "mn",
+  "mo"
+];
+var mathmlElementTags = [
+  "math",
+  "ms",
+  "mtext",
+  "mrow",
+  "mfenced",
+  "msup",
+  "msub",
+  "msubsup",
+  "mfrac",
+  "msqrt",
+  "mroot",
+  "mtable",
+  "mtr",
+  "mtd",
+  "mstyle",
+  "menclose",
+  "mmultiscripts"
+];
+var elements = {};
+var childrenlessElements = {};
+function createElementBuilder(tag) {
+  return ((options, ...children) => new EleganceElement(tag, options, children));
+}
+function createChildrenlessElementBuilder(tag) {
+  return ((options) => new EleganceElement(tag, options, null));
+}
+for (const tag of htmlElementTags) elements[tag] = createElementBuilder(tag);
+for (const tag of svgElementTags) elements[tag] = createElementBuilder(tag);
+for (const tag of mathmlElementTags) elements[tag] = createElementBuilder(tag);
+for (const tag of htmlChildrenlessElementTags)
+  childrenlessElements[tag] = createChildrenlessElementBuilder(tag);
+for (const tag of svgChildrenlessElementTags)
+  childrenlessElements[tag] = createChildrenlessElementBuilder(tag);
+for (const tag of mathmlChildrenlessElementTags)
+  childrenlessElements[tag] = createChildrenlessElementBuilder(tag);
+var allElements = {
+  ...elements,
+  ...childrenlessElements
+};
+
+// src/client/runtime.ts
 Object.assign(window, allElements);
-const newArray = Array.from;
+var newArray = Array.from;
 function createHTMLElementFromEleganceElement(element) {
   let specialElementOptions = [];
   const domElement = document.createElement(element.tag);
@@ -82,7 +324,7 @@ DEV_BUILD && (() => {
     };
   })();
 })();
-class ClientSubject {
+var ClientSubject = class {
   constructor(id, value) {
     this.observers = /* @__PURE__ */ new Map();
     this._value = value;
@@ -128,8 +370,8 @@ class ClientSubject {
   unobserve(id) {
     this.observers.delete(id);
   }
-}
-class StateManager {
+};
+var StateManager = class {
   constructor() {
     this.subjects = /* @__PURE__ */ new Map();
   }
@@ -150,8 +392,8 @@ class StateManager {
     }
     return results;
   }
-}
-class ClientEventListener {
+};
+var ClientEventListener = class {
   constructor(id, callback, depencencies) {
     this.id = id;
     this.callback = callback;
@@ -161,8 +403,8 @@ class ClientEventListener {
     const dependencies = stateManager.getAll(this.dependencies);
     this.callback(ev, ...dependencies);
   }
-}
-class EventListenerManager {
+};
+var EventListenerManager = class {
   constructor() {
     this.eventListeners = /* @__PURE__ */ new Map();
   }
@@ -193,8 +435,8 @@ class EventListenerManager {
   get(id) {
     return this.eventListeners.get(id);
   }
-}
-class ClientObserver {
+};
+var ClientObserver = class {
   constructor(id, callback, depencencies) {
     this.subjectValues = [];
     this.elements = [];
@@ -224,8 +466,8 @@ class ClientObserver {
       element[optionName] = newValue;
     }
   }
-}
-class ObserverManager {
+};
+var ObserverManager = class {
   constructor() {
     this.clientObservers = /* @__PURE__ */ new Map();
   }
@@ -252,14 +494,8 @@ class ObserverManager {
       observer.call();
     }
   }
-}
-var LoadHookKind = /* @__PURE__ */ ((LoadHookKind2) => {
-  LoadHookKind2[LoadHookKind2["LAYOUT_LOADHOOK"] = 0] = "LAYOUT_LOADHOOK";
-  LoadHookKind2[LoadHookKind2["PAGE_LOADHOOK"] = 1] = "PAGE_LOADHOOK";
-  return LoadHookKind2;
-})(LoadHookKind || {});
-;
-class LoadHookManager {
+};
+var LoadHookManager = class {
   constructor() {
     this.cleanupProcedures = [];
   }
@@ -290,15 +526,15 @@ class LoadHookManager {
     }
     this.cleanupProcedures = remainingProcedures;
   }
-}
-const observerManager = new ObserverManager();
-const eventListenerManager = new EventListenerManager();
-const stateManager = new StateManager();
-const loadHookManager = new LoadHookManager();
-const pageStringCache = /* @__PURE__ */ new Map();
-const domParser = new DOMParser();
-const xmlSerializer = new XMLSerializer();
-const fetchPage = async (targetURL) => {
+};
+var observerManager = new ObserverManager();
+var eventListenerManager = new EventListenerManager();
+var stateManager = new StateManager();
+var loadHookManager = new LoadHookManager();
+var pageStringCache = /* @__PURE__ */ new Map();
+var domParser = new DOMParser();
+var xmlSerializer = new XMLSerializer();
+var fetchPage = async (targetURL) => {
   const pathname = sanitizePathname(targetURL.pathname);
   if (pageStringCache.has(pathname)) {
     return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
@@ -332,11 +568,11 @@ const fetchPage = async (targetURL) => {
   pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
   return newDOM;
 };
-let navigationCallbacks = [];
+var navigationCallbacks = [];
 function onNavigate(callback) {
   navigationCallbacks.push(callback);
 }
-const navigateLocally = async (target, pushState = true) => {
+var navigateLocally = async (target, pushState = true) => {
   const targetURL = new URL(target);
   const pathname = sanitizePathname(targetURL.pathname);
   let newPage = await fetchPage(targetURL);

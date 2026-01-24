@@ -1,6 +1,5 @@
 import { execSync } from "child_process";
-import { compileEntireProject, setCompilerOptions, } from "../src/compilation/compiler";
-import { serveProject, } from "../src/server/server";
+import { serveProject, compileEntireProject, setCompilerOptions, } from "elegance-js";
 import path from "path";
 
 async function runtime() {

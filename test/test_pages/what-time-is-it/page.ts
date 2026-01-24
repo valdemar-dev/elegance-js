@@ -1,6 +1,4 @@
-import { loadHook } from "../../../src/client/loadHook";
-import { observer } from "../../../src/client/observer";
-import { state } from "../../../src/client/state";
+import { loadHook, observer, state } from "elegance-js";
 
 export function page() {
     const time = state(0);
