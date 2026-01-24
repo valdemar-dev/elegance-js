@@ -1,4 +1,4 @@
-import { ClientComponent, loadHook, state } from "elegance-js";
+import { ClientComponent, Link, loadHook, observer, state } from "elegance-js";
 
 type RandomData = {
     content: string;
@@ -26,13 +26,12 @@ export function page() {
         return () => clearTimeout(timeoutId);
     }, [clientData]);
 
-    return ClientComponent((clientData) => {
-        if (clientData.value === null) {
-            return div("Loading...");
-        }
-
-        return div(clientData.value.content);
-    }, [clientData]);
+    return div({},
+        p({
+            innerText: observer((c) => c?.content ?? "Loading..", [clientData]),
+        }),
+        ...links.map(l => Link({ href: l.target, }, l.name))
+    );
 }
 
 export function metadata() {

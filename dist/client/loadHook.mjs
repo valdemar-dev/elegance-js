@@ -6,16 +6,18 @@ var LoadHookKind = /* @__PURE__ */ ((LoadHookKind2) => {
 })(LoadHookKind || {});
 ;
 class LoadHook {
-  constructor(callback, dependencies, kind, pathname) {
+  constructor(callback, dependencies, kind, id, pathname) {
     this.pathname = pathname;
     this.callback = callback;
     this.kind = kind;
     this.dependencies = dependencies.map((d) => d.id);
+    this.id = id;
   }
   serialize() {
     let result = "{";
     result += `callback:${this.callback.toString()},`;
     result += `dependencies:[${this.dependencies.map((d) => `"${d}"`).join(",")}],`;
+    result += `id:"${this.id}",`;
     result += `kind:${this.kind}`;
     if (this.kind === 0 /* LAYOUT_LOADHOOK */ && this.pathname) {
       result += `,pathname:"${this.pathname}"`;
@@ -30,7 +32,8 @@ function loadHook(callback, dependencies) {
   const isLayoutLoadHook = store.compilationContext.kind === "layout";
   const loadHookKind = isLayoutLoadHook === true ? 0 /* LAYOUT_LOADHOOK */ : 1 /* PAGE_LOADHOOK */;
   const pathname = loadHookKind === 0 /* LAYOUT_LOADHOOK */ ? store.compilationContext.pathname : void 0;
-  const listener = new LoadHook(callback, dependencies, loadHookKind, pathname);
+  const id = store.generateId();
+  const listener = new LoadHook(callback, dependencies, loadHookKind, id, pathname);
   store.addClientToken(listener);
 }
 export {

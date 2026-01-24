@@ -1,5 +1,5 @@
-import { eventListener } from "../../src/client/eventListener";
-import { isAnElement } from "../../src/elements/element";
+import { eventListener } from "../client/eventListener";
+import { isAnElement } from "../elements/element";
 function Link(options, ...children) {
   const handler = eventListener((event) => {
     event.preventDefault();

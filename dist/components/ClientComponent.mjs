@@ -11,7 +11,7 @@ function ClientComponent(callback, dependencies) {
   loadHook((componentId2, callback2, ...dependencies2) => {
     let node;
     function update() {
-      if (node) node.remove();
+      node?.remove();
       const element = callback2.value(...dependencies2);
       const HTMLElement = eleganceClient.createHTMLElementFromElement(element);
       node = HTMLElement.root;
@@ -27,6 +27,7 @@ function ClientComponent(callback, dependencies) {
     }
     update();
     return () => {
+      node?.remove();
       for (const observer of observers) {
         observer.subject.unobserve(observer.id);
       }

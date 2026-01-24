@@ -1,5 +1,5 @@
-import { eventListener, SetEvent } from "../../src/client/eventListener";
-import { AnyElement, ElementOptionsOrChildElement, isAnElement } from "../../src/elements/element";
+import { eventListener, SetEvent } from "../client/eventListener";
+import { AnyElement, ElementOptionsOrChildElement, isAnElement } from "../elements/element";
 
 function Link(options: ElementOptionsOrChildElement, ...children: AnyElement[]) {
     const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {

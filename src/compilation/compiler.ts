@@ -168,7 +168,7 @@ function generateId(compilationContext: PageCompilationContext): string {
 
         id = crypto
             .createHash('sha256')
-            .update(compilationContext.pathname + ':' + compilationContext.idCounter.toString())
+            .update(compilationContext.pathname + compilationContext.kind.toString() + ':' + compilationContext.idCounter.toString())
             .digest('base64url')
             .slice(0, 11); // 66 bits of entropy
 
@@ -1009,7 +1009,7 @@ async function compilePage(
         const beforeEndTag = endString.substring(0, htmlEndTagIndex);
         const afterEndTag = endString.substring(htmlEndTagIndex);
 
-        const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, clientTokens);
+        const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allClientTokens);
 
         finalHTML += beforeEndTag + pageDataScript + afterEndTag;
     } else {
@@ -1022,7 +1022,7 @@ async function compilePage(
             finalHTML += "<body>";
                 finalHTML += pageHTML;
 
-                const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, clientTokens);
+                const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allClientTokens);
 
                 finalHTML += pageDataScript;
             finalHTML += "</body>";

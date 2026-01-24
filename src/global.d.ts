@@ -15,7 +15,15 @@ declare global {
         createHTMLElementFromElement: (element: AnyElement) => { root: Node, specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[]; };
         fetchPage: (targetURL: URL) => Promise<Document | void>;
         navigateLocally: (target: string, pushState: boolean) => Promise<void>;
-        onNavigate: (callback: (pathname: string) => any) => void;
+        /**
+         * Listen to local navigation events in the browser.
+         * 
+         * Local navigations are triggered by the Link() component, or anything that uses `eleganceClient.navigateLocally`, eg. the window popstate event's override.
+         * @param callback Will be called whenever we navigate locally.
+         * @returns The index of the callback, use `eleganceClient.removeNavigationCallback(idx)` to ensure there are no duplicate listeners.
+         */
+        onNavigate: (callback: (pathname: string) => any) => number;
+        removeNavigationCallback: (idx: number) => void;
     }
 
     /**

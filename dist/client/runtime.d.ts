@@ -85,6 +85,7 @@ declare class ObserverManager {
 }
 declare class LoadHookManager {
     private cleanupProcedures;
+    private activeLoadHooks;
     constructor();
     loadValues(loadHooks: LoadHook<any>[]): void;
     callCleanupFunctions(): void;

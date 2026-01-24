@@ -387,6 +387,7 @@ type CleanupProcedure = {
     pathname?: string,
     kind: LoadHookKind,
     cleanupFunction: LoadHookCleanupFunction,
+    loadHookIdx: number,
 };
 
 enum LoadHookKind {
@@ -396,6 +397,7 @@ enum LoadHookKind {
 
 class LoadHookManager {
     private cleanupProcedures: CleanupProcedure[] = [];
+    private activeLoadHooks: string[] = [];
 
     constructor() {
     }
@@ -404,12 +406,19 @@ class LoadHookManager {
         for (const loadHook of loadHooks) {
             const depencencies = stateManager.getAll(loadHook.dependencies);
 
+            if (this.activeLoadHooks.includes(loadHook.id)) {
+                continue;
+            }
+
+            this.activeLoadHooks.push(loadHook.id);
+
             const cleanupFunction = loadHook.callback(...depencencies);
             if (cleanupFunction) {
                 this.cleanupProcedures.push({ 
                     kind: loadHook.kind,
                     cleanupFunction: cleanupFunction,
                     pathname: loadHook.pathname,
+                    loadHookIdx: this.activeLoadHooks.length - 1,
                 })
             }
         }
@@ -430,6 +439,7 @@ class LoadHookManager {
             }
             
             cleanupProcedure.cleanupFunction();
+            this.activeLoadHooks.splice(cleanupProcedure.loadHookIdx, 1);
         }
 
         this.cleanupProcedures = remainingProcedures;
@@ -502,8 +512,13 @@ type NavigationCallback = (pathname: string) => any;
 
 let navigationCallbacks: NavigationCallback[] = [];
 
-function onNavigate(callback: NavigationCallback) {
+function onNavigate(callback: NavigationCallback): number {
     navigationCallbacks.push(callback);
+    return navigationCallbacks.length - 1;
+}
+
+function removeNavigationCallback(idx: number) {
+    navigationCallbacks.splice(idx, 1);
 }
 
 const navigateLocally = async (target: string, pushState: boolean = true) => {
@@ -591,8 +606,6 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
         for (const callback of navigationCallbacks) {
             callback(pathname);
         }
-
-        navigationCallbacks = [];
     }
 
     await loadPage();
@@ -690,6 +703,7 @@ async function loadPage() {
         fetchPage,
         navigateLocally,
         onNavigate,
+        removeNavigationCallback
     }
 
     stateManager.loadValues(subjects);

@@ -49,7 +49,7 @@ function generateId(compilationContext) {
   let tries = 0;
   while (true) {
     compilationContext.idCounter += 1;
-    id = crypto.createHash("sha256").update(compilationContext.pathname + ":" + compilationContext.idCounter.toString()).digest("base64url").slice(0, 11);
+    id = crypto.createHash("sha256").update(compilationContext.pathname + compilationContext.kind.toString() + ":" + compilationContext.idCounter.toString()).digest("base64url").slice(0, 11);
     if (!compilationContext.usedHashes.includes(id)) {
       break;
     }
@@ -613,7 +613,7 @@ async function compilePage(allLayouts, pageInformation, props = {}) {
     }
     const beforeEndTag = endString.substring(0, htmlEndTagIndex);
     const afterEndTag = endString.substring(htmlEndTagIndex);
-    const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, clientTokens);
+    const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allClientTokens);
     finalHTML += beforeEndTag + pageDataScript + afterEndTag;
   } else {
     finalHTML += `<html lang="en-us">`;
@@ -623,7 +623,7 @@ async function compilePage(allLayouts, pageInformation, props = {}) {
     finalHTML += "</head>";
     finalHTML += "<body>";
     finalHTML += pageHTML;
-    const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, clientTokens);
+    const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allClientTokens);
     finalHTML += pageDataScript;
     finalHTML += "</body>";
     finalHTML += `</html>`;

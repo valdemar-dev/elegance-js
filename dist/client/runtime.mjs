@@ -498,16 +498,22 @@ var ObserverManager = class {
 var LoadHookManager = class {
   constructor() {
     this.cleanupProcedures = [];
+    this.activeLoadHooks = [];
   }
   loadValues(loadHooks) {
     for (const loadHook of loadHooks) {
       const depencencies = stateManager.getAll(loadHook.dependencies);
+      if (this.activeLoadHooks.includes(loadHook.id)) {
+        continue;
+      }
+      this.activeLoadHooks.push(loadHook.id);
       const cleanupFunction = loadHook.callback(...depencencies);
       if (cleanupFunction) {
         this.cleanupProcedures.push({
           kind: loadHook.kind,
           cleanupFunction,
-          pathname: loadHook.pathname
+          pathname: loadHook.pathname,
+          loadHookIdx: this.activeLoadHooks.length - 1
         });
       }
     }
@@ -523,6 +529,7 @@ var LoadHookManager = class {
         }
       }
       cleanupProcedure.cleanupFunction();
+      this.activeLoadHooks.splice(cleanupProcedure.loadHookIdx, 1);
     }
     this.cleanupProcedures = remainingProcedures;
   }
@@ -571,6 +578,10 @@ var fetchPage = async (targetURL) => {
 var navigationCallbacks = [];
 function onNavigate(callback) {
   navigationCallbacks.push(callback);
+  return navigationCallbacks.length - 1;
+}
+function removeNavigationCallback(idx) {
+  navigationCallbacks.splice(idx, 1);
 }
 var navigateLocally = async (target, pushState = true) => {
   const targetURL = new URL(target);
@@ -634,7 +645,6 @@ var navigateLocally = async (target, pushState = true) => {
     for (const callback of navigationCallbacks) {
       callback(pathname);
     }
-    navigationCallbacks = [];
   }
   await loadPage();
   if (targetURL.hash) {
@@ -709,7 +719,8 @@ async function loadPage() {
     createHTMLElementFromElement,
     fetchPage,
     navigateLocally,
-    onNavigate
+    onNavigate,
+    removeNavigationCallback
   };
   stateManager.loadValues(subjects);
   eventListenerManager.loadValues(eventListeners);

@@ -35,11 +35,11 @@ function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(
 
     const componentId = state(store.generateId());
 
-    loadHook((componentId, callback, ...dependencies) => {
+    loadHook((componentId, callback, ...dependencies) => { 
         let node: Node | undefined;
 
         function update() {
-            if (node) (node as any).remove();
+            (node as any)?.remove();
 
             const element = callback.value(...dependencies);
 
@@ -64,6 +64,8 @@ function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(
         update();
 
         return () => {
+            (node as any)?.remove();
+
             for (const observer of observers) {
                 observer.subject.unobserve(observer.id);
             }

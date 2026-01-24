@@ -18,12 +18,14 @@ class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
     kind: LoadHookKind;
     callback: LoadHookCallback<T>;
     dependencies: string[];
+    id: string;
 
-    constructor(callback: LoadHookCallback<T>, dependencies: [...T], kind: LoadHookKind, pathname?: string) {
+    constructor(callback: LoadHookCallback<T>, dependencies: [...T], kind: LoadHookKind, id: string, pathname?: string) {
         this.pathname = pathname;
         this.callback = callback;
         this.kind = kind;
-        this.dependencies = dependencies.map(d => d.id);
+        this.dependencies = dependencies.map(d => d.id); 
+        this.id = id;
     }
 
     serialize(): string {
@@ -31,10 +33,12 @@ class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
         result += `callback:${this.callback.toString()},`;
         result += `dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}],`;
 
+        result += `id:"${this.id}",`;
+
         result += `kind:${this.kind}`;
 
         if (this.kind === LoadHookKind.LAYOUT_LOADHOOK && this.pathname) {
-            result += `,pathname:\"${this.pathname}\"`;
+            result += `,pathname:"${this.pathname}"`;
         }
 
         result += "}";
@@ -67,7 +71,9 @@ function loadHook<const T extends readonly ServerSubject<unknown>[]>(
     const loadHookKind = isLayoutLoadHook === true ? LoadHookKind.LAYOUT_LOADHOOK : LoadHookKind.PAGE_LOADHOOK
     const pathname = loadHookKind === LoadHookKind.LAYOUT_LOADHOOK ? store.compilationContext.pathname : undefined;
 
-    const listener = new LoadHook<T>(callback, dependencies, loadHookKind, pathname);
+    const id = store.generateId();
+
+    const listener = new LoadHook<T>(callback, dependencies, loadHookKind, id, pathname);
 
     store.addClientToken(listener);
 }

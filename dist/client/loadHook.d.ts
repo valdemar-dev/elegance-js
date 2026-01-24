@@ -13,7 +13,8 @@ declare class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
     kind: LoadHookKind;
     callback: LoadHookCallback<T>;
     dependencies: string[];
-    constructor(callback: LoadHookCallback<T>, dependencies: [...T], kind: LoadHookKind, pathname?: string);
+    id: string;
+    constructor(callback: LoadHookCallback<T>, dependencies: [...T], kind: LoadHookKind, id: string, pathname?: string);
     serialize(): string;
 }
 /**

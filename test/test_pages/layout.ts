@@ -1,11 +1,21 @@
-import { loadHook } from "elegance-js";
+import { ClientComponent, loadHook, state } from "elegance-js";
 
 export const layout = (child: any) => {
-    loadHook(() => {
+    const pagename = state("");
+
+    loadHook((pagename) => {
+            console.log("layout one is called");
+
+        pagename.value = window.location.pathname;
+
         eleganceClient.onNavigate(() => {
-            console.log("NAVIGATING CUHH NAVIGATING CUHH");
+            pagename.value = window.location.pathname;
         });
-    }, []);
+
+        return () => {
+            console.log("layout one's cleanup is called");
+        };
+    }, [pagename]);
 
     return html(
         body({
@@ -14,7 +24,11 @@ export const layout = (child: any) => {
             div({
                 class: "h-8 bg-yellow-400",
             },
-                p({ class: "text-black" }, "header"),
+                p({ 
+                    class: "text-black",
+                },
+                    ClientComponent((pagename) => div(pagename.value), [pagename]), 
+                ),
             ),
 
             child,
