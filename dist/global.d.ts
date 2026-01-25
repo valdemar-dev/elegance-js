@@ -1,45 +1,42 @@
 import { AnyElement, EleganceElementBuilder, SpecialElementOption } from "./elements/element";
-
-import {
-    StateManager,
-    ObserverManager,
-    LoadHookManager,
-    EventListenerManager,
-} from "./client/runtime";
-
+import { StateManager, ObserverManager, LoadHookManager, EventListenerManager } from "./client/runtime";
 declare global {
     /**
      * **IMPORTANT** These values are only available in the *browser* runtime.
      */
     var eleganceClient: {
-        createHTMLElementFromElement: (element: AnyElement) => { root: Node, specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[]; };
+        createHTMLElementFromElement: (element: AnyElement) => {
+            root: Node;
+            specialElementOptions: {
+                elementKey: string;
+                optionName: string;
+                optionValue: SpecialElementOption;
+            }[];
+        };
         fetchPage: (targetURL: URL) => Promise<Document | void>;
         navigateLocally: (target: string, pushState: boolean) => Promise<void>;
         /**
          * Listen to local navigation events in the browser.
-         * 
+         *
          * Local navigations are triggered by the Link() component, or anything that uses `eleganceClient.navigateLocally`, eg. the window popstate event's override.
          * @param callback Will be called whenever we navigate locally.
          * @returns The index of the callback, use `eleganceClient.removeNavigationCallback(idx)` to ensure there are no duplicate listeners.
          */
         onNavigate: (callback: (pathname: string) => any) => number;
         removeNavigationCallback: (idx: number) => void;
-    }
-
+    };
     /**
      * **IMPORTANT** These values are only available in the *browser* runtime.
-     * 
+     *
      * **IMPORTANT** These values are only available in dev builds, and are stripped out from production builds for security reasons.
      */
     var devtools: {
-        pageData: PageData<any>;
-
+        pageData: Record<string, any>;
         stateManager: StateManager;
         eventListenerManager: EventListenerManager;
         observerManager: ObserverManager;
         loadHookManager: LoadHookManager;
-    }
-
+    };
     var area: EleganceElementBuilder<"area">;
     var base: EleganceElementBuilder<"base">;
     var br: EleganceElementBuilder<"br">;
@@ -54,7 +51,6 @@ declare global {
     var source: EleganceElementBuilder<"source">;
     var track: EleganceElementBuilder<"track">;
     var wbr: EleganceElementBuilder<"wbr">;
-
     var a: EleganceElementBuilder<"a">;
     var abbr: EleganceElementBuilder<"abbr">;
     var address: EleganceElementBuilder<"address">;
@@ -154,7 +150,6 @@ declare global {
     var ul: EleganceElementBuilder<"ul">;
     var varElement: EleganceElementBuilder<"var">;
     var video: EleganceElementBuilder<"video">;
-
     var path: EleganceElementBuilder<"path">;
     var circle: EleganceElementBuilder<"circle">;
     var ellipse: EleganceElementBuilder<"ellipse">;
@@ -162,7 +157,6 @@ declare global {
     var polygon: EleganceElementBuilder<"polygon">;
     var polyline: EleganceElementBuilder<"polyline">;
     var stopElement: EleganceElementBuilder<"stop">;
-
     var svg: EleganceElementBuilder<"svg">;
     var g: EleganceElementBuilder<"g">;
     var text: EleganceElementBuilder<"text">;
@@ -204,11 +198,9 @@ declare global {
     var feSpotLight: EleganceElementBuilder<"feSpotLight">;
     var feTile: EleganceElementBuilder<"feTile">;
     var feTurbulence: EleganceElementBuilder<"feTurbulence">;
-
     var mi: EleganceElementBuilder<"mi">;
     var mn: EleganceElementBuilder<"mn">;
     var mo: EleganceElementBuilder<"mo">;
-
     var math: EleganceElementBuilder<"math">;
     var ms: EleganceElementBuilder<"ms">;
     var mtext: EleganceElementBuilder<"mtext">;
@@ -227,5 +219,4 @@ declare global {
     var menclose: EleganceElementBuilder<"menclose">;
     var mmultiscripts: EleganceElementBuilder<"mmultiscripts">;
 }
-
 export {};

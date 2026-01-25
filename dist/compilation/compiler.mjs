@@ -214,7 +214,6 @@ function serializeElement(compilationContext, element, path2 = []) {
         serializedElement = element.generateObserverNode();
         break;
       }
-      console.log(div() instanceof EleganceElement, EleganceElement);
       throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
     case "boolean":
       serializedElement = `${element}`;
@@ -594,6 +593,7 @@ async function compilePage(allLayouts, pageInformation, props = {}) {
         const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
         headContent += compiledLayout.layoutMetadataHTML;
         allSpecialElementOptions.push(...compiledLayout.specialElementOptions);
+        console.log(compiledLayout);
         allClientTokens.push(...compiledLayout.clientTokens);
       }
       headContent += pageMetadataHTML;

@@ -6,7 +6,7 @@ import path from "path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-execSync("npm install tailwindcss @tailwindcss/cli");
+execSync("npm install tailwindcss @tailwindcss/cli && npm install --save-dev @types/node");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +81,8 @@ fs.writeFileSync(tsconfigPath, tsconfigContent, "utf8");
 
 if (process.argv[2] === "--manual") {
     console.log("--manual: Creating manual defaults..");
+
+    execSync("npm install ts-arc");
 
     fs.writeFileSync(eleganceTsPath, eleganceTsContent, "utf8");
     fs.writeFileSync(indexTsPath, indexTsContent, "utf8");

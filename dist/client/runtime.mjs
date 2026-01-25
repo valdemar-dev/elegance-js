@@ -297,7 +297,7 @@ function createHTMLElementFromElement(element) {
       if (element instanceof EleganceElement) {
         return createHTMLElementFromEleganceElement(element);
       }
-      throw new Error(`This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
+      throw new Error(`This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array. Also note that currently in client components like reactiveMap, state subject references are not valid children.`);
     case "boolean":
     case "number":
     case "string":
