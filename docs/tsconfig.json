@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
+        "paths": {
+            "@/": [
+                "./"
+            ]
+        }
+    },
+    "include": [
+        "pages/**/*",
+        "env.d.ts"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}
