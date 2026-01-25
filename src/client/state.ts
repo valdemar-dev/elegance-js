@@ -83,6 +83,16 @@ class ServerSubject<T extends any> {
         return template({ "map-id": mapId.value, });
     }
 
+    /**
+     * Allows the use of a ServerSubject as the child of an EleganceElement.
+     * 
+     * Returns an HTML string that will be removed on page-load in the client and replaced with the appropriate value.
+     * @returns HTML string
+     */
+    generateObserverNode(): string {
+        return `<div observer-for="${this.id}"></div>`;
+    }
+
     serialize(): string {
         let result = `{id:"${this.id}",value:`;
 

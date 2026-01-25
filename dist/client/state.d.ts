@@ -18,6 +18,13 @@ declare class ServerSubject<T extends any> {
      * @returns An HTML represent used to track the position of the reactive map.
      */
     reactiveMap(callback: (entry: T extends (infer U)[] ? U : never) => EleganceElement<any>): EleganceElement<true>;
+    /**
+     * Allows the use of a ServerSubject as the child of an EleganceElement.
+     *
+     * Returns an HTML string that will be removed on page-load in the client and replaced with the appropriate value.
+     * @returns HTML string
+     */
+    generateObserverNode(): string;
     serialize(): string;
 }
 /**

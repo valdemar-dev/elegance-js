@@ -84,6 +84,10 @@ declare class ObserverManager {
     constructor();
     loadValues(serverObservers: ServerObserver<any>[], doOverride?: boolean): void;
     hookCallbacks(observerOptions: ClientObserverOption[]): void;
+    /**
+     * Take the results of ServerSubject.generateObserverNode(), replace their HTML placeins for text nodes, and turn those into observers.
+     */
+    transformSubjectObserverNodes(): void;
 }
 declare class LoadHookManager {
     private cleanupProcedures;

@@ -244,6 +244,11 @@ var allElements = {
 // src/client/runtime.ts
 Object.assign(window, allElements);
 var newArray = Array.from;
+var idCounter = 0;
+function genLocalID() {
+  idCounter++;
+  return idCounter;
+}
 function createHTMLElementFromEleganceElement(element) {
   let specialElementOptions = [];
   const domElement = document.createElement(element.tag);
@@ -252,7 +257,7 @@ function createHTMLElementFromEleganceElement(element) {
     for (const [optionName, optionValue] of entries) {
       if (optionValue instanceof SpecialElementOption) {
         optionValue.mutate(element, optionName);
-        const elementKey = (Math.random() * 1e4).toString();
+        const elementKey = genLocalID().toString();
         specialElementOptions.push({ elementKey, optionName, optionValue });
       } else {
         domElement.setAttribute(optionName, `${optionValue}`);
@@ -497,6 +502,29 @@ var ObserverManager = class {
       observer.call();
     }
   }
+  /**
+   * Take the results of ServerSubject.generateObserverNode(), replace their HTML placeins for text nodes, and turn those into observers.
+   */
+  transformSubjectObserverNodes() {
+    const observerNodes = newArray(document.querySelectorAll("div[observer-for]"));
+    for (const node of observerNodes) {
+      let update2 = function(value) {
+        textNode.textContent = value;
+      };
+      var update = update2;
+      const subjectId = node.getAttribute("observer-for");
+      const subject = stateManager.get(subjectId);
+      if (!subject) {
+        DEV_BUILD: errorOut("Failed to find subject with id " + subjectId + " for observerNode.");
+        continue;
+      }
+      const textNode = document.createTextNode(subject.value);
+      const id = genLocalID().toString();
+      subject.observe(id, update2);
+      update2(subject.value);
+      node.replaceWith(textNode);
+    }
+  }
 };
 var LoadHookManager = class {
   constructor() {
@@ -666,7 +694,7 @@ function sanitizePathname(pathname = "") {
 async function getPageData(pathname) {
   const dataScriptTag = document.head.querySelector(`script[data-page="true"][data-pathname="${pathname}"]`);
   if (!dataScriptTag) {
-    DEV_BUILD && `Failed to find script tag for query:script[data-page="true"][data-pathname="${pathname}"]`;
+    DEV_BUILD && errorOut(`Failed to find script tag for query:script[data-page="true"][data-pathname="${pathname}"]`);
     return;
   }
   const { data } = await import(dataScriptTag.src);
@@ -730,6 +758,7 @@ async function loadPage() {
   eventListenerManager.hookCallbacks(eventListenerOptions);
   observerManager.loadValues(observers);
   observerManager.hookCallbacks(observerOptions);
+  observerManager.transformSubjectObserverNodes();
   loadHookManager.loadValues(loadHooks);
 }
 loadPage();

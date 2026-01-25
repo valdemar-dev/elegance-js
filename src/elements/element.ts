@@ -1,10 +1,12 @@
+import { ServerSubject } from "../client/state";
+
 /** Any valid element that has not been constructed via the use of an element constructor such as h1() */
 type ElementLiteral = boolean | 
     number | 
     string | 
     Array<any>;
 
-type AnyElement = EleganceElement<any> | ElementLiteral;
+type AnyElement = EleganceElement<any> | ElementLiteral | ServerSubject<any>;
 
 type ElementChildren = AnyElement[];
 

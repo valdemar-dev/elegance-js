@@ -21,6 +21,12 @@ interface SerializationResult {
     specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[];
 }
 
+let idCounter = 0;
+function genLocalID(): number {
+    idCounter++;
+    return idCounter;
+}
+
 function createHTMLElementFromEleganceElement(
     element: EleganceElement<any>,
 ): SerializationResult {
@@ -34,7 +40,7 @@ function createHTMLElementFromEleganceElement(
             if (optionValue instanceof SpecialElementOption) {
                 optionValue.mutate(element, optionName);
      
-                const elementKey = (Math.random() * 10000).toString();
+                const elementKey = genLocalID().toString();
      
                 specialElementOptions.push({ elementKey, optionName, optionValue });
             } else {
@@ -75,17 +81,22 @@ function createHTMLElementFromElement(
     case "object":
         if (Array.isArray(element)) {
             const fragment = document.createDocumentFragment();
+
             for (const subElement of element) {
-            const result = createHTMLElementFromElement(subElement);
-            fragment.appendChild(result.root);
-            specialElementOptions.push(...result.specialElementOptions);
+                const result = createHTMLElementFromElement(subElement);
+                fragment.appendChild(result.root);
+                specialElementOptions.push(...result.specialElementOptions);
             }
+
             return { root: fragment, specialElementOptions };
         }
+        
         if (element instanceof EleganceElement) {
             return createHTMLElementFromEleganceElement(element);
         }
-    throw new Error(`This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
+
+    throw new Error(`This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array. Also note that currently in client components like reactiveMap, state subject references are not valid children.`);
+
     case "boolean":
     case "number":
     case "string":
@@ -383,6 +394,37 @@ class ObserverManager {
             observer.call();
         }
     }
+
+    /**
+     * Take the results of ServerSubject.generateObserverNode(), replace their HTML placeins for text nodes, and turn those into observers.
+     */
+    transformSubjectObserverNodes() {
+        const observerNodes = newArray(document.querySelectorAll("div[observer-for]"));
+
+        for (const node of observerNodes) {
+            const subjectId = node.getAttribute("observer-for")!;
+
+            const subject = stateManager.get(subjectId);
+            if (!subject) {
+                DEV_BUILD: errorOut("Failed to find subject with id " + subjectId + " for observerNode.");
+                continue;
+            }
+
+            const textNode = document.createTextNode(subject.value);
+
+            const id = genLocalID().toString();
+
+            function update(value: any) {
+                textNode.textContent = value;
+            }
+
+            subject.observe(id, update);
+
+            update(subject.value);
+
+            node.replaceWith(textNode);
+        }
+    }
 }
 
 
@@ -636,7 +678,7 @@ async function getPageData(pathname: string) {
     /** Find the correct script tag in head. */
     const dataScriptTag = document.head.querySelector(`script[data-page="true"][data-pathname="${pathname}"]`) as HTMLScriptElement | null;
     if (!dataScriptTag) {
-        DEV_BUILD && ("Failed to find script tag for query:" + `script[data-page="true"][data-pathname="${pathname}"]`);
+        DEV_BUILD && errorOut("Failed to find script tag for query:" + `script[data-page="true"][data-pathname="${pathname}"]`);
         return;
     }
 
@@ -716,6 +758,7 @@ async function loadPage() {
 
     observerManager.loadValues(observers);
     observerManager.hookCallbacks(observerOptions);
+    observerManager.transformSubjectObserverNodes();
 
     loadHookManager.loadValues(loadHooks);
 }

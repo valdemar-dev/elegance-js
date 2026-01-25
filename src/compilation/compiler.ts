@@ -425,6 +425,12 @@ function serializeElement(
             break;
         }
 
+        if (element instanceof ServerSubject) {
+            serializedElement = element.generateObserverNode();
+
+            break;
+        }
+
         console.log(div() instanceof EleganceElement, EleganceElement)
 
         throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);

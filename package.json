@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "bin": {
     "run": "./scripts/run.js",
-    "bootstrap": "./scripts/bootstrap.js",
+    "bootstrap": "./scripts/bootstrap.js"
   },
   "scripts": {
     "build": "esbuild --format=esm --platform=node --bundle=false --outdir=./dist --out-extension:.js=.mjs \"./src/**/*.ts\" && esbuild --format=esm --platform=browser --bundle=true --outfile=./dist/client/runtime.mjs --out-extension:.js=.mjs ./src/client/runtime.ts && tsc ",

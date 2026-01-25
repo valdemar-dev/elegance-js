@@ -4,17 +4,13 @@ export const layout = (child: any) => {
     const pagename = state("");
 
     loadHook((pagename) => {
-            console.log("layout one is called");
-
         pagename.value = window.location.pathname;
 
-        eleganceClient.onNavigate(() => {
+        const idx = eleganceClient.onNavigate(() => {
             pagename.value = window.location.pathname;
         });
 
-        return () => {
-            console.log("layout one's cleanup is called");
-        };
+        return () => eleganceClient.removeNavigationCallback(idx);
     }, [pagename]);
 
     return html(body(child));
