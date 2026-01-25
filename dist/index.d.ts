@@ -7,3 +7,4 @@ export * from "./components/Link";
 export * from "./components/ClientComponent";
 export * from "./server/server";
 export * from "./compilation/compiler";
+export * from "./elements/element";

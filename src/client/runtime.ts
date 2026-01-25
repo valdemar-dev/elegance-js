@@ -173,6 +173,8 @@ class ClientSubject<T> {
      * 
      * Note: if an ID is already in use it's callback will just be overwritten with whatever you give it.
      * 
+     * Note: this triggers `callback` with the current value of this subject.
+     * 
      * @param id The unique id of this observer
      * @param callback Called whenever the value of this subject changes.
      */
@@ -182,6 +184,7 @@ class ClientSubject<T> {
         }
 
         this.observers.set(id, callback);
+        callback(this.value);
     }
 
     /**

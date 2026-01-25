@@ -2,7 +2,7 @@ import { EleganceElement, SpecialElementOption } from "../elements/element";
 import { ServerSubject } from "./state";
 import { ClientSubject } from "./runtime";
 type ToClient<T> = T extends ServerSubject<infer V> ? ClientSubject<V> : never;
-type ObserverCallback<T extends ServerSubject<any>> = (...dependencies: ToClient<T>["value"][]) => string;
+type ObserverCallback<T extends ServerSubject<any>> = (...dependencies: ToClient<T>["value"][]) => string | boolean | number;
 declare class ObserverOption extends SpecialElementOption {
     id: string;
     constructor(id: string);
@@ -34,6 +34,7 @@ declare class ServerObserver<T extends ServerSubject<any>> {
  * @param dependencies An array of ServerSubject's that should be passed into the callback when it is run.
  * @returns A special element option that you can use as a value on an option of an EleganceElement.
  */
+declare function observer<T extends ServerSubject<any>>(subject: T): ObserverOption;
 declare function observer<T extends ServerSubject<any>>(callback: ObserverCallback<T>, dependencies: T[]): ObserverOption;
 export { observer, ServerObserver, ObserverOption };
 export type { ObserverCallback, };

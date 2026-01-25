@@ -362,6 +362,7 @@ var ClientSubject = class {
       this.observers.delete(id);
     }
     this.observers.set(id, callback);
+    callback(this.value);
   }
   /**
    * Remove an observer from this subject.

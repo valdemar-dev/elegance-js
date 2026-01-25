@@ -32,11 +32,21 @@ class ServerObserver {
     return result;
   }
 }
-function observer(callback, dependencies) {
+function observer(callbackOrSubject, dependencies) {
   const store = compilerStore.getStore();
   if (!store) throw new Error("Illegal invocation of observer(). Ensure that the observer() function is only called inside components, and never at the top-level of a page or layout.");
+  let callback;
+  let deps;
+  if (dependencies) {
+    callback = callbackOrSubject;
+    deps = dependencies;
+  } else {
+    const subject = callbackOrSubject;
+    callback = (value) => `${value}`;
+    deps = [subject];
+  }
   const id = store.generateId();
-  const listener = new ServerObserver(id, callback, dependencies);
+  const listener = new ServerObserver(id, callback, deps);
   store.addClientToken(listener);
   return new ObserverOption(id);
 }

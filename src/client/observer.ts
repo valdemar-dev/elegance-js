@@ -9,7 +9,7 @@ type ToClient<T> =
         : never;
 
 type ObserverCallback<T extends ServerSubject<any>> =
-    (...dependencies: ToClient<T>["value"][]) => string;
+    (...dependencies: ToClient<T>["value"][]) => string | boolean | number;
 
 class ObserverOption extends SpecialElementOption {
     id: string;
@@ -75,6 +75,7 @@ class ServerObserver<T extends ServerSubject<any>> {
  * @param dependencies An array of ServerSubject's that should be passed into the callback when it is run.
  * @returns A special element option that you can use as a value on an option of an EleganceElement.
  */
+/*
 function observer<T extends ServerSubject<any>>(
     callback: ObserverCallback<T>,
     dependencies: T[]
@@ -89,6 +90,46 @@ function observer<T extends ServerSubject<any>>(
 
     return new ObserverOption(id);
 }
+*/
+// Original overload: single subject convenience
+function observer<T extends ServerSubject<any>>(subject: T): ObserverOption;
+
+// Original overload: full form
+function observer<T extends ServerSubject<any>>(
+    callback: ObserverCallback<T>,
+    dependencies: T[]
+): ObserverOption;
+
+// Implementation
+function observer<T extends ServerSubject<any>>(
+    callbackOrSubject: ObserverCallback<T> | T,
+    dependencies?: T[]
+): ObserverOption {
+    const store = compilerStore.getStore();
+    if (!store) throw new Error("Illegal invocation of observer(). Ensure that the observer() function is only called inside components, and never at the top-level of a page or layout.");
+
+    let callback: ObserverCallback<T>;
+    let deps: T[];
+
+    if (dependencies) {
+        // Full form
+        callback = callbackOrSubject as ObserverCallback<T>;
+        deps = dependencies;
+    } else {
+        // Single subject form
+        const subject = callbackOrSubject as T;
+        callback = (value: T) => `${value}`;
+        deps = [subject];
+    }
+
+    const id = store.generateId();
+    const listener = new ServerObserver(id, callback, deps);
+
+    store.addClientToken(listener);
+
+    return new ObserverOption(id);
+}
+
 
 export {
     observer,
