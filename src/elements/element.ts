@@ -4,7 +4,10 @@ import { ServerSubject } from "../client/state";
 type ElementLiteral = boolean | 
     number | 
     string | 
-    Array<any>;
+    Array<any> | 
+    null | 
+    undefined | 
+    void;
 
 type AnyElement = EleganceElement<any> | ElementLiteral | ServerSubject<any>;
 

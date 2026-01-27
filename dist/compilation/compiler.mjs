@@ -188,8 +188,8 @@ function serializeElement(compilationContext, element, path2 = []) {
   const fullPath = [...path2, currentRepr];
   let serializedElement;
   let specialElementOptions = [];
-  if (element === void 0 || element === null) {
-    throw invalidElementError(element, fullPath, `Undefined and null are not allowed as elements.`);
+  if (element === void 0) {
+    return { serializedElement: "", specialElementOptions };
   }
   switch (typeof element) {
     case "object":
@@ -593,7 +593,6 @@ async function compilePage(allLayouts, pageInformation, props = {}) {
         const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
         headContent += compiledLayout.layoutMetadataHTML;
         allSpecialElementOptions.push(...compiledLayout.specialElementOptions);
-        console.log(compiledLayout);
         allClientTokens.push(...compiledLayout.clientTokens);
       }
       headContent += pageMetadataHTML;

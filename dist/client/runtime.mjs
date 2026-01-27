@@ -281,7 +281,7 @@ function createHTMLElementFromEleganceElement(element) {
 function createHTMLElementFromElement(element) {
   let specialElementOptions = [];
   if (element === void 0 || element === null) {
-    throw new Error(`Undefined and null are not allowed as elements.`);
+    return { root: document.createTextNode(""), specialElementOptions: [] };
   }
   switch (typeof element) {
     case "object":

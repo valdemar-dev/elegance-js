@@ -74,7 +74,7 @@ function createHTMLElementFromElement(
     let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
 
     if (element === undefined || element === null) {
-        throw new Error(`Undefined and null are not allowed as elements.`);
+        return { root: document.createTextNode(""), specialElementOptions: [], };
     }
 
     switch (typeof element) {

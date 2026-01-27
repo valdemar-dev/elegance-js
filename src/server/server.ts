@@ -11,7 +11,7 @@ import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
 
 import { createServer, IncomingMessage, Server, ServerResponse, } from "http";
-import { Dirent, existsSync, readdirSync, readFileSync, statSync } from "fs";
+import { Dirent, existsSync, readdirSync, readFileSync, statSync, createReadStream } from "fs";
 import * as zlib from "zlib";
 import { promisify } from "util";
 
@@ -330,26 +330,100 @@ const mimeByExt: Record<string, string> = {
     ".gif": "image/gif",
     ".svg": "image/svg+xml",
     ".txt": "text/plain",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
+    ".avi": "video/x-msvideo",
+    ".mov": "video/quicktime",
+    ".mp3": "audio/mpeg",
 };
+
+function isCompressible(mime: string): boolean {
+    return mime.startsWith('text/') ||
+           mime === 'application/javascript' ||
+           mime === 'application/json' ||
+           mime === 'image/svg+xml';
+}
 
 async function handleFileRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
     const safePath = await getSafePath(pathname);
 
     if (!safePath) {
-        return respondWithStatusCodePage(req, res, pathname, 404, "File not found.");
+        return respondWithStatusCode(req, res, pathname, 404, "File not found.");
     }
 
-    if (statSync(safePath).isDirectory()) {
+    const stats = statSync(safePath);
+
+    if (stats.isDirectory()) {
         res.statusCode = 400;
         await sendResponse(req, res, "Target file is a directory.");
         return;
     }
 
+    const fileSize = stats.size;
     const ext = safePath.slice(safePath.lastIndexOf(".")).toLowerCase();
     const mime = mimeByExt[ext] ?? "application/octet-stream";
 
-    res.statusCode = 200;
-    await sendResponse(req, res, readFileSync(safePath), mime);
+    const acceptEncoding = req.headers["accept-encoding"] as string || "";
+    const rangeHeader = req.headers.range as string | undefined;
+
+    if (!rangeHeader) {
+        const useGzip = acceptEncoding.includes('gzip') && isCompressible(mime);
+
+        const head: Record<string, string | number> = {
+            'Content-Type': mime,
+            'Accept-Ranges': 'bytes',
+        };
+
+        if (!useGzip) {
+            head['Content-Length'] = fileSize;
+        }
+
+        if (useGzip) {
+            head['Content-Encoding'] = 'gzip';
+            head['Vary'] = 'Accept-Encoding';
+        }
+
+        res.writeHead(200, head);
+
+        const stream = createReadStream(safePath);
+
+        if (useGzip) {
+            const gzip = zlib.createGzip();
+            stream.pipe(gzip).pipe(res);
+        } else {
+            stream.pipe(res);
+        }
+        return;
+    }
+
+    const ranges = rangeHeader.replace(/bytes=/, '').split('-');
+    let start = parseInt(ranges[0], 10);
+    let end = ranges[1] ? parseInt(ranges[1], 10) : fileSize - 1;
+
+    if (isNaN(start)) start = 0;
+    if (isNaN(end) || end >= fileSize) end = fileSize - 1;
+
+    if (start >= fileSize || start > end) {
+        res.writeHead(416, {
+            'Content-Range': `bytes */${fileSize}`,
+        });
+        res.end();
+        return;
+    }
+
+    const contentLength = end - start + 1;
+    const headers = {
+        'Content-Type': mime,
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Content-Length': contentLength,
+    };
+
+    res.writeHead(206, headers);
+
+    const stream = createReadStream(safePath, { start, end });
+    stream.pipe(res);
 }
 
 function getPathSubparts(path: string) {
@@ -443,7 +517,6 @@ async function sendResponse(
             res.setHeader("Vary", "Accept-Encoding");
         } catch (err) {
             console.error("Gzip compression error:", err);
-            // Fallback to uncompressed
         }
     }
 

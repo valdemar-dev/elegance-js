@@ -1,6 +1,6 @@
 import { ServerSubject } from "../client/state";
 /** Any valid element that has not been constructed via the use of an element constructor such as h1() */
-type ElementLiteral = boolean | number | string | Array<any>;
+type ElementLiteral = boolean | number | string | Array<any> | null | undefined | void;
 type AnyElement = EleganceElement<any> | ElementLiteral | ServerSubject<any>;
 type ElementChildren = AnyElement[];
 /** Element options of this type will be made into field="value.toString()" */
@@ -46,7 +46,7 @@ declare class EleganceElement<CanHaveChildren extends boolean> {
      */
     key?: string;
     children: CanHaveChildren extends true ? ElementChildren : null;
-    constructor(tag: keyof HTMLElementTagNameMap, options: ElementOptionsOrChildElement | undefined, children: ElementChildren | null);
+    constructor(tag: keyof HTMLElementTagNameMap, options: ElementOptionsOrChildElement, children: ElementChildren | null);
     canHaveChildren(): this is EleganceElement<true>;
 }
 export { EleganceElement, SpecialElementOption, isAnElement, };

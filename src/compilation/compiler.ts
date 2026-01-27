@@ -394,8 +394,8 @@ function serializeElement(
     let serializedElement: string;
     let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
 
-    if (element === undefined || element === null) {
-        throw invalidElementError(element, fullPath, `Undefined and null are not allowed as elements.`);
+    if (element === undefined) {
+        return { serializedElement: "", specialElementOptions };
     }
 
     switch (typeof element) {
