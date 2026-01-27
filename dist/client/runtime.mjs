@@ -6,18 +6,18 @@ function isAnElement(value) {
   return false;
 }
 var EleganceElement = class {
-  constructor(tag, options = {}, children) {
+  constructor(tag, options = {}, children = null) {
     this.tag = tag;
-    this.children = children;
     if (isAnElement(options)) {
       if (this.canHaveChildren() === false) {
         console.error("The element:", this, "is an invalid element. Reason:");
         throw "The options of an element may not be an element, if the element cannot have children.";
       }
-      this.children.unshift(options);
+      this.children = [options, ...children ?? []];
       this.options = {};
     } else {
       this.options = options;
+      this.children = children;
     }
   }
   canHaveChildren() {
@@ -468,10 +468,28 @@ var ClientObserver = class {
   addElement(element, optionName) {
     this.elements.push({ element, optionName });
   }
+  setProp(element, key, value) {
+    if (key === "class") {
+      element.className = value;
+    } else if (key === "style" && typeof value === "object") {
+      Object.assign(element.style, value);
+    } else if (key.startsWith("on") && typeof value === "function") {
+      element.addEventListener(key.slice(2), value);
+    } else if (key in element) {
+      const isTruthy = value === "true" || value === "false";
+      if (isTruthy) {
+        element[key] = Boolean(value);
+      } else {
+        element[key] = value;
+      }
+    } else {
+      element.setAttribute(key, value);
+    }
+  }
   call() {
     const newValue = this.callback(...this.subjectValues);
     for (const { element, optionName } of this.elements) {
-      element[optionName] = newValue;
+      this.setProp(element, optionName, newValue);
     }
   }
 };

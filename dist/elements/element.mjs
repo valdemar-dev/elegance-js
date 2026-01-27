@@ -5,18 +5,18 @@ function isAnElement(value) {
   return false;
 }
 class EleganceElement {
-  constructor(tag, options = {}, children) {
+  constructor(tag, options = {}, children = null) {
     this.tag = tag;
-    this.children = children;
     if (isAnElement(options)) {
       if (this.canHaveChildren() === false) {
         console.error("The element:", this, "is an invalid element. Reason:");
         throw "The options of an element may not be an element, if the element cannot have children.";
       }
-      this.children.unshift(options);
+      this.children = [options, ...children ?? []];
       this.options = {};
     } else {
       this.options = options;
+      this.children = children;
     }
   }
   canHaveChildren() {

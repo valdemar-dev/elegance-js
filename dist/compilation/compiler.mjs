@@ -148,6 +148,32 @@ function clientPackages(packages) {
     });
   }
 }
+function serializeProp(key, value) {
+  if (key === "class" || key === "className") {
+    if (!value) return "";
+    return ` class="${String(value)}"`;
+  }
+  if (key === "style") {
+    if (!value) return "";
+    if (typeof value === "string") {
+      return ` style="${value}"`;
+    }
+    if (typeof value === "object") {
+      const styleString = Object.entries(value).map(([k, v]) => `${k.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase())}:${v}`).join(";");
+      return styleString ? ` style="${styleString}"` : "";
+    }
+  }
+  if (typeof value === "function") {
+    return "";
+  }
+  if (typeof value === "boolean") {
+    return value ? ` ${key}` : "";
+  }
+  if (value == null) {
+    return "";
+  }
+  return ` ${key}="${String(value)}"`;
+}
 function serializeEleganceElement(compilationContext, element, path2 = []) {
   let serializedElement = "";
   let specialElementOptions = [];
@@ -160,7 +186,7 @@ function serializeEleganceElement(compilationContext, element, path2 = []) {
         const elementKey = getElementKey(compilationContext, element);
         specialElementOptions.push({ elementKey, optionName, optionValue });
       } else {
-        serializedElement += ` ${optionName}="${optionValue}"`;
+        serializedElement += serializeProp(optionName, optionValue);
       }
     }
   }

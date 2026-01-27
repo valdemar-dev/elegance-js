@@ -1,1 +1,1 @@
-/// <reference types="../src/global" />
+/// <reference types="elegance-js/global" />

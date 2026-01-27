@@ -215,7 +215,7 @@ function sanitizePathname(pathname: string = ""): string {
     return pathname;
 }
 
-function getElementKey(compilationContext: PageCompilationContext, element: EleganceElement<any>): string {
+function getElementKey(compilationContext: PageCompilationContext, element: EleganceElement<any ,any>): string {
     if (element.key) return element.key;
 
     element.key = generateId(compilationContext);
@@ -321,9 +321,44 @@ function clientPackages(packages: { [globalName: string]: string, }) {
     }
 }
 
+
+function serializeProp(key: string, value: any): string {
+    if (key === "class" || key === "className") {
+        if (!value) return "";
+        return ` class="${String(value)}"`;
+    }
+
+    if (key === "style") {
+        if (!value) return "";
+        if (typeof value === "string") {
+            return ` style="${value}"`;
+        }
+        if (typeof value === "object") {
+            const styleString = Object.entries(value)
+                .map(([k, v]) => `${k.replace(/[A-Z]/g, m => "-" + m.toLowerCase())}:${v}`)
+                .join(";");
+            return styleString ? ` style="${styleString}"` : "";
+        }
+    }
+
+    if (typeof value === "function") {
+        return "";
+    }
+
+    if (typeof value === "boolean") {
+        return value ? ` ${key}` : "";
+    }
+
+    if (value == null) {
+        return "";
+    }
+
+    return ` ${key}="${String(value)}"`;
+}
+
 function serializeEleganceElement(
     compilationContext: PageCompilationContext,
-    element: EleganceElement<any>,
+    element: EleganceElement<any, any>,
     path: string[] = [],
 ): SerializationResult {
 
@@ -332,7 +367,6 @@ function serializeEleganceElement(
 
     serializedElement += `<${element.tag}`;
     
-    // Process options.
     {
         const entries = Object.entries(element.options);
 
@@ -344,7 +378,7 @@ function serializeEleganceElement(
 
                 specialElementOptions.push({ elementKey, optionName, optionValue });
             } else {
-                serializedElement += ` ${optionName}="${optionValue}"`;
+                serializedElement += serializeProp(optionName, optionValue);
             }
         }
     }
@@ -355,7 +389,6 @@ function serializeEleganceElement(
 
     serializedElement += ">";
     
-    // Process children.
     {
         if (element.children === null) {
             return { serializedElement, specialElementOptions };
@@ -363,7 +396,7 @@ function serializeEleganceElement(
 
         if (element.children.length > 0) {
             for (const child of element.children) {
-                const result = serializeElement(compilationContext, child, path)
+                const result = serializeElement(compilationContext, child, path);
 
                 serializedElement += result.serializedElement;
                 specialElementOptions.push(...result.specialElementOptions);
@@ -373,8 +406,9 @@ function serializeEleganceElement(
 
     serializedElement += `</${element.tag}>`;
 
-    return { serializedElement, specialElementOptions  };
+    return { serializedElement, specialElementOptions };
 }
+
 
 /**
  * Take any element, and turn it into a valid HTML string.

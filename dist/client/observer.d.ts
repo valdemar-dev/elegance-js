@@ -2,7 +2,7 @@ import { EleganceElement, SpecialElementOption } from "../elements/element";
 import { ServerSubject } from "./state";
 import { ClientSubject } from "./runtime";
 type ToClient<T> = T extends ServerSubject<infer V> ? ClientSubject<V> : never;
-type ObserverCallback<T extends ServerSubject<any>> = (...dependencies: ToClient<T>["value"][]) => string | boolean | number;
+type ObserverCallback<T extends ServerSubject<any>> = (...dependencies: ToClient<T>["value"][]) => string | boolean | number | Record<string, unknown>;
 declare class ObserverOption extends SpecialElementOption {
     id: string;
     constructor(id: string);

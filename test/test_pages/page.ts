@@ -26,12 +26,10 @@ export function page() {
         return () => clearTimeout(timeoutId);
     }, [clientData]);
 
-    return div({},
-        p({
-            innerText: observer((c) => c?.content ?? "Loading..", [clientData]),
-        }),
-        ...links.map(l => Link({ href: l.target, }, l.name))
-    );
+    return div({
+        
+    });
+
 }
 
 export function metadata() {

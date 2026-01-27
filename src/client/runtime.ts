@@ -352,11 +352,35 @@ class ClientObserver {
         this.elements.push({ element, optionName });
     }
 
+    setProp(element: Element, key: string, value: any) {
+        if (key === "class") {
+            element.className = value;
+        } 
+        else if (key === "style" && typeof value === "object") {
+            Object.assign((element as any).style, value);
+        } 
+        else if (key.startsWith("on") && typeof value === "function") {
+            element.addEventListener(key.slice(2), value);
+        } 
+        else if (key in element) {
+            const isTruthy = value === "true" || value === "false";
+            if (isTruthy) {
+                (element as any)[key] = Boolean(value);
+            } else {
+                (element as any)[key] = value;
+            }
+        } 
+        else {
+            element.setAttribute(key, value);
+        }
+    }
+
+
     call() {
         const newValue = this.callback(...this.subjectValues);
 
         for (const { element, optionName } of this.elements) {
-            (element as any)[optionName] = newValue;
+            this.setProp(element, optionName, newValue);
         }
 
     }
