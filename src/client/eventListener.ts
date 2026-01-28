@@ -21,7 +21,7 @@ class EventListenerOption extends SpecialElementOption {
         this.id = id;
     }
 
-    mutate(element: EleganceElement<any>, optionName: string): void {
+    mutate(element: EleganceElement<any, any>, optionName: string): void {
         // this cast is fine
         delete (element.options as Record<string, any>)[optionName];
     }

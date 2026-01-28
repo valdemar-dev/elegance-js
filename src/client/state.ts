@@ -26,7 +26,7 @@ class ServerSubject<T extends any> {
      * @param callback Client side templating function that gets each entry of T, and returns an EleganceElement.
      * @returns An HTML represent used to track the position of the reactive map.
      */
-    reactiveMap(callback: (entry: T extends (infer U)[] ? U : never) => EleganceElement<any>): EleganceElement<true> {
+    reactiveMap(callback: (entry: T extends (infer U)[] ? U : never) => EleganceElement<any, any>): EleganceElement<any, true> {
         if (!callback) {
             throw new Error("No template provided for reactiveMap.");
         }

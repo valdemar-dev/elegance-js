@@ -20,7 +20,7 @@ class ObserverOption extends SpecialElementOption {
         this.id = id;
     }
 
-    mutate(element: EleganceElement<any>, optionName: string): void {
+    mutate(element: EleganceElement<any, any>, optionName: string): void {
         delete (element.options as Record<string, unknown>)[optionName];
     }
 

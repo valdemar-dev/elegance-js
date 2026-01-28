@@ -28,7 +28,7 @@ function genLocalID(): number {
 }
 
 function createHTMLElementFromEleganceElement(
-    element: EleganceElement<any>,
+    element: EleganceElement<any, any>,
 ): SerializationResult {
     let specialElementOptions: { elementKey: string, optionName: string, optionValue: SpecialElementOption }[] = [];
     const domElement = document.createElement(element.tag);

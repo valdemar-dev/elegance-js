@@ -27,8 +27,7 @@ export function page() {
     }, [clientData]);
 
     return div({
-        
-    });
+    }, clientData);
 
 }
 

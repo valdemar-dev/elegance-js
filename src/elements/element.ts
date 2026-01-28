@@ -31,6 +31,11 @@ abstract class SpecialElementOption {
 }
 
 type CommonElementProps = {
+    // internal stuff
+    "map-id"?: string;
+    "component-id"?: string;
+    "key"?: string;
+
     className?: MaybeSpecial<string>;
     style?: MaybeSpecial<Record<string, string | number>>;
     innerHTML?: MaybeSpecial<string>;

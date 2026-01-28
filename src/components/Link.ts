@@ -1,7 +1,7 @@
 import { eventListener, SetEvent } from "../client/eventListener";
-import { AnyElement, ElementOptionsOrChildElement, isAnElement } from "../elements/element";
+import { AnyElement, ElementOptionsOrChild, isAnElement } from "../elements/element";
 
-function Link(options: ElementOptionsOrChildElement, ...children: AnyElement[]) {
+function Link(options: ElementOptionsOrChild<any>, ...children: AnyElement[]) {
     const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
         event.preventDefault();
 

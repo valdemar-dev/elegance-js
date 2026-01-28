@@ -5,7 +5,7 @@ import { compilerStore } from "../compilation/compiler";
 import { EleganceElement } from "../elements/element";
 
 type ClientComponentCallback<D extends readonly ServerSubject<unknown>[]> =
-    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => EleganceElement<any>;
+    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => EleganceElement<any, any>;
 
 /**
  * Create a component that will be client-side rendered.
@@ -24,7 +24,7 @@ type ClientComponentCallback<D extends readonly ServerSubject<unknown>[]> =
 function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(
     callback: ClientComponentCallback<T>, 
     dependencies: [...T]
-): EleganceElement<true> {
+): EleganceElement<any, true> {
     const callbackState = state(callback);
 
     const store = compilerStore.getStore();

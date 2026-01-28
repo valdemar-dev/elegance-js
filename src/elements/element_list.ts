@@ -10,7 +10,7 @@ import {
     ElementChildren,
     ElementOptions,
     AllElementTags,
-    ElementOptionsOrChildElement,
+    ElementOptionsOrChild,
 } from "./element";
 
 const htmlChildrenlessElementTags: Array<HtmlChildrenlessElementTags> = [
@@ -64,14 +64,14 @@ const childrenlessElements: Record<string, EleganceElementBuilder<any>> = {};
 function createElementBuilder<Tag extends AllElementTags>(
     tag: Tag
 ): EleganceElementBuilder<Tag> {
-    return ((options: ElementOptionsOrChildElement, ...children: ElementChildren) => 
+    return ((options: ElementOptionsOrChild<any>, ...children: ElementChildren) => 
         new EleganceElement(tag as any, options, children)) as EleganceElementBuilder<Tag>;
 }
 
 function createChildrenlessElementBuilder<Tag extends AllElementTags>(
     tag: Tag
 ): EleganceElementBuilder<Tag> {
-    return ((options: ElementOptionsOrChildElement) =>
+    return ((options: ElementOptionsOrChild<any>) =>
         new EleganceElement(tag as any, options, null)) as EleganceElementBuilder<Tag>;
 }
 
