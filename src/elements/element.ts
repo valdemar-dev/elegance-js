@@ -72,6 +72,7 @@ type CommonElementProps = {
     onInvalid?: MaybeSpecial<EventListenerOption>;
     onReset?: MaybeSpecial<EventListenerOption>;
     onScroll?: MaybeSpecial<EventListenerOption>;
+    
     [key: `aria-${string}`]: MaybeSpecial<string | number | boolean | null | undefined>;
     [key: `data-${string}`]: MaybeSpecial<string | number | boolean | null | undefined>;
 };
