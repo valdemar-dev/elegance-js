@@ -423,10 +423,10 @@ class ObserverManager {
      * Take the results of ServerSubject.generateObserverNode(), replace their HTML placeins for text nodes, and turn those into observers.
      */
     transformSubjectObserverNodes() {
-        const observerNodes = newArray(document.querySelectorAll("div[observer-for]"));
+        const observerNodes = newArray(document.querySelectorAll("template[o]"));
 
         for (const node of observerNodes) {
-            const subjectId = node.getAttribute("observer-for")!;
+            const subjectId = node.getAttribute("o")!;
 
             const subject = stateManager.get(subjectId);
             if (!subject) {

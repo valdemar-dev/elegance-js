@@ -1,32 +1,30 @@
-import { Layout, ClientComponent, loadHook, state } from "elegance-js";
+import { LayoutParams, Link } from "elegance-js";
 
-export const layout: Layout = ({ child }) => {
-    const pagename = state("");
-    const isDarkModeActive = state(false);
-
-    loadHook((pagename) => {
-        pagename.value = window.location.pathname;
-
-        const idx = eleganceClient.onNavigate(() => {
-            pagename.value = window.location.pathname;
-        });
-
-        return () => eleganceClient.removeNavigationCallback(idx);
-    }, [pagename]);
-
+export function layout({ child, }: LayoutParams) {
     return html(
         body(
-            child({ isDarkModeActive, }),
-        ),
-    );
-};
+            div({
+                className: "h-12 w-full hover:bg-white duration-200 top-0 left-0 bg-yellow-300 right-0",
+            },
+                Link({
+                    href: "/page-one",
+                }, "page one"),
 
-export const metadata = () => {
+                Link({
+                    href: "/page-two",
+                }, "page two"),
+            ),
+
+            child({})
+        )
+    )
+}
+
+export function metadata() {
     return [
         link({
             rel: "stylesheet",
             href: "/index.css",
         }),
-    ];
-};
-export const isDynamic = false;
+    ]
+}

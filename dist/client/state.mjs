@@ -60,7 +60,7 @@ class ServerSubject {
    * @returns HTML string
    */
   generateObserverNode() {
-    return `<div observer-for="${this.id}"></div>`;
+    return `<template o="${this.id}"></template>`;
   }
   serialize() {
     let result = `{id:"${this.id}",value:`;

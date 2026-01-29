@@ -9,11 +9,11 @@ export function page() {
 
     return div({
     },
-        p({
-            innerText: observer((p) => {
-                return `The pathname ${p} does not exist.`;
-            }, [pathname])
-        }),
+        p({},
+            "The pathname ",
+            pathname,
+            " is not a real pathname you little liar.",
+        ),
     )
 }
 

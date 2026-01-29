@@ -30,10 +30,10 @@ function setCompilerOptions(newOptions) {
   newOptions.outputDirectory = path.resolve(newOptions.outputDirectory);
   newOptions.publicDirectory = path.resolve(newOptions.publicDirectory);
   if (existsSync(newOptions.pagesDirectory) === false) {
-    throw new Error(newOptions.pagesDirectory + " does not exist, and thus cannot be used as the pagesDirectory.");
+    throw new Error("The directory: " + newOptions.pagesDirectory + " does not exist, and thus cannot be used as the pagesDirectory.");
   }
   if (existsSync(newOptions.publicDirectory) === false) {
-    throw new Error(newOptions.publicDirectory + " does not exist, and thus cannot be used as the publicDirectory");
+    throw new Error("The directory: " + newOptions.publicDirectory + " does not exist, and thus cannot be used as the publicDirectory");
   }
   if (existsSync(newOptions.outputDirectory) === false) {
     mkdirSync(newOptions.outputDirectory, { recursive: true });
@@ -435,7 +435,7 @@ async function getPageExports(modulePath) {
   const pageConstructor = rawExports.page;
   {
     if (pageConstructor === void 0) {
-      throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageConstructor function. Did you forget the keyword `export`?");
+      throw invalidPageError(compilerOptions, modulePath, "This page does note export a `page` function. Did you forget the keyword `export`?");
     }
     if (typeof pageConstructor !== "function") {
       throw invalidPageError(compilerOptions, modulePath, 'The type of the export "page" is not a function, and is instead of type: ' + typeof pageConstructor);
@@ -444,7 +444,7 @@ async function getPageExports(modulePath) {
   const pageMetadataConstructor = rawExports.metadata;
   {
     if (pageMetadataConstructor === void 0) {
-      throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageMetadataConstructor function. Did you forget the keyword `export`?");
+      throw invalidPageError(compilerOptions, modulePath, "This page does note export a `metadata` function. Did you forget the keyword `export`?");
     }
     if (typeof pageMetadataConstructor !== "function") {
       throw invalidPageError(compilerOptions, modulePath, 'The type of the export "metadata" is not a function, and is instead of type: ' + typeof pageMetadataConstructor);
@@ -462,7 +462,7 @@ async function getLayoutExports(modulePath) {
   const layoutConstructor = rawExports.layout;
   {
     if (layoutConstructor === void 0) {
-      throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutConstructor function. Did you forget the keyword `export`?");
+      throw invalidPageError(compilerOptions, modulePath, "This layout does note export a `layout` function. Did you forget the keyword `export`?");
     }
     if (typeof layoutConstructor !== "function") {
       throw invalidLayoutError(compilerOptions, modulePath, 'The type of the export "layout" is not a function, and is instead of type: ' + typeof layoutConstructor);
@@ -471,7 +471,7 @@ async function getLayoutExports(modulePath) {
   const layoutMetadataConstructor = rawExports.metadata;
   {
     if (layoutMetadataConstructor === void 0) {
-      throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutMetadataConstructor function. Did you forget the keyword `export`?");
+      throw invalidPageError(compilerOptions, modulePath, "This layout does note export a `metadata` function. Did you forget the keyword `export`?");
     }
     if (typeof layoutMetadataConstructor !== "function") {
       throw invalidLayoutError(compilerOptions, modulePath, 'The type of the export "metadata" is not a function, and is instead of type: ' + typeof layoutMetadataConstructor);

@@ -135,11 +135,11 @@ function setCompilerOptions(newOptions: CompilerOptions) {
     newOptions.publicDirectory = path.resolve(newOptions.publicDirectory);
 
     if (existsSync(newOptions.pagesDirectory) === false) {
-        throw new Error(newOptions.pagesDirectory + " does not exist, and thus cannot be used as the pagesDirectory.");
+        throw new Error("The directory: " + newOptions.pagesDirectory + " does not exist, and thus cannot be used as the pagesDirectory.");
     }
 
     if (existsSync(newOptions.publicDirectory) === false) {
-        throw new Error(newOptions.publicDirectory + " does not exist, and thus cannot be used as the publicDirectory");
+        throw new Error("The directory: " + newOptions.publicDirectory + " does not exist, and thus cannot be used as the publicDirectory");
     }
 
     if (existsSync(newOptions.outputDirectory) === false) {
@@ -280,6 +280,10 @@ class ShippedPackage {
     }
 }
 
+/**
+ * Ship any `node_modules` package to the browser.
+ * @param packages The packages to register for shipping to the browser.
+ */
 function clientPackages(packages: { [globalName: string]: string, }) {
     for (const [globalName, packagePath] of Object.entries(packages)) {
         const store = compilerStore.getStore();
@@ -323,6 +327,15 @@ function clientPackages(packages: { [globalName: string]: string, }) {
     }
 }
 
+/**
+ * Convert any option of an element into a string,
+ * for style attributes, it will inline them into 1 string if they're an object.
+ * 
+ * Will turn className into class.
+ * @param key The key of the KV pair
+ * @param value The value of the KV pair
+ * @returns Serialized value
+ */
 function serializeProp(key: string, value: any): string {
     if (key === "class" || key === "className") {
         if (!value) return "";
@@ -357,6 +370,9 @@ function serializeProp(key: string, value: any): string {
     return ` ${key}="${String(value)}"`;
 }
 
+/**
+ * Prefere to call `serializeElement()`, which calls this function if it encounters an elegance element.
+ */
 function serializeEleganceElement(
     compilationContext: PageCompilationContext,
     element: EleganceElement<any, any>,
@@ -483,6 +499,12 @@ function serializeElement(
     return { serializedElement, specialElementOptions };
 }
 
+/**
+ * Prettify any value
+ * @param obj The value you want to prettify
+ * @param level Indentation level of the value
+ * @returns Prettified value
+ */
 function prettyObj(obj: any, level: number = 0): string {
     const ind = '  '.repeat(level);
     const entries = Object.entries(obj);

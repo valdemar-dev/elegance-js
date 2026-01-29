@@ -86,6 +86,10 @@ declare const compilerStore: AsyncLocalStorage<CompilerStore>;
 declare function setCompilerOptions(newOptions: CompilerOptions): void;
 declare function generatePageCompilationContext(pathname: string): PageCompilationContext;
 declare function generateLayoutCompilationContext(pathname: string): LayoutCompilationContext;
+/**
+ * Ship any `node_modules` package to the browser.
+ * @param packages The packages to register for shipping to the browser.
+ */
 declare function clientPackages(packages: {
     [globalName: string]: string;
 }): void;

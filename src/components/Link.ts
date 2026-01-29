@@ -1,7 +1,13 @@
 import { eventListener, SetEvent } from "../client/eventListener";
 import { AnyElement, ElementOptionsOrChild, isAnElement } from "../elements/element";
 
-function Link(options: ElementOptionsOrChild<any>, ...children: AnyElement[]) {
+/**
+ * Create a custom anchor element that let's you hook into client-side navigation.
+ * @param options Standard element optins, must include href for the link to work properly.
+ * @param children Standard element children.
+ * @returns A custom anchor element.
+ */
+function Link(options: ElementOptionsOrChild<"a">, ...children: AnyElement[]) {
     const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
         event.preventDefault();
 

@@ -90,7 +90,7 @@ class ServerSubject<T extends any> {
      * @returns HTML string
      */
     generateObserverNode(): string {
-        return `<div observer-for="${this.id}"></div>`;
+        return `<template o="${this.id}"></template>`;
     }
 
     serialize(): string {
