@@ -3,9 +3,9 @@ import { CompilerOptions } from "../compilation/compiler";
 import { AnyElement } from "../elements/element";
 import { LayoutInformation, LayoutProps } from "./layout";
 
-type PageData = { props: LayoutProps, };
-type PageConstructor = ((pageData: PageData) => AnyElement) | ((pageData: PageData) => Promise<AnyElement>);
-type PageMetadataConstructor = ((pageData: PageData) => AnyElement) | ((pageData: PageData) => Promise<AnyElement>);
+type PageParams = Record<any, unknown>;
+type PageConstructor = ((params: PageParams) => AnyElement) | ((params: PageParams) => Promise<AnyElement>);
+type PageMetadataConstructor = ((params: PageParams) => AnyElement) | ((params: PageParams) => Promise<AnyElement>);
 
 /**
  * Described the formatted supported exports of a given page.
@@ -45,6 +45,8 @@ export {
 export type {
     PageInformation,
     PageExports,
+
+    PageParams,
 
     PageConstructor,
     PageMetadataConstructor,

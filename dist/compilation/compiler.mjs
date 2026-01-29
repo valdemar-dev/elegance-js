@@ -599,7 +599,7 @@ async function compilePage(allLayouts, pageInformation) {
       allLayoutProps = { ...allLayoutProps, ...compiledLayout.layoutProps };
     }
   }
-  const pageProps = { props: allLayoutProps };
+  const pageProps = allLayoutProps;
   let pageRootElement = await compilerStore.run(storeTools, async () => {
     return await pageConstructor(pageProps);
   });

@@ -740,7 +740,7 @@ async function getPageExports(modulePath: string): Promise<PageExports> {
     const pageConstructor = rawExports.page;
     {
         if (pageConstructor === undefined) {
-            throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageConstructor function. Did you forget the keyword `export`?");
+            throw invalidPageError(compilerOptions, modulePath, "This page does note export a `page` function. Did you forget the keyword `export`?");
         }
 
         if (typeof pageConstructor !== "function") {
@@ -751,7 +751,7 @@ async function getPageExports(modulePath: string): Promise<PageExports> {
     const pageMetadataConstructor = rawExports.metadata;
     {
         if (pageMetadataConstructor === undefined) {
-            throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageMetadataConstructor function. Did you forget the keyword `export`?");
+            throw invalidPageError(compilerOptions, modulePath, "This page does note export a `metadata` function. Did you forget the keyword `export`?");
         }
         
 
@@ -779,7 +779,7 @@ async function getLayoutExports(modulePath: string): Promise<LayoutExports> {
     const layoutConstructor = rawExports.layout;
     {
         if (layoutConstructor === undefined) {
-            throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutConstructor function. Did you forget the keyword `export`?");
+            throw invalidPageError(compilerOptions, modulePath, "This layout does note export a `layout` function. Did you forget the keyword `export`?");
         }
 
         if (typeof layoutConstructor !== "function") {
@@ -790,7 +790,7 @@ async function getLayoutExports(modulePath: string): Promise<LayoutExports> {
     const layoutMetadataConstructor = rawExports.metadata;
     {
         if (layoutMetadataConstructor === undefined) {
-            throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutMetadataConstructor function. Did you forget the keyword `export`?");
+            throw invalidPageError(compilerOptions, modulePath, "This layout does note export a `metadata` function. Did you forget the keyword `export`?");
         }
 
         if (typeof layoutMetadataConstructor !== "function") {
@@ -977,7 +977,7 @@ async function compilePage(
         }
     }
 
-    const pageProps = { props: allLayoutProps };
+    const pageProps = allLayoutProps;
 
     let pageRootElement = await compilerStore.run(storeTools, async () => {
         return await pageConstructor(pageProps);

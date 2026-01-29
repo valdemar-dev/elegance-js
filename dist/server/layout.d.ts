@@ -28,4 +28,5 @@ type LayoutInformation = {
     exports: LayoutExports;
 };
 declare function invalidLayoutError(compilerOptions: CompilerOptions, modulePath: string, reason: string): Error;
-export { LayoutInformation, LayoutExports, LayoutConstructor, LayoutMetadataConstructor, invalidLayoutError, LayoutProps, };
+export type { LayoutInformation, LayoutExports, LayoutConstructor, LayoutMetadataConstructor, LayoutConstructorParameters, LayoutProps, };
+export { invalidLayoutError, };

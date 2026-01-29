@@ -6,6 +6,7 @@ import { CompilerOptions } from "../compilation/compiler";
  * These become page({ props: <your_props> }) within page.ts
  */
 type LayoutProps = Record<string, unknown>;
+
 type LayoutConstructorParameters = { 
     child: (props: LayoutProps) => AnyElement,
 };
@@ -41,11 +42,15 @@ function invalidLayoutError(compilerOptions: CompilerOptions, modulePath: string
     return new Error(`The layout at path: "${relativePath}" is invalid.\n${reason}`);
 }
 
-export {
+export type {
     LayoutInformation,
     LayoutExports,
     LayoutConstructor,
     LayoutMetadataConstructor,
-    invalidLayoutError,
+    LayoutConstructorParameters,
     LayoutProps,
+}
+
+export {
+    invalidLayoutError,
 }

@@ -1,10 +1,10 @@
-import { loadHook, state, PageConstructor, ServerSubject, observer } from "elegance-js";
+import { loadHook, state, ServerSubject, observer } from "elegance-js";
 
 type RandomData = {
     content: string;
 };
 
-export const page = ({ props: { isDarkModeActive }, }: { props: { isDarkModeActive: ServerSubject<boolean>, }}) => {
+export const page = ({ isDarkModeActive, }: { isDarkModeActive: ServerSubject<boolean>, }) => {
     const clientData = state<RandomData | null>(null);
 
     const links = [

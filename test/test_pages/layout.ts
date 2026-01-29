@@ -1,6 +1,6 @@
-import { LayoutConstructor, ClientComponent, loadHook, state } from "elegance-js";
+import { Layout, ClientComponent, loadHook, state } from "elegance-js";
 
-export const layout: LayoutConstructor = ({ child }) => {
+export const layout: Layout = ({ child }) => {
     const pagename = state("");
     const isDarkModeActive = state(false);
 
