@@ -1,6 +1,6 @@
-import { ClientComponent, loadHook, state } from "elegance-js";
+import { LayoutConstructor, ClientComponent, loadHook, state } from "elegance-js";
 
-export const layout = (child: any) => {
+const layout: LayoutConstructor = (child) => {
     const pagename = state("");
 
     loadHook((pagename) => {
@@ -13,7 +13,11 @@ export const layout = (child: any) => {
         return () => eleganceClient.removeNavigationCallback(idx);
     }, [pagename]);
 
-    return html(body(child));
+    return html(
+        body(
+            child({ yes: true, }),
+        ),
+    );
 };
 
 export const metadata = () => {

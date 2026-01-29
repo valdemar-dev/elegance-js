@@ -1,3 +1,3 @@
-import { AnyElement, ElementOptionsOrChildElement } from "../elements/element";
-declare function Link(options: ElementOptionsOrChildElement, ...children: AnyElement[]): import("..").EleganceElement<"a", true>;
+import { AnyElement, ElementOptionsOrChild } from "../elements/element";
+declare function Link(options: ElementOptionsOrChild<any>, ...children: AnyElement[]): import("..").EleganceElement<"a", true>;
 export { Link, };

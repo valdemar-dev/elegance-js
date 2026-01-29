@@ -1,6 +1,6 @@
 
 export const layout = (child: any) => {
-    return ul(li(child));
+    return ul(li(child({})));
 };
 
 export const metadata = () => {

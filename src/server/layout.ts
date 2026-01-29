@@ -2,7 +2,11 @@ import { relative } from "node:path";
 import { AnyElement } from "../elements/element";
 import { CompilerOptions } from "../compilation/compiler";
 
-type LayoutConstructor = ((child: AnyElement) => AnyElement) | ((child: AnyElement) => Promise<AnyElement>);
+/**
+ * These become page({ props: <your_props> }) within page.ts
+ */
+type LayoutProps = Record<string, unknown>;
+type LayoutConstructor = ((child: (props: LayoutProps) => AnyElement) => AnyElement) | ((child: (props: LayoutProps) => AnyElement) => Promise<AnyElement>);
 type LayoutMetadataConstructor = (() => AnyElement[]) | (() => Promise<AnyElement[]>);
 
 /**
@@ -39,4 +43,5 @@ export {
     LayoutConstructor,
     LayoutMetadataConstructor,
     invalidLayoutError,
+    LayoutProps,
 }

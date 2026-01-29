@@ -9,7 +9,7 @@ import { AnyElement, EleganceElement, SpecialElementOption } from "../elements/e
 import { cpSync, Dirent, existsSync, FSWatcher, lstatSync, mkdirSync, readdirSync, readFileSync, watch, writeFileSync } from "fs";
 import esbuild from "esbuild";
 import { invalidPageError, PageExports, PageInformation } from "../server/page";
-import { invalidLayoutError, LayoutExports, LayoutInformation } from "../server/layout";
+import { invalidLayoutError, LayoutExports, LayoutInformation, LayoutProps } from "../server/layout";
 import { allElements } from "../elements/element_list";
 import { ObserverOption, ServerObserver } from "../client/observer";
 import { fileURLToPath } from "url";
@@ -85,6 +85,8 @@ type CompiledLayout = {
 
     /** Compiled result of the layoutMetadataConstructor */
     layoutMetadataHTML: string,
+
+    layoutProps: LayoutProps,
 };
 
 type CompiledPage = {
@@ -320,7 +322,6 @@ function clientPackages(packages: { [globalName: string]: string, }) {
         });
     }
 }
-
 
 function serializeProp(key: string, value: any): string {
     if (key === "class" || key === "className") {
@@ -738,6 +739,10 @@ async function getPageExports(modulePath: string): Promise<PageExports> {
 
     const pageConstructor = rawExports.page;
     {
+        if (pageConstructor === undefined) {
+            throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageConstructor function. Did you forget the keyword `export`?");
+        }
+
         if (typeof pageConstructor !== "function") {
             throw invalidPageError(compilerOptions, modulePath, "The type of the export \"page\" is not a function, and is instead of type: " + typeof pageConstructor);
         }
@@ -745,6 +750,11 @@ async function getPageExports(modulePath: string): Promise<PageExports> {
 
     const pageMetadataConstructor = rawExports.metadata;
     {
+        if (pageMetadataConstructor === undefined) {
+            throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageMetadataConstructor function. Did you forget the keyword `export`?");
+        }
+        
+
         if (typeof pageMetadataConstructor !== "function") {
             throw invalidPageError(compilerOptions, modulePath, "The type of the export \"metadata\" is not a function, and is instead of type: " + typeof pageMetadataConstructor);
         }
@@ -768,6 +778,10 @@ async function getLayoutExports(modulePath: string): Promise<LayoutExports> {
 
     const layoutConstructor = rawExports.layout;
     {
+        if (layoutConstructor === undefined) {
+            throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutConstructor function. Did you forget the keyword `export`?");
+        }
+
         if (typeof layoutConstructor !== "function") {
             throw invalidLayoutError(compilerOptions, modulePath, "The type of the export \"layout\" is not a function, and is instead of type: " + typeof layoutConstructor);
         }
@@ -775,6 +789,10 @@ async function getLayoutExports(modulePath: string): Promise<LayoutExports> {
 
     const layoutMetadataConstructor = rawExports.metadata;
     {
+        if (layoutMetadataConstructor === undefined) {
+            throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutMetadataConstructor function. Did you forget the keyword `export`?");
+        }
+
         if (typeof layoutMetadataConstructor !== "function") {
             throw invalidLayoutError(compilerOptions, modulePath, "The type of the export \"metadata\" is not a function, and is instead of type: " + typeof layoutMetadataConstructor);
         }
@@ -921,12 +939,10 @@ function getEnforcedMetadata(): string {
     return `<meta charset="utf-8"><script defer="true" src="/client.js"></script>`;
 }
 async function compilePage(
-    allLayouts: Map<string, LayoutInformation>, 
+    allLayouts: Map<string, LayoutInformation>,
     pageInformation: PageInformation,
-    props: Record<string, any> = {},
 ): Promise<CompiledPage> {
     const compilationContext = generatePageCompilationContext(pageInformation.pathname);
-
     const exports = pageInformation.exports;
     const pageConstructor = exports.pageConstructor;
     const pageMetadataConstructor = exports.pageMetadataConstructor;
@@ -937,105 +953,105 @@ async function compilePage(
      * as each call to run has it's own "context", removing concurrency issues.
      */
     const clientTokens: unknown[] = [];
-
     const storeTools: CompilerStore = {
         generateId: () => generateId(compilationContext),
-
         addClientToken: (value: unknown) => {
             clientTokens.push(value);
         },
-
         compilationContext,
     };
 
+    // Pre-compile all applicable layouts so we can accumulate their props first
+    let compiledLayouts: CompiledLayout[] = [];
+    let allLayoutProps: LayoutProps = {} as LayoutProps;
+
+    if (pageInformation.applicableLayouts.length > 0) {
+        compiledLayouts = await Promise.all(
+            pageInformation.applicableLayouts.map((li) =>
+                getCompiledLayout(li, allLayouts)
+            )
+        );
+
+        for (const compiledLayout of compiledLayouts) {
+            allLayoutProps = { ...allLayoutProps, ...compiledLayout.layoutProps };
+        }
+    }
+
+    const pageProps = { props: allLayoutProps };
+
     let pageRootElement = await compilerStore.run(storeTools, async () => {
-        return await pageConstructor(props);
-    })
+        return await pageConstructor(pageProps);
+    });
 
     let pageRootMetadataElement = await compilerStore.run(storeTools, async () => {
-        return await pageMetadataConstructor(props);
-    })
+        return await pageMetadataConstructor(pageProps);
+    });
 
     let pageSerializationResult: SerializationResult;
     let pageMetadataSerializationResult: SerializationResult;
     try {
         pageSerializationResult = serializeElement(compilationContext, pageRootElement);
         pageMetadataSerializationResult = serializeElement(compilationContext, pageRootMetadataElement);
-    } catch(e) {
+    } catch (e) {
         formattedLog(LogLevel.ERROR, `${pageInformation.pathname}/page.ts - Element serialization failed.`);
-        
         throw e;
     }
 
-    const allClientTokens = [ ...clientTokens, ];
-
+    const allClientTokens = [...clientTokens];
     const allSpecialElementOptions = [
-        ...pageSerializationResult.specialElementOptions, 
+        ...pageSerializationResult.specialElementOptions,
         ...pageMetadataSerializationResult.specialElementOptions,
     ];
+
+    for (const compiledLayout of compiledLayouts) {
+        allClientTokens.push(...compiledLayout.clientTokens);
+        allSpecialElementOptions.push(...compiledLayout.specialElementOptions);
+    }
 
     const pageHTML = pageSerializationResult.serializedElement;
     const pageMetadataHTML = pageMetadataSerializationResult.serializedElement;
 
     let finalHTML: string = "<!DOCTYPE html>";
 
-    // go through the layouts, and construct the end-stage page html
     if (pageInformation.applicableLayouts.length > 0) {
-        const rootLayout = pageInformation.applicableLayouts[0];
-        const compiledRootLayout = await getCompiledLayout(rootLayout, allLayouts);
+        const compiledRootLayout = compiledLayouts[0];
 
         const htmlTagIndex = compiledRootLayout.layoutHTMLStart.indexOf("<html");
         const htmlTagEndIndex = compiledRootLayout.layoutHTMLStart.indexOf(">");
-
         if (htmlTagIndex === -1 || htmlTagEndIndex === -1) {
-            throw invalidLayoutError(compilerOptions, rootLayout.modulePath, "The root layout must start with an html() element.");
+            throw invalidLayoutError(compilerOptions, pageInformation.applicableLayouts[0].modulePath, "The root layout must start with an html() element.");
         }
-
         if (compiledRootLayout.layoutHTMLStart.includes("<body") === false) {
-            throw invalidLayoutError(compilerOptions, rootLayout.modulePath, "The root layout must contain the body() element.");
+            throw invalidLayoutError(compilerOptions, pageInformation.applicableLayouts[0].modulePath, "The root layout must contain the body() element.");
         }
 
         const beforeHead = compiledRootLayout.layoutHTMLStart.substring(0, htmlTagEndIndex + 1);
         const afterHead = compiledRootLayout.layoutHTMLStart.substring(htmlTagEndIndex + 1);
 
-        // gather the content of the head element, and inject it right after the <html> opening tag
+        // head content is (enforced + all layouts' metadata + page metadata)
         let headContent = "";
         {
             headContent += "<head>";
-                headContent += getEnforcedMetadata();
+            headContent += getEnforcedMetadata();
 
-                for (const layoutInformation of pageInformation.applicableLayouts) {
-                    const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
-
-                    headContent += compiledLayout.layoutMetadataHTML;
-
-                    allSpecialElementOptions.push(...compiledLayout.specialElementOptions);
-                    allClientTokens.push(...compiledLayout.clientTokens);
-                }
-                
-                headContent += pageMetadataHTML
-
+            for (const compiledLayout of compiledLayouts) {
+                headContent += compiledLayout.layoutMetadataHTML;
+            }
+            headContent += pageMetadataHTML;
             headContent += "</head>";
         }
 
         finalHTML += beforeHead + headContent + afterHead;
 
-        // skip the root layout, since we already added it in.
-        for (let i = 1; i < pageInformation.applicableLayouts.length; i++) {
-            const layoutInformation = pageInformation.applicableLayouts[i];
-
-            const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
-
-            finalHTML += compiledLayout.layoutHTMLStart;
+        // (skip root obviously)
+        for (let i = 1; i < compiledLayouts.length; i++) {
+            finalHTML += compiledLayouts[i].layoutHTMLStart;
         }
 
-        finalHTML += pageHTML
+        finalHTML += pageHTML;
 
         let endString = "";
-
-        for (const layoutInformation of [...pageInformation.applicableLayouts].reverse()) {
-            const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
-
+        for (const compiledLayout of [...compiledLayouts].reverse()) {
             endString += compiledLayout.layoutHTMLEnd;
         }
 
@@ -1048,22 +1064,20 @@ async function compilePage(
         const afterEndTag = endString.substring(htmlEndTagIndex);
 
         const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allClientTokens);
-
         finalHTML += beforeEndTag + pageDataScript + afterEndTag;
     } else {
         finalHTML += `<html lang="en-us">`;
-            finalHTML += "<head>";
-                finalHTML += getEnforcedMetadata();
-                finalHTML += pageMetadataHTML;
-            finalHTML += "</head>";
-            
-            finalHTML += "<body>";
-                finalHTML += pageHTML;
+        finalHTML += "<head>";
+        finalHTML += getEnforcedMetadata();
+        finalHTML += pageMetadataHTML;
+        finalHTML += "</head>";
+        finalHTML += "<body>";
+        finalHTML += pageHTML;
 
-                const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allClientTokens);
+        const pageDataScript = await generatePageDataScript(compilationContext, allSpecialElementOptions, allClientTokens);
+        finalHTML += pageDataScript;
 
-                finalHTML += pageDataScript;
-            finalHTML += "</body>";
+        finalHTML += "</body>";
         finalHTML += `</html>`;
     }
 
@@ -1150,7 +1164,17 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         compilationContext,
     };
 
-    let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor(markerElement));
+    let layoutProps: LayoutProps = {};
+    const propPasser = (props: LayoutProps) => {
+        layoutProps = {
+            ...layoutProps,
+            ...props,
+        };
+
+        return markerElement
+    };
+
+    let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor(propPasser));
 
     let layoutRootMetadataElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutMetadataConstructor());
 
@@ -1193,6 +1217,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         layoutMetadataHTML: layoutMetadataHTML,
         specialElementOptions: specialElementOptions,
         clientTokens: clientTokens,
+        layoutProps: layoutProps
     };
 
     return compiledLayout;

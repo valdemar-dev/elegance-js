@@ -434,12 +434,18 @@ async function getPageExports(modulePath) {
   let isDynamic = rawExports?.isDynamic === true;
   const pageConstructor = rawExports.page;
   {
+    if (pageConstructor === void 0) {
+      throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageConstructor function. Did you forget the keyword `export`?");
+    }
     if (typeof pageConstructor !== "function") {
       throw invalidPageError(compilerOptions, modulePath, 'The type of the export "page" is not a function, and is instead of type: ' + typeof pageConstructor);
     }
   }
   const pageMetadataConstructor = rawExports.metadata;
   {
+    if (pageMetadataConstructor === void 0) {
+      throw invalidPageError(compilerOptions, modulePath, "This page does note export a PageMetadataConstructor function. Did you forget the keyword `export`?");
+    }
     if (typeof pageMetadataConstructor !== "function") {
       throw invalidPageError(compilerOptions, modulePath, 'The type of the export "metadata" is not a function, and is instead of type: ' + typeof pageMetadataConstructor);
     }
@@ -455,12 +461,18 @@ async function getLayoutExports(modulePath) {
   let isDynamic = rawExports?.isDynamic === true;
   const layoutConstructor = rawExports.layout;
   {
+    if (layoutConstructor === void 0) {
+      throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutConstructor function. Did you forget the keyword `export`?");
+    }
     if (typeof layoutConstructor !== "function") {
       throw invalidLayoutError(compilerOptions, modulePath, 'The type of the export "layout" is not a function, and is instead of type: ' + typeof layoutConstructor);
     }
   }
   const layoutMetadataConstructor = rawExports.metadata;
   {
+    if (layoutMetadataConstructor === void 0) {
+      throw invalidPageError(compilerOptions, modulePath, "This layout does note export a LayoutMetadataConstructor function. Did you forget the keyword `export`?");
+    }
     if (typeof layoutMetadataConstructor !== "function") {
       throw invalidLayoutError(compilerOptions, modulePath, 'The type of the export "metadata" is not a function, and is instead of type: ' + typeof layoutMetadataConstructor);
     }
@@ -562,7 +574,7 @@ async function compilePageToDisk(allLayouts, pageInformation) {
 function getEnforcedMetadata() {
   return `<meta charset="utf-8"><script defer="true" src="/client.js"></script>`;
 }
-async function compilePage(allLayouts, pageInformation, props = {}) {
+async function compilePage(allLayouts, pageInformation) {
   const compilationContext = generatePageCompilationContext(pageInformation.pathname);
   const exports = pageInformation.exports;
   const pageConstructor = exports.pageConstructor;
@@ -575,11 +587,24 @@ async function compilePage(allLayouts, pageInformation, props = {}) {
     },
     compilationContext
   };
+  let compiledLayouts = [];
+  let allLayoutProps = {};
+  if (pageInformation.applicableLayouts.length > 0) {
+    compiledLayouts = await Promise.all(
+      pageInformation.applicableLayouts.map(
+        (li) => getCompiledLayout(li, allLayouts)
+      )
+    );
+    for (const compiledLayout of compiledLayouts) {
+      allLayoutProps = { ...allLayoutProps, ...compiledLayout.layoutProps };
+    }
+  }
+  const pageProps = { props: allLayoutProps };
   let pageRootElement = await compilerStore.run(storeTools, async () => {
-    return await pageConstructor(props);
+    return await pageConstructor(pageProps);
   });
   let pageRootMetadataElement = await compilerStore.run(storeTools, async () => {
-    return await pageMetadataConstructor(props);
+    return await pageMetadataConstructor(pageProps);
   });
   let pageSerializationResult;
   let pageMetadataSerializationResult;
@@ -595,19 +620,22 @@ async function compilePage(allLayouts, pageInformation, props = {}) {
     ...pageSerializationResult.specialElementOptions,
     ...pageMetadataSerializationResult.specialElementOptions
   ];
+  for (const compiledLayout of compiledLayouts) {
+    allClientTokens.push(...compiledLayout.clientTokens);
+    allSpecialElementOptions.push(...compiledLayout.specialElementOptions);
+  }
   const pageHTML = pageSerializationResult.serializedElement;
   const pageMetadataHTML = pageMetadataSerializationResult.serializedElement;
   let finalHTML = "<!DOCTYPE html>";
   if (pageInformation.applicableLayouts.length > 0) {
-    const rootLayout = pageInformation.applicableLayouts[0];
-    const compiledRootLayout = await getCompiledLayout(rootLayout, allLayouts);
+    const compiledRootLayout = compiledLayouts[0];
     const htmlTagIndex = compiledRootLayout.layoutHTMLStart.indexOf("<html");
     const htmlTagEndIndex = compiledRootLayout.layoutHTMLStart.indexOf(">");
     if (htmlTagIndex === -1 || htmlTagEndIndex === -1) {
-      throw invalidLayoutError(compilerOptions, rootLayout.modulePath, "The root layout must start with an html() element.");
+      throw invalidLayoutError(compilerOptions, pageInformation.applicableLayouts[0].modulePath, "The root layout must start with an html() element.");
     }
     if (compiledRootLayout.layoutHTMLStart.includes("<body") === false) {
-      throw invalidLayoutError(compilerOptions, rootLayout.modulePath, "The root layout must contain the body() element.");
+      throw invalidLayoutError(compilerOptions, pageInformation.applicableLayouts[0].modulePath, "The root layout must contain the body() element.");
     }
     const beforeHead = compiledRootLayout.layoutHTMLStart.substring(0, htmlTagEndIndex + 1);
     const afterHead = compiledRootLayout.layoutHTMLStart.substring(htmlTagEndIndex + 1);
@@ -615,25 +643,19 @@ async function compilePage(allLayouts, pageInformation, props = {}) {
     {
       headContent += "<head>";
       headContent += getEnforcedMetadata();
-      for (const layoutInformation of pageInformation.applicableLayouts) {
-        const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
+      for (const compiledLayout of compiledLayouts) {
         headContent += compiledLayout.layoutMetadataHTML;
-        allSpecialElementOptions.push(...compiledLayout.specialElementOptions);
-        allClientTokens.push(...compiledLayout.clientTokens);
       }
       headContent += pageMetadataHTML;
       headContent += "</head>";
     }
     finalHTML += beforeHead + headContent + afterHead;
-    for (let i = 1; i < pageInformation.applicableLayouts.length; i++) {
-      const layoutInformation = pageInformation.applicableLayouts[i];
-      const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
-      finalHTML += compiledLayout.layoutHTMLStart;
+    for (let i = 1; i < compiledLayouts.length; i++) {
+      finalHTML += compiledLayouts[i].layoutHTMLStart;
     }
     finalHTML += pageHTML;
     let endString = "";
-    for (const layoutInformation of [...pageInformation.applicableLayouts].reverse()) {
-      const compiledLayout = await getCompiledLayout(layoutInformation, allLayouts);
+    for (const compiledLayout of [...compiledLayouts].reverse()) {
       endString += compiledLayout.layoutHTMLEnd;
     }
     const htmlEndTagIndex = endString.indexOf("</body>");
@@ -705,7 +727,15 @@ async function compileLayout(layoutInformation) {
     },
     compilationContext
   };
-  let layoutRootElement = await compilerStore.run(storeTools, async () => await layoutConstructor(markerElement));
+  let layoutProps = {};
+  const propPasser = (props) => {
+    layoutProps = {
+      ...layoutProps,
+      ...props
+    };
+    return markerElement;
+  };
+  let layoutRootElement = await compilerStore.run(storeTools, async () => await layoutConstructor(propPasser));
   let layoutRootMetadataElement = await compilerStore.run(storeTools, async () => await layoutMetadataConstructor());
   let layoutSerializationResult;
   let layoutMetadataSerializationResult;
@@ -733,7 +763,8 @@ async function compileLayout(layoutInformation) {
     layoutHTMLEnd,
     layoutMetadataHTML,
     specialElementOptions,
-    clientTokens
+    clientTokens,
+    layoutProps
   };
   return compiledLayout;
 }

@@ -12,7 +12,7 @@ type EventListenerCallback<T extends readonly ServerSubject<any>[]> = (event: Se
 declare class EventListenerOption extends SpecialElementOption {
     id: string;
     constructor(id: string);
-    mutate(element: EleganceElement<any>, optionName: string): void;
+    mutate(element: EleganceElement<any, any>, optionName: string): void;
     serialize(optionName: string, elementKey: string): string;
 }
 declare class EventListener<T extends readonly ServerSubject<any>[]> {

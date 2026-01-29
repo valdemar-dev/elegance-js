@@ -24,14 +24,14 @@ function Header() {
     );
 }
 
-export function layout(child: AnyElement) {
+export function layout(child: any) {
     return html(
         body({
             class: "bg-black text-white h-screen w-screen grid grid-cols-1 p-4 gap-4 grid-rows-[auto_1fr]",
         },
             Header(),
 
-            child,
+            child({}),
         ),
     );
 }

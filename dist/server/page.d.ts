@@ -1,8 +1,11 @@
 import { CompilerOptions } from "../compilation/compiler";
 import { AnyElement } from "../elements/element";
-import { LayoutInformation } from "./layout";
-type PageConstructor = ((props: Record<string, any>) => AnyElement) | ((props: Record<string, any>) => Promise<AnyElement>);
-type PageMetadataConstructor = ((props: Record<string, any>) => AnyElement) | ((props: Record<string, any>) => Promise<AnyElement>);
+import { LayoutInformation, LayoutProps } from "./layout";
+type PageData = {
+    props: LayoutProps;
+};
+type PageConstructor = ((pageData: PageData) => AnyElement) | ((pageData: PageData) => Promise<AnyElement>);
+type PageMetadataConstructor = ((pageData: PageData) => AnyElement) | ((pageData: PageData) => Promise<AnyElement>);
 /**
  * Described the formatted supported exports of a given page.
  */

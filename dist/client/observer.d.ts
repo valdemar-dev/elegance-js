@@ -6,7 +6,7 @@ type ObserverCallback<T extends ServerSubject<any>> = (...dependencies: ToClient
 declare class ObserverOption extends SpecialElementOption {
     id: string;
     constructor(id: string);
-    mutate(element: EleganceElement<any>, optionName: string): void;
+    mutate(element: EleganceElement<any, any>, optionName: string): void;
     serialize(optionName: string, elementKey: string): string;
 }
 /**

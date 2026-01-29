@@ -8,3 +8,5 @@ export * from "./components/ClientComponent";
 export * from "./server/server";
 export * from "./compilation/compiler";
 export * from "./elements/element";
+export * from "./server/page";
+export * from "./server/layout";

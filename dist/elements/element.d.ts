@@ -20,6 +20,9 @@ declare abstract class SpecialElementOption {
     abstract serialize(optionName: string, elementKey: string): string;
 }
 type CommonElementProps = {
+    "map-id"?: string;
+    "component-id"?: string;
+    "key"?: string;
     className?: MaybeSpecial<string>;
     style?: MaybeSpecial<Record<string, string | number>>;
     innerHTML?: MaybeSpecial<string>;

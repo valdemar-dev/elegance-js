@@ -3,7 +3,7 @@
  */
 import { AnyElement, SpecialElementOption } from "../elements/element";
 import { PageInformation } from "../server/page";
-import { LayoutInformation } from "../server/layout";
+import { LayoutInformation, LayoutProps } from "../server/layout";
 import { AsyncLocalStorage } from "async_hooks";
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
@@ -57,6 +57,7 @@ type CompiledLayout = {
     clientTokens: unknown[];
     /** Compiled result of the layoutMetadataConstructor */
     layoutMetadataHTML: string;
+    layoutProps: LayoutProps;
 };
 type CompiledPage = {
     pageHTML: string;
@@ -114,7 +115,7 @@ declare function generatePageDataScript(compilationContext: PageCompilationConte
     optionValue: SpecialElementOption;
 }[], clientTokens: unknown[]): Promise<string>;
 declare function compilePageToDisk(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage>;
-declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation, props?: Record<string, any>): Promise<CompiledPage>;
+declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage>;
 declare function compileLayoutToDisk(layoutInformation: LayoutInformation): Promise<void>;
 declare function compileLayout(layoutInformation: LayoutInformation): Promise<CompiledLayout>;
 /**

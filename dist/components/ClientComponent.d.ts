@@ -3,7 +3,7 @@ import { ServerSubject } from "../client/state";
 import { EleganceElement } from "../elements/element";
 type ClientComponentCallback<D extends readonly ServerSubject<unknown>[]> = (...dependencies: {
     [K in keyof D]: ClientSubject<D[K]["value"]>;
-}) => EleganceElement<any>;
+}) => EleganceElement<any, any>;
 /**
  * Create a component that will be client-side rendered.
  *
@@ -18,5 +18,5 @@ type ClientComponentCallback<D extends readonly ServerSubject<unknown>[]> = (...
  * @param dependencies Any subjects that the component needs access to.
  * @returns An HTML element to track the position of the Client Component.
  */
-declare function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(callback: ClientComponentCallback<T>, dependencies: [...T]): EleganceElement<true>;
+declare function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(callback: ClientComponentCallback<T>, dependencies: [...T]): EleganceElement<any, true>;
 export { ClientComponent };

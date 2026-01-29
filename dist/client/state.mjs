@@ -95,6 +95,10 @@ function state(value, options) {
   store.addClientToken(serverSubject);
   return serverSubject;
 }
+function createContext(value, options) {
+}
+function getContext() {
+}
 export {
   ServerSubject,
   state

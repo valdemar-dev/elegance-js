@@ -1,10 +1,10 @@
-import { ClientComponent, Link, loadHook, observer, state } from "elegance-js";
+import { loadHook, state, PageConstructor } from "elegance-js";
 
 type RandomData = {
     content: string;
 };
 
-export function page() {
+export const page: PageConstructor = ({ props, }) => {
     const clientData = state<RandomData | null>(null);
 
     const links = [
@@ -27,7 +27,7 @@ export function page() {
     }, [clientData]);
 
     return div({
-    }, clientData);
+    }, props.yes, clientData);
 
 }
 
