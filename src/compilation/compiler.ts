@@ -1174,7 +1174,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         return markerElement
     };
 
-    let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor(propPasser));
+    let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ child: propPasser, }));
 
     let layoutRootMetadataElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutMetadataConstructor());
 

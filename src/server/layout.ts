@@ -6,7 +6,11 @@ import { CompilerOptions } from "../compilation/compiler";
  * These become page({ props: <your_props> }) within page.ts
  */
 type LayoutProps = Record<string, unknown>;
-type LayoutConstructor = ((child: (props: LayoutProps) => AnyElement) => AnyElement) | ((child: (props: LayoutProps) => AnyElement) => Promise<AnyElement>);
+type LayoutConstructorParameters = { 
+    child: (props: LayoutProps) => AnyElement,
+};
+
+type LayoutConstructor = ((params: LayoutConstructorParameters) => AnyElement) | ((params: LayoutConstructorParameters) => Promise<AnyElement>);
 type LayoutMetadataConstructor = (() => AnyElement[]) | (() => Promise<AnyElement[]>);
 
 /**

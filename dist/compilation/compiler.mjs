@@ -735,7 +735,7 @@ async function compileLayout(layoutInformation) {
     };
     return markerElement;
   };
-  let layoutRootElement = await compilerStore.run(storeTools, async () => await layoutConstructor(propPasser));
+  let layoutRootElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ child: propPasser }));
   let layoutRootMetadataElement = await compilerStore.run(storeTools, async () => await layoutMetadataConstructor());
   let layoutSerializationResult;
   let layoutMetadataSerializationResult;

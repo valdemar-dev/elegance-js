@@ -1,10 +1,10 @@
-import { loadHook, state, PageConstructor } from "elegance-js";
+import { loadHook, state, PageConstructor, ServerSubject, observer } from "elegance-js";
 
 type RandomData = {
     content: string;
 };
 
-export const page: PageConstructor = ({ props, }) => {
+export const page = ({ props: { isDarkModeActive }, }: { props: { isDarkModeActive: ServerSubject<boolean>, }}) => {
     const clientData = state<RandomData | null>(null);
 
     const links = [
@@ -18,17 +18,23 @@ export const page: PageConstructor = ({ props, }) => {
         },
     ];
 
-    loadHook((clientData) => {
+    loadHook((clientData, isDarkModeActive) => {
         const timeoutId = setTimeout(() => {
             clientData.value = { content: "HI!", };
+            isDarkModeActive.value = true;
         }, 1000)
 
         return () => clearTimeout(timeoutId);
-    }, [clientData]);
+    }, [clientData, isDarkModeActive]);
 
     return div({
-    }, props.yes, clientData);
+        className: observer((dm) => {
+            return dm ? "bg-black text-white" : "bg-white text-black";
+        }, [isDarkModeActive]),
+    },
 
+        "hello",
+    );
 }
 
 export function metadata() {
