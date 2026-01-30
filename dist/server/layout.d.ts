@@ -4,8 +4,10 @@ import { CompilerOptions } from "../compilation/compiler";
  * These become page({ props: <your_props> }) within page.ts
  */
 type LayoutProps = Record<string, unknown>;
+type Child = (props: LayoutProps) => AnyElement;
 type LayoutConstructorParameters = {
-    child: (props: LayoutProps) => AnyElement;
+    child: Child;
+    props: LayoutProps;
 };
 type LayoutConstructor = ((params: LayoutConstructorParameters) => AnyElement) | ((params: LayoutConstructorParameters) => Promise<AnyElement>);
 type LayoutMetadataConstructor = (() => AnyElement[]) | (() => Promise<AnyElement[]>);
@@ -28,5 +30,5 @@ type LayoutInformation = {
     exports: LayoutExports;
 };
 declare function invalidLayoutError(compilerOptions: CompilerOptions, modulePath: string, reason: string): Error;
-export type { LayoutInformation, LayoutExports, LayoutConstructor, LayoutMetadataConstructor, LayoutConstructorParameters, LayoutProps, };
+export type { LayoutInformation, LayoutExports, LayoutConstructor, LayoutMetadataConstructor, LayoutConstructorParameters, LayoutProps, Child };
 export { invalidLayoutError, };

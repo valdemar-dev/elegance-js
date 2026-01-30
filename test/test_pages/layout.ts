@@ -15,7 +15,9 @@ export function layout({ child, }: LayoutParams) {
                 }, "page two"),
             ),
 
-            child({})
+            child({ 
+                counter: 1,
+            }),
         )
     )
 }

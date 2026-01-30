@@ -19,6 +19,8 @@ export type {
     LayoutConstructor as Layout,
     LayoutMetadataConstructor as LayoutMetadata,
     LayoutConstructorParameters as LayoutParams,
+
+    Child,
 } from "./server/layout";
 
 export type { 

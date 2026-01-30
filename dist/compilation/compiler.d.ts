@@ -107,7 +107,7 @@ declare function serializeElement(compilationContext: PageCompilationContext, el
  * For example, the serialize() method of EventListener is not sent, but it's callback, id, and dependencies (as ids) are.
  * String interpolation is dangerous and error-prone, so if you're going to add something to this function, ensure you know what you're doing,
  * and make sure to also edit runtime.ts to handle the clientTokens that you send to the browser. I did not create separate datatypes in the runtime for the intermediary forms of things like EventListeners,
- * LoadHooks, etc, for I did not feel it necessary, but do not that these types do not exactly line up 100%.
+ * LoadHooks, etc, for I did not feel it necessary, but do note that these types do not exactly line up 100%.
  * @param compilationContext The current context of what we're compiling, can be either layout or page compilation context.
  * @param specialElementOptions An array of special element options that were found during serialization of the elements of whatever we're currently compiling
  * @param clientTokens An array of tokens that will be serialized and shipped within the pageDataScript.
@@ -120,8 +120,8 @@ declare function generatePageDataScript(compilationContext: PageCompilationConte
 }[], clientTokens: unknown[]): Promise<string>;
 declare function compilePageToDisk(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage>;
 declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage>;
-declare function compileLayoutToDisk(layoutInformation: LayoutInformation): Promise<void>;
-declare function compileLayout(layoutInformation: LayoutInformation): Promise<CompiledLayout>;
+declare function compileLayoutToDisk(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<void>;
+declare function compileLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout>;
 /**
  * Run the general compilation process for the project.
  * This compiles all static-pages & static-layouts, as well as gathers a list of every page (dynamic and static) & layout (dynamic and static).

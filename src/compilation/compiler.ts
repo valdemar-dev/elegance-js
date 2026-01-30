@@ -316,7 +316,7 @@ function clientPackages(packages: { [globalName: string]: string, }) {
                 ".mjs": "js",
             },
             footer: {
-                "js": `;window.${globalName}=${globalName};`,
+                "js": `;window["${globalName}"}=${globalName};`,
             },
             minify: true,
             treeShaking: true,
@@ -525,7 +525,7 @@ function prettyObj(obj: any, level: number = 0): string {
         str += `${ind}  ${key}: ${valRepr},\n`;
     }
 
-    str = str.slice(0, -2); // remove trailing commad
+    str = str.slice(0, -2); // remove trailing commas
     str += `\n${ind}}`;
 
     return str;
@@ -602,7 +602,7 @@ function formatStacktrace(path: string[]): string {
  * For example, the serialize() method of EventListener is not sent, but it's callback, id, and dependencies (as ids) are.
  * String interpolation is dangerous and error-prone, so if you're going to add something to this function, ensure you know what you're doing,
  * and make sure to also edit runtime.ts to handle the clientTokens that you send to the browser. I did not create separate datatypes in the runtime for the intermediary forms of things like EventListeners, 
- * LoadHooks, etc, for I did not feel it necessary, but do not that these types do not exactly line up 100%.
+ * LoadHooks, etc, for I did not feel it necessary, but do note that these types do not exactly line up 100%.
  * @param compilationContext The current context of what we're compiling, can be either layout or page compilation context.
  * @param specialElementOptions An array of special element options that were found during serialization of the elements of whatever we're currently compiling
  * @param clientTokens An array of tokens that will be serialized and shipped within the pageDataScript.
@@ -923,14 +923,14 @@ async function gatherAllLayouts(): Promise<Map<string, LayoutInformation>> {
 const compiledStaticLayouts = new Map<string, CompiledLayout>();
 async function getCompiledLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout> {
     if (layoutInformation.exports.isDynamic === true) {
-        return await compileLayout(layoutInformation);
+        return await compileLayout(layoutInformation, allLayouts);
     }
 
     if (compiledStaticLayouts.has(layoutInformation.pathname)) {
         return compiledStaticLayouts.get(layoutInformation.pathname)!;
     }
 
-    const compiledLayout = await compileLayout(layoutInformation);
+    const compiledLayout = await compileLayout(layoutInformation, allLayouts);
     compiledStaticLayouts.set(layoutInformation.pathname, compiledLayout);
 
     return compiledLayout;
@@ -988,11 +988,9 @@ async function compilePage(
     let allLayoutProps: LayoutProps = {} as LayoutProps;
 
     if (pageInformation.applicableLayouts.length > 0) {
-        compiledLayouts = await Promise.all(
-            pageInformation.applicableLayouts.map((li) =>
-                getCompiledLayout(li, allLayouts)
-            )
-        );
+        for (const layout of pageInformation.applicableLayouts) {
+            compiledLayouts.push(await getCompiledLayout(layout, allLayouts));
+        }
 
         for (const compiledLayout of compiledLayouts) {
             allLayoutProps = { ...allLayoutProps, ...compiledLayout.layoutProps };
@@ -1144,8 +1142,8 @@ async function compileStaticPagesToDisk(
     return compiledPages;
 }
 
-async function compileLayoutToDisk(layoutInformation: LayoutInformation): Promise<void> {
-    const compiledLayout = await compileLayout(layoutInformation);
+async function compileLayoutToDisk(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<void> {
+    const compiledLayout = await compileLayout(layoutInformation, allLayouts);
 
     const directory = path.join(getDistDir(), layoutInformation.pathname);
     const htmlFullPath = path.join(directory, "layout.html");
@@ -1157,8 +1155,30 @@ async function compileLayoutToDisk(layoutInformation: LayoutInformation): Promis
     writeFileSync(jsFullPath, compiledLayout.specialElementOptions.join(","));
 }
 
-async function compileLayout(layoutInformation: LayoutInformation): Promise<CompiledLayout> {
+async function compileLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout> {
     const compilationContext = generateLayoutCompilationContext(layoutInformation.pathname);
+
+    /**
+     * Get this layout's parent layout's props.
+     * Note that this happens recursively, so if you have a layout at:
+     * /my-site/blog/layout.ts, it will get the parent props from /my-site/layout.ts,
+     * which will get *it's* parent props from /layout.ts.
+     * 
+     * This *could* be inefficient if layouts are not rendered in-order, meaning least-depth to most depth,
+     * but they are, so the performance hit is negligeble.
+     */
+    let parentLayoutProps = {};
+    {
+        const parentLayout = sanitizePathname(path.dirname(layoutInformation.pathname));
+        
+        // prevents infinite recursion, because the pathname /'s dirname is /.
+        const isSameLayout = layoutInformation.pathname === parentLayout;
+
+        if (!isSameLayout && allLayouts.has(parentLayout)) {
+            const compiledParent = await getCompiledLayout(allLayouts.get(parentLayout)!, allLayouts);
+            parentLayoutProps = compiledParent.layoutProps;
+        }
+    }
 
     const exports = layoutInformation.exports;
     const layoutConstructor = exports.layoutConstructor;
@@ -1196,7 +1216,7 @@ async function compileLayout(layoutInformation: LayoutInformation): Promise<Comp
         return markerElement
     };
 
-    let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ child: propPasser, }));
+    let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ props: parentLayoutProps, child: propPasser, }));
 
     let layoutRootMetadataElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutMetadataConstructor());
 

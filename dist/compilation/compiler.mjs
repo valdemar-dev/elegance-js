@@ -138,7 +138,7 @@ function clientPackages(packages) {
         ".mjs": "js"
       },
       footer: {
-        "js": `;window.${globalName}=${globalName};`
+        "js": `;window["${globalName}"}=${globalName};`
       },
       minify: true,
       treeShaking: true
@@ -550,12 +550,12 @@ async function gatherAllLayouts() {
 const compiledStaticLayouts = /* @__PURE__ */ new Map();
 async function getCompiledLayout(layoutInformation, allLayouts) {
   if (layoutInformation.exports.isDynamic === true) {
-    return await compileLayout(layoutInformation);
+    return await compileLayout(layoutInformation, allLayouts);
   }
   if (compiledStaticLayouts.has(layoutInformation.pathname)) {
     return compiledStaticLayouts.get(layoutInformation.pathname);
   }
-  const compiledLayout = await compileLayout(layoutInformation);
+  const compiledLayout = await compileLayout(layoutInformation, allLayouts);
   compiledStaticLayouts.set(layoutInformation.pathname, compiledLayout);
   return compiledLayout;
 }
@@ -590,11 +590,9 @@ async function compilePage(allLayouts, pageInformation) {
   let compiledLayouts = [];
   let allLayoutProps = {};
   if (pageInformation.applicableLayouts.length > 0) {
-    compiledLayouts = await Promise.all(
-      pageInformation.applicableLayouts.map(
-        (li) => getCompiledLayout(li, allLayouts)
-      )
-    );
+    for (const layout of pageInformation.applicableLayouts) {
+      compiledLayouts.push(await getCompiledLayout(layout, allLayouts));
+    }
     for (const compiledLayout of compiledLayouts) {
       allLayoutProps = { ...allLayoutProps, ...compiledLayout.layoutProps };
     }
@@ -702,8 +700,8 @@ async function compileStaticPagesToDisk(allLayouts, allPages) {
   }
   return compiledPages;
 }
-async function compileLayoutToDisk(layoutInformation) {
-  const compiledLayout = await compileLayout(layoutInformation);
+async function compileLayoutToDisk(layoutInformation, allLayouts) {
+  const compiledLayout = await compileLayout(layoutInformation, allLayouts);
   const directory = path.join(getDistDir(), layoutInformation.pathname);
   const htmlFullPath = path.join(directory, "layout.html");
   const htmlMetadataFullPath = path.join(directory, "layout_metadata.html");
@@ -712,8 +710,17 @@ async function compileLayoutToDisk(layoutInformation) {
   writeFileSync(htmlMetadataFullPath, compiledLayout.layoutMetadataHTML);
   writeFileSync(jsFullPath, compiledLayout.specialElementOptions.join(","));
 }
-async function compileLayout(layoutInformation) {
+async function compileLayout(layoutInformation, allLayouts) {
   const compilationContext = generateLayoutCompilationContext(layoutInformation.pathname);
+  let parentLayoutProps = {};
+  {
+    const parentLayout = sanitizePathname(path.dirname(layoutInformation.pathname));
+    const isSameLayout = layoutInformation.pathname === parentLayout;
+    if (!isSameLayout && allLayouts.has(parentLayout)) {
+      const compiledParent = await getCompiledLayout(allLayouts.get(parentLayout), allLayouts);
+      parentLayoutProps = compiledParent.layoutProps;
+    }
+  }
   const exports = layoutInformation.exports;
   const layoutConstructor = exports.layoutConstructor;
   const layoutMetadataConstructor = exports.layoutMetadataConstructor;
@@ -735,7 +742,7 @@ async function compileLayout(layoutInformation) {
     };
     return markerElement;
   };
-  let layoutRootElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ child: propPasser }));
+  let layoutRootElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ props: parentLayoutProps, child: propPasser }));
   let layoutRootMetadataElement = await compilerStore.run(storeTools, async () => await layoutMetadataConstructor());
   let layoutSerializationResult;
   let layoutMetadataSerializationResult;

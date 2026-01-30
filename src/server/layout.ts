@@ -7,8 +7,11 @@ import { CompilerOptions } from "../compilation/compiler";
  */
 type LayoutProps = Record<string, unknown>;
 
+type Child = (props: LayoutProps) => AnyElement;
+
 type LayoutConstructorParameters = { 
-    child: (props: LayoutProps) => AnyElement,
+    child: Child,
+    props: LayoutProps,
 };
 
 type LayoutConstructor = ((params: LayoutConstructorParameters) => AnyElement) | ((params: LayoutConstructorParameters) => Promise<AnyElement>);
@@ -49,6 +52,8 @@ export type {
     LayoutMetadataConstructor,
     LayoutConstructorParameters,
     LayoutProps,
+
+    Child
 }
 
 export {
