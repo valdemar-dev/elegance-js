@@ -28,6 +28,11 @@ type PageInformation = {
 
     exports: PageExports,
 
+    /** This is just the result of pathname.split("/") */
+    pathnameParts: string[],
+    /** Whether or not this page's route has any "slug" parts, like [user] (next-js style) */
+    containsCatchAllParts: boolean,
+
     /** An in-order list of the layouts that apply to this page. */
     applicableLayouts: LayoutInformation[],
 };

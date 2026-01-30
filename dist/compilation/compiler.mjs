@@ -494,21 +494,39 @@ async function getApplicablePageLayouts(allLayouts, pagePathname) {
   pageLayouts.sort((a, b) => a.pathname.length - b.pathname.length);
   return pageLayouts;
 }
+async function generatePageInformation(file, allLayouts) {
+  const fullPath = path.join(file.parentPath, file.name);
+  const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
+  const exports = await getPageExports(fullPath);
+  const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
+  const parts = pathname.split("/");
+  let containsCatchAllParts = false;
+  for (const part of parts) {
+    const isCatchAll = part.startsWith("[") && part.endsWith("]");
+    if (isCatchAll) {
+      containsCatchAllParts = true;
+      break;
+    }
+  }
+  if (containsCatchAllParts && exports.isDynamic === false) {
+    throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.");
+  }
+  const pageInformation = {
+    modulePath: fullPath,
+    exports,
+    pathname,
+    applicableLayouts: applicablePageLayouts,
+    pathnameParts: parts,
+    containsCatchAllParts
+  };
+  return pageInformation;
+}
 async function gatherAllPages(allLayouts) {
   const pageMap = /* @__PURE__ */ new Map();
   await walkDirectory(compilerOptions.pagesDirectory, async (file) => {
     if (file.name !== "page.ts") return;
-    const fullPath = path.join(file.parentPath, file.name);
-    const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
-    const exports = await getPageExports(fullPath);
-    const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
-    const pageInformation = {
-      modulePath: fullPath,
-      exports,
-      pathname,
-      applicableLayouts: applicablePageLayouts
-    };
-    pageMap.set(pathname, pageInformation);
+    const pageInformation = await generatePageInformation(file, allLayouts);
+    pageMap.set(pageInformation.pathname, pageInformation);
   });
   return pageMap;
 }
@@ -522,11 +540,25 @@ async function gatherAllStatusCodePages(allLayouts) {
     const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
     const exports = await getPageExports(fullPath);
     const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
+    const parts = pathname.split("/");
+    let containsCatchAllParts = false;
+    for (const part of parts) {
+      const isCatchAll = part.startsWith("[") && part.endsWith("]");
+      if (isCatchAll) {
+        containsCatchAllParts = true;
+        break;
+      }
+    }
+    if (containsCatchAllParts && exports.isDynamic === false) {
+      throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.");
+    }
     const pageInformation = {
       modulePath: fullPath,
       exports,
       pathname: pathname + code,
-      applicableLayouts: applicablePageLayouts
+      applicableLayouts: applicablePageLayouts,
+      pathnameParts: parts,
+      containsCatchAllParts
     };
     pageMap.set(pathname + code, pageInformation);
   });

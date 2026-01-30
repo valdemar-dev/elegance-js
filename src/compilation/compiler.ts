@@ -844,26 +844,50 @@ async function getApplicablePageLayouts(allLayouts: Map<string, LayoutInformatio
     return pageLayouts;
 }
 
+async function generatePageInformation(file: Dirent, allLayouts: Map<string, LayoutInformation>) {
+    const fullPath = path.join(file.parentPath, file.name);
+    const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
+
+    const exports = await getPageExports(fullPath);
+    const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
+
+    const parts = pathname.split("/");
+
+    let containsCatchAllParts = false;
+    for (const part of parts) {
+        const isCatchAll = part.startsWith("[") && part.endsWith("]");
+
+        if (isCatchAll) {
+            containsCatchAllParts = true;
+            break;
+        }
+    }
+
+    if (containsCatchAllParts && exports.isDynamic === false) {
+        throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.")
+    }
+
+    const pageInformation: PageInformation = {
+        modulePath: fullPath,
+        exports: exports,
+        pathname: pathname,
+        applicableLayouts: applicablePageLayouts,
+        pathnameParts: parts,
+        containsCatchAllParts,
+    };
+
+    return pageInformation;
+}
+
 async function gatherAllPages(allLayouts: Map<string, LayoutInformation>): Promise<Map<string, PageInformation>> {
     const pageMap = new Map();
 
     await walkDirectory(compilerOptions.pagesDirectory, async (file) => {
         if (file.name !== "page.ts") return;
 
-        const fullPath = path.join(file.parentPath, file.name);
-        const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
+        const pageInformation = await generatePageInformation(file, allLayouts);
 
-        const exports = await getPageExports(fullPath);
-        const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
-
-        const pageInformation: PageInformation = {
-            modulePath: fullPath,
-            exports: exports,
-            pathname: pathname,
-            applicableLayouts: applicablePageLayouts,
-        };
-
-        pageMap.set(pathname, pageInformation);
+        pageMap.set(pageInformation.pathname, pageInformation);
     })
 
     return pageMap;
@@ -885,11 +909,29 @@ async function gatherAllStatusCodePages(allLayouts: Map<string, LayoutInformatio
         const exports = await getPageExports(fullPath);
         const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
 
+        const parts = pathname.split("/");
+
+        let containsCatchAllParts = false;
+        for (const part of parts) {
+            const isCatchAll = part.startsWith("[") && part.endsWith("]");
+
+            if (isCatchAll) {
+                containsCatchAllParts = true;
+                break;
+            }
+        }
+
+        if (containsCatchAllParts && exports.isDynamic === false) {
+            throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.")
+        }
+
         const pageInformation: PageInformation = {
             modulePath: fullPath,
             exports: exports,
             pathname: pathname + code,
             applicableLayouts: applicablePageLayouts,
+            pathnameParts: parts,
+            containsCatchAllParts,
         };
 
         pageMap.set(pathname + code, pageInformation);
