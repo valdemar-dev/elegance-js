@@ -23,6 +23,10 @@ export type {
     Child,
 } from "./server/layout";
 
+export {
+    raw
+} from "./elements/raw";
+
 export type { 
     PageConstructor as Page,
     PageMetadataConstructor as PageMetadata,

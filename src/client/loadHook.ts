@@ -1,4 +1,3 @@
-import { EleganceElement, SpecialElementOption } from "../elements/element";
 import { compilerStore } from "../compilation/compiler";
 import { ServerSubject } from "./state";
 import type { ClientSubject } from "./runtime";
@@ -73,9 +72,9 @@ function loadHook<const T extends readonly ServerSubject<unknown>[]>(
 
     const id = store.generateId();
 
-    const listener = new LoadHook<T>(callback, dependencies, loadHookKind, id, pathname);
+    const loadHook = new LoadHook<T>(callback, dependencies, loadHookKind, id, pathname);
 
-    store.addClientToken(listener);
+    store.addClientToken(loadHook);
 }
 
 export {

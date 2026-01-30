@@ -23,6 +23,8 @@ import { formattedLog, formatToLog, LogLevel } from "../server/log";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { raw, unwrapAllRaw, } from "../elements/raw";
+
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
     /** The slash starting relative pathname (relative to pagesDirectory) of this page. */
@@ -426,7 +428,6 @@ function serializeEleganceElement(
     return { serializedElement, specialElementOptions };
 }
 
-
 /**
  * Take any element, and turn it into a valid HTML string.
  * Throw an error whenever an element is considered invalid.
@@ -490,7 +491,7 @@ function serializeElement(
         serializedElement = element.toString();
         break;
     case "string":
-        serializedElement = element;
+        serializedElement = unwrapAllRaw(element);
         break;
     default:
         throw invalidElementError(element, fullPath, `The typeof of this element is not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.`);
@@ -1189,6 +1190,7 @@ async function compileLayout(layoutInformation: LayoutInformation, allLayouts: M
      */
     const layoutId = generateLayoutId(layoutInformation);
     const markerElement = `<template layout-id="${layoutId}"></template>`;
+    const wrappedElement = raw(markerElement);
 
     /**
      * Populate compilerStore.
@@ -1213,7 +1215,7 @@ async function compileLayout(layoutInformation: LayoutInformation, allLayouts: M
             ...props,
         };
 
-        return markerElement
+        return wrappedElement;
     };
 
     let layoutRootElement: AnyElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ props: parentLayoutProps, child: propPasser, }));

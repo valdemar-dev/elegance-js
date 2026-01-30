@@ -16,6 +16,7 @@ import { LoadHook } from "../client/loadHook";
 import { formattedLog, LogLevel } from "../server/log";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import { raw, unwrapAllRaw } from "../elements/raw";
 let compilerOptions;
 const compilerStore = new AsyncLocalStorage();
 function getDistDir() {
@@ -248,7 +249,7 @@ function serializeElement(compilationContext, element, path2 = []) {
       serializedElement = element.toString();
       break;
     case "string":
-      serializedElement = element;
+      serializedElement = unwrapAllRaw(element);
       break;
     default:
       throw invalidElementError(element, fullPath, `The typeof of this element is not one of EleganceElement, boolean, number, string or Array. Please convert it into one of these types.`);
@@ -726,6 +727,7 @@ async function compileLayout(layoutInformation, allLayouts) {
   const layoutMetadataConstructor = exports.layoutMetadataConstructor;
   const layoutId = generateLayoutId(layoutInformation);
   const markerElement = `<template layout-id="${layoutId}"></template>`;
+  const wrappedElement = raw(markerElement);
   const clientTokens = [];
   const storeTools = {
     generateId: () => generateId(compilationContext),
@@ -740,7 +742,7 @@ async function compileLayout(layoutInformation, allLayouts) {
       ...layoutProps,
       ...props
     };
-    return markerElement;
+    return wrappedElement;
   };
   let layoutRootElement = await compilerStore.run(storeTools, async () => await layoutConstructor({ props: parentLayoutProps, child: propPasser }));
   let layoutRootMetadataElement = await compilerStore.run(storeTools, async () => await layoutMetadataConstructor());

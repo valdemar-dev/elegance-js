@@ -1,5 +1,6 @@
 import { compilerStore } from "../compilation/compiler";
 import { EleganceElement } from "../elements/element";
+import { raw } from "../elements/raw";
 import { loadHook } from "./loadHook";
 
 type StateCreationOptions = {
@@ -90,7 +91,11 @@ class ServerSubject<T extends any> {
      * @returns HTML string
      */
     generateObserverNode(): string {
-        return `<template o="${this.id}"></template>`;
+        return raw(`<template o="${this.id}"></template>`);
+    }
+
+    toString() {
+        return this.generateObserverNode();
     }
 
     serialize(): string {
@@ -143,30 +148,6 @@ function state<T>(value: T, options?: StateCreationOptions): ServerSubject<T> {
 
     return serverSubject
 }
-
-/**
- * i suppose a kind of way to create a sort of "global" state whilst having it be component created
- * is to, in the layout, change the paramater `child` that is passed in to be a function, where you can define the extra data that the child gets.
- * 
- * instead of return div(
- *  child,
- * );
- * 
- * you would instead do div(
- *  child({ key: value }),
- * );
- * 
- * i suppose also layout's should be entitled to this data, and can modify it.
- * 
- * so, you could have a root layout call child with key: 1,
- * but then the next layout may incremenet the value, and page.ts ultimately gets key: 2
- * 
- * layout data passing will be nested and not determined by what last layout sends
- * 
- */
-function createContext(value: TemplateStringsArray, options?: StateCreationOptions) {}
-
-function getContext() {}
 
 export {
     state,

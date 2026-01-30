@@ -1,4 +1,5 @@
 import { compilerStore } from "../compilation/compiler";
+import { raw } from "../elements/raw";
 import { loadHook } from "./loadHook";
 class ServerSubject {
   constructor(id, value) {
@@ -60,7 +61,10 @@ class ServerSubject {
    * @returns HTML string
    */
   generateObserverNode() {
-    return `<template o="${this.id}"></template>`;
+    return raw(`<template o="${this.id}"></template>`);
+  }
+  toString() {
+    return this.generateObserverNode();
   }
   serialize() {
     let result = `{id:"${this.id}",value:`;

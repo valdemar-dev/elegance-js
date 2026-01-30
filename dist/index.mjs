@@ -7,12 +7,16 @@ import { Link } from "./components/Link";
 import { ClientComponent } from "./components/ClientComponent";
 import { serveProject } from "./server/server";
 export * from "./compilation/compiler";
+import {
+  raw
+} from "./elements/raw";
 export {
   ClientComponent,
   Link,
   eventListener,
   loadHook,
   observer,
+  raw,
   serveProject,
   startEleganceRuntime,
   state

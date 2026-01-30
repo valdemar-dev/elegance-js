@@ -25,6 +25,7 @@ declare class ServerSubject<T extends any> {
      * @returns HTML string
      */
     generateObserverNode(): string;
+    toString(): string;
     serialize(): string;
 }
 /**
