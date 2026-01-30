@@ -1,23 +1,23 @@
 {
-    "compilerOptions": {
-        "target": "ESNext",
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "strict": true,
-        "esModuleInterop": true,
-        "forceConsistentCasingInFileNames": true,
-        "skipLibCheck": true,
-        "paths": {
-            "@/": [
-                "./"
-            ]
-        }
-    },
-    "include": [
-        "pages/**/*",
-        "env.d.ts"
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "strictFunctionTypes": false,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": [
+        "ES2022",
+        "dom"
     ],
-    "exclude": [
-        "node_modules"
-    ]
+    "paths": {
+        "@/": [
+            "./"
+        ]
+    }
+  },
+  "include": ["./**/*.ts", "**/*.ts"]
 }

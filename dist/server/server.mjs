@@ -309,6 +309,17 @@ async function sendResponse(req, res, data, contentType = "text/plain") {
   res.end(buffer);
 }
 async function requestHandler(req, res) {
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, {
+      "Allow": "GET,POST,PUT,DELETE,OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+      "Access-Control-Allow-Headers": req.headers["access-control-request-headers"] || "*",
+      "Access-Control-Max-Age": "86400"
+    });
+    res.end();
+    return;
+  }
   if (!req.url) {
     res.statusCode = 400;
     await sendResponse(req, res, "Bad request.");
