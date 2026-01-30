@@ -10,5 +10,4 @@ const __dirname = path.dirname(__filename);
 
 const runtimePath = join(__dirname, "elegance.ts");
 
-console.log("starting cuh")
-startEleganceRuntime(runtimePath)
+startEleganceRuntime(runtimePath);
