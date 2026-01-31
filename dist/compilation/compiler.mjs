@@ -238,7 +238,7 @@ function serializeElement(compilationContext, element, path2 = []) {
         break;
       }
       if (element instanceof ServerSubject) {
-        serializedElement = element.generateObserverNode();
+        serializedElement = unwrapAllRaw(element.generateObserverNode());
         break;
       }
       throw invalidElementError(element, fullPath, `This element is an arbitrary object, and arbitrary objects are not valid children. Please make sure all elements are one of: EleganceElement, boolean, number, string or Array.`);
@@ -494,30 +494,35 @@ async function getApplicablePageLayouts(allLayouts, pagePathname) {
   pageLayouts.sort((a, b) => a.pathname.length - b.pathname.length);
   return pageLayouts;
 }
+function isPathPartDynamic(part) {
+  if (part.startsWith("[") && part.endsWith("]")) return true;
+  if (part.startsWith("*") && part.endsWith("*")) return true;
+  if (part.startsWith(":*") && part.endsWith("*")) return true;
+  if (part.startsWith(":[") && part.endsWith("]")) return true;
+  return false;
+}
 async function generatePageInformation(file, allLayouts) {
   const fullPath = path.join(file.parentPath, file.name);
   const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
   const exports = await getPageExports(fullPath);
   const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
-  const parts = pathname.split("/");
+  const parts = pathname === "/" ? [""] : pathname.split("/");
   let containsCatchAllParts = false;
   for (const part of parts) {
-    const isCatchAll = part.startsWith("[") && part.endsWith("]");
-    if (isCatchAll) {
+    if (isPathPartDynamic(part)) {
       containsCatchAllParts = true;
       break;
     }
   }
   if (containsCatchAllParts && exports.isDynamic === false) {
-    throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.");
+    throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] | *product* must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.");
   }
   const pageInformation = {
     modulePath: fullPath,
     exports,
     pathname,
     applicableLayouts: applicablePageLayouts,
-    pathnameParts: parts,
-    containsCatchAllParts
+    pathnameParts: parts
   };
   return pageInformation;
 }
@@ -540,25 +545,23 @@ async function gatherAllStatusCodePages(allLayouts) {
     const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
     const exports = await getPageExports(fullPath);
     const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
-    const parts = pathname.split("/");
+    const parts = pathname === "/" ? [""] : pathname.split("/");
     let containsCatchAllParts = false;
     for (const part of parts) {
-      const isCatchAll = part.startsWith("[") && part.endsWith("]");
-      if (isCatchAll) {
+      if (isPathPartDynamic(part)) {
         containsCatchAllParts = true;
         break;
       }
     }
     if (containsCatchAllParts && exports.isDynamic === false) {
-      throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.");
+      throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] | *product* must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.");
     }
     const pageInformation = {
       modulePath: fullPath,
       exports,
       pathname: pathname + code,
       applicableLayouts: applicablePageLayouts,
-      pathnameParts: parts,
-      containsCatchAllParts
+      pathnameParts: parts
     };
     pageMap.set(pathname + code, pageInformation);
   });
@@ -607,7 +610,7 @@ async function compilePageToDisk(allLayouts, pageInformation) {
 function getEnforcedMetadata() {
   return `<meta charset="utf-8"><script defer="true" src="/client.js"></script>`;
 }
-async function compilePage(allLayouts, pageInformation) {
+async function compilePage(allLayouts, pageInformation, extraParams = {}) {
   const compilationContext = generatePageCompilationContext(pageInformation.pathname);
   const exports = pageInformation.exports;
   const pageConstructor = exports.pageConstructor;
@@ -630,7 +633,7 @@ async function compilePage(allLayouts, pageInformation) {
       allLayoutProps = { ...allLayoutProps, ...compiledLayout.layoutProps };
     }
   }
-  const pageProps = allLayoutProps;
+  const pageProps = { allLayoutProps, params: extraParams };
   let pageRootElement = await compilerStore.run(storeTools, async () => {
     return await pageConstructor(pageProps);
   });

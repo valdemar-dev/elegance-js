@@ -135,18 +135,17 @@ async function getSafePath(userInputPath) {
   }
   return resolvedFinalPath;
 }
-async function handlePageRequest(req, res, pathname) {
-  const pageInformation = serverOptions.allPages.get(pathname);
+async function handlePageRequest(req, res, pathname, pageInformation, matchHit) {
   if (pageInformation.exports.isDynamic) {
     if (serverOptions.allowDynamic === false) {
       return respondWithStatusCode(req, res, pathname, 404, "Page not found.");
     }
-    const result = await compilePage(serverOptions.allLayouts, pageInformation);
+    const result = await compilePage(serverOptions.allLayouts, pageInformation, matchHit.params);
     res.statusCode = 200;
     await sendResponse(req, res, result.pageHTML, "text/html");
     return;
   }
-  const { pageHTML } = serverOptions.builtStaticPages.get(pathname);
+  const { pageHTML } = serverOptions.builtStaticPages.get(pageInformation.pathname);
   res.statusCode = 200;
   await sendResponse(req, res, pageHTML, "text/html");
 }
@@ -337,10 +336,115 @@ async function requestHandler(req, res) {
   if (pathname.startsWith("/api/")) {
     return handleAPIRequest(req, res, pathname);
   }
-  if (serverOptions.allPages.has(pathname)) {
-    return handlePageRequest(req, res, pathname);
+  const matchingPage = matchPathnameToPathParts(pathname, [...serverOptions.allPages.values()].map((v) => getPathPattern(v)));
+  if (!matchingPage) {
+    return handleFileRequest(req, res, pathname);
   }
-  return handleFileRequest(req, res, pathname);
+  handlePageRequest(req, res, pathname, serverOptions.allPages.get(matchingPage.matchedPathname), matchingPage);
+}
+function getPathPattern(value) {
+  return {
+    pathname: value.pathname,
+    pathnameParts: value.pathnameParts
+  };
+}
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function buildRegexStrFromParts(pathnameParts) {
+  let patternRegex = "^/";
+  let hasPart = false;
+  let previousCanSkip = false;
+  for (let part of pathnameParts) {
+    if (part === "") {
+      continue;
+    }
+    const optional = part.startsWith(":");
+    const currentPart = optional ? part.slice(1) : part;
+    const isCatchAll = currentPart.startsWith("*") && currentPart.endsWith("*");
+    const isDynamic = currentPart.startsWith("[") && currentPart.endsWith("]");
+    let matcher;
+    if (isCatchAll) {
+      matcher = "[^/]+(?:/[^/]+)*";
+    } else if (isDynamic) {
+      matcher = "[^/]+";
+    } else {
+      matcher = escapeRegExp(currentPart);
+    }
+    if (isCatchAll || isDynamic) {
+      const paramName = currentPart.slice(1, -1);
+      matcher = `(?<${paramName}>${matcher})`;
+    }
+    let sep;
+    if (hasPart) {
+      sep = previousCanSkip ? "/?" : "/";
+    } else {
+      sep = "";
+    }
+    let addition = sep + matcher;
+    if (optional) {
+      if (hasPart || sep !== "") {
+        addition = "(?:" + sep + matcher + ")?";
+      } else {
+        addition = "(?:" + matcher + ")?";
+      }
+      previousCanSkip = true;
+    } else {
+      previousCanSkip = false;
+    }
+    patternRegex += addition;
+    hasPart = true;
+  }
+  if (patternRegex === "^/") {
+    patternRegex = "^/?";
+  }
+  patternRegex += "$";
+  return patternRegex;
+}
+function matchPathnameToPathParts(pathname, allPatterns) {
+  const candidates = [];
+  for (const pattern of allPatterns) {
+    const patternParts = pattern.pathnameParts;
+    const regexStr = buildRegexStrFromParts(patternParts);
+    const regex = new RegExp(regexStr);
+    const match = pathname.match(regex);
+    if (match) {
+      const getBasePart = (p) => p.startsWith(":") ? p.slice(1) : p;
+      const isDynamicPart = (p) => p.startsWith(":") || p.startsWith("[") || p.startsWith("*");
+      const fixedCount = patternParts.filter((p) => p !== "" && !isDynamicPart(p)).length;
+      const dynamicSingleCount = patternParts.filter((p) => {
+        const pp = getBasePart(p);
+        return pp.startsWith("[") && pp.endsWith("]");
+      }).length;
+      const catchallCount = patternParts.filter((p) => {
+        const pp = getBasePart(p);
+        return pp.startsWith("*") && pp.endsWith("*");
+      }).length;
+      const optionalCount = patternParts.filter((p) => p.startsWith(":")).length;
+      const totalDynamic = dynamicSingleCount + catchallCount;
+      candidates.push({ pattern, fixedCount, dynamicSingleCount, catchallCount, optionalCount, totalDynamic, match });
+    }
+  }
+  if (candidates.length === 0) {
+    return null;
+  }
+  candidates.sort((a, b) => {
+    if (a.fixedCount !== b.fixedCount) {
+      return b.fixedCount - a.fixedCount;
+    }
+    if (a.totalDynamic !== b.totalDynamic) {
+      return a.totalDynamic - b.totalDynamic;
+    }
+    if (a.catchallCount !== b.catchallCount) {
+      return a.catchallCount - b.catchallCount;
+    }
+    if (a.optionalCount !== b.optionalCount) {
+      return a.optionalCount - b.optionalCount;
+    }
+    return 0;
+  });
+  const best = candidates[0];
+  return { matchedPathname: best.pattern.pathname, params: best.match.groups || {} };
 }
 async function serveProject(startupServerOptions) {
   serverOptions = startupServerOptions;

@@ -119,7 +119,7 @@ declare function generatePageDataScript(compilationContext: PageCompilationConte
     optionValue: SpecialElementOption;
 }[], clientTokens: unknown[]): Promise<string>;
 declare function compilePageToDisk(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage>;
-declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage>;
+declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation, extraParams?: Record<string, unknown>): Promise<CompiledPage>;
 declare function compileLayoutToDisk(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<void>;
 declare function compileLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout>;
 /**

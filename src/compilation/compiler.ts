@@ -478,7 +478,7 @@ function serializeElement(
         }
 
         if (element instanceof ServerSubject) {
-            serializedElement = element.generateObserverNode();
+            serializedElement = unwrapAllRaw(element.generateObserverNode());
 
             break;
         }
@@ -844,6 +844,15 @@ async function getApplicablePageLayouts(allLayouts: Map<string, LayoutInformatio
     return pageLayouts;
 }
 
+function isPathPartDynamic(part: string): boolean {
+    if (part.startsWith("[") && part.endsWith("]")) return true;
+    if (part.startsWith("*") && part.endsWith("*")) return true;
+    if (part.startsWith(":*") && part.endsWith("*")) return true;
+    if (part.startsWith(":[") && part.endsWith("]")) return true;
+
+    return false;
+}
+
 async function generatePageInformation(file: Dirent, allLayouts: Map<string, LayoutInformation>) {
     const fullPath = path.join(file.parentPath, file.name);
     const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
@@ -851,20 +860,18 @@ async function generatePageInformation(file: Dirent, allLayouts: Map<string, Lay
     const exports = await getPageExports(fullPath);
     const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
 
-    const parts = pathname.split("/");
+    const parts = pathname === "/" ? [""] : pathname.split("/");
 
     let containsCatchAllParts = false;
     for (const part of parts) {
-        const isCatchAll = part.startsWith("[") && part.endsWith("]");
-
-        if (isCatchAll) {
+        if (isPathPartDynamic(part)) {
             containsCatchAllParts = true;
             break;
         }
     }
 
     if (containsCatchAllParts && exports.isDynamic === false) {
-        throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.")
+        throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] | *product* must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.")
     }
 
     const pageInformation: PageInformation = {
@@ -873,7 +880,6 @@ async function generatePageInformation(file: Dirent, allLayouts: Map<string, Lay
         pathname: pathname,
         applicableLayouts: applicablePageLayouts,
         pathnameParts: parts,
-        containsCatchAllParts,
     };
 
     return pageInformation;
@@ -909,20 +915,18 @@ async function gatherAllStatusCodePages(allLayouts: Map<string, LayoutInformatio
         const exports = await getPageExports(fullPath);
         const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
 
-        const parts = pathname.split("/");
+        const parts = pathname === "/" ? [""] : pathname.split("/");
 
         let containsCatchAllParts = false;
         for (const part of parts) {
-            const isCatchAll = part.startsWith("[") && part.endsWith("]");
-
-            if (isCatchAll) {
+            if (isPathPartDynamic(part)) {
                 containsCatchAllParts = true;
                 break;
             }
         }
 
         if (containsCatchAllParts && exports.isDynamic === false) {
-            throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.")
+            throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] | *product* must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.")
         }
 
         const pageInformation: PageInformation = {
@@ -931,7 +935,6 @@ async function gatherAllStatusCodePages(allLayouts: Map<string, LayoutInformatio
             pathname: pathname + code,
             applicableLayouts: applicablePageLayouts,
             pathnameParts: parts,
-            containsCatchAllParts,
         };
 
         pageMap.set(pathname + code, pageInformation);
@@ -1006,6 +1009,7 @@ function getEnforcedMetadata(): string {
 async function compilePage(
     allLayouts: Map<string, LayoutInformation>,
     pageInformation: PageInformation,
+    extraParams: Record<string, unknown> = {},
 ): Promise<CompiledPage> {
     const compilationContext = generatePageCompilationContext(pageInformation.pathname);
     const exports = pageInformation.exports;
@@ -1040,7 +1044,7 @@ async function compilePage(
         }
     }
 
-    const pageProps = allLayoutProps;
+    const pageProps = { allLayoutProps, params: extraParams, };
 
     let pageRootElement = await compilerStore.run(storeTools, async () => {
         return await pageConstructor(pageProps);
