@@ -68,14 +68,29 @@ async function walkDirectory(fullPath, callback) {
     await callback(entry);
   }
 }
+function safePercentDecode(input) {
+  return input.replace(
+    /%[0-9A-Fa-f]{2}/g,
+    (m) => String.fromCharCode(parseInt(m.slice(1), 16))
+  );
+}
 function sanitizePathname(pathname = "") {
   if (!pathname) return "/";
+  pathname = safePercentDecode(pathname);
   pathname = "/" + pathname;
   pathname = pathname.replace(/\/+/g, "/");
-  if (pathname.length > 1 && pathname.endsWith("/")) {
-    pathname = pathname.slice(0, -1);
+  const segments = pathname.split("/");
+  const resolved = [];
+  for (const segment of segments) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      resolved.pop();
+      continue;
+    }
+    resolved.push(segment);
   }
-  return pathname;
+  const encoded = resolved.map((s) => encodeURIComponent(s));
+  return "/" + encoded.join("/");
 }
 function getStatusCodePage(statusCode, pathname) {
   const pages = serverOptions.allStatusCodePages;
@@ -140,7 +155,11 @@ async function handlePageRequest(req, res, pathname, pageInformation, matchHit) 
     if (serverOptions.allowDynamic === false) {
       return respondWithStatusCode(req, res, pathname, 404, "Page not found.");
     }
-    const result = await compilePage(serverOptions.allLayouts, pageInformation, matchHit.params);
+    const informationClone = {
+      ...pageInformation
+    };
+    informationClone.pathname = pathname;
+    const result = await compilePage(serverOptions.allLayouts, informationClone, matchHit.params);
     res.statusCode = 200;
     await sendResponse(req, res, result.pageHTML, "text/html");
     return;
@@ -179,9 +198,7 @@ async function handleFileRequest(req, res, pathname) {
   }
   const stats = statSync(safePath);
   if (stats.isDirectory()) {
-    res.statusCode = 400;
-    await sendResponse(req, res, "Target file is a directory.");
-    return;
+    return respondWithStatusCode(req, res, pathname, 404, "File not found.");
   }
   const fileSize = stats.size;
   const ext = safePath.slice(safePath.lastIndexOf(".")).toLowerCase();
@@ -402,6 +419,10 @@ function buildRegexStrFromParts(pathnameParts) {
   return patternRegex;
 }
 function matchPathnameToPathParts(pathname, allPatterns) {
+  const last = pathname.split("/").pop();
+  if (last.includes(".")) {
+    return null;
+  }
   const candidates = [];
   for (const pattern of allPatterns) {
     const patternParts = pattern.pathnameParts;

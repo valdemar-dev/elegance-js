@@ -186,19 +186,39 @@ async function walkDirectory(fullPath: string, callback: (file: Dirent) => Promi
     }
 }
 
-/** Take any directory pathname, and make it into this format: /path */
+function safePercentDecode(input: string): string {
+    return input.replace(/%[0-9A-Fa-f]{2}/g, (m) =>
+        String.fromCharCode(parseInt(m.slice(1), 16))
+    );
+}
+
 function sanitizePathname(pathname: string = ""): string {
     if (!pathname) return "/";
+
+    pathname = safePercentDecode(pathname);
 
     pathname = "/" + pathname;
 
     pathname = pathname.replace(/\/+/g, "/");
 
-    if (pathname.length > 1 && pathname.endsWith("/")) {
-        pathname = pathname.slice(0, -1);
+    const segments = pathname.split("/");
+
+    const resolved: string[] = [];
+
+    for (const segment of segments) {
+        if (!segment || segment === ".") continue;
+
+        if (segment === "..") {
+            resolved.pop();
+            continue;
+        }
+
+        resolved.push(segment);
     }
 
-    return pathname;
+    const encoded = resolved.map((s) => encodeURIComponent(s));
+
+    return "/" + encoded.join("/");
 }
 
 function getStatusCodePage(
@@ -302,7 +322,13 @@ async function handlePageRequest(req: IncomingMessage, res: ServerResponse, path
             return respondWithStatusCode(req, res, pathname, 404, "Page not found.");
         }
 
-        const result = await compilePage(serverOptions.allLayouts, pageInformation, matchHit.params);
+        const informationClone = {
+            ...pageInformation,
+        };
+
+        informationClone.pathname = pathname;
+
+        const result = await compilePage(serverOptions.allLayouts, informationClone, matchHit.params);
 
         res.statusCode = 200;
         await sendResponse(req, res, result.pageHTML, "text/html");
@@ -353,9 +379,7 @@ async function handleFileRequest(req: IncomingMessage, res: ServerResponse, path
     const stats = statSync(safePath);
 
     if (stats.isDirectory()) {
-        res.statusCode = 400;
-        await sendResponse(req, res, "Target file is a directory.");
-        return;
+        return respondWithStatusCode(req, res, pathname, 404, "File not found.");
     }
 
     const fileSize = stats.size;
@@ -536,7 +560,6 @@ async function requestHandler(req: IncomingMessage, res: ServerResponse) {
         return;
     }
 
-
     if (!req.url) {
         res.statusCode = 400;
         await sendResponse(req, res, "Bad request.");
@@ -587,17 +610,25 @@ function escapeRegExp(str: string): string {
  */
 function buildRegexStrFromParts(pathnameParts: string[]): string {
     let patternRegex = '^/';
+
     let hasPart = false;
+
     let previousCanSkip = false;
+
     for (let part of pathnameParts) {
         if (part === '') {
             continue;
         }
+
         const optional = part.startsWith(':');
+
         const currentPart = optional ? part.slice(1) : part;
+
         const isCatchAll = currentPart.startsWith('*') && currentPart.endsWith('*');
         const isDynamic = currentPart.startsWith('[') && currentPart.endsWith(']');
+
         let matcher: string;
+
         if (isCatchAll) {
             matcher = '[^/]+(?:/[^/]+)*';
         } else if (isDynamic) {
@@ -605,35 +636,45 @@ function buildRegexStrFromParts(pathnameParts: string[]): string {
         } else {
             matcher = escapeRegExp(currentPart);
         }
-        // Add named capture group for dynamic or catch-all parts
+
         if (isCatchAll || isDynamic) {
             const paramName = currentPart.slice(1, -1);
+
             matcher = `(?<${paramName}>${matcher})`;
         }
+
         let sep: string;
+
         if (hasPart) {
             sep = previousCanSkip ? '/?' : '/';
         } else {
             sep = '';
         }
+
         let addition = sep + matcher;
+        
         if (optional) {
             if (hasPart || sep !== '') {
                 addition = '(?:' + sep + matcher + ')?';
             } else {
                 addition = '(?:' + matcher + ')?';
             }
+            
             previousCanSkip = true;
         } else {
             previousCanSkip = false;
         }
+
         patternRegex += addition;
         hasPart = true;
     }
+
     if (patternRegex === '^/') {
         patternRegex = '^/?';
     }
+
     patternRegex += '$';
+
     return patternRegex;
 }
 
@@ -655,45 +696,68 @@ type PathnameMatch = { matchedPathname: string, params: Record<string, unknown> 
  * @returns A hit with params, or undefined matchedPathname if none.
  */
 function matchPathnameToPathParts(pathname: string, allPatterns: PathPattern[]): PathnameMatch | null {
+    const last = pathname.split('/').pop()!;
+
+    if (last.includes('.')) {
+        return null;
+    }
+
     const candidates: { pattern: PathPattern, fixedCount: number, dynamicSingleCount: number, catchallCount: number, optionalCount: number, totalDynamic: number, match: RegExpMatchArray }[] = [];
+    
     for (const pattern of allPatterns) {
         const patternParts = pattern.pathnameParts;
+
         const regexStr = buildRegexStrFromParts(patternParts);
         const regex = new RegExp(regexStr);
+        
         const match = pathname.match(regex);
+
         if (match) {
             const getBasePart = (p: string) => p.startsWith(':') ? p.slice(1) : p;
             const isDynamicPart = (p: string) => p.startsWith(':') || p.startsWith('[') || p.startsWith('*');
+
             const fixedCount = patternParts.filter(p => p !== '' && !isDynamicPart(p)).length;
+
             const dynamicSingleCount = patternParts.filter(p => {
                 const pp = getBasePart(p);
+
                 return pp.startsWith('[') && pp.endsWith(']');
             }).length;
+
             const catchallCount = patternParts.filter(p => {
                 const pp = getBasePart(p);
+
                 return pp.startsWith('*') && pp.endsWith('*');
             }).length;
+
             const optionalCount = patternParts.filter(p => p.startsWith(':')).length;
             const totalDynamic = dynamicSingleCount + catchallCount;
+
             candidates.push({ pattern, fixedCount, dynamicSingleCount, catchallCount, optionalCount, totalDynamic, match });
         }
     }
+
     if (candidates.length === 0) {
         return null;
     }
+
     candidates.sort((a, b) => {
         if (a.fixedCount !== b.fixedCount) {
             return b.fixedCount - a.fixedCount;
         }
+        
         if (a.totalDynamic !== b.totalDynamic) {
             return a.totalDynamic - b.totalDynamic;
         }
+
         if (a.catchallCount !== b.catchallCount) {
             return a.catchallCount - b.catchallCount;
         }
+
         if (a.optionalCount !== b.optionalCount) {
             return a.optionalCount - b.optionalCount;
         }
+
         return 0;
     });
     const best = candidates[0];

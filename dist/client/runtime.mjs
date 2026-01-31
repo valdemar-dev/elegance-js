@@ -700,14 +700,29 @@ var navigateLocally = async (target, pushState = true) => {
     document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
   }
 };
+function safePercentDecode(input) {
+  return input.replace(
+    /%[0-9A-Fa-f]{2}/g,
+    (m) => String.fromCharCode(parseInt(m.slice(1), 16))
+  );
+}
 function sanitizePathname(pathname = "") {
   if (!pathname) return "/";
+  pathname = safePercentDecode(pathname);
   pathname = "/" + pathname;
   pathname = pathname.replace(/\/+/g, "/");
-  if (pathname.length > 1 && pathname.endsWith("/")) {
-    pathname = pathname.slice(0, -1);
+  const segments = pathname.split("/");
+  const resolved = [];
+  for (const segment of segments) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      resolved.pop();
+      continue;
+    }
+    resolved.push(segment);
   }
-  return pathname;
+  const encoded = resolved.map((s) => encodeURIComponent(s));
+  return "/" + encoded.join("/");
 }
 async function getPageData(pathname) {
   const dataScriptTag = document.head.querySelector(`script[data-page="true"][data-pathname="${pathname}"]`);

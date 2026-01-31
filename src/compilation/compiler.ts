@@ -204,7 +204,7 @@ function internalCompilerError(reason: string) {
     return new Error(`The compiler has encountered an internal error.\n${reason}`);
 }
 
-/** Take any directory pathname, and make it into this format: /path */
+/** a simple path sanitizer that just ensures no repeat-slashes and no trailing slash */
 function sanitizePathname(pathname: string = ""): string {
     if (!pathname) return "/";
 

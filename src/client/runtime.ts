@@ -684,18 +684,38 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     }
 };
 
-/** Take any directory pathname, and make it into this format: /path */
+/** a simple path sanitizer that just ensures no repeat-slashes and no trailing slash */
+function safePercentDecode(input: string): string {
+    return input.replace(/%[0-9A-Fa-f]{2}/g, (m) =>
+        String.fromCharCode(parseInt(m.slice(1), 16))
+    );
+}
+
 function sanitizePathname(pathname: string = ""): string {
     if (!pathname) return "/";
 
+    pathname = safePercentDecode(pathname);
     pathname = "/" + pathname;
     pathname = pathname.replace(/\/+/g, "/");
 
-    if (pathname.length > 1 && pathname.endsWith("/")) {
-        pathname = pathname.slice(0, -1);
+    const segments = pathname.split("/");
+
+    const resolved: string[] = [];
+
+    for (const segment of segments) {
+        if (!segment || segment === ".") continue;
+
+        if (segment === "..") {
+            resolved.pop();
+            continue;
+        }
+
+        resolved.push(segment);
     }
 
-    return pathname;
+    const encoded = resolved.map((s) => encodeURIComponent(s));
+
+    return "/" + encoded.join("/");
 }
 
 async function getPageData(pathname: string) {
