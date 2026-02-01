@@ -487,8 +487,8 @@ var ClientObserver = class {
     }
   }
   call() {
-    const newValue = this.callback(...this.subjectValues);
     for (const { element, optionName } of this.elements) {
+      const newValue = this.callback.call(element, ...this.subjectValues);
       this.setProp(element, optionName, newValue);
     }
   }

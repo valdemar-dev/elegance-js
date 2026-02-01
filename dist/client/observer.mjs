@@ -27,14 +27,16 @@ class ServerObserver {
     let result = "{";
     result += `id:"${this.id}",`;
     result += `callback:${this.callback.toString()},`;
-    result += `dependencies:[${this.dependencies.map((d) => `"${d}"`).join('","')}],`;
+    result += `dependencies:[${this.dependencies.map((d) => `"${d}"`).join(",")}],`;
     result += "}";
     return result;
   }
 }
 function observer(callbackOrSubject, dependencies) {
   const store = compilerStore.getStore();
-  if (!store) throw new Error("Illegal invocation of observer(). Ensure that the observer() function is only called inside components, and never at the top-level of a page or layout.");
+  if (!store) {
+    throw new Error("Illegal invocation of observer(). Ensure that the observer() function is only called inside components, and never at the top-level of a page or layout.");
+  }
   let callback;
   let deps;
   if (dependencies) {
@@ -42,7 +44,7 @@ function observer(callbackOrSubject, dependencies) {
     deps = dependencies;
   } else {
     const subject = callbackOrSubject;
-    callback = (value) => `${value}`;
+    callback = (s) => `${s.value}`;
     deps = [subject];
   }
   const id = store.generateId();

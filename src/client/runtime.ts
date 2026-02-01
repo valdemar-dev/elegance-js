@@ -377,12 +377,14 @@ class ClientObserver {
 
 
     call() {
-        const newValue = this.callback(...this.subjectValues);
-
         for (const { element, optionName } of this.elements) {
+            /**
+             * override `this` so that the element can reference itself
+             */
+            const newValue = this.callback.call(element, ...this.subjectValues);
+
             this.setProp(element, optionName, newValue);
         }
-
     }
 }
 

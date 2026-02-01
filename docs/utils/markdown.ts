@@ -1,14 +1,16 @@
 import { Link } from "elegance-js";
 
-const MarkdownLink = (...params: any) => Link(...params);
-
-const Paragraph = (...params: any) => p(...params);
-const HeadingOne = (...params: any) => h1(...params);
-const HeadingTwo = (...params: any) => h2(...params);
-const HeadingThree = (...params: any) => h3(...params);
-const HeadingFour = (...params: any) => h4(...params);
-const HeadingFive = (...params: any) => h5(...params);
-const HeadingSix = (...params: any) => h6(...params);
+/**
+ * I use any-slop here but really it's fine, internal use only :>
+ */
+const MarkdownLink = (param1: any, ...params: any) => Link(param1, ...params);
+const Paragraph = (param1: any, ...params: any) => p(param1, ...params);
+const HeadingOne = (param1: any, ...params: any) => h1(param1, ...params);
+const HeadingTwo = (param1: any, ...params: any) => h2(param1, ...params);
+const HeadingThree = (param1: any, ...params: any) => h3(param1, ...params);
+const HeadingFour = (param1: any, ...params: any) => h4(param1, ...params);
+const HeadingFive = (param1: any, ...params: any) => h5(param1, ...params);
+const HeadingSix = (param1: any, ...params: any) => h6(param1, ...params);
 
 const Br = br;
 
