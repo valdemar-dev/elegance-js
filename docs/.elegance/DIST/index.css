@@ -1,8 +1,28 @@
 /*! tailwindcss v4.1.18 | MIT License | https://tailwindcss.com */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Niconne&display=swap');
 @layer properties;
 * {
-  line-height: normal;
+  scroll-behavior: smooth;
+}
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 6px;
+  border: 3px solid #f0f0f0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f0f0f0;
 }
 @layer theme, base, components, utilities;
 @layer theme {
@@ -20,6 +40,8 @@
     --color-black: #000;
     --color-white: #fff;
     --spacing: 0.25rem;
+    --text-sm: 0.875rem;
+    --text-sm--line-height: calc(1.25 / 0.875);
     --text-base: 1rem;
     --text-base--line-height: calc(1.5 / 1);
     --text-lg: 1.125rem;
@@ -37,6 +59,7 @@
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
     --font-inter: "Inter", sans-serif;
+    --font-niconne: "Niconne", cursive;
   }
 }
 @layer base {
@@ -188,17 +211,32 @@
   }
 }
 @layer utilities {
+  .relative {
+    position: relative;
+  }
+  .sticky {
+    position: sticky;
+  }
+  .-top-1 {
+    top: calc(var(--spacing) * -1);
+  }
+  .top-0 {
+    top: calc(var(--spacing) * 0);
+  }
+  .left-1 {
+    left: calc(var(--spacing) * 1);
+  }
   .m-4 {
     margin: calc(var(--spacing) * 4);
   }
   .my-4 {
     margin-block: calc(var(--spacing) * 4);
   }
+  .mt-12 {
+    margin-top: calc(var(--spacing) * 12);
+  }
   .mb-4 {
     margin-bottom: calc(var(--spacing) * 4);
-  }
-  .mb-10 {
-    margin-bottom: calc(var(--spacing) * 10);
   }
   .ml-auto {
     margin-left: auto;
@@ -215,20 +253,32 @@
   .h-full {
     height: 100%;
   }
-  .h-max {
-    height: max-content;
-  }
   .h-screen {
     height: 100vh;
+  }
+  .w-full {
+    width: 100%;
+  }
+  .min-w-\[230px\] {
+    min-width: 230px;
   }
   .min-w-\[250px\] {
     min-width: 250px;
   }
+  .origin-center {
+    transform-origin: center;
+  }
+  .rotate-0 {
+    rotate: 0deg;
+  }
   .transform {
     transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
   }
-  .grid-cols-\[minmax\(300px\,1fr\)_minmax\(300px\,700px\)_minmax\(300px\,1fr\)\] {
-    grid-template-columns: minmax(300px,1fr) minmax(300px,700px) minmax(300px,1fr);
+  .grid-cols-\[minmax\(300px\,700px\)_minmax\(300px\,1fr\)\] {
+    grid-template-columns: minmax(300px,700px) minmax(300px,1fr);
+  }
+  .grid-cols-\[minmax\(300px\,auto\)_minmax\(300px\,auto\)\] {
+    grid-template-columns: minmax(300px,auto) minmax(300px,auto);
   }
   .grid-rows-\[max-content_1fr_max-content\] {
     grid-template-rows: max-content 1fr max-content;
@@ -239,11 +289,11 @@
   .gap-2 {
     gap: calc(var(--spacing) * 2);
   }
+  .self-start {
+    align-self: flex-start;
+  }
   .overflow-auto {
     overflow: auto;
-  }
-  .overflow-hidden {
-    overflow: hidden;
   }
   .overflow-x-auto {
     overflow-x: auto;
@@ -251,9 +301,16 @@
   .rounded {
     border-radius: 0.25rem;
   }
+  .border-t-\[1px\] {
+    border-top-style: var(--tw-border-style);
+    border-top-width: 1px;
+  }
   .border-b-2 {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 2px;
+  }
+  .border-\[\#00000033\] {
+    border-color: #00000033;
   }
   .bg-gray-100 {
     background-color: var(--color-gray-100);
@@ -267,14 +324,35 @@
   .p-4 {
     padding: calc(var(--spacing) * 4);
   }
+  .p-8 {
+    padding: calc(var(--spacing) * 8);
+  }
   .px-1 {
     padding-inline: calc(var(--spacing) * 1);
+  }
+  .pt-4 {
+    padding-top: calc(var(--spacing) * 4);
+  }
+  .pt-12 {
+    padding-top: calc(var(--spacing) * 12);
+  }
+  .pb-2 {
+    padding-bottom: calc(var(--spacing) * 2);
+  }
+  .pb-4 {
+    padding-bottom: calc(var(--spacing) * 4);
+  }
+  .pb-\[300px\] {
+    padding-bottom: 300px;
   }
   .font-inter {
     font-family: var(--font-inter);
   }
   .font-mono {
     font-family: var(--font-mono);
+  }
+  .font-niconne {
+    font-family: var(--font-niconne);
   }
   .text-2xl {
     font-size: var(--text-2xl);
@@ -296,9 +374,17 @@
     font-size: var(--text-lg);
     line-height: var(--tw-leading, var(--text-lg--line-height));
   }
+  .text-sm {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+  }
   .text-xl {
     font-size: var(--text-xl);
     line-height: var(--tw-leading, var(--text-xl--line-height));
+  }
+  .leading-7 {
+    --tw-leading: calc(var(--spacing) * 7);
+    line-height: calc(var(--spacing) * 7);
   }
   .font-bold {
     --tw-font-weight: var(--font-weight-bold);
@@ -330,6 +416,14 @@
     --tw-duration: 200ms;
     transition-duration: 200ms;
   }
+  .duration-300 {
+    --tw-duration: 300ms;
+    transition-duration: 300ms;
+  }
+  .select-none {
+    -webkit-user-select: none;
+    user-select: none;
+  }
   .hover\:cursor-pointer {
     &:hover {
       @media (hover: hover) {
@@ -344,9 +438,19 @@
       }
     }
   }
-  .lg\:mt-12 {
+  .lg\:mt-8 {
     @media (width >= 64rem) {
-      margin-top: calc(var(--spacing) * 12);
+      margin-top: calc(var(--spacing) * 8);
+    }
+  }
+  .dark\:rotate-180 {
+    &:where(.dark, .dark *) {
+      rotate: 180deg;
+    }
+  }
+  .dark\:border-\[\#ffffff33\] {
+    &:where(.dark, .dark *) {
+      border-color: #ffffff33;
     }
   }
   .dark\:bg-black {
@@ -405,6 +509,10 @@
   syntax: "*";
   inherits: false;
   initial-value: solid;
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
 }
 @property --tw-font-weight {
   syntax: "*";
@@ -476,6 +584,7 @@
       --tw-skew-x: initial;
       --tw-skew-y: initial;
       --tw-border-style: solid;
+      --tw-leading: initial;
       --tw-font-weight: initial;
       --tw-blur: initial;
       --tw-brightness: initial;

@@ -635,6 +635,12 @@ function removeNavigationCallback(idx) {
 var navigateLocally = async (target, pushState = true) => {
   const targetURL = new URL(target);
   const pathname = sanitizePathname(targetURL.pathname);
+  if (pathname === sanitizePathname(window.location.pathname)) {
+    if (targetURL.hash) {
+      document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
+    }
+    return;
+  }
   let newPage = await fetchPage(targetURL);
   if (!newPage) return;
   let oldPageLatest = document.body;

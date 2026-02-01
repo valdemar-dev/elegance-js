@@ -17,6 +17,14 @@ declare class ServerObserver<const T extends readonly ServerSubject<unknown>[]> 
     constructor(id: string, callback: ObserverCallback<T>, dependencies: [...T]);
     serialize(): string;
 }
+/**
+ * Create an observer.
+ *
+ * [Read More](https://elegance.js.org/observers)
+ * @param callbackOrSubject A callback to call whenever any of the `dependencies` changes.
+ * @param dependencies An array of dependencies to watch.
+ * @returns A special element option you attach to any attribute of an element.
+ */
 declare function observer<T extends ServerSubject<unknown>>(subject: T): ObserverOption;
 declare function observer<const T extends readonly ServerSubject<unknown>[]>(callback: ObserverCallback<T>, dependencies: [...T]): ObserverOption;
 export { observer, ServerObserver, ObserverOption };

@@ -4,8 +4,7 @@ There are a few different kinds of loadHooks.
 
 ## Usage
 Import the `loadHook` function from Elegance.
-It takes in two parameters, a `callback`, which is run when the load hook runs,
-and a list of [state subjects](https://elegance.js.org/state) that the loadhook depends on.
+It takes in two parameters, a `callback`, which is run when the load hook runs, and a list of [state subjects](https://elegance.js.org/state) that the loadhook depends on.
 
 ## Cleanup
 Load hooks may return a function, which should clean up any side-effects, like active connections, timers, intervals, etc.

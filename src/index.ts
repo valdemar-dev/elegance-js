@@ -13,7 +13,7 @@ export { ClientComponent } from "./components/ClientComponent";
 export { serveProject, } from "./server/server";
 export * from "./compilation/compiler";
 
-export type { AnyElement as Element } from "./elements/element";
+export type { AnyElement as Element, EleganceElement } from "./elements/element";
 
 export type { 
     LayoutConstructor as Layout,

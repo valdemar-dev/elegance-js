@@ -8,7 +8,7 @@ export { Link, } from "./components/Link";
 export { ClientComponent } from "./components/ClientComponent";
 export { serveProject, } from "./server/server";
 export * from "./compilation/compiler";
-export type { AnyElement as Element } from "./elements/element";
+export type { AnyElement as Element, EleganceElement } from "./elements/element";
 export type { LayoutConstructor as Layout, LayoutMetadataConstructor as LayoutMetadata, LayoutConstructorParameters as LayoutParams, Child, } from "./server/layout";
 export { raw } from "./elements/raw";
 export type { PageConstructor as Page, PageMetadataConstructor as PageMetadata, PageParams, } from "./server/page";

@@ -34,7 +34,7 @@ const CodeBlock = (param1: any, ...params: any) => {
 };
 
 const Paragraph = (param1: any, ...params: any) => p({
-    className: "mb-10",
+    className: "leading-7 pb-4",
     ...param1
 }, ...params);
 
@@ -44,7 +44,7 @@ const HeadingOne = (param1: any, ...params: any) => h1({
 }, ...params);
 
 const HeadingTwo = (param1: any, ...params: any) => h2({
-    className: "mb-4 text-3xl font-semibold",
+    className: "mb-4 text-3xl font-semibold mt-12 pt-12 duration-200 border-t-[1px] border-[#00000033] dark:border-[#ffffff33]",
     ...param1
 }, ...params);
 

@@ -596,9 +596,17 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
 
+    if (pathname === sanitizePathname(window.location.pathname)) {
+        if (targetURL.hash) {
+            document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
+        }
+
+        return;
+    }
+
     let newPage = await fetchPage(targetURL);
     if (!newPage) return;
-    
+
     let oldPageLatest = document.body;
     let newPageLatest = newPage.body;
 

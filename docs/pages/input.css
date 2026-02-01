@@ -1,8 +1,32 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Niconne&display=swap');
+* {
+    scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+    width: 12px; /* vertical scrollbar width */
+    height: 12px; /* horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 6px;
+    border: 3px solid #f0f0f0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+}
 
 * {
-    line-height: normal;
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f0f0f0;
 }
 
 @import "tailwindcss";
@@ -11,4 +35,6 @@
 
 @theme {
     --font-inter: "Inter", sans-serif;
+
+    --font-niconne: "Niconne", cursive;
 }

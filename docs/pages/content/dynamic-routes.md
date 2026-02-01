@@ -11,7 +11,7 @@ String matches, like the one showed above, match **one level deep**, whilst loos
 
 Loose match routes are denoted by wrapping a path in \*asterisks\*.
 
-The loose match route `/recipes/\*any\*` would match the pathnames: `/recipes/cake/chocolate`, `/recipes/cake/chocolate/magic`, and so on; whilst the *strict match* one would stop at depth 1.
+The loose match route `/recipes/*any*` would match the pathnames: `/recipes/cake/chocolate`, `/recipes/cake/chocolate/magic`, and so on; whilst the *strict match* one would stop at depth 1.
 
 ## Optional Routes
 If you want your route to match also the *parent pathname*, eg. `/recipes` should also hit where `/recipes/cake` does,

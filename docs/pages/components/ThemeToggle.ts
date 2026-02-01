@@ -1,11 +1,11 @@
 import { raw } from "elegance-js";
 
-export function ThemeToggle(width: number, height: number) {
+export function ThemeToggle(width: number, height: number, classList: string = "") {
     return raw(`
 <?xml version="1.0" encoding="utf-8"?>
 
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="${width}px" height="${height}px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<svg class="${classList}" width="${width}px" height="${height}px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
   <title>dark-mode</title>
   <g id="Layer_2" data-name="Layer 2">
     <g id="Icons">
