@@ -18,7 +18,11 @@ export function page({ params }: { params: { page: string } }) {
 
     const elems = parseMarkdownToElements(content);
 
-    return div(...elems);
+    return div({
+        className: "max-w-700px m-4 lg:mt-12",
+    },
+        ...elems
+    );
 }
 
 export function metadata({ params }: { params: { page: string }}) {
