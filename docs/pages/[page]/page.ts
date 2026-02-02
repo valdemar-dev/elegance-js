@@ -2,7 +2,7 @@ import { fileURLToPath } from "url";
 import path from "path";
 import { existsSync, readFileSync } from "fs";
 import { parseMarkdownToElements } from "../../utils/markdown";
-import { raw, loadHook, EleganceElement, Link } from "elegance-js";
+import { raw, loadHook, EleganceElement, Link, getQuery } from "elegance-js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

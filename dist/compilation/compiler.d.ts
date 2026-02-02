@@ -5,6 +5,7 @@ import { AnyElement, SpecialElementOption } from "../elements/element";
 import { PageInformation } from "../server/page";
 import { LayoutInformation, LayoutProps } from "../server/layout";
 import { AsyncLocalStorage } from "async_hooks";
+import { IncomingMessage, ServerResponse } from "http";
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
     /** The slash starting relative pathname (relative to pagesDirectory) of this page. */
@@ -81,6 +82,8 @@ type CompilerStore = {
     generateId: () => string;
     addClientToken: (value: unknown) => void;
     compilationContext: PageCompilationContext | LayoutCompilationContext;
+    req?: IncomingMessage;
+    res?: ServerResponse;
 };
 declare const compilerStore: AsyncLocalStorage<CompilerStore>;
 declare function setCompilerOptions(newOptions: CompilerOptions): void;
@@ -119,7 +122,10 @@ declare function generatePageDataScript(compilationContext: PageCompilationConte
     optionValue: SpecialElementOption;
 }[], clientTokens: unknown[]): Promise<string>;
 declare function compilePageToDisk(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation): Promise<CompiledPage>;
-declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation, extraParams?: Record<string, unknown>): Promise<CompiledPage>;
+declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInformation: PageInformation, reqRes?: {
+    req?: IncomingMessage | undefined;
+    res?: ServerResponse | undefined;
+}, extraParams?: Record<string, unknown>): Promise<CompiledPage>;
 declare function compileLayoutToDisk(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<void>;
 declare function compileLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout>;
 /**

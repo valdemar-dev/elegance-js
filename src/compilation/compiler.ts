@@ -24,6 +24,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import { raw, unwrapAllRaw, } from "../elements/raw";
+import { IncomingMessage, ServerResponse } from "http";
 
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
@@ -114,6 +115,9 @@ type CompilerStore = {
     addClientToken: (value: unknown) => void,
 
     compilationContext: PageCompilationContext | LayoutCompilationContext,
+
+    req?: IncomingMessage,
+    res?: ServerResponse
 };
 
 const compilerStore = new AsyncLocalStorage<CompilerStore>();
@@ -1009,6 +1013,7 @@ function getEnforcedMetadata(): string {
 async function compilePage(
     allLayouts: Map<string, LayoutInformation>,
     pageInformation: PageInformation,
+    reqRes: { req?: IncomingMessage | undefined , res?: ServerResponse | undefined } = {},
     extraParams: Record<string, unknown> = {},
 ): Promise<CompiledPage> {
     const compilationContext = generatePageCompilationContext(pageInformation.pathname);
@@ -1019,7 +1024,8 @@ async function compilePage(
     /**
      * Populate compilerStore.
      * Usage of AsyncLocalStorage allows us to have "globals" without globals,
-     * as each call to run has it's own "context", removing concurrency issues.
+     * as each call to run has it's own "context",
+     * removing concurrency issues.
      */
     const clientTokens: unknown[] = [];
     const storeTools: CompilerStore = {
@@ -1028,6 +1034,9 @@ async function compilePage(
             clientTokens.push(value);
         },
         compilationContext,
+
+        req: reqRes.req,
+        res: reqRes.res,
     };
 
     // Pre-compile all applicable layouts so we can accumulate their props first

@@ -6,7 +6,7 @@ export type { ServerSubject } from "./client/state";
 export { startEleganceRuntime } from "./server/runtime";
 export { Link, } from "./components/Link";
 export { ClientComponent } from "./components/ClientComponent";
-export { serveProject, } from "./server/server";
+export { serveProject, getQuery, } from "./server/server";
 export * from "./compilation/compiler";
 export type { AnyElement as Element, EleganceElement } from "./elements/element";
 export type { LayoutConstructor as Layout, LayoutMetadataConstructor as LayoutMetadata, LayoutConstructorParameters as LayoutParams, Child, } from "./server/layout";

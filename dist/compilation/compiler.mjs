@@ -610,7 +610,7 @@ async function compilePageToDisk(allLayouts, pageInformation) {
 function getEnforcedMetadata() {
   return `<meta charset="utf-8"><script defer="true" src="/client.js"></script>`;
 }
-async function compilePage(allLayouts, pageInformation, extraParams = {}) {
+async function compilePage(allLayouts, pageInformation, reqRes = {}, extraParams = {}) {
   const compilationContext = generatePageCompilationContext(pageInformation.pathname);
   const exports = pageInformation.exports;
   const pageConstructor = exports.pageConstructor;
@@ -621,7 +621,9 @@ async function compilePage(allLayouts, pageInformation, extraParams = {}) {
     addClientToken: (value) => {
       clientTokens.push(value);
     },
-    compilationContext
+    compilationContext,
+    req: reqRes.req,
+    res: reqRes.res
   };
   let compiledLayouts = [];
   let allLayoutProps = {};

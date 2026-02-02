@@ -7,6 +7,7 @@
 import { CompiledLayout, CompiledPage } from "../compilation/compiler";
 import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
+import { URLSearchParams } from "url";
 type ServerOptions = {
     /** If a port is not available, it will increment the port +1 in a loop until it finds a valid one. */
     port: number;
@@ -46,4 +47,6 @@ type ServerStartupResult = {
  * If hot-reloading is enabled, this also tells the clients to refresh the page.
  */
 declare function serveProject(startupServerOptions: ServerOptions): Promise<ServerStartupResult>;
-export { serveProject, };
+/** Get the current query as `URLSearchParams` */
+declare function getQuery(): URLSearchParams;
+export { serveProject, getQuery, };

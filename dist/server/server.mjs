@@ -1,9 +1,10 @@
 import { join, normalize, relative, resolve } from "path";
-import { compilePage, compilerOptions } from "../compilation/compiler";
+import { compilePage, compilerOptions, compilerStore } from "../compilation/compiler";
 import { createServer } from "http";
 import { existsSync, readdirSync, statSync, createReadStream } from "fs";
 import * as zlib from "zlib";
 import { promisify } from "util";
+import { URLSearchParams } from "url";
 const gzipAsync = promisify(zlib.gzip);
 function removePrefix(str, prefix) {
   return str.startsWith(prefix) ? str.slice(prefix.length) : str;
@@ -128,7 +129,7 @@ async function respondWithStatusCodePage(req, res, pathname, statusCode, message
     await sendResponse(req, res, message);
     return;
   }
-  const compiledPage = await compilePage(serverOptions.allLayouts, statusCodePage);
+  const compiledPage = await compilePage(serverOptions.allLayouts, statusCodePage, { req, res });
   res.statusCode = 200;
   await sendResponse(req, res, compiledPage.pageHTML, "text/html");
 }
@@ -159,7 +160,7 @@ async function handlePageRequest(req, res, pathname, pageInformation, matchHit) 
       ...pageInformation
     };
     informationClone.pathname = pathname;
-    const result = await compilePage(serverOptions.allLayouts, informationClone, matchHit.params);
+    const result = await compilePage(serverOptions.allLayouts, informationClone, { req, res }, matchHit.params);
     res.statusCode = 200;
     await sendResponse(req, res, result.pageHTML, "text/html");
     return;
@@ -493,6 +494,20 @@ async function serveProject(startupServerOptions) {
     port
   };
 }
+function getQuery() {
+  const store = compilerStore.getStore();
+  if (!store) {
+    throw new Error("getQuery() cannot be called outside of a page or layout.");
+  }
+  if (!store.req) {
+    throw new Error("getQuery() cannot be used inside of a static page, since it depends on the *request query*.");
+  }
+  if (!store.req.url) {
+    throw new Error("Invalid req.url");
+  }
+  return new URLSearchParams(new URL(`http://${process.env.HOST ?? "localhost"}${store.req.url}`).searchParams);
+}
 export {
+  getQuery,
   serveProject
 };
