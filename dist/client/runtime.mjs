@@ -639,6 +639,7 @@ var navigateLocally = async (target, pushState = true) => {
     if (targetURL.hash) {
       document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
+    if (pushState) history.pushState(null, "", targetURL.href);
     return;
   }
   let newPage = await fetchPage(targetURL);

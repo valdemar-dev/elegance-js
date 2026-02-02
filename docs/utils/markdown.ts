@@ -2,6 +2,7 @@ import { Link } from "elegance-js";
 
 const MarkdownLink = (param1: any, ...params: any) => Link({
     className: "border-b-2 text-blue-500 dark:text-blue-400 hover:opacity-70 duration-200",
+    target: "_blank",
     ...param1
 }, ...params);
 

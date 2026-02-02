@@ -601,6 +601,8 @@ const navigateLocally = async (target: string, pushState: boolean = true) => {
             document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
         }
 
+        if (pushState) history.pushState(null, "", targetURL.href); 
+    
         return;
     }
 

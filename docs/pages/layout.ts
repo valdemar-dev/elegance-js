@@ -84,7 +84,7 @@ function Footer() {
         className: "mt-12 pt-12 border-t-[1px] border-[#00000033] p-8 dark:border-[#ffffff33] grid grid-cols-[minmax(300px,auto)_minmax(300px,auto)]"
     },
         div({
-            className: "sticky top-0 grid grid-rows-[max-content_1fr_max-content] h-screen p-8 ml-auto min-w-[250px]",
+            className: "p-8 ml-auto min-w-[250px]",
         },
 
             EleganceLogo(),
