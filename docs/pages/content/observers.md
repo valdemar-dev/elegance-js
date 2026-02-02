@@ -14,5 +14,11 @@ Please note that the callback body is sent *literally* to the browser, and thus 
 and should **never** contain secrets.
 
 ## Element Reference
-Inside the observer's `callback`, the `this` value is set to whatever DOM Element the observer is attached to.
-To access it, transform the callback into a regular `function() {}` instead of an arrow function `() => {}`
+It could be useful for some observers to retain a simple reference to the actual DOM element they're attached to.
+For this use-case, `this` is passed into the observers callback.
+
+Note, that arrow functions cannot due to the lexical scope, according to typescript, access `this`, so you will need to change your observer callback to a regular `function() {}` instead of an arrow function `() => {}`.
+
+Once this is done, typescript should pick up on the type of `this` automatically, and if you want, you can include it in the parameters and type it manually to the type of your element, like so: `function(this: HTMLDivElement) {}`
+
+If you don't want to use `this`, or for some reason don't want to use a regular function declaration, you can also use the `getRef()` function, which will return the Element.

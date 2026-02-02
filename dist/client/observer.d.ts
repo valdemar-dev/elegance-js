@@ -27,5 +27,10 @@ declare class ServerObserver<const T extends readonly ServerSubject<unknown>[]> 
  */
 declare function observer<T extends ServerSubject<unknown>>(subject: T): ObserverOption;
 declare function observer<const T extends readonly ServerSubject<unknown>[]>(callback: ObserverCallback<T>, dependencies: [...T]): ObserverOption;
-export { observer, ServerObserver, ObserverOption };
+/**
+ *
+ * @returns The HTML Element this observer is attached to.
+ */
+declare const getSelf: () => HTMLElement;
+export { observer, ServerObserver, ObserverOption, getSelf, };
 export type { ObserverCallback, };

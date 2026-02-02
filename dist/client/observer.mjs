@@ -52,8 +52,12 @@ function observer(callbackOrSubject, dependencies) {
   store.addClientToken(listener);
   return new ObserverOption(id);
 }
+const getSelf = function() {
+  return "CLIENT_SIDE_FUNCTION";
+};
 export {
   ObserverOption,
   ServerObserver,
+  getSelf,
   observer
 };

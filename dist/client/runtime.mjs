@@ -488,6 +488,9 @@ var ClientObserver = class {
   }
   call() {
     for (const { element, optionName } of this.elements) {
+      const getSelf = function getSelf2() {
+        return element;
+      };
       const newValue = this.callback.call(element, ...this.subjectValues);
       this.setProp(element, optionName, newValue);
     }

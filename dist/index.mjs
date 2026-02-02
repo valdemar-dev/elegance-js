@@ -1,4 +1,4 @@
-import { observer } from "./client/observer";
+import { observer, getSelf } from "./client/observer";
 import { eventListener } from "./client/eventListener";
 import { loadHook } from "./client/loadHook";
 import { state } from "./client/state";
@@ -14,6 +14,7 @@ export {
   ClientComponent,
   Link,
   eventListener,
+  getSelf,
   loadHook,
   observer,
   raw,

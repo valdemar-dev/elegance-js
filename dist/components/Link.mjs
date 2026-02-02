@@ -8,7 +8,7 @@ function Link(options, ...children) {
     event.preventDefault();
     eleganceClient.navigateLocally(event.currentTarget.href, true);
   }, []);
-  const extraOptions = typeof options === "object" ? options : {};
+  const extraOptions = options && typeof options === "object" ? options : {};
   const firstChild = isAnElement(options) ? options : void 0;
   return a(
     {

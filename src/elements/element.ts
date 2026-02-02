@@ -84,9 +84,15 @@ type SpecificProps<Tag extends AllElementTags> = Tag extends keyof SpecificProps
     ? SpecificPropsMap[Tag]
     : {};
 
-type ElementOptions<Tag extends AllElementTags> = CommonElementProps & SpecificProps<Tag>;
+type ElementOptions<
+    Tag extends AllElementTags,
+    ExtraOptions extends object = {}
+> = CommonElementProps & SpecificProps<Tag> & ExtraOptions;
 
-type ElementOptionsOrChild<Tag extends AllElementTags> = ElementOptions<Tag> | AnyElement;
+type ElementOptionsOrChild<
+    Tag extends AllElementTags,
+    ExtraOptions extends object = {}
+> = ElementOptions<Tag, ExtraOptions> | AnyElement;
 
 type HtmlChildrenlessElementTags =
     | "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input"
@@ -167,9 +173,11 @@ class EleganceElement<
         this.tag = tag;
         if (isAnElement(options)) {
             if (this.canHaveChildren() === false) {
-                console.error("The element:", this, "is an invalid element. Reason:")
+                console.error("The element:", this, "is an invalid element. Reason:");
+
                 throw "The options of an element may not be an element, if the element cannot have children.";
             }
+
             this.children = [options, ...(children ?? [])] as any;
             this.options = {} as ElementOptions<Tag>;
         } else {

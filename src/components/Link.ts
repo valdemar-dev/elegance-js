@@ -8,7 +8,15 @@ import { AnyElement, ElementOptionsOrChild, isAnElement } from "../elements/elem
  * @param children Standard element children.
  * @returns A custom anchor element.
  */
-function Link(options: ElementOptionsOrChild<"a">, ...children: AnyElement[]) {
+
+type ExtraOptions = {
+    /** Mandatory, where this Link should take the user to. */
+    href: string,
+    /** Set window.scrollTop to 0 whenever this link navigates. */
+    resetScrollOnNav?: boolean,
+};
+
+function Link(options: ElementOptionsOrChild<"a", ExtraOptions>, ...children: AnyElement[]) {
     const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
         if (new URL(event.currentTarget.href, window.location.href).origin !== window.location.origin) {
             return;
@@ -19,7 +27,7 @@ function Link(options: ElementOptionsOrChild<"a">, ...children: AnyElement[]) {
         eleganceClient.navigateLocally(event.currentTarget.href, true);
     }, []);
 
-    const extraOptions = typeof options === "object" ? options : {};
+    const extraOptions = options && typeof options === "object" ? options : {};
     const firstChild = isAnElement(options) ? options : undefined;
 
     return a({

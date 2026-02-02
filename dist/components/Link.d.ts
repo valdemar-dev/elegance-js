@@ -6,5 +6,9 @@ import { AnyElement, ElementOptionsOrChild } from "../elements/element";
  * @param children Standard element children.
  * @returns A custom anchor element.
  */
-declare function Link(options: ElementOptionsOrChild<"a">, ...children: AnyElement[]): import("..").EleganceElement<"a", true>;
+type ExtraOptions = {
+    href: string;
+    resetScrollOnNav?: boolean;
+};
+declare function Link(options: ElementOptionsOrChild<"a", ExtraOptions>, ...children: AnyElement[]): import("..").EleganceElement<"a", true>;
 export { Link, };

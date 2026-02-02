@@ -95,10 +95,23 @@ function observer<T extends readonly ServerSubject<unknown>[]>(
     return new ObserverOption(id);
 }
 
+
+/**
+ * 
+ * @returns The HTML Element this observer is attached to.
+ */
+const getSelf = function(): HTMLElement {
+    // this is just a stub, the implementation exists only in the browser,
+    // but we need typescript to sh
+    //@ts-ignore
+    return "CLIENT_SIDE_FUNCTION";
+}
+
 export {
     observer,
     ServerObserver,
-    ObserverOption
+    ObserverOption,
+    getSelf,
 };
 
 export type {

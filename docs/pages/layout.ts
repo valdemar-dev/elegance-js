@@ -1,4 +1,4 @@
-import { Child, eventListener, Link, loadHook, observer, ServerSubject, state } from "elegance-js";
+import { Child, eventListener, getSelf, Link, loadHook, observer, ServerSubject, state } from "elegance-js";
 import { readdirSync } from "fs";
 
 import path from "path";
@@ -43,6 +43,9 @@ function NavBar(activePage: ServerSubject<string>) {
             href: `/${d.href}`,
             className: observer(
                 function (this: HTMLAnchorElement, page) {
+                    const self = getSelf();
+
+                    console.log(self);
                     const opacity = (page === this.href) ? "opacity-30" : "opacity-100";
 
                     return `${opacity}`;

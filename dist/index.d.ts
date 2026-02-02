@@ -1,4 +1,4 @@
-export { observer, } from "./client/observer";
+export { observer, getSelf, } from "./client/observer";
 export { eventListener, } from "./client/eventListener";
 export { loadHook, } from "./client/loadHook";
 export { state } from "./client/state";
