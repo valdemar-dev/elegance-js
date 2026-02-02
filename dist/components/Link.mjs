@@ -2,7 +2,7 @@ import { eventListener } from "../client/eventListener";
 import { isAnElement } from "../elements/element";
 function Link(options, ...children) {
   const handler = eventListener((event) => {
-    if (event.currentTarget.href.startsWith("/") === false) {
+    if (new URL(event.currentTarget.href, window.location.href).origin !== window.location.origin) {
       return;
     }
     event.preventDefault();

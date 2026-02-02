@@ -1,5 +1,5 @@
 # Observers
-Observers are client-side callbacks that run whenever a [state](https://elegance.js.org/state) subject changes it's value.
+Observers are client-side callbacks that run whenever a [state](/state) subject changes it's value.
 
 Observers are assigned to element options, to dynamically update values like their `className`.
 

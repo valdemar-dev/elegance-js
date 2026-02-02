@@ -10,10 +10,10 @@ import { AnyElement, ElementOptionsOrChild, isAnElement } from "../elements/elem
  */
 function Link(options: ElementOptionsOrChild<"a">, ...children: AnyElement[]) {
     const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
-        if (event.currentTarget.href.startsWith("/") === false) {
+        if (new URL(event.currentTarget.href, window.location.href).origin !== window.location.origin) {
             return;
         }
-        
+
         event.preventDefault();
 
         eleganceClient.navigateLocally(event.currentTarget.href, true);

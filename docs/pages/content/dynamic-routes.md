@@ -18,7 +18,9 @@ then you may prefix the route name with a `:`.
 
 So, the route `/recipes/:[recipeName]` would match `/recipes/cake/` but also `/recipes`
 
-## Specifics
-Note that dynamic routes (for obvious reasons) are only available when using the included [Elegance Server](http://elegance.js.org/elegance-server).
+Dynamic routes can be used on **both** types of dynamic routes.
 
-The [query](https://en.wikipedia.org/wiki/Query_string) part of the request is *not* parsed into the pathname that is passed into the page, but rather is available via the [getQuery](https://elegance.js.org/router) function from the router.
+## Specifics
+Note that dynamic routes (for obvious reasons) are only available when using the included [Elegance Server](/elegance-server).
+
+The [query](https://en.wikipedia.org/wiki/Query_string) part of the request is *not* parsed into the pathname that is passed into the page, but rather is available via the [getQuery](/router) function from the router.
