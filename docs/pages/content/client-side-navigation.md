@@ -7,11 +7,11 @@ In Elegance, this also lets you soft-replace *layouts*, maintaining the literal 
 
 Navigation *does not trigger* if you try to navigate to a page with the same pathname.
 
-When client-side navigating, the *cleanups* of [load hooks](/load-hook) 
+When client-side navigating, the *cleanups* of [load hooks](/load-hooks) 
 
 ## Link Element
 Elegance comes with a custom `<a>` element, called `Link()`, which *extends* the regular anchor element, overwriting it's `onClick` function to use client-side navigation.
 
 It also includes a few pre-fetching options, letting you do things like pre-load pages whenever the user hovers over a link, allowing for faster navigation.
 
-You can also trigger client-side navigation manually 
+You can also trigger client-side navigation manually, with the [elegance client](/elegance-client)

@@ -26,7 +26,7 @@ function tableOfContents(elems: EleganceElement<any, any>[]) {
                     }
                 });
             },
-            { rootMargin: "-10% 0px -90% 0px" } 
+            { rootMargin: "-0% 0px -90% 0px" } 
         );
 
         headings.forEach(h => observer.observe(h));

@@ -635,10 +635,10 @@ function onNavigate(callback) {
 function removeNavigationCallback(idx) {
   navigationCallbacks.splice(idx, 1);
 }
-var navigateLocally = async (target, pushState = true) => {
+var navigateLocally = async (target, pushState = true, isPopState = false) => {
   const targetURL = new URL(target);
   const pathname = sanitizePathname(targetURL.pathname);
-  if (pathname === sanitizePathname(window.location.pathname)) {
+  if (!isPopState && pathname === sanitizePathname(window.location.pathname)) {
     if (targetURL.hash) {
       document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
     }
@@ -759,9 +759,10 @@ function errorOut(message) {
 }
 async function loadPage() {
   window.onpopstate = async (event) => {
+    const prev = window.location.pathname;
     event.preventDefault();
     const target = event.target;
-    await navigateLocally(target.location.href, false);
+    await navigateLocally(target.location.href, false, true);
     history.replaceState(null, "", target.location.href);
   };
   const pathname = sanitizePathname(window.location.pathname);

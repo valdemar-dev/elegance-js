@@ -43,9 +43,6 @@ function NavBar(activePage: ServerSubject<string>) {
             href: `/${d.href}`,
             className: observer(
                 function (this: HTMLAnchorElement, page) {
-                    const self = getSelf();
-
-                    console.log(self);
                     const opacity = (page === this.href) ? "opacity-30" : "opacity-100";
 
                     return `${opacity}`;
@@ -109,6 +106,12 @@ export function layout({ child }: { child: Child}) {
 
         const idx = eleganceClient.onNavigate((newPage) => {
             activePage.value = newPage;
+
+            window.scrollTo({
+                top: 0,
+                left: 0,
+                behavior: "instant",
+            });
         });
 
         return () => {

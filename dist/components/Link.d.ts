@@ -7,7 +7,9 @@ import { AnyElement, ElementOptionsOrChild } from "../elements/element";
  * @returns A custom anchor element.
  */
 type ExtraOptions = {
+    /** Mandatory, where this Link should take the user to. */
     href: string;
+    /** Set window.scrollTop to 0 whenever this link navigates. */
     resetScrollOnNav?: boolean;
 };
 declare function Link(options: ElementOptionsOrChild<"a", ExtraOptions>, ...children: AnyElement[]): import("..").EleganceElement<"a", true>;

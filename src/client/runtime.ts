@@ -592,11 +592,11 @@ function removeNavigationCallback(idx: number) {
     navigationCallbacks.splice(idx, 1);
 }
 
-const navigateLocally = async (target: string, pushState: boolean = true) => {
+const navigateLocally = async (target: string, pushState: boolean = true, isPopState: boolean = false) => {
     const targetURL = new URL(target);
     const pathname = sanitizePathname(targetURL.pathname);
 
-    if (pathname === sanitizePathname(window.location.pathname)) {
+    if (!isPopState && pathname === sanitizePathname(window.location.pathname)) {
         if (targetURL.hash) {
             document.getElementById(targetURL.hash.slice(1))?.scrollIntoView();
         }
@@ -762,11 +762,13 @@ function errorOut(message: string) {
 
 async function loadPage() {
     window.onpopstate = async (event: PopStateEvent) => {
+        const prev = window.location.pathname;
+
         event.preventDefault();
 
         const target = event.target as Window;
 
-        await navigateLocally(target.location.href, false);
+        await navigateLocally(target.location.href, false, true);
 
         history.replaceState(null, "", target.location.href);
     };
