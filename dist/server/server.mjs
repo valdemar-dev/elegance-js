@@ -507,7 +507,111 @@ function getQuery() {
   }
   return new URLSearchParams(new URL(`http://${process.env.HOST ?? "localhost"}${store.req.url}`).searchParams);
 }
+function getRequest() {
+  const store = compilerStore.getStore();
+  if (!store) {
+    throw new Error("getQuery() cannot be called outside of a page or layout.");
+  }
+  if (!store.req || !store.res) {
+    throw new Error("getQuery() cannot be used inside of a static page, since it depends on the *request query*.");
+  }
+  return { req: store.req, res: store.res };
+}
+function getCookieStore() {
+  const { req, res } = getRequest();
+  let cookieMap = null;
+  const getCookies = () => {
+    if (cookieMap) return cookieMap;
+    cookieMap = /* @__PURE__ */ new Map();
+    if (req.headers.cookie) {
+      req.headers.cookie.split(";").forEach((part) => {
+        const trimmed = part.trim();
+        if (!trimmed) return;
+        const [name, ...valueParts] = trimmed.split("=");
+        if (name) {
+          const value = valueParts.join("=").trim();
+          cookieMap.set(name, decodeURIComponent(value));
+        }
+      });
+    }
+    return cookieMap;
+  };
+  return {
+    /**
+     * Get a cookie value by name
+     */
+    get(name) {
+      return getCookies().get(name);
+    },
+    /**
+     * Check if a cookie exists
+     */
+    has(name) {
+      return getCookies().has(name);
+    },
+    /**
+     * Get all cookies as a plain object
+     */
+    getAll() {
+      return Object.fromEntries(getCookies());
+    },
+    /**
+     * Set a cookie
+     * 
+     * @param name Cookie name
+     * @param value Cookie value
+     * @param options Optional cookie attributes
+     */
+    set(name, value, options = {}) {
+      let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+      if (options.maxAge !== void 0) {
+        cookieStr += `; Max-Age=${Math.floor(options.maxAge)}`;
+      }
+      if (options.expires) {
+        cookieStr += `; Expires=${options.expires.toUTCString()}`;
+      }
+      if (options.path) {
+        cookieStr += `; Path=${options.path}`;
+      }
+      if (options.domain) {
+        cookieStr += `; Domain=${options.domain}`;
+      }
+      if (options.secure) {
+        cookieStr += `; Secure`;
+      }
+      if (options.httpOnly) {
+        cookieStr += `; HttpOnly`;
+      }
+      if (options.sameSite) {
+        cookieStr += `; SameSite=${options.sameSite}`;
+      }
+      const existing = res.getHeader("Set-Cookie");
+      if (existing) {
+        if (Array.isArray(existing)) {
+          res.setHeader("Set-Cookie", [...existing, cookieStr]);
+        } else {
+          res.setHeader("Set-Cookie", [existing, cookieStr]);
+        }
+      } else {
+        res.setHeader("Set-Cookie", cookieStr);
+      }
+    },
+    /**
+     * Delete a cookie (sets it to expire immediately)
+     */
+    delete(name, path = "/", domain) {
+      this.set(name, "", {
+        maxAge: 0,
+        expires: /* @__PURE__ */ new Date(0),
+        path,
+        domain
+      });
+    }
+  };
+}
 export {
+  getCookieStore,
   getQuery,
+  getRequest,
   serveProject
 };

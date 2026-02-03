@@ -971,16 +971,20 @@ async function gatherAllLayouts(): Promise<Map<string, LayoutInformation>> {
 }
 
 const compiledStaticLayouts = new Map<string, CompiledLayout>();
-async function getCompiledLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout> {
+async function getCompiledLayout(
+    layoutInformation: LayoutInformation,
+    allLayouts: Map<string, LayoutInformation>,
+    reqRes: { req?: IncomingMessage, res?: ServerResponse } = {},
+): Promise<CompiledLayout> {
     if (layoutInformation.exports.isDynamic === true) {
-        return await compileLayout(layoutInformation, allLayouts);
+        return await compileLayout(layoutInformation, allLayouts, reqRes);
     }
 
     if (compiledStaticLayouts.has(layoutInformation.pathname)) {
         return compiledStaticLayouts.get(layoutInformation.pathname)!;
     }
 
-    const compiledLayout = await compileLayout(layoutInformation, allLayouts);
+    const compiledLayout = await compileLayout(layoutInformation, allLayouts, reqRes);
     compiledStaticLayouts.set(layoutInformation.pathname, compiledLayout);
 
     return compiledLayout;
@@ -1045,7 +1049,7 @@ async function compilePage(
 
     if (pageInformation.applicableLayouts.length > 0) {
         for (const layout of pageInformation.applicableLayouts) {
-            compiledLayouts.push(await getCompiledLayout(layout, allLayouts));
+            compiledLayouts.push(await getCompiledLayout(layout, allLayouts, reqRes));
         }
 
         for (const compiledLayout of compiledLayouts) {
@@ -1211,7 +1215,11 @@ async function compileLayoutToDisk(layoutInformation: LayoutInformation, allLayo
     writeFileSync(jsFullPath, compiledLayout.specialElementOptions.join(","));
 }
 
-async function compileLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout> {
+async function compileLayout(
+    layoutInformation: LayoutInformation, 
+    allLayouts: Map<string, LayoutInformation>,
+    reqRes: { req?: IncomingMessage, res?: ServerResponse } = {},
+): Promise<CompiledLayout> {
     const compilationContext = generateLayoutCompilationContext(layoutInformation.pathname);
 
     /**
@@ -1231,7 +1239,7 @@ async function compileLayout(layoutInformation: LayoutInformation, allLayouts: M
         const isSameLayout = layoutInformation.pathname === parentLayout;
 
         if (!isSameLayout && allLayouts.has(parentLayout)) {
-            const compiledParent = await getCompiledLayout(allLayouts.get(parentLayout)!, allLayouts);
+            const compiledParent = await getCompiledLayout(allLayouts.get(parentLayout)!, allLayouts, reqRes);
             parentLayoutProps = compiledParent.layoutProps;
         }
     }
@@ -1261,6 +1269,9 @@ async function compileLayout(layoutInformation: LayoutInformation, allLayouts: M
         },
 
         compilationContext,
+
+        req: reqRes.req,
+        res: reqRes.res,
     };
 
     let layoutProps: LayoutProps = {};

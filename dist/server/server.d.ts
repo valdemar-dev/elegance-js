@@ -7,6 +7,7 @@
 import { CompiledLayout, CompiledPage } from "../compilation/compiler";
 import { LayoutInformation } from "./layout";
 import { PageInformation } from "./page";
+import { IncomingMessage, ServerResponse } from "http";
 import { URLSearchParams } from "url";
 type ServerOptions = {
     /** If a port is not available, it will increment the port +1 in a loop until it finds a valid one. */
@@ -49,4 +50,47 @@ type ServerStartupResult = {
 declare function serveProject(startupServerOptions: ServerOptions): Promise<ServerStartupResult>;
 /** Get the current query as `URLSearchParams` */
 declare function getQuery(): URLSearchParams;
-export { serveProject, getQuery, };
+/** Get the current page's request and response. */
+declare function getRequest(): {
+    req: IncomingMessage;
+    res: ServerResponse;
+};
+/**
+ * Get the cookies for the current request.
+ * Requires a dynamic page.
+ */
+declare function getCookieStore(): {
+    /**
+     * Get a cookie value by name
+     */
+    get(name: string): string | undefined;
+    /**
+     * Check if a cookie exists
+     */
+    has(name: string): boolean;
+    /**
+     * Get all cookies as a plain object
+     */
+    getAll(): Record<string, string>;
+    /**
+     * Set a cookie
+     *
+     * @param name Cookie name
+     * @param value Cookie value
+     * @param options Optional cookie attributes
+     */
+    set(name: string, value: string, options?: {
+        maxAge?: number;
+        expires?: Date;
+        path?: string;
+        domain?: string;
+        secure?: boolean;
+        httpOnly?: boolean;
+        sameSite?: "Strict" | "Lax" | "None";
+    }): void;
+    /**
+     * Delete a cookie (sets it to expire immediately)
+     */
+    delete(name: string, path?: string, domain?: string): void;
+};
+export { serveProject, getQuery, getRequest, getCookieStore, };

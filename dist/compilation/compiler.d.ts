@@ -127,7 +127,10 @@ declare function compilePage(allLayouts: Map<string, LayoutInformation>, pageInf
     res?: ServerResponse | undefined;
 }, extraParams?: Record<string, unknown>): Promise<CompiledPage>;
 declare function compileLayoutToDisk(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<void>;
-declare function compileLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>): Promise<CompiledLayout>;
+declare function compileLayout(layoutInformation: LayoutInformation, allLayouts: Map<string, LayoutInformation>, reqRes?: {
+    req?: IncomingMessage;
+    res?: ServerResponse;
+}): Promise<CompiledLayout>;
 /**
  * Run the general compilation process for the project.
  * This compiles all static-pages & static-layouts, as well as gathers a list of every page (dynamic and static) & layout (dynamic and static).

@@ -1,4 +1,4 @@
-import { Child, eventListener, getSelf, Link, loadHook, observer, ServerSubject, state } from "elegance-js";
+import { Child, eventListener, getCookieStore, getSelf, Link, loadHook, observer, ServerSubject, state } from "elegance-js";
 import { readdirSync } from "fs";
 
 import path from "path";
@@ -96,7 +96,13 @@ function Footer() {
 
 export function layout({ child }: { child: Child}) {
     const activePage = state("");
-    const useDarkMode = state(false);
+    
+    const cookies = getCookieStore();
+    const useDarkModeCookie = cookies.get("use-dark-mode");
+    
+    const useDarkMode = state(useDarkModeCookie === "yes");
+
+    cookies.set("use-dark-mode", useDarkMode.value ? "yes" : "no");
 
     loadHook((activePage) => {
         activePage.value = window.location.pathname;
@@ -142,7 +148,7 @@ export function layout({ child }: { child: Child}) {
 
     return html(
         body({
-            className: "dark font-inter text-black bg-white dark:text-white dark:bg-black duration-200",
+            className: `${useDarkMode.value ? "dark" : ""} font-inter text-black bg-white dark:text-white dark:bg-black duration-200`,
         },
             div({
                 className: "grid grid-cols-[minmax(300px,auto)_minmax(300px,auto)]",
@@ -165,3 +171,5 @@ export function metadata() {
         }),
     ];
 }
+
+export const isDynamic = true;

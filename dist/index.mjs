@@ -5,7 +5,11 @@ import { state } from "./client/state";
 import { startEleganceRuntime } from "./server/runtime";
 import { Link } from "./components/Link";
 import { ClientComponent } from "./components/ClientComponent";
-import { serveProject, getQuery } from "./server/server";
+import {
+  serveProject,
+  getQuery,
+  getCookieStore
+} from "./server/server";
 export * from "./compilation/compiler";
 import {
   raw
@@ -14,6 +18,7 @@ export {
   ClientComponent,
   Link,
   eventListener,
+  getCookieStore,
   getQuery,
   getSelf,
   loadHook,
