@@ -22,6 +22,11 @@ interface SerializationResult {
 }
 
 let idCounter = 0;
+/**
+ * Generate a non-deterministic unique id that can be used for browser specific things like custom client observers.
+ * Unique, but may change between builds; depends on order of creation.
+ * @returns A unique id
+ */
 function genLocalID(): number {
     idCounter++;
     return idCounter;
@@ -806,7 +811,8 @@ async function loadPage() {
         fetchPage,
         navigateLocally,
         onNavigate,
-        removeNavigationCallback
+        removeNavigationCallback,
+        genLocalID,
     }
 
     stateManager.loadValues(subjects);

@@ -795,7 +795,8 @@ async function loadPage() {
     fetchPage,
     navigateLocally,
     onNavigate,
-    removeNavigationCallback
+    removeNavigationCallback,
+    genLocalID
   };
   stateManager.loadValues(subjects);
   eventListenerManager.loadValues(eventListeners);

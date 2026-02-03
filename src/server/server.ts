@@ -824,7 +824,149 @@ function getQuery(): URLSearchParams {
     return new URLSearchParams(new URL(`http://${process.env.HOST ?? 'localhost'}${store.req.url}`).searchParams);
 }
 
+/** Get the current page's request and response. */
+function getRequest(): { req: IncomingMessage, res: ServerResponse } {
+    const store = compilerStore.getStore();
+
+    if (!store) {
+        throw new Error("getQuery() cannot be called outside of a page or layout.");
+    }
+
+    if (!store.req || !store.res) {
+        throw new Error("getQuery() cannot be used inside of a static page, since it depends on the *request query*.");
+    }
+
+    return { req: store.req, res: store.res };
+}
+
+
+
+/**
+ * Get the cookies for the current request.
+ * Requires a dynamic page.
+ */
+function getCookieStore() {
+    const { req, res } = getRequest();
+
+    let cookieMap: Map<string, string> | null = null;
+
+    const getCookies = (): Map<string, string> => {
+        if (cookieMap) return cookieMap;
+
+        cookieMap = new Map<string, string>();
+
+        if (req.headers.cookie) {
+            req.headers.cookie.split(';').forEach(part => {
+                const trimmed = part.trim();
+                if (!trimmed) return;
+
+                const [name, ...valueParts] = trimmed.split('=');
+                if (name) {
+                    const value = valueParts.join('=').trim();
+                    cookieMap!.set(name, decodeURIComponent(value));
+                }
+            });
+        }
+
+        return cookieMap;
+    };
+
+    return {
+        /**
+         * Get a cookie value by name
+         */
+        get(name: string): string | undefined {
+            return getCookies().get(name);
+        },
+
+        /**
+         * Check if a cookie exists
+         */
+        has(name: string): boolean {
+            return getCookies().has(name);
+        },
+
+        /**
+         * Get all cookies as a plain object
+         */
+        getAll(): Record<string, string> {
+            return Object.fromEntries(getCookies());
+        },
+
+        /**
+         * Set a cookie
+         * 
+         * @param name Cookie name
+         * @param value Cookie value
+         * @param options Optional cookie attributes
+         */
+        set(
+            name: string,
+            value: string,
+            options: {
+                maxAge?: number;      // seconds not ms
+                expires?: Date;
+                path?: string;
+                domain?: string;
+                secure?: boolean;
+                httpOnly?: boolean;
+                sameSite?: 'Strict' | 'Lax' | 'None';
+            } = {}
+        ): void {
+            let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+
+            if (options.maxAge !== undefined) {
+                cookieStr += `; Max-Age=${Math.floor(options.maxAge)}`;
+            }
+            if (options.expires) {
+                cookieStr += `; Expires=${options.expires.toUTCString()}`;
+            }
+            if (options.path) {
+                cookieStr += `; Path=${options.path}`;
+            }
+            if (options.domain) {
+                cookieStr += `; Domain=${options.domain}`;
+            }
+            if (options.secure) {
+                cookieStr += `; Secure`;
+            }
+            if (options.httpOnly) {
+                cookieStr += `; HttpOnly`;
+            }
+            if (options.sameSite) {
+                cookieStr += `; SameSite=${options.sameSite}`;
+            }
+
+            const existing = res.getHeader('Set-Cookie');
+
+            if (existing) {
+                if (Array.isArray(existing)) {
+                res.setHeader('Set-Cookie', [...existing, cookieStr]);
+                } else {
+                res.setHeader('Set-Cookie', [existing as string, cookieStr]);
+                }
+            } else {
+                res.setHeader('Set-Cookie', cookieStr);
+            }
+        },
+
+        /**
+         * Delete a cookie (sets it to expire immediately)
+         */
+        delete(name: string, path: string = '/', domain?: string): void {
+            this.set(name, '', {
+                maxAge: 0,
+                expires: new Date(0),
+                path,
+                domain,
+            });
+        },
+    };
+}
+
 export {
     serveProject,
     getQuery,
+    getRequest,
+    getCookieStore,
 }

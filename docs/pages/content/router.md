@@ -5,11 +5,15 @@ It contains a few helper functions you can call within pages to get parts of the
 
 For obvious reasons these are only available in [dynamic pages](/pages#dynamic-pages), and only during the compilation of the page, unless you store the result in [state](/state)
 
-## getQuery
+## Helpers
+### getQuery
 Returns the part after the `?` of a request as `URLSearchParams`.
 
-## getRequest
+### getRequest
 Returns the http `IncomingMessage` and `ServerResponse` objects.
+
+### getCookieStore
+Prase the cookies of the active `IncomingMessage`. Returns a few helpers like `get`, `has`, `set`, and `getAll`.
 
 ## Route Overrides
 These let you override whatever the server wants to reply with, to some kind of status code.

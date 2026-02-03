@@ -33,7 +33,7 @@ function EleganceLogo() {
     );
 }
 
-function NavBar(activePage: ServerSubject<string>) {
+function NavBar(activePage: ServerSubject<string>, useDarkMode: ServerSubject<boolean>) {
     const rawDocuments = readdirSync(path.join(__dirname, "content"))
         .filter(f => f.endsWith(".md"))
         .map(f => ({ href: f.slice(0, f.length - 3), title: toTitleCase(f).slice(0, f.length - 3) }));
@@ -66,13 +66,9 @@ function NavBar(activePage: ServerSubject<string>) {
 
         button({
             className: "hover:cursor-pointer dark:invert-100 origin-center",
-            onClick: eventListener(() => {
-                if (document.body.classList.contains("dark")) {
-                    document.body.classList.remove("dark");
-                } else {
-                    document.body.classList.add("dark");
-                }
-            }, []),
+            onClick: eventListener((_, useDarkMode) => {
+                useDarkMode.value = !useDarkMode.value
+            }, [useDarkMode]),
         },
             ThemeToggle(32, 32, "rotate-0 duration-300 dark:rotate-180"),
         ),
@@ -100,6 +96,7 @@ function Footer() {
 
 export function layout({ child }: { child: Child}) {
     const activePage = state("");
+    const useDarkMode = state(false);
 
     loadHook((activePage) => {
         activePage.value = window.location.pathname;
@@ -117,16 +114,40 @@ export function layout({ child }: { child: Child}) {
         return () => {
             eleganceClient.removeNavigationCallback(idx);
         }
-    }, [activePage])
+    }, [activePage]);
+
+    loadHook((useDarkMode) => {
+        function setCookie(name: string, value: string) {
+            document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax; max-age=31536000`;
+        }
+
+        const callback = () => {
+            setCookie("use-dark-mode", useDarkMode.value === true ? "yes" : "no");
+        };
+
+        window.addEventListener("beforeunload", callback);
+
+        const update = (value: boolean) => {
+            if (value === true) {
+                document.body.classList.add("dark");
+            } else {
+                document.body.classList.remove("dark");
+            }
+        };
+
+        useDarkMode.observe(eleganceClient.genLocalID().toString(), update);
+
+        return () => window.removeEventListener("beforeunload", callback);
+    }, [useDarkMode]);
 
     return html(
         body({
-            className: "font-inter text-black bg-white dark:text-white dark:bg-black duration-200",
+            className: "dark font-inter text-black bg-white dark:text-white dark:bg-black duration-200",
         },
             div({
                 className: "grid grid-cols-[minmax(300px,auto)_minmax(300px,auto)]",
             },
-                NavBar(activePage),
+                NavBar(activePage, useDarkMode),
 
                 child({}),
             ),

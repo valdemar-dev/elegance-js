@@ -16,6 +16,8 @@ Performs client-side navigation. For more information [click here](/client-side-
 Hook into the navigation system, and call `callback` every time the client navigates locally. Note that this is load-hook scope independent, and should be cleaned up.
 ### removeNavigationCallback
 Remove a navigation callback created by `onNavigate`.
+### genLocalID
+Generate a non-deterministic unique id that can be used for browser specific things like custom client observers.
 
 ## DevTools
 When the compilation option `environment` is set to `development`, in the client runtime, a set of tools are exposed into `globalThis.devtools`. They're removed from production builds for security reasons, but can be useful during development.
