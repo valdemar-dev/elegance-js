@@ -331,8 +331,11 @@ async function handlePageRequest(req: IncomingMessage, res: ServerResponse, path
 
         const result = await compilePage(serverOptions.allLayouts, informationClone, { req, res }, matchHit.params);
 
+        if (!res.writable) return;
+
         res.statusCode = 200;
         await sendResponse(req, res, result.pageHTML, "text/html");
+        
         return;
     }
 
@@ -964,9 +967,58 @@ function getCookieStore() {
     };
 }
 
+function redirect(location: string, statusCode = 302) {
+    const { res } = getRequest();
+
+    res.statusCode = statusCode;
+    res.setHeader("Location", location);
+    res.end();
+}
+
+const respondWith = {
+    async notFound() {
+        const { req, res } = getRequest()
+
+        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`)
+        const pathname = sanitizePathname(url.pathname)
+
+        await respondWithStatusCode(req, res, pathname, 404, "Not found.")
+    },
+
+    async notAuthorized() {
+        const { req, res } = getRequest()
+
+        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`)
+        const pathname = sanitizePathname(url.pathname)
+
+        await respondWithStatusCode(req, res, pathname, 401, "Not authorized.")
+    },
+
+    async forbidden() {
+        const { req, res } = getRequest()
+
+        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`)
+        const pathname = sanitizePathname(url.pathname)
+
+        await respondWithStatusCode(req, res, pathname, 403, "Forbidden.")
+    },
+
+    async internalError() {
+        const { req, res } = getRequest()
+
+        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`)
+        const pathname = sanitizePathname(url.pathname)
+
+        await respondWithStatusCode(req, res, pathname, 500, "Internal server error.")
+    }
+};
+
 export {
     serveProject,
     getQuery,
     getRequest,
     getCookieStore,
+    redirect,
+
+    respondWith
 }
