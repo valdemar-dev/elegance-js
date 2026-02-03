@@ -95,14 +95,14 @@ function Footer() {
 }
 
 export function layout({ child }: { child: Child}) {
+    const cookies = getCookieStore();
+
     const activePage = state("");
     
-    const cookies = getCookieStore();
-    const useDarkModeCookie = cookies.get("use-dark-mode");
-    
-    const useDarkMode = state(useDarkModeCookie === "yes");
+    const useDarkModeCookie = cookies.get("use-dark-mode") ?? "yes";
+    cookies.set("use-dark-mode", useDarkModeCookie);
 
-    cookies.set("use-dark-mode", useDarkMode.value ? "yes" : "no");
+    const useDarkMode = state(useDarkModeCookie === "yes");
 
     loadHook((activePage) => {
         activePage.value = window.location.pathname;
@@ -141,9 +141,14 @@ export function layout({ child }: { child: Child}) {
             }
         };
 
-        useDarkMode.observe(eleganceClient.genLocalID().toString(), update);
+        const observerID = eleganceClient.genLocalID().toString();
+        
+        useDarkMode.observe(observerID, update);
 
-        return () => window.removeEventListener("beforeunload", callback);
+        return () => {
+            window.removeEventListener("beforeunload", callback);
+            useDarkMode.unobserve(observerID);
+        }
     }, [useDarkMode]);
 
     return html(

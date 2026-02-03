@@ -30,7 +30,7 @@ const htmlElementTags: Array<HtmlElementTags> = [
     "q", "rp", "rt", "ruby", "s", "samp", "script", "search", "section",
     "select", "slot", "small", "span", "strong", "style", "sub", "summary",
     "sup", "table", "tbody", "td", "template", "textarea", "tfoot", "th",
-    "thead", "time", "title", "tr", "u", "ul", "var", "video",
+    "thead", "time", "title", "tr", "u", "ul", "varElement", "video",
 ];
 
 const svgChildrenlessElementTags: Array<SvgChildrenlessElementTags> = [

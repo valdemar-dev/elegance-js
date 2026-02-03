@@ -109,7 +109,7 @@ type HtmlElementTags =
     | "pre" | "progress" | "q" | "rp" | "rt" | "ruby" | "s" | "samp" | "script" | "search"
     | "section" | "select" | "slot" | "small" | "span" | "strong" | "style" | "sub" | "summary"
     | "sup" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead"
-    | "time" | "title" | "tr" | "u" | "ul" | "var" | "video";
+    | "time" | "title" | "tr" | "u" | "ul" | "varElement" | "video";
 
 type SvgChildrenlessElementTags =
     | "path" | "circle" | "ellipse" | "line" | "polygon" | "polyline" | "stop";
