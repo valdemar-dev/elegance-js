@@ -475,6 +475,11 @@
       color: var(--color-white);
     }
   }
+  .dark\:opacity-70 {
+    &:where(.dark, .dark *) {
+      opacity: 70%;
+    }
+  }
   .dark\:invert-100 {
     &:where(.dark, .dark *) {
       --tw-invert: invert(100%);

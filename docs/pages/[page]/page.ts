@@ -21,7 +21,12 @@ function tableOfContents(elems: EleganceElement<any, any>[]) {
                     const tocLink = document.querySelector(`#toc a[href="#${id}"]`)!;
 
                     if (entry.isIntersecting) {
-                        tocLinks.forEach(link => link.classList.remove("opacity-30"));
+                        tocLinks.forEach(link => {
+                            link.classList.remove("dark:opacity-70")
+                            link.classList.remove("opacity-30");
+                        });
+
+                        tocLink.classList.add("dark:opacity-70");
                         tocLink.classList.add("opacity-30");
                     }
                 });
@@ -37,6 +42,7 @@ function tableOfContents(elems: EleganceElement<any, any>[]) {
     }, [])
 
     const tocHeadings = headings.map((h: EleganceElement<"h2", true>) => Link({
+        className: "duration-200",
         href: "#" + h.options.id,
     },  
         ...h.children,

@@ -43,9 +43,9 @@ function NavBar(activePage: ServerSubject<string>) {
             href: `/${d.href}`,
             className: observer(
                 function (this: HTMLAnchorElement, page) {
-                    const opacity = (page === this.href) ? "opacity-30" : "opacity-100";
+                    const opacity = (page === new URL(this.href).pathname) ? "dark:opacity-70 opacity-30" : "opacity-100";
 
-                    return `${opacity}`;
+                    return `${opacity} duration-200`;
                 }, [activePage],
             ),
         },
