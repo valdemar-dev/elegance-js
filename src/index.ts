@@ -14,6 +14,9 @@ export {
     serveProject, 
     getQuery,
     getCookieStore,
+
+    respondWith,
+    redirect,
 } from "./server/server";
 
 export * from "./compilation/compiler";

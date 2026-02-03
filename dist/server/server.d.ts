@@ -93,4 +93,11 @@ declare function getCookieStore(): {
      */
     delete(name: string, path?: string, domain?: string): void;
 };
-export { serveProject, getQuery, getRequest, getCookieStore, };
+declare function redirect(location: string, statusCode?: number): void;
+declare const respondWith: {
+    notFound(): Promise<void>;
+    notAuthorized(): Promise<void>;
+    forbidden(): Promise<void>;
+    internalError(): Promise<void>;
+};
+export { serveProject, getQuery, getRequest, getCookieStore, redirect, respondWith };

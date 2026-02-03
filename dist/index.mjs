@@ -8,7 +8,9 @@ import { ClientComponent } from "./components/ClientComponent";
 import {
   serveProject,
   getQuery,
-  getCookieStore
+  getCookieStore,
+  respondWith,
+  redirect
 } from "./server/server";
 export * from "./compilation/compiler";
 import {
@@ -24,6 +26,8 @@ export {
   loadHook,
   observer,
   raw,
+  redirect,
+  respondWith,
   serveProject,
   startEleganceRuntime,
   state

@@ -154,7 +154,7 @@ declare global {
     var tr: EleganceElementBuilder<"tr">;
     var u: EleganceElementBuilder<"u">;
     var ul: EleganceElementBuilder<"ul">;
-    var varElement: EleganceElementBuilder<"var">;
+    var varElement: EleganceElementBuilder<"varElement">;
     var video: EleganceElementBuilder<"video">;
     var path: EleganceElementBuilder<"path">;
     var circle: EleganceElementBuilder<"circle">;

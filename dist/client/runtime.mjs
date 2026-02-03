@@ -140,7 +140,7 @@ var htmlElementTags = [
   "tr",
   "u",
   "ul",
-  "var",
+  "varElement",
   "video"
 ];
 var svgChildrenlessElementTags = [

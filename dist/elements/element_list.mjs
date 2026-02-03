@@ -115,7 +115,7 @@ const htmlElementTags = [
   "tr",
   "u",
   "ul",
-  "var",
+  "varElement",
   "video"
 ];
 const svgChildrenlessElementTags = [

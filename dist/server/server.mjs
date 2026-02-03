@@ -161,6 +161,7 @@ async function handlePageRequest(req, res, pathname, pageInformation, matchHit) 
     };
     informationClone.pathname = pathname;
     const result = await compilePage(serverOptions.allLayouts, informationClone, { req, res }, matchHit.params);
+    if (res.writableEnded || res.headersSent) return;
     res.statusCode = 200;
     await sendResponse(req, res, result.pageHTML, "text/html");
     return;
@@ -350,7 +351,7 @@ async function requestHandler(req, res) {
   }
   const pathname = sanitizePathname(serverOptions.base ? removePrefix(serverOptions.base, url.pathname) : url.pathname);
   runMiddleware(req, res, pathname);
-  if (!res.writable) return;
+  if (res.writableEnded) return;
   if (pathname.startsWith("/api/")) {
     return handleAPIRequest(req, res, pathname);
   }
@@ -609,9 +610,43 @@ function getCookieStore() {
     }
   };
 }
+function redirect(location, statusCode = 302) {
+  const { res } = getRequest();
+  res.statusCode = statusCode;
+  res.setHeader("Location", location);
+  res.end();
+}
+const respondWith = {
+  async notFound() {
+    const { req, res } = getRequest();
+    const url = new URL(`http://${process.env.HOST ?? "localhost"}${req.url}`);
+    const pathname = sanitizePathname(url.pathname);
+    await respondWithStatusCode(req, res, pathname, 404, "Not found.");
+  },
+  async notAuthorized() {
+    const { req, res } = getRequest();
+    const url = new URL(`http://${process.env.HOST ?? "localhost"}${req.url}`);
+    const pathname = sanitizePathname(url.pathname);
+    await respondWithStatusCode(req, res, pathname, 401, "Not authorized.");
+  },
+  async forbidden() {
+    const { req, res } = getRequest();
+    const url = new URL(`http://${process.env.HOST ?? "localhost"}${req.url}`);
+    const pathname = sanitizePathname(url.pathname);
+    await respondWithStatusCode(req, res, pathname, 403, "Forbidden.");
+  },
+  async internalError() {
+    const { req, res } = getRequest();
+    const url = new URL(`http://${process.env.HOST ?? "localhost"}${req.url}`);
+    const pathname = sanitizePathname(url.pathname);
+    await respondWithStatusCode(req, res, pathname, 500, "Internal server error.");
+  }
+};
 export {
   getCookieStore,
   getQuery,
   getRequest,
+  redirect,
+  respondWith,
   serveProject
 };

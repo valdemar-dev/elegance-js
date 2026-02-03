@@ -331,7 +331,7 @@ async function handlePageRequest(req: IncomingMessage, res: ServerResponse, path
 
         const result = await compilePage(serverOptions.allLayouts, informationClone, { req, res }, matchHit.params);
 
-        if (!res.writable) return;
+        if (res.writableEnded || res.headersSent) return;
 
         res.statusCode = 200;
         await sendResponse(req, res, result.pageHTML, "text/html");
@@ -582,7 +582,7 @@ async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     
     runMiddleware(req, res, pathname);
 
-    if (!res.writable) return;
+    if (res.writableEnded) return;
 
     if (pathname.startsWith("/api/")) {
         return handleAPIRequest(req, res, pathname);
