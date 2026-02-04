@@ -214,6 +214,9 @@
   .relative {
     position: relative;
   }
+  .static {
+    position: static;
+  }
   .sticky {
     position: sticky;
   }
@@ -243,6 +246,9 @@
   }
   .ml-auto {
     margin-left: auto;
+  }
+  .contents {
+    display: contents;
   }
   .flex {
     display: flex;

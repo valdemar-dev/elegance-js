@@ -14,4 +14,4 @@ Elegance comes with a custom `<a>` element, called `Link()`, which *extends* the
 
 It also includes a few pre-fetching options, letting you do things like pre-load pages whenever the user hovers over a link, allowing for faster navigation.
 
-You can also trigger client-side navigation manually, with the [elegance client](/elegance-client)
+You can also trigger client-side navigation manually, with the [elegance client](/elegance-client).

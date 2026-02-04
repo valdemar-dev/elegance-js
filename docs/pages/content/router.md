@@ -3,8 +3,7 @@ The router in Elegance refers to the routing system used by the included [Elegan
 
 It contains a few helper functions you can call within pages to get parts of the request, reroute the request, etc.
 
-For obvious reasons these are only available in [dynamic pages](/pages#dynamic-pages), and only during the compilation of the 
-page, unless you store the result in [state](/state)
+For obvious reasons these are only available in [dynamic pages](/pages#dynamic-pages), and only during the compilation of the page, unless you store the result in [state](/state).
 
 ## Utilities
 ### redirect
