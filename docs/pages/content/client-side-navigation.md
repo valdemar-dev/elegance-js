@@ -3,11 +3,11 @@ Client-side navigation is when you overwrite the browsers default navigation, an
 
 This has the benefit of *maintaining* the active JavaScript state, as well as the state of DOM elements; which allows you to keep things like active connections alive, timers going, variable values between pages, etc.
 
-In Elegance, this also lets you soft-replace *layouts*, maintaining the literal elements and their CSS states.
+In Elegance, this also lets you soft-replace *layouts*, maintaining the literal element instances and their CSS states.
 
-Navigation *does not trigger* if you try to navigate to a page with the same pathname.
+Navigation *does not trigger* if you try to navigate to a page with the same pathname, but it will push state and scroll to any hash it finds.
 
-When client-side navigating, the *cleanups* of [load hooks](/load-hooks) 
+When client-side navigating, the *cleanups* of [load hooks](/load-hooks) are called.
 
 ## Link Element
 Elegance comes with a custom `<a>` element, called `Link()`, which *extends* the regular anchor element, overwriting it's `onClick` function to use client-side navigation.
