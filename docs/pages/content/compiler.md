@@ -36,3 +36,12 @@ Take all of the returned values of `compileEntireProject` and store them somewhe
 If you want, you can mutate them (to make pages inaccessible, or at different pathnames).
 
 Now call `serveProject`, with these values, and the [server options](/elegance-server#server-options)
+
+## Compiler Options
+Below is an outline of the different compiler options.
+
+- `pagesDirectory`: This should be an absolute path to where your `page.ts` file are contained.;
+- `environment`: A value of `production` will suppress `console.log` calls, disable [devtools](/elegance-client#devtools) and minify all output JS. A value of `development` will do the opposite of what `production` does.
+- `publicDirectory`: This should be an absolute path to where you want to have files that should be publicly accessible, like images, videos, audio, etc. `publicDirectory/favicon.ico` will be available at `localhost:3000/favicon.ico`.
+- `outputDirectory`: This should be an absolute path to where you want **static generated files** to be outputted. Even if all pages are dynamic, the **transpiled** [Elegance Client](/elegance-client) will be here.
+- `doHotReload`: Whether or not to enable hot-reloading

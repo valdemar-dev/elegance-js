@@ -21,4 +21,4 @@ Note, that arrow functions cannot due to the lexical scope, according to typescr
 
 Once this is done, typescript should pick up on the type of `this` automatically, and if you want, you can include it in the parameters and type it manually to the type of your element, like so: `function(this: HTMLDivElement) {}`
 
-If you don't want to use `this`, or for some reason don't want to use a regular function declaration, you can also use the `getRef()` function, which will return the Element.
+If you don't want to use `this`, or for some reason don't want to use a regular function declaration, you can also use the `getSelf()` function, which will return the Element the observer is attached to.
