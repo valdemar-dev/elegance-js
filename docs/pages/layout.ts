@@ -33,7 +33,8 @@ function EleganceLogo() {
     );
 }
 
-function NavBar(activePage: ServerSubject<string>, useDarkMode: ServerSubject<boolean>) {
+function NavBar(isOpen: ServerSubject<boolean>, activePage: ServerSubject<string>, useDarkMode: ServerSubject<boolean>) {
+
     const rawDocuments = readdirSync(path.join(__dirname, "content"))
         .filter(f => f.endsWith(".md"))
         .map(f => ({ href: f.slice(0, f.length - 3), title: toTitleCase(f).slice(0, f.length - 3) }));
@@ -54,7 +55,17 @@ function NavBar(activePage: ServerSubject<string>, useDarkMode: ServerSubject<bo
     });
 
     return div({
-        className: "sticky top-0 grid grid-rows-[max-content_1fr_max-content] h-screen p-8 ml-auto min-w-[230px]",
+        className: observer((isOpen) => {
+            let classList = "pointer-events-auto bg-white dark:bg-black lg:sticky top-0 grid grid-rows-[max-content_1fr_max-content] lg:h-screen lg:p-8 lg:ml-auto lg:min-w-[230px] duration-200 ";
+
+            if (isOpen) {
+                classList += "translate-x-0 lg:translate-x-0";
+            } else {
+                classList += "-translate-x-full lg:translate-x-0"
+            }
+
+            return classList;
+        }, [isOpen])
     },
         EleganceLogo(),
 
@@ -77,10 +88,10 @@ function NavBar(activePage: ServerSubject<string>, useDarkMode: ServerSubject<bo
 
 function Footer() {
     return div({
-        className: "mt-12 pt-12 border-t-[1px] border-[#00000033] p-8 dark:border-[#ffffff33] grid grid-cols-[minmax(300px,auto)_minmax(300px,auto)]"
+        className: "mt-12 pt-12 border-t-[1px] border-[#00000033] p-8 dark:border-[#ffffff33] grid md:grid-cols-[minmax(300px,auto)_minmax(300px,auto)]"
     },
         div({
-            className: "p-8 ml-auto min-w-[250px]",
+            className: "md:p-8 md:ml-auto min-w-[250px]",
         },
 
             EleganceLogo(),
@@ -89,8 +100,22 @@ function Footer() {
         ),
 
         div({
-            className: "grid h-full w-full grid-cols-[minmax(300px,700px)_minmax(300px,1fr)]"
+            className: "md:grid hidden h-full w-full grid-cols-[minmax(300px,700px)_minmax(300px,1fr)]"
         }),
+    );
+}
+
+function Header(isNavBarOpen: ServerSubject<boolean>) {
+    return div({
+        className: "lg:hidden pointer-events-auto bg-white dark:bg-black w-screen flex py-2 "
+    },
+        button({
+            onClick: eventListener((_, isNavBarOpen) => {
+                isNavBarOpen.value = !isNavBarOpen.value
+            }, [isNavBarOpen])
+        }, "toggle"),
+
+        EleganceLogo(),
     );
 }
 
@@ -98,6 +123,8 @@ export function layout({ child }: { child: Child}) {
     const cookies = getCookieStore();
 
     const activePage = state("");
+
+    const isNavBarOpen = state(false);
     
     const useDarkModeCookie = cookies.get("use-dark-mode") ?? "yes";
     cookies.set("use-dark-mode", useDarkModeCookie);
@@ -156,9 +183,15 @@ export function layout({ child }: { child: Child}) {
             className: `${useDarkMode.value ? "dark" : ""} font-inter text-black bg-white dark:text-white dark:bg-black duration-200`,
         },
             div({
-                className: "grid grid-cols-[minmax(300px,auto)_minmax(300px,auto)]",
-            },
-                NavBar(activePage, useDarkMode),
+                className: "grid pointer-events-none lg:grid-cols-[minmax(300px,auto)_minmax(300px,auto)] lg:pt-0 pt-[52px]",
+            },    
+                div({
+                    className: "fixed inline lg:flex lg:relative z-50 top-0"
+                },
+                    Header(isNavBarOpen),
+
+                    NavBar(isNavBarOpen, activePage, useDarkMode),
+                ),            
 
                 child({}),
             ),

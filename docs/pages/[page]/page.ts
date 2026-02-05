@@ -49,7 +49,7 @@ function tableOfContents(elems: EleganceElement<any, any>[]) {
     ))
 
     return div({
-        className: "sticky self-start top-0 p-8 h-screen",
+        className: "md:sticky w-screen md:w-auto self-start pb-8 mb-8 md:border-b-0 border-b-[1px] border-[#00000033] dark:border-[#ffffff33] md:mb-0 top-0 p-4 md:p-8 md:h-screen",
     },
         h3({
             className: "text-lg font-semibold pb-2"
@@ -80,7 +80,7 @@ export function page({ params }: { params: { page: string } }) {
     const elems = parseMarkdownToElements(content);
 
     return div({
-        className: "grid h-full w-full grid-cols-[minmax(300px,700px)_minmax(300px,1fr)]",
+        className: "flex flex-col-reverse md:grid h-full w-full md:grid-cols-[minmax(300px,700px)_minmax(300px,1fr)]",
     },
         article({
             className: "m-4 lg:mt-8 pb-[300px]",

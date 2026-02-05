@@ -1012,8 +1012,11 @@ async function compilePageToDisk(
 
 /** Returns the standard children of <head> that must exist on every page independent of it's content. */
 function getEnforcedMetadata(): string {
-    return `<meta charset="utf-8"><script defer="true" src="/client.js"></script>`;
+    return `
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"><script defer="true" src="/client.js"></script>`;
 }
+
 async function compilePage(
     allLayouts: Map<string, LayoutInformation>,
     pageInformation: PageInformation,
