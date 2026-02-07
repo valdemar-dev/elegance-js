@@ -4,6 +4,7 @@ import { readdirSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { ThemeToggle } from "./components/ThemeToggle";
+import Arrow from "./components/Arrow";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -56,7 +57,7 @@ function NavBar(isOpen: ServerSubject<boolean>, activePage: ServerSubject<string
 
     return div({
         className: observer((isOpen) => {
-            let classList = "pointer-events-auto bg-white dark:bg-black lg:sticky top-0 grid grid-rows-[max-content_1fr_max-content] lg:h-screen lg:p-8 lg:ml-auto lg:min-w-[230px] duration-200 ";
+            let classList = "pointer-events-auto shadow-xl lg:shadow-none h-full w-max lg:w-auto pt-2 p-4 bg-white dark:bg-black lg:dark:bg-transparent lg:bg-transparent lg:sticky top-0 grid grid-rows-[max-content_1fr_max-content] min-h-0 lg:h-screen lg:p-8 lg:ml-auto lg:min-w-[230px] lg:duration-0 duration-200 ";
 
             if (isOpen) {
                 classList += "translate-x-0 lg:translate-x-0";
@@ -70,13 +71,13 @@ function NavBar(isOpen: ServerSubject<boolean>, activePage: ServerSubject<string
         EleganceLogo(),
 
         div({
-            className: "flex flex-col overflow-auto h-full gap-2 pt-4",
+            className: "flex flex-col min-h-0 overflow-y-auto overflow-x-hidden pb-8 gap-2 pt-4",
         },
             ...navEntries,
         ),
 
         button({
-            className: "hover:cursor-pointer dark:invert-100 origin-center",
+            className: "hover:cursor-pointer dark:invert-100 origin-center pt-4 w-max ",
             onClick: eventListener((_, useDarkMode) => {
                 useDarkMode.value = !useDarkMode.value
             }, [useDarkMode]),
@@ -107,13 +108,31 @@ function Footer() {
 
 function Header(isNavBarOpen: ServerSubject<boolean>) {
     return div({
-        className: "lg:hidden pointer-events-auto bg-white dark:bg-black w-screen flex py-2 "
+        className: "lg:hidden pointer-events-auto duration-200 bg-white dark:bg-black w-screen flex py-2"
     },
         button({
+            className: "px-2",
             onClick: eventListener((_, isNavBarOpen) => {
                 isNavBarOpen.value = !isNavBarOpen.value
             }, [isNavBarOpen])
-        }, "toggle"),
+        }, 
+            div({
+                className: observer((isNavBarOpen) => {
+                    let classList = "origin-center duration-200 dark:invert-0 invert-100 ";
+
+                    if (isNavBarOpen) {
+                        classList += "rotate-0"
+                    } else {
+                        classList += "rotate-180"
+                    }
+
+                    return classList;
+                }, [isNavBarOpen]),
+            },
+                Arrow(25, 25)
+            ),
+
+        ),
 
         EleganceLogo(),
     );
@@ -183,10 +202,18 @@ export function layout({ child }: { child: Child}) {
             className: `${useDarkMode.value ? "dark" : ""} font-inter text-black bg-white dark:text-white dark:bg-black duration-200`,
         },
             div({
-                className: "grid pointer-events-none lg:grid-cols-[minmax(300px,auto)_minmax(300px,auto)] lg:pt-0 pt-[52px]",
+                className: "grid lg:grid-cols-[minmax(300px,auto)_minmax(300px,auto)] lg:pt-0 pt-[52px]",
             },    
                 div({
-                    className: "fixed inline lg:flex lg:relative z-50 top-0"
+                    className: observer((isNavBarOpen) => {
+                        let classList = "pointer-events-none h-screen w-screen lg:h-auto lg:w-auto fixed flex flex-col min-h-0 lg:relative z-50 top-0 inset-0 ";
+
+                        if (isNavBarOpen) {
+                            classList += "backdrop-blur-md duration-200";
+                        }
+
+                        return classList
+                    }, [isNavBarOpen]),
                 },
                     Header(isNavBarOpen),
 
