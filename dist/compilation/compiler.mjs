@@ -17,6 +17,7 @@ import { formattedLog, LogLevel } from "../server/log";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { raw, unwrapAllRaw } from "../elements/raw";
+import { Effect } from "../client/effect";
 let compilerOptions;
 const compilerStore = new AsyncLocalStorage();
 function getDistDir() {
@@ -328,6 +329,7 @@ async function generatePageDataScript(compilationContext, specialElementOptions,
   const loadHooks = clientTokens.filter((t) => t instanceof LoadHook);
   const eventListeners = clientTokens.filter((t) => t instanceof EventListener);
   const serverObservers = clientTokens.filter((t) => t instanceof ServerObserver);
+  const effects = clientTokens.filter((t) => t instanceof Effect);
   {
     dataScriptContent += "subjects:[";
     for (const serverSubject of serverSubjects) {
@@ -355,6 +357,14 @@ async function generatePageDataScript(compilationContext, specialElementOptions,
     dataScriptContent += "observers:[";
     for (const serverObserver of serverObservers) {
       dataScriptContent += serverObserver.serialize();
+      dataScriptContent += ",";
+    }
+    dataScriptContent += "],";
+  }
+  {
+    dataScriptContent += "effects:[";
+    for (const effect of effects) {
+      dataScriptContent += effect.serialize();
       dataScriptContent += ",";
     }
     dataScriptContent += "],";

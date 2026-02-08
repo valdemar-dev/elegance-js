@@ -547,6 +547,31 @@ var ObserverManager = class {
     }
   }
 };
+var EffectManager = class {
+  constructor() {
+    this.activeEffects = [];
+    this.cleanupProcedures = /* @__PURE__ */ new Map();
+  }
+  loadValues(effects) {
+    for (const effect of effects) {
+      const depencencies = stateManager.getAll(effect.dependencies);
+      if (this.activeEffects.includes(effect.id)) {
+        continue;
+      }
+      this.activeEffects.push(effect.id);
+      const update = () => {
+        if (this.cleanupProcedures.has(effect.id)) {
+          this.cleanupProcedures.get(effect.id)();
+        }
+        effect.callback(...depencencies);
+      };
+      for (const dependency of depencencies) {
+        const id = genLocalID().toString();
+        dependency.observe(id, update);
+      }
+    }
+  }
+};
 var LoadHookManager = class {
   constructor() {
     this.cleanupProcedures = [];
@@ -590,6 +615,7 @@ var observerManager = new ObserverManager();
 var eventListenerManager = new EventListenerManager();
 var stateManager = new StateManager();
 var loadHookManager = new LoadHookManager();
+var effectManager = new EffectManager();
 var pageStringCache = /* @__PURE__ */ new Map();
 var domParser = new DOMParser();
 var xmlSerializer = new XMLSerializer();
@@ -746,9 +772,10 @@ async function getPageData(pathname) {
     eventListeners,
     eventListenerOptions,
     observers,
-    observerOptions
+    observerOptions,
+    effects
   } = data;
-  if (!eventListenerOptions || !eventListeners || !observers || !subjects || !observerOptions) {
+  if (!eventListenerOptions || !eventListeners || !observers || !subjects || !observerOptions || !effects) {
     DEV_BUILD && errorOut(`Possibly malformed page data ${data}`);
     return;
   }
@@ -759,7 +786,6 @@ function errorOut(message) {
 }
 async function loadPage() {
   window.onpopstate = async (event) => {
-    const prev = window.location.pathname;
     event.preventDefault();
     const target = event.target;
     await navigateLocally(target.location.href, false, true);
@@ -772,7 +798,8 @@ async function loadPage() {
     eventListeners,
     observers,
     observerOptions,
-    loadHooks
+    loadHooks,
+    effects
   } = await getPageData(pathname);
   DEV_BUILD: {
     globalThis.devtools = {
@@ -782,12 +809,14 @@ async function loadPage() {
         eventListeners,
         observers,
         observerOptions,
-        loadHooks
+        loadHooks,
+        effects
       },
       stateManager,
       eventListenerManager,
       observerManager,
-      loadHookManager
+      loadHookManager,
+      effectManager
     };
   }
   globalThis.eleganceClient = {
@@ -805,10 +834,12 @@ async function loadPage() {
   observerManager.hookCallbacks(observerOptions);
   observerManager.transformSubjectObserverNodes();
   loadHookManager.loadValues(loadHooks);
+  effectManager.loadValues(effects);
 }
 loadPage();
 export {
   ClientSubject,
+  EffectManager,
   EventListenerManager,
   LoadHookManager,
   ObserverManager,

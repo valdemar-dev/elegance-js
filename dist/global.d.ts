@@ -1,5 +1,5 @@
 import { AnyElement, EleganceElementBuilder, SpecialElementOption } from "./elements/element";
-import { StateManager, ObserverManager, LoadHookManager, EventListenerManager } from "./client/runtime";
+import { StateManager, ObserverManager, LoadHookManager, EventListenerManager, EffectManager } from "./client/runtime";
 declare global {
     /**
      * **IMPORTANT** These values are only available in the *browser* runtime.
@@ -42,6 +42,7 @@ declare global {
         eventListenerManager: EventListenerManager;
         observerManager: ObserverManager;
         loadHookManager: LoadHookManager;
+        effectManager: EffectManager;
     };
     var area: EleganceElementBuilder<"area">;
     var base: EleganceElementBuilder<"base">;

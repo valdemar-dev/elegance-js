@@ -4,6 +4,8 @@ import type { LoadHookCleanupFunction, LoadHook } from "./loadHook";
 import type { ObserverCallback, ServerObserver } from "./observer";
 import type { ServerSubject } from "./state";
 
+import type { Effect } from "./effect";
+
 import { allElements } from "../elements/element_list";
 import type { AnyElement, } from "../elements/element";
 import { SpecialElementOption, EleganceElement } from "../elements/element";
@@ -471,6 +473,37 @@ enum LoadHookKind {
     PAGE_LOADHOOK,
 };
 
+class EffectManager {
+    private activeEffects: string[] = [];
+    private cleanupProcedures: Map<string, () => void> = new Map();
+
+    loadValues(effects: Effect<any>[]) {
+        for (const effect of effects) {
+            const depencencies = stateManager.getAll(effect.dependencies);
+
+            if (this.activeEffects.includes(effect.id)) {
+                continue;
+            }
+
+            this.activeEffects.push(effect.id);
+
+            const update = () => {
+                if (this.cleanupProcedures.has(effect.id)) {
+                    this.cleanupProcedures.get(effect.id)!();
+                }
+
+                effect.callback(...depencencies);
+            };
+
+            for (const dependency of depencencies) {
+                const id = genLocalID().toString();
+
+                dependency.observe(id, update)
+            }
+        }
+    }
+}
+
 class LoadHookManager {
     private cleanupProcedures: CleanupProcedure[] = [];
     private activeLoadHooks: string[] = [];
@@ -526,6 +559,7 @@ const observerManager = new ObserverManager();
 const eventListenerManager = new EventListenerManager();
 const stateManager = new StateManager();
 const loadHookManager = new LoadHookManager();
+const effectManager = new EffectManager();
 
 const pageStringCache = new Map<string, string>();
 const domParser = new DOMParser();
@@ -750,10 +784,11 @@ async function getPageData(pathname: string) {
         eventListeners, 
         eventListenerOptions, 
         observers, 
-        observerOptions
+        observerOptions,
+        effects,
     } = data;
 
-    if (!eventListenerOptions || !eventListeners || !observers || !subjects || !observerOptions) {
+    if (!eventListenerOptions || !eventListeners || !observers || !subjects || !observerOptions || !effects) {
         DEV_BUILD && errorOut(`Possibly malformed page data ${data}`);
         return;
     }
@@ -767,8 +802,6 @@ function errorOut(message: string) {
 
 async function loadPage() {
     window.onpopstate = async (event: PopStateEvent) => {
-        const prev = window.location.pathname;
-
         event.preventDefault();
 
         const target = event.target as Window;
@@ -786,7 +819,8 @@ async function loadPage() {
         eventListeners,
         observers,
         observerOptions,
-        loadHooks
+        loadHooks,
+        effects,
     } = await getPageData(pathname);
 
     DEV_BUILD: {
@@ -797,12 +831,14 @@ async function loadPage() {
                 eventListeners,
                 observers,
                 observerOptions,
-                loadHooks
+                loadHooks,
+                effects,
             },
             stateManager,
             eventListenerManager,
             observerManager,
             loadHookManager,
+            effectManager,
         }
     }
 
@@ -825,6 +861,7 @@ async function loadPage() {
     observerManager.transformSubjectObserverNodes();
 
     loadHookManager.loadValues(loadHooks);
+    effectManager.loadValues(effects);
 }
 
 loadPage();
@@ -835,4 +872,5 @@ export {
     ObserverManager,
     LoadHookManager,
     EventListenerManager,
+    EffectManager,
 }

@@ -25,6 +25,7 @@ const __dirname = path.dirname(__filename);
 
 import { raw, unwrapAllRaw, } from "../elements/raw";
 import { IncomingMessage, ServerResponse } from "http";
+import { Effect } from "../client/effect";
 
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
@@ -624,6 +625,7 @@ async function generatePageDataScript(
     const loadHooks = clientTokens.filter(t => t instanceof LoadHook);
     const eventListeners = clientTokens.filter(t => t instanceof EventListener);
     const serverObservers = clientTokens.filter(t => t instanceof ServerObserver);
+    const effects = clientTokens.filter(t => t instanceof Effect);
 
     {
         dataScriptContent += "subjects:[";
@@ -644,7 +646,7 @@ async function generatePageDataScript(
         dataScriptContent += "],";
     }
 
-        {
+    {
         dataScriptContent += "eventListeners:[";
         for (const eventListener of eventListeners) {
             dataScriptContent += eventListener.serialize();
@@ -657,6 +659,15 @@ async function generatePageDataScript(
         dataScriptContent += "observers:[";
         for (const serverObserver of serverObservers) {
             dataScriptContent += serverObserver.serialize();
+            dataScriptContent += ",";
+        }
+        dataScriptContent += "],";
+    }
+
+    {
+        dataScriptContent += "effects:["
+        for (const effect of effects) {
+        dataScriptContent += effect.serialize();
             dataScriptContent += ",";
         }
         dataScriptContent += "],";

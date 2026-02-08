@@ -12,6 +12,9 @@ import {
   respondWith,
   redirect
 } from "./server/server";
+import {
+  effect
+} from "./client/effect";
 export * from "./compilation/compiler";
 import {
   raw
@@ -19,6 +22,7 @@ import {
 export {
   ClientComponent,
   Link,
+  effect,
   eventListener,
   getCookieStore,
   getQuery,

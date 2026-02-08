@@ -2,6 +2,7 @@ import type { EventListener, EventListenerCallback } from "./eventListener";
 import type { LoadHook } from "./loadHook";
 import type { ServerObserver } from "./observer";
 import type { ServerSubject } from "./state";
+import type { Effect } from "./effect";
 /**
  * A ServerSubject that has been serialized, shipped to the browser, and re-created as it's final form.
  *
@@ -89,6 +90,11 @@ declare class ObserverManager {
      */
     transformSubjectObserverNodes(): void;
 }
+declare class EffectManager {
+    private activeEffects;
+    private cleanupProcedures;
+    loadValues(effects: Effect<any>[]): void;
+}
 declare class LoadHookManager {
     private cleanupProcedures;
     private activeLoadHooks;
@@ -96,4 +102,4 @@ declare class LoadHookManager {
     loadValues(loadHooks: LoadHook<any>[]): void;
     callCleanupFunctions(): void;
 }
-export { ClientSubject, StateManager, ObserverManager, LoadHookManager, EventListenerManager, };
+export { ClientSubject, StateManager, ObserverManager, LoadHookManager, EventListenerManager, EffectManager, };

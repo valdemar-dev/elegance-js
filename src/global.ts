@@ -5,6 +5,7 @@ import {
     ObserverManager,
     LoadHookManager,
     EventListenerManager,
+    EffectManager,
 } from "./client/runtime";
 
 declare global {
@@ -44,6 +45,7 @@ declare global {
         eventListenerManager: EventListenerManager;
         observerManager: ObserverManager;
         loadHookManager: LoadHookManager;
+        effectManager: EffectManager;
     }
 
     var area: EleganceElementBuilder<"area">;

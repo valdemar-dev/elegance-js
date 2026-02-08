@@ -19,6 +19,10 @@ export {
     redirect,
 } from "./server/server";
 
+export {
+    effect
+} from "./client/effect";
+
 export * from "./compilation/compiler";
 
 export type { AnyElement as Element, EleganceElement } from "./elements/element";
