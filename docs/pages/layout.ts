@@ -57,7 +57,7 @@ function NavBar(isOpen: ServerSubject<boolean>, activePage: ServerSubject<string
 
     return div({
         className: observer((isOpen) => {
-            let classList = "pointer-events-auto shadow-xl lg:shadow-none h-full w-max lg:w-auto pt-2 p-4 bg-white dark:bg-black lg:dark:bg-transparent lg:bg-transparent lg:sticky top-0 grid grid-rows-[max-content_1fr_max-content] min-h-0 lg:h-screen lg:p-8 lg:ml-auto lg:min-w-[230px] lg:duration-0 duration-200 ";
+            let classList = "pointer-events-auto shadow-xl lg:shadow-none h-full w-max lg:w-auto pt-2 p-4 bg-white dark:bg-black lg:dark:bg-transparent lg:bg-transparent lg:sticky top-0 grid grid-rows-[max-content_1fr_max-content] min-h-0 lg:h-[100dvh] lg:p-8 lg:ml-auto lg:min-w-[230px] lg:duration-0 duration-200 transition-transform ";
 
             if (isOpen) {
                 classList += "translate-x-0 lg:translate-x-0";
@@ -206,7 +206,7 @@ export function layout({ child }: { child: Child}) {
             },    
                 div({
                     className: observer((isNavBarOpen) => {
-                        let classList = "pointer-events-none h-screen w-screen lg:h-auto lg:w-auto fixed flex flex-col min-h-0 lg:relative z-50 top-0 inset-0 ";
+                        let classList = "pointer-events-none w-screen lg:h-auto lg:w-auto fixed flex flex-col min-h-0 lg:relative z-50 top-0 inset-0 h-[100dvh] ";
 
                         if (isNavBarOpen) {
                             classList += "backdrop-blur-md duration-200";

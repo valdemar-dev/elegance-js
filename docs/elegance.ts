@@ -22,7 +22,7 @@ async function runtime() {
 
     await serveProject({
         port: 3000,
-        hostname: "0.0.0.0",
+        hostname: "192.168.100.53",
         
         allowDynamic: true,
         allowStatusCodePages: true, 

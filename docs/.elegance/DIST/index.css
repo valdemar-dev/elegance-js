@@ -57,6 +57,8 @@
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
     --blur-md: 12px;
+    --default-transition-duration: 150ms;
+    --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
     --font-inter: "Inter", sans-serif;
@@ -278,11 +280,11 @@
   .table {
     display: table;
   }
+  .h-\[100dvh\] {
+    height: 100dvh;
+  }
   .h-full {
     height: 100%;
-  }
-  .h-screen {
-    height: 100vh;
   }
   .min-h-0 {
     min-height: calc(var(--spacing) * 0);
@@ -509,6 +511,11 @@
     -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
     backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
   }
+  .transition-transform {
+    transition-property: transform, translate, scale, rotate;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
   .duration-200 {
     --tw-duration: 200ms;
     transition-duration: 200ms;
@@ -611,14 +618,14 @@
       display: none;
     }
   }
+  .lg\:h-\[100dvh\] {
+    @media (width >= 64rem) {
+      height: 100dvh;
+    }
+  }
   .lg\:h-auto {
     @media (width >= 64rem) {
       height: auto;
-    }
-  }
-  .lg\:h-screen {
-    @media (width >= 64rem) {
-      height: 100vh;
     }
   }
   .lg\:w-auto {
