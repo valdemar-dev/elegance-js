@@ -797,11 +797,14 @@ async function getPageExports(modulePath: string): Promise<PageExports> {
             throw invalidPageError(compilerOptions, modulePath, "The type of the export \"metadata\" is not a function, and is instead of type: " + typeof pageMetadataConstructor);
         }
     }
+
+    const enumerateRoutes = rawExports.enumerateRoutes ?? null;
     
     return {
         isDynamic,
         pageConstructor,
         pageMetadataConstructor,
+        enumerateRoutes
     };
 }
 
@@ -868,16 +871,19 @@ function isPathPartDynamic(part: string): boolean {
     return false;
 }
 
-async function generatePageInformation(file: Dirent, allLayouts: Map<string, LayoutInformation>) {
+async function generatePageInformation(file: Dirent, allLayouts: Map<string, LayoutInformation>): Promise<PageInformation | PageInformation[]> {
     const fullPath = path.join(file.parentPath, file.name);
+
     const pathname = sanitizePathname(path.relative(compilerOptions.pagesDirectory, file.parentPath));
 
     const exports = await getPageExports(fullPath);
+
     const applicablePageLayouts = await getApplicablePageLayouts(allLayouts, pathname);
 
     const parts = pathname === "/" ? [""] : pathname.split("/");
 
     let containsCatchAllParts = false;
+
     for (const part of parts) {
         if (isPathPartDynamic(part)) {
             containsCatchAllParts = true;
@@ -885,8 +891,31 @@ async function generatePageInformation(file: Dirent, allLayouts: Map<string, Lay
         }
     }
 
+    // static pages are only allowed on pages that have statically determinable possible routes.
     if (containsCatchAllParts && exports.isDynamic === false) {
-        throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. [product] | *product* must be dynamic, since it depends on the request pathname. Set `export const isDynamic` to true.")
+        if (exports.enumerateRoutes === null) {
+            throw invalidPageError(compilerOptions, fullPath, "A page that uses a catch-all route, eg. /[product] | /*product* must either be a dynamic page, or must specify an enumerateRoutes() function.");
+        }
+
+        const enumeratedRoutes = exports.enumerateRoutes();
+        const pageInformationArray = [];
+
+        for (const route of enumeratedRoutes) {
+            const staticParts = route === "/" ? [""] : route.split("/");
+            const staticApplicablePageLayouts = await getApplicablePageLayouts(allLayouts, route);
+
+            const pageInformation: PageInformation = {
+                modulePath: fullPath,
+                exports: exports,
+                pathname: route,
+                applicableLayouts: staticApplicablePageLayouts,
+                pathnameParts: staticParts,
+            };
+
+            pageInformationArray.push(pageInformation);
+        }
+
+        return pageInformationArray;
     }
 
     const pageInformation: PageInformation = {
@@ -908,7 +937,14 @@ async function gatherAllPages(allLayouts: Map<string, LayoutInformation>): Promi
 
         const pageInformation = await generatePageInformation(file, allLayouts);
 
-        pageMap.set(pageInformation.pathname, pageInformation);
+        if (Array.isArray(pageInformation)) {
+            for (const info of pageInformation) {
+                pageMap.set(info.pathname, info);
+            }
+        } else {
+            pageMap.set(pageInformation.pathname, pageInformation);
+        }
+
     })
 
     return pageMap;

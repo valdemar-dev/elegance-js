@@ -14,6 +14,7 @@ type PageExports = {
     isDynamic: boolean,
     pageConstructor: PageConstructor,
     pageMetadataConstructor: PageMetadataConstructor,
+    enumerateRoutes: (() => string[]) | null,
 };
 
 /** 

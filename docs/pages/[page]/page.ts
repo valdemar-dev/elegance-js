@@ -1,6 +1,6 @@
 import { fileURLToPath } from "url";
 import path from "path";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { parseMarkdownToElements } from "../../utils/markdown";
 import { raw, loadHook, EleganceElement, Link, getQuery } from "elegance-js";
 
@@ -66,6 +66,13 @@ function tableOfContents(elems: EleganceElement<any, any>[]) {
     )
 }
 
+export function enumerateRoutes() {
+    const pathname = path.join(__dirname, "..", "content")
+
+    const entries = readdirSync(pathname, { withFileTypes: true, })
+
+    return entries.map
+}
 
 export function page({ params }: { params: { page: string } }) {
     const page = params.page;
