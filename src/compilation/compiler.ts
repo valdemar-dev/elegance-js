@@ -902,13 +902,12 @@ async function generatePageInformation(file: Dirent, allLayouts: Map<string, Lay
 
         for (const route of enumeratedRoutes) {
             const staticParts = route === "/" ? [""] : route.split("/");
-            const staticApplicablePageLayouts = await getApplicablePageLayouts(allLayouts, route);
 
             const pageInformation: PageInformation = {
                 modulePath: fullPath,
                 exports: exports,
                 pathname: route,
-                applicableLayouts: staticApplicablePageLayouts,
+                applicableLayouts: applicablePageLayouts,
                 pathnameParts: staticParts,
             };
 
@@ -1107,7 +1106,7 @@ async function compilePage(
         }
     }
 
-    const pageProps = { allLayoutProps, params: extraParams, };
+    const pageProps = { allLayoutProps, params: { page: pageInformation.pathname, extraParams, }, };
 
     let pageRootElement = await compilerStore.run(storeTools, async () => {
         return await pageConstructor(pageProps);

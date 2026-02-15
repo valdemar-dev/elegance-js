@@ -8,7 +8,7 @@ const clients = new Set();
 let server;
 let serverIsActive = false;
 /**
- * Run the elegance runtime, and start the server.
+ * Run the elegance runtime, and if hot-reloading is enabled, will start the hot-reload server.
  * @param file The runtime file to execute.
  */
 function startEleganceRuntime(file) {
@@ -33,15 +33,6 @@ function startEleganceRuntime(file) {
         res.writeHead(404);
         res.end();
     });
-    restartEleganceRuntime();
-}
-/**
- * Run the elegance runtime, and exit.
- * @param file The runtime file to execute.
- */
-function executeEleganceRuntime(file) {
-    formattedLog(LogLevel.INFO, "Doing one run of Elegance..");
-    childPath = resolve(file);
     restartEleganceRuntime();
 }
 function restartEleganceRuntime() {
@@ -78,4 +69,4 @@ function restartEleganceRuntime() {
         }
     });
 }
-export { startEleganceRuntime, executeEleganceRuntime };
+export { startEleganceRuntime, };

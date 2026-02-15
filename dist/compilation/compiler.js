@@ -641,12 +641,11 @@ async function generatePageInformation(file, allLayouts) {
         const pageInformationArray = [];
         for (const route of enumeratedRoutes) {
             const staticParts = route === "/" ? [""] : route.split("/");
-            const staticApplicablePageLayouts = await getApplicablePageLayouts(allLayouts, route);
             const pageInformation = {
                 modulePath: fullPath,
                 exports: exports,
                 pathname: route,
-                applicableLayouts: staticApplicablePageLayouts,
+                applicableLayouts: applicablePageLayouts,
                 pathnameParts: staticParts,
             };
             pageInformationArray.push(pageInformation);
@@ -788,7 +787,7 @@ async function compilePage(allLayouts, pageInformation, reqRes = {}, extraParams
             allLayoutProps = { ...allLayoutProps, ...compiledLayout.layoutProps };
         }
     }
-    const pageProps = { allLayoutProps, params: extraParams, };
+    const pageProps = { allLayoutProps, params: { page: pageInformation.pathname, extraParams, }, };
     let pageRootElement = await compilerStore.run(storeTools, async () => {
         return await pageConstructor(pageProps);
     });

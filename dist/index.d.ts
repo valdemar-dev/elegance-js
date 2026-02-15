@@ -3,7 +3,7 @@ export { eventListener, } from "./client/eventListener";
 export { loadHook, } from "./client/loadHook";
 export { state } from "./client/state";
 export type { ServerSubject } from "./client/state";
-export { startEleganceRuntime, executeEleganceRuntime } from "./server/runtime";
+export { startEleganceRuntime } from "./server/runtime";
 export { Link, } from "./components/Link";
 export { ClientComponent } from "./components/ClientComponent";
 export { serveProject, getQuery, getCookieStore, respondWith, redirect, } from "./server/server";

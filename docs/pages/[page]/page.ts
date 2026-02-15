@@ -70,8 +70,9 @@ export function enumerateRoutes() {
     const pathname = path.join(__dirname, "..", "content")
 
     const entries = readdirSync(pathname, { withFileTypes: true, })
+        .filter(e => e.name.endsWith(".md"))
 
-    return entries.map
+    return entries.map(r => r.name.slice(0, r.name.length - 3))
 }
 
 export function page({ params }: { params: { page: string } }) {
@@ -114,4 +115,4 @@ export function metadata({ params }: { params: { page: string }}) {
     return [raw(content)];
 }
 
-export const isDynamic = true;
+export const isDynamic = false;

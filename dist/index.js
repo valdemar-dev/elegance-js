@@ -2,7 +2,7 @@ export { observer, getSelf, } from "./client/observer.js";
 export { eventListener, } from "./client/eventListener.js";
 export { loadHook, } from "./client/loadHook.js";
 export { state } from "./client/state.js";
-export { startEleganceRuntime, executeEleganceRuntime } from "./server/runtime.js";
+export { startEleganceRuntime } from "./server/runtime.js";
 export { Link, } from "./components/Link.js";
 export { ClientComponent } from "./components/ClientComponent.js";
 export { serveProject, getQuery, getCookieStore, respondWith, redirect, } from "./server/server.js";
