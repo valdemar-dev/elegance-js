@@ -139,16 +139,11 @@ function Header(isNavBarOpen: ServerSubject<boolean>) {
 }
 
 export function layout({ child }: { child: Child}) {
-    const cookies = getCookieStore();
-
     const activePage = state("");
 
     const isNavBarOpen = state(false);
     
-    const useDarkModeCookie = cookies.get("use-dark-mode") ?? "yes";
-    cookies.set("use-dark-mode", useDarkModeCookie);
-
-    const useDarkMode = state(useDarkModeCookie === "yes");
+    const useDarkMode = state(true);
 
     loadHook((activePage) => {
         activePage.value = window.location.pathname;
@@ -169,12 +164,14 @@ export function layout({ child }: { child: Child}) {
     }, [activePage]);
 
     loadHook((useDarkMode) => {
-        function setCookie(name: string, value: string) {
-            document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax; max-age=31536000`;
+        if (localStorage.getItem("use-dark-mode") === null) {
+            localStorage.setItem("use-dark-mode", "true");
         }
+        
+        useDarkMode.value = (localStorage.getItem("use-dark-mode") === "true" ? true : false);
 
         const callback = () => {
-            setCookie("use-dark-mode", useDarkMode.value === true ? "yes" : "no");
+            localStorage.setItem("use-dark-mode", useDarkMode.value ? "true" : "false");
         };
 
         window.addEventListener("beforeunload", callback);

@@ -11,6 +11,7 @@ type PageExports = {
     isDynamic: boolean;
     pageConstructor: PageConstructor;
     pageMetadataConstructor: PageMetadataConstructor;
+    enumerateRoutes: (() => string[]) | null;
 };
 /**
  * Holds information about a given user-defined page within the project.

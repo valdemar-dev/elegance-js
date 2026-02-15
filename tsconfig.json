@@ -8,7 +8,7 @@
     "strict": true,
     "esModuleInterop": true,
     "strictFunctionTypes": false,
-    "emitDeclarationOnly": true,
+    "emitDeclarationOnly": false,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

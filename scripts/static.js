@@ -8,6 +8,6 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const runtimePath = join(__dirname, "elegance_dev.ts");
+const runtimePath = join(__dirname, "elegance_static.ts");
 
 startEleganceRuntime(runtimePath);
