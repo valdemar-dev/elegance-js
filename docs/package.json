@@ -9,11 +9,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
+  "type": "commonjs",
   "dependencies": {
-    "@tailwindcss/cli": "^4.1.15",
-    "elegance-js": "^2.0.17",
-    "tailwindcss": "^4.1.15",
-    "ts-arc": "^1.1.16"
+    "@tailwindcss/cli": "^4.1.18",
+    "elegance-js": "../",
+    "tailwindcss": "^4.1.18"
   }
 }

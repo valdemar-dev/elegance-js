@@ -3,28 +3,28 @@
   "version": "2.1.23",
   "description": "Web-Framework",
   "type": "module",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "bin": {
-    "dev": "./scripts/ts-arc-dev.js",
-    "prod": "./scripts/ts-arc-prod.js",
-    "bootstrap": "./scripts/bootstrap.js",
-    "native": "./scripts/native-test.js"
+    "run": "./scripts/run.js",
+    "static": "./scripts/static.js",
+    "prod": "./scripts/prod.js",
+    "bootstrap": "./scripts/bootstrap.js"
   },
   "scripts": {
-    "build": "esbuild --format=esm --platform=node --bundle=false --outdir=./dist --out-extension:.js=.mjs \"./src/**/*.ts\" && esbuild --format=iife --platform=browser --bundle=true --outfile=./dist/client/client.mjs --out-extension:.js=.mjs ./src/client/client.ts  && tsc ",
-    "compile-docs": "node ./dist/compile_docs.mjs --environment=development",
-    "compile-docs-bun": "bun run ./dist/compile_docs.mjs --environment=development",
+    "build": "npx tsc --project tsconfig.json --rootDir ./src --outDir ./dist && node ./build_scripts/fix_imports.js",
     "prepare": "npm run build"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.mjs"
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     },
     "./*": {
       "types": "./dist/*.d.ts",
-      "import": "./dist/*.mjs",
-      "require": "./dist/*.mjs"
+      "import": "./dist/*.js",
+      "require": "./dist/*.js"
     }
   },
   "files": [
@@ -35,7 +35,7 @@
   "license": "MIT",
   "dependencies": {
     "esbuild": "^0.25.9",
-    "ts-arc": "^1.1.28"
+    "ts-arc": "^1.1.29"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.0.3",

@@ -1,84 +1,43 @@
-import { loadHook, state, SetEvent, eventListener } from "../index";
+import { eventListener, SetEvent } from "../client/eventListener";
+import { AnyElement, ElementOptionsOrChild, isAnElement } from "../elements/element";
 
-loadHook(
-    [],
-    () => {
-        const anchors = Array.from(document.querySelectorAll("a[prefetch]"));
+/**
+ * Create a custom anchor element that let's you hook into client-side navigation.
+ * If provided a URL that is non-local, it will default to normal navigation.
+ * @param options Standard element optins, must include href for the link to work properly.
+ * @param children Standard element children.
+ * @returns A custom anchor element.
+ */
 
-        const elsToClear: Array<{
-            el: HTMLLinkElement,
-            fn: () => any,
-        }> = [];
+type ExtraOptions = {
+    /** Mandatory, where this Link should take the user to. */
+    href: string,
+    /** Set window.scrollTop to 0 whenever this link navigates. */
+    resetScrollOnNav?: boolean,
+};
 
-        for (const anchor of anchors) {
-            const prefetch = anchor.getAttribute("prefetch");
-
-            const href = new URL((anchor as HTMLLinkElement).href);
-
-            switch (prefetch) {
-                case "load":
-                    client.fetchPage(href);
-                    break;
-                case "hover":
-                    const fn = () => {
-                        client.fetchPage(href);
-                    };
-
-                    anchor.addEventListener("mouseenter", fn);
-
-                    elsToClear.push({
-                        el: anchor as HTMLLinkElement,
-                        fn: fn,
-                    });
-
-                    break;
-            }
-        }
-
-        return () => {
-            for (const listener of elsToClear) {
-                listener.el.removeEventListener("mouseenter", listener.fn);
-            }
-        }
-    },
-)
-
-const navigate = eventListener(
-    [],
-    (event: SetEvent<MouseEvent, HTMLLinkElement>) => {
-        const target = new URL(event.currentTarget.href);
-
-        const client = globalThis.client;
-
-        const sanitizedTarget = client.sanitizePathname(target.pathname);
-        const sanitizedCurrent = client.sanitizePathname(window.location.pathname);
-
-        if (sanitizedTarget === sanitizedCurrent) {
-            if (target.hash === window.location.hash) return event.preventDefault();
+function Link(options: ElementOptionsOrChild<"a", ExtraOptions>, ...children: AnyElement[]) {
+    const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
+        if (new URL(event.currentTarget.href, window.location.href).origin !== window.location.origin) {
             return;
         }
 
         event.preventDefault();
 
-        client.navigateLocally(target.href);
-    }
-);
+        eleganceClient.navigateLocally(event.currentTarget.href, true);
+    }, []);
 
-export const Link = (options: Record<string, any>, ...children: Child[]
-) => {    
-    if (!options.href) {
-        throw `Link elements must have a HREF attribute set.`;
-    }
+    const extraOptions = options && typeof options === "object" ? options : {};
+    const firstChild = isAnElement(options) ? options : undefined;
 
-    if (!options.href.startsWith("/")) {
-        throw `Link elements may only navigate to local pages. "/"`
-    }
-
-    return a ({
-        ...options,
-        onClick: navigate,
+    return a({
+        onClick: handler,
+        ...extraOptions,
     },
-        ...children,
+        ...(firstChild ? [firstChild, ...children] : children)
     );
+}
 
-};
+export {
+    Link,
+}

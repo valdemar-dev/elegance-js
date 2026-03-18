@@ -1,335 +1,229 @@
-import { ObjectAttributeType } from "./helpers/ObjectAttributeType";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { AnyElement, EleganceElementBuilder, SpecialElementOption } from "./elements/element";
+import { StateManager, ObserverManager, LoadHookManager, EventListenerManager, EffectManager } from "./client/runtime";
 declare global {
-    type NonVoid<T> = T extends void ? never : T;
-    /** Deprecated. */
-    var __ELEGANCE_SERVER_DATA__: any;
-    /** Increment this by 1 to get a per-build unique ID. */
-    var __SERVER_CURRENT_STATE_ID__: number;
-    /** Deprecated. */
-    var __SERVER_CURRENT_REF_ID__: number;
-    /** The global server current state for this build. */
-    var __SERVER_CURRENT_STATE__: Array<{
-        value: unknown;
-        type: ObjectAttributeType;
-        id: number;
-        bind?: number;
-    }>;
-    /** User defined object attributes. Mostly unused, use at your own risk. */
-    var __SERVER_CURRENT_OBJECT_ATTRIBUTES__: Array<ObjectAttribute<any>>;
-    var __SERVER_CURRENT_LOADHOOKS__: Array<any>;
-    var __SERVER_CURRENT_LAYOUTS__: Map<string, number>;
-    var __SERVER_CURRENT_LAYOUT_ID__: number;
-    /** This is prepended to page_data.js */
-    var __SERVER_PAGE_DATA_BANNER__: string;
-    type AnyBuiltElement = BuiltElement<ElementTags> | ChildrenLessBuiltElement<ChildrenlessElementTags>;
-    type BuiltElement<T> = {
-        tag: T;
-        children: ElementChildren;
-        options: Record<string, any> | Child;
-    };
-    type ChildrenLessBuiltElement<T> = {
-        tag: T;
-        children: null;
-        options: Record<string, any> | Child;
-    };
-    /** The type for API Endpoints in route.ts files. */
-    type Endpoint = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
-    /** Assign any key any value, within the middleware function, and the data will be passed to the pages affected by the middleware. */
-    type MiddlewareData = Record<string, any>;
-    /** The type for middleware functions in middleware.ts files. */
-    type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void, data: MiddlewareData) => Promise<void>;
-    /** On dynamic pages, the requestHook, if present, shall be called by the server, before serving the page. */
-    type RequestHook = (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
-    /** The type for const layout in layout.ts files. */
-    type Layout = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>));
-    /** The type for const metadata in layout.ts files. */
-    type LayoutMetadata = ((child: Child) => (AnyBuiltElement | Promise<AnyBuiltElement>));
-    /** Parameters that get passed into Page */
-    type PageProps = {
-        pageName: string;
-        middlewareData: MiddlewareData;
-    };
-    /** Internal use only. */
-    type PageInformation = {
-        isDynamic: boolean;
-        filePath: string;
-    };
-    /** Internal use only. */
-    type LayoutInformation = {
-        isDynamic: boolean;
-        filePath: string;
-    };
-    type Pathname = string;
-    /** Modules that are shipped to the browser. */
-    type ShippedModules = {
-        [key: string]: string;
-    };
-    type Page = (AnyBuiltElement) | ((props: PageProps) => AnyBuiltElement | Promise<AnyBuiltElement>);
-    type Metadata = (() => (AnyBuiltElement)) | (() => Promise<AnyBuiltElement>);
-    type ObjectAttribute<T> = T extends ObjectAttributeType.STATE ? {
-        type: ObjectAttributeType;
-        id: string | number;
-        value: any;
-        bind?: string;
-    } : T extends ObjectAttributeType.OBSERVER ? {
-        type: ObjectAttributeType;
-        refs: {
-            id: number;
-            bind?: string;
-        }[];
-        initialValues: any[];
-        update: (...value: any) => any;
-    } : {
-        type: ObjectAttributeType;
-    };
-    type ElementOptions = {
-        [key: string]: string | number | boolean | {
-            type: ObjectAttributeType;
-            id: string | number;
-            value: any;
-        } | {
-            type: ObjectAttributeType;
-            refs: {
-                id: number;
-                bind?: string;
+    /**
+     * **IMPORTANT** These values are only available in the *browser* runtime.
+     */
+    var eleganceClient: {
+        createHTMLElementFromElement: (element: AnyElement) => {
+            root: Node;
+            specialElementOptions: {
+                elementKey: string;
+                optionName: string;
+                optionValue: SpecialElementOption;
             }[];
-            initialValues: any[];
-            update: (...value: any) => any;
-        } | {
-            type: ObjectAttributeType;
         };
-    } & GlobalAttributes & EventHandlers;
-    type EleganceElement<T> = (options?: ElementOptions | Child, ...children: ElementChildren) => BuiltElement<T>;
-    type EleganceChildrenlessElement<T> = (options?: ElementOptions) => ChildrenLessBuiltElement<T>;
-    type Child = BuiltElement<ElementTags> | ChildrenLessBuiltElement<ChildrenlessElementTags> | string | boolean | number | Array<number | string | boolean>;
-    type ElementChildren = Array<Child>;
-    type OmitSomething<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
-    type AllowedHTMLElements = OmitSomething<HTMLElementTagNameMap, "var">;
-    interface GlobalAttributes {
-        [key: `data-${string}`]: string | undefined;
-        [key: `aria-${string}`]: string | undefined;
-    }
-    type ChildrenlessElementTags = "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "source" | "track" | "path" | "rect";
-    type ElementTags = "a" | "address" | "article" | "aside" | "audio" | "blockquote" | "body" | "button" | "canvas" | "caption" | "colgroup" | "data" | "span" | "datalist" | "dd" | "del" | "details" | "dialog" | "div" | "dl" | "dt" | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "head" | "header" | "hgroup" | "html" | "iframe" | "ins" | "label" | "legend" | "li" | "main" | "map" | "meter" | "menu" | "nav" | "noscript" | "object" | "ol" | "optgroup" | "option" | "output" | "p" | "picture" | "pre" | "progress" | "q" | "script" | "search" | "section" | "select" | "slot" | "summary" | "table" | "tbody" | "td" | "template" | "textarea" | "tfoot" | "th" | "thead" | "time" | "tr" | "ul" | "video" | "abbr" | "b" | "bdi" | "bdo" | "cite" | "code" | "dfn" | "em" | "i" | "kbd" | "mark" | "rp" | "rt" | "ruby" | "s" | "samp" | "small" | "strong" | "sub" | "sup" | "title" | "u" | "wbr" | "svg";
-    var area: EleganceChildrenlessElement<"area">;
-    var base: EleganceChildrenlessElement<"base">;
-    var br: EleganceChildrenlessElement<"br">;
-    var col: EleganceChildrenlessElement<"col">;
-    var embed: EleganceChildrenlessElement<"embed">;
-    var hr: EleganceChildrenlessElement<"hr">;
-    var img: EleganceChildrenlessElement<"img">;
-    var input: EleganceChildrenlessElement<"input">;
-    var link: EleganceChildrenlessElement<"link">;
-    var meta: EleganceChildrenlessElement<"meta">;
-    var source: EleganceChildrenlessElement<"source">;
-    var track: EleganceChildrenlessElement<"track">;
-    var path: EleganceChildrenlessElement<"path">;
-    var rect: EleganceChildrenlessElement<"rect">;
-    var svg: EleganceElement<"svg">;
-    var a: EleganceElement<"a">;
-    var address: EleganceElement<"address">;
-    var article: EleganceElement<"article">;
-    var aside: EleganceElement<"aside">;
-    var audio: EleganceElement<"audio">;
-    var blockquote: EleganceElement<"blockquote">;
-    var body: EleganceElement<"body">;
-    var button: EleganceElement<"button">;
-    var canvas: EleganceElement<"canvas">;
-    var caption: EleganceElement<"caption">;
-    var colgroup: EleganceElement<"colgroup">;
-    var data: EleganceElement<"data">;
-    var datalist: EleganceElement<"datalist">;
-    var dd: EleganceElement<"dd">;
-    var del: EleganceElement<"del">;
-    var details: EleganceElement<"details">;
-    var dialog: EleganceElement<"dialog">;
-    var div: EleganceElement<"div">;
-    var dl: EleganceElement<"dl">;
-    var dt: EleganceElement<"dt">;
-    var fieldset: EleganceElement<"fieldset">;
-    var figcaption: EleganceElement<"figcaption">;
-    var figure: EleganceElement<"figure">;
-    var footer: EleganceElement<"footer">;
-    var form: EleganceElement<"form">;
-    var h1: EleganceElement<"h1">;
-    var h2: EleganceElement<"h2">;
-    var h3: EleganceElement<"h3">;
-    var h4: EleganceElement<"h4">;
-    var h5: EleganceElement<"h5">;
-    var h6: EleganceElement<"h6">;
-    var head: EleganceElement<"head">;
-    var header: EleganceElement<"header">;
-    var hgroup: EleganceElement<"hgroup">;
-    var html: EleganceElement<"html">;
-    var iframe: EleganceElement<"iframe">;
-    var ins: EleganceElement<"ins">;
-    var label: EleganceElement<"label">;
-    var legend: EleganceElement<"legend">;
-    var li: EleganceElement<"li">;
-    var main: EleganceElement<"main">;
-    var map: EleganceElement<"map">;
-    var meter: EleganceElement<"meter">;
-    var menu: EleganceElement<"menu">;
-    var nav: EleganceElement<"nav">;
-    var noscript: EleganceElement<"noscript">;
-    var object: EleganceElement<"object">;
-    var ol: EleganceElement<"ol">;
-    var optgroup: EleganceElement<"optgroup">;
-    var option: EleganceElement<"option">;
-    var output: EleganceElement<"output">;
-    var p: EleganceElement<"p">;
-    var picture: EleganceElement<"picture">;
-    var pre: EleganceElement<"pre">;
-    var progress: EleganceElement<"progress">;
-    var q: EleganceElement<"q">;
-    var script: EleganceElement<"script">;
-    var search: EleganceElement<"search">;
-    var section: EleganceElement<"section">;
-    var select: EleganceElement<"select">;
-    var slot: EleganceElement<"slot">;
-    var style: EleganceElement<"style">;
-    var summary: EleganceElement<"summary">;
-    var table: EleganceElement<"table">;
-    var tbody: EleganceElement<"tbody">;
-    var td: EleganceElement<"td">;
-    var template: EleganceElement<"template">;
-    var textarea: EleganceElement<"textarea">;
-    var tfoot: EleganceElement<"tfoot">;
-    var th: EleganceElement<"th">;
-    var thead: EleganceElement<"thead">;
-    var time: EleganceElement<"time">;
-    var tr: EleganceElement<"tr">;
-    var ul: EleganceElement<"ul">;
-    var video: EleganceElement<"video">;
-    var abbr: EleganceElement<"abbr">;
-    var b: EleganceElement<"b">;
-    var bdi: EleganceElement<"bdi">;
-    var bdo: EleganceElement<"bdo">;
-    var cite: EleganceElement<"cite">;
-    var code: EleganceElement<"code">;
-    var dfn: EleganceElement<"dfn">;
-    var em: EleganceElement<"em">;
-    var i: EleganceElement<"i">;
-    var kbd: EleganceElement<"kbd">;
-    var mark: EleganceElement<"mark">;
-    var rp: EleganceElement<"rp">;
-    var rt: EleganceElement<"rt">;
-    var ruby: EleganceElement<"ruby">;
-    var s: EleganceElement<"s">;
-    var samp: EleganceElement<"samp">;
-    var small: EleganceElement<"small">;
-    var span: EleganceElement<"span">;
-    var strong: EleganceElement<"strong">;
-    var sub: EleganceElement<"sub">;
-    var sup: EleganceElement<"sup">;
-    var u: EleganceElement<"u">;
-    var wbr: EleganceElement<"wbr">;
-    var title: EleganceElement<"title">;
-    type EleganceEventListener = ObjectAttribute<ObjectAttributeType.STATE>;
-    interface EventHandlers {
-        onCopy?: EleganceEventListener;
-        onCut?: EleganceEventListener;
-        onPaste?: EleganceEventListener;
-        onCompositionStart?: EleganceEventListener;
-        onCompositionUpdate?: EleganceEventListener;
-        onCompositionEnd?: EleganceEventListener;
-        onKeyDown?: EleganceEventListener;
-        onKeyPress?: EleganceEventListener;
-        onKeyUp?: EleganceEventListener;
-        onFocus?: EleganceEventListener;
-        onBlur?: EleganceEventListener;
-        onChange?: EleganceEventListener;
-        onInput?: EleganceEventListener;
-        onInvalid?: EleganceEventListener;
-        onSubmit?: EleganceEventListener;
-        onClick?: EleganceEventListener;
-        onDoubleClick?: EleganceEventListener;
-        onMouseDown?: EleganceEventListener;
-        onMouseUp?: EleganceEventListener;
-        onMouseEnter?: EleganceEventListener;
-        onMouseLeave?: EleganceEventListener;
-        onMouseMove?: EleganceEventListener;
-        onMouseOver?: EleganceEventListener;
-        onMouseOut?: EleganceEventListener;
-        onContextMenu?: EleganceEventListener;
-        onDrag?: EleganceEventListener;
-        onDragStart?: EleganceEventListener;
-        onDragEnd?: EleganceEventListener;
-        onDragEnter?: EleganceEventListener;
-        onDragLeave?: EleganceEventListener;
-        onDragOver?: EleganceEventListener;
-        onDrop?: EleganceEventListener;
-        onScroll?: EleganceEventListener;
-        onWheel?: EleganceEventListener;
-        onTouchStart?: EleganceEventListener;
-        onTouchMove?: EleganceEventListener;
-        onTouchEnd?: EleganceEventListener;
-        onTouchCancel?: EleganceEventListener;
-        onPointerDown?: EleganceEventListener;
-        onPointerUp?: EleganceEventListener;
-        onPointerCancel?: EleganceEventListener;
-        onPointerEnter?: EleganceEventListener;
-        onPointerLeave?: EleganceEventListener;
-        onPointerMove?: EleganceEventListener;
-        onPointerOver?: EleganceEventListener;
-        onPointerOut?: EleganceEventListener;
-        onGotPointerCapture?: EleganceEventListener;
-        onLostPointerCapture?: EleganceEventListener;
-        onLoad?: EleganceEventListener;
-        onError?: EleganceEventListener;
-        onAbort?: EleganceEventListener;
-        onCanPlay?: EleganceEventListener;
-        onCanPlayThrough?: EleganceEventListener;
-        onDurationChange?: EleganceEventListener;
-        onEmptied?: EleganceEventListener;
-        onEnded?: EleganceEventListener;
-        onLoadedData?: EleganceEventListener;
-        onLoadedMetadata?: EleganceEventListener;
-        onLoadStart?: EleganceEventListener;
-        onPause?: EleganceEventListener;
-        onPlay?: EleganceEventListener;
-        onPlaying?: EleganceEventListener;
-        onProgress?: EleganceEventListener;
-        onRateChange?: EleganceEventListener;
-        onSeeked?: EleganceEventListener;
-        onSeeking?: EleganceEventListener;
-        onStalled?: EleganceEventListener;
-        onSuspend?: EleganceEventListener;
-        onTimeUpdate?: EleganceEventListener;
-        onVolumeChange?: EleganceEventListener;
-        onWaiting?: EleganceEventListener;
-        onAnimationStart?: EleganceEventListener;
-        onAnimationEnd?: EleganceEventListener;
-        onAnimationIteration?: EleganceEventListener;
-        onTransitionEnd?: EleganceEventListener;
-        onToggle?: EleganceEventListener;
-    }
-    var client: {
-        navigateLocally: (target: string, pushState?: boolean) => any;
         fetchPage: (targetURL: URL) => Promise<Document | void>;
-        currentPage: string;
-        sanitizePathname: (target: string) => string;
-        getReference: (id: number) => HTMLElement | null;
-        renderRecursively: (element: Child, attributes: any[]) => HTMLElement | DocumentFragment | Text | null;
+        navigateLocally: (target: string, pushState: boolean) => Promise<void>;
+        /**
+         * Listen to local navigation events in the browser.
+         *
+         * Local navigations are triggered by the Link() component, or anything that uses `eleganceClient.navigateLocally`, eg. the window popstate event's override.
+         * @param callback Will be called whenever we navigate locally.
+         * @returns The index of the callback, use `eleganceClient.removeNavigationCallback(idx)` to ensure there are no duplicate listeners.
+         */
+        onNavigate: (callback: (pathname: string) => any) => number;
+        removeNavigationCallback: (idx: number) => void;
+        /**
+         * Generate a non-deterministic unique id that can be used for browser specific things like custom client observers.
+         * Unique, but may change between builds; depends on order of creation.
+         * @returns A unique id
+         */
+        genLocalID: () => number;
     };
-    type ClientSubject = {
-        id: number;
-        value: any;
-        observers: Map<string, (value: any) => any>;
-        pathname: string;
-        signal: () => void;
+    /**
+     * **IMPORTANT** These values are only available in the *browser* runtime.
+     *
+     * **IMPORTANT** These values are only available in dev builds, and are stripped out from production builds for security reasons.
+     */
+    var devtools: {
+        pageData: Record<string, any>;
+        stateManager: StateManager;
+        eventListenerManager: EventListenerManager;
+        observerManager: ObserverManager;
+        loadHookManager: LoadHookManager;
+        effectManager: EffectManager;
     };
-    type State = {
-        subjects: ClientSubject[];
-        get: (id: number, bind?: string) => ClientSubject | undefined;
-        getAll: (refs: {
-            id: number;
-            bind?: string;
-        }[]) => [ClientSubject["value"]];
-        observe: (subject: ClientSubject, observer: (value: any) => any, key: string) => void;
-        unobserve: (subject: ClientSubject, key: string) => void;
-        destroy: (subject: ClientSubject) => void;
-    };
+    var area: EleganceElementBuilder<"area">;
+    var base: EleganceElementBuilder<"base">;
+    var br: EleganceElementBuilder<"br">;
+    var col: EleganceElementBuilder<"col">;
+    var embed: EleganceElementBuilder<"embed">;
+    var hr: EleganceElementBuilder<"hr">;
+    var img: EleganceElementBuilder<"img">;
+    var input: EleganceElementBuilder<"input">;
+    var link: EleganceElementBuilder<"link">;
+    var meta: EleganceElementBuilder<"meta">;
+    var param: EleganceElementBuilder<"param">;
+    var source: EleganceElementBuilder<"source">;
+    var track: EleganceElementBuilder<"track">;
+    var wbr: EleganceElementBuilder<"wbr">;
+    var a: EleganceElementBuilder<"a">;
+    var abbr: EleganceElementBuilder<"abbr">;
+    var address: EleganceElementBuilder<"address">;
+    var article: EleganceElementBuilder<"article">;
+    var aside: EleganceElementBuilder<"aside">;
+    var audio: EleganceElementBuilder<"audio">;
+    var b: EleganceElementBuilder<"b">;
+    var bdi: EleganceElementBuilder<"bdi">;
+    var bdo: EleganceElementBuilder<"bdo">;
+    var blockquote: EleganceElementBuilder<"blockquote">;
+    var body: EleganceElementBuilder<"body">;
+    var button: EleganceElementBuilder<"button">;
+    var canvas: EleganceElementBuilder<"canvas">;
+    var caption: EleganceElementBuilder<"caption">;
+    var cite: EleganceElementBuilder<"cite">;
+    var code: EleganceElementBuilder<"code">;
+    var colgroup: EleganceElementBuilder<"colgroup">;
+    var data: EleganceElementBuilder<"data">;
+    var datalist: EleganceElementBuilder<"datalist">;
+    var dd: EleganceElementBuilder<"dd">;
+    var del: EleganceElementBuilder<"del">;
+    var details: EleganceElementBuilder<"details">;
+    var dfn: EleganceElementBuilder<"dfn">;
+    var dialog: EleganceElementBuilder<"dialog">;
+    var div: EleganceElementBuilder<"div">;
+    var dl: EleganceElementBuilder<"dl">;
+    var dt: EleganceElementBuilder<"dt">;
+    var em: EleganceElementBuilder<"em">;
+    var fieldset: EleganceElementBuilder<"fieldset">;
+    var figcaption: EleganceElementBuilder<"figcaption">;
+    var figure: EleganceElementBuilder<"figure">;
+    var footer: EleganceElementBuilder<"footer">;
+    var form: EleganceElementBuilder<"form">;
+    var h1: EleganceElementBuilder<"h1">;
+    var h2: EleganceElementBuilder<"h2">;
+    var h3: EleganceElementBuilder<"h3">;
+    var h4: EleganceElementBuilder<"h4">;
+    var h5: EleganceElementBuilder<"h5">;
+    var h6: EleganceElementBuilder<"h6">;
+    var head: EleganceElementBuilder<"head">;
+    var header: EleganceElementBuilder<"header">;
+    var hgroup: EleganceElementBuilder<"hgroup">;
+    var html: EleganceElementBuilder<"html">;
+    var i: EleganceElementBuilder<"i">;
+    var iframe: EleganceElementBuilder<"iframe">;
+    var ins: EleganceElementBuilder<"ins">;
+    var kbd: EleganceElementBuilder<"kbd">;
+    var label: EleganceElementBuilder<"label">;
+    var legend: EleganceElementBuilder<"legend">;
+    var li: EleganceElementBuilder<"li">;
+    var main: EleganceElementBuilder<"main">;
+    var map: EleganceElementBuilder<"map">;
+    var mark: EleganceElementBuilder<"mark">;
+    var menu: EleganceElementBuilder<"menu">;
+    var meter: EleganceElementBuilder<"meter">;
+    var nav: EleganceElementBuilder<"nav">;
+    var noscript: EleganceElementBuilder<"noscript">;
+    var object: EleganceElementBuilder<"object">;
+    var ol: EleganceElementBuilder<"ol">;
+    var optgroup: EleganceElementBuilder<"optgroup">;
+    var option: EleganceElementBuilder<"option">;
+    var output: EleganceElementBuilder<"output">;
+    var p: EleganceElementBuilder<"p">;
+    var picture: EleganceElementBuilder<"picture">;
+    var pre: EleganceElementBuilder<"pre">;
+    var progress: EleganceElementBuilder<"progress">;
+    var q: EleganceElementBuilder<"q">;
+    var rp: EleganceElementBuilder<"rp">;
+    var rt: EleganceElementBuilder<"rt">;
+    var ruby: EleganceElementBuilder<"ruby">;
+    var s: EleganceElementBuilder<"s">;
+    var samp: EleganceElementBuilder<"samp">;
+    var script: EleganceElementBuilder<"script">;
+    var search: EleganceElementBuilder<"search">;
+    var section: EleganceElementBuilder<"section">;
+    var select: EleganceElementBuilder<"select">;
+    var slot: EleganceElementBuilder<"slot">;
+    var small: EleganceElementBuilder<"small">;
+    var span: EleganceElementBuilder<"span">;
+    var strong: EleganceElementBuilder<"strong">;
+    var style: EleganceElementBuilder<"style">;
+    var sub: EleganceElementBuilder<"sub">;
+    var summary: EleganceElementBuilder<"summary">;
+    var sup: EleganceElementBuilder<"sup">;
+    var table: EleganceElementBuilder<"table">;
+    var tbody: EleganceElementBuilder<"tbody">;
+    var td: EleganceElementBuilder<"td">;
+    var template: EleganceElementBuilder<"template">;
+    var textarea: EleganceElementBuilder<"textarea">;
+    var tfoot: EleganceElementBuilder<"tfoot">;
+    var th: EleganceElementBuilder<"th">;
+    var thead: EleganceElementBuilder<"thead">;
+    var time: EleganceElementBuilder<"time">;
+    var title: EleganceElementBuilder<"title">;
+    var tr: EleganceElementBuilder<"tr">;
+    var u: EleganceElementBuilder<"u">;
+    var ul: EleganceElementBuilder<"ul">;
+    var varElement: EleganceElementBuilder<"varElement">;
+    var video: EleganceElementBuilder<"video">;
+    var path: EleganceElementBuilder<"path">;
+    var circle: EleganceElementBuilder<"circle">;
+    var ellipse: EleganceElementBuilder<"ellipse">;
+    var line: EleganceElementBuilder<"line">;
+    var polygon: EleganceElementBuilder<"polygon">;
+    var polyline: EleganceElementBuilder<"polyline">;
+    var stopElement: EleganceElementBuilder<"stop">;
+    var svg: EleganceElementBuilder<"svg">;
+    var g: EleganceElementBuilder<"g">;
+    var text: EleganceElementBuilder<"text">;
+    var tspan: EleganceElementBuilder<"tspan">;
+    var textPath: EleganceElementBuilder<"textPath">;
+    var defs: EleganceElementBuilder<"defs">;
+    var symbol: EleganceElementBuilder<"symbol">;
+    var use: EleganceElementBuilder<"use">;
+    var image: EleganceElementBuilder<"image">;
+    var clipPath: EleganceElementBuilder<"clipPath">;
+    var mask: EleganceElementBuilder<"mask">;
+    var pattern: EleganceElementBuilder<"pattern">;
+    var linearGradient: EleganceElementBuilder<"linearGradient">;
+    var radialGradient: EleganceElementBuilder<"radialGradient">;
+    var filter: EleganceElementBuilder<"filter">;
+    var marker: EleganceElementBuilder<"marker">;
+    var view: EleganceElementBuilder<"view">;
+    var feBlend: EleganceElementBuilder<"feBlend">;
+    var feColorMatrix: EleganceElementBuilder<"feColorMatrix">;
+    var feComponentTransfer: EleganceElementBuilder<"feComponentTransfer">;
+    var feComposite: EleganceElementBuilder<"feComposite">;
+    var feConvolveMatrix: EleganceElementBuilder<"feConvolveMatrix">;
+    var feDiffuseLighting: EleganceElementBuilder<"feDiffuseLighting">;
+    var feDisplacementMap: EleganceElementBuilder<"feDisplacementMap">;
+    var feDistantLight: EleganceElementBuilder<"feDistantLight">;
+    var feFlood: EleganceElementBuilder<"feFlood">;
+    var feFuncA: EleganceElementBuilder<"feFuncA">;
+    var feFuncB: EleganceElementBuilder<"feFuncB">;
+    var feFuncG: EleganceElementBuilder<"feFuncG">;
+    var feFuncR: EleganceElementBuilder<"feFuncR">;
+    var feGaussianBlur: EleganceElementBuilder<"feGaussianBlur">;
+    var feImage: EleganceElementBuilder<"feImage">;
+    var feMerge: EleganceElementBuilder<"feMerge">;
+    var feMergeNode: EleganceElementBuilder<"feMergeNode">;
+    var feMorphology: EleganceElementBuilder<"feMorphology">;
+    var feOffset: EleganceElementBuilder<"feOffset">;
+    var fePointLight: EleganceElementBuilder<"fePointLight">;
+    var feSpecularLighting: EleganceElementBuilder<"feSpecularLighting">;
+    var feSpotLight: EleganceElementBuilder<"feSpotLight">;
+    var feTile: EleganceElementBuilder<"feTile">;
+    var feTurbulence: EleganceElementBuilder<"feTurbulence">;
+    var mi: EleganceElementBuilder<"mi">;
+    var mn: EleganceElementBuilder<"mn">;
+    var mo: EleganceElementBuilder<"mo">;
+    var math: EleganceElementBuilder<"math">;
+    var ms: EleganceElementBuilder<"ms">;
+    var mtext: EleganceElementBuilder<"mtext">;
+    var mrow: EleganceElementBuilder<"mrow">;
+    var mfenced: EleganceElementBuilder<"mfenced">;
+    var msup: EleganceElementBuilder<"msup">;
+    var msub: EleganceElementBuilder<"msub">;
+    var msubsup: EleganceElementBuilder<"msubsup">;
+    var mfrac: EleganceElementBuilder<"mfrac">;
+    var msqrt: EleganceElementBuilder<"msqrt">;
+    var mroot: EleganceElementBuilder<"mroot">;
+    var mtable: EleganceElementBuilder<"mtable">;
+    var mtr: EleganceElementBuilder<"mtr">;
+    var mtd: EleganceElementBuilder<"mtd">;
+    var mstyle: EleganceElementBuilder<"mstyle">;
+    var menclose: EleganceElementBuilder<"menclose">;
+    var mmultiscripts: EleganceElementBuilder<"mmultiscripts">;
 }
 export {};
