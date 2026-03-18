@@ -213,7 +213,7 @@ export type SpecificPropsMap = {
     };
     meta: {
         name?: MaybeSpecial<string>;
-        httpEquiv?: MaybeSpecial<string>;
+        "http-equiv"?: MaybeSpecial<string>;
         content?: MaybeSpecial<string>;
         charset?: MaybeSpecial<string>;
     };

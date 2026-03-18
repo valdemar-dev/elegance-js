@@ -233,7 +233,7 @@ export function metadata() {
         }),
 
         meta({
-            httpEquiv: "Content-Security-Policy",
+            "http-equiv": "Content-Security-Policy",
             content: "upgrade-insecure-requests",
         }),
     ];
