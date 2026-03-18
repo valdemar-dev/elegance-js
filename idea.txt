@@ -1,2 +1,0 @@
-make overloads for observe
-i want to be able to: observe(subject) work the same as observe([subject], (value) => value)

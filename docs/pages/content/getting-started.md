@@ -4,7 +4,7 @@ Before continuing, please make sure you have the latest LTS release of [Node.JS]
 ## Installation
 The easiest way to get started with elegance is using `npx create-elegance-app my-website` which will create a template project.
 
-The rest of this section will focus on manual installation.
+However, if you prefer manual installation, here is how to do it.
 
 1. Create a directory to store your project in.
 2. Navigate to that directory, and initialize npm with `npm init -y`
