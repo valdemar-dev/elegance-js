@@ -18,22 +18,30 @@ type ExtraOptions = {
 
 function Link(options: ElementOptionsOrChild<"a", ExtraOptions>, ...children: AnyElement[]) {
     const handler = eventListener((event: SetEvent<MouseEvent, HTMLAnchorElement>) => {
-        if (new URL(event.currentTarget.href, window.location.href).origin !== window.location.origin) {
+        const targetUrl = new URL(event.currentTarget.href, window.location.href);
+        const currentUrl = new URL(window.location.href);
+
+        const isSameHost =
+            targetUrl.hostname === currentUrl.hostname &&
+            targetUrl.port === currentUrl.port;
+
+        if (!isSameHost) {
             return;
         }
 
         event.preventDefault();
 
-        eleganceClient.navigateLocally(event.currentTarget.href, true);
+        eleganceClient.navigateLocally(targetUrl.pathname + targetUrl.search + targetUrl.hash, true);
     }, []);
 
     const extraOptions = options && typeof options === "object" ? options : {};
     const firstChild = isAnElement(options) ? options : undefined;
 
-    return a({
-        onClick: handler,
-        ...extraOptions,
-    },
+    return a(
+        {
+            onClick: handler,
+            ...extraOptions,
+        },
         ...(firstChild ? [firstChild, ...children] : children)
     );
 }
