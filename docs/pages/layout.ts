@@ -231,6 +231,11 @@ export function metadata() {
             rel: "stylesheet",
             href: "/index.css",
         }),
+
+        meta({
+            httpEquiv: "Content-Security-Policy",
+            content: "upgrade-insecure-requests",
+        }),
     ];
 }
 
