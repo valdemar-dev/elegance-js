@@ -429,16 +429,18 @@ const fetchPage = async (targetURL) => {
     // get page script
     {
         const pageDataScript = newDOM.querySelector(`script[data-hook="true"][data-pathname="${pathname}"]`);
-        const text = pageDataScript.textContent;
-        pageDataScript.remove();
-        const blob = new Blob([text], { type: 'text/javascript' });
-        const url = URL.createObjectURL(blob);
-        const script = document.createElement("script");
-        script.src = url;
-        script.type = "module";
-        script.setAttribute("data-page", "true");
-        script.setAttribute("data-pathname", `${pathname}`);
-        newDOM.head.appendChild(script);
+        if (pageDataScript) {
+            const text = pageDataScript.textContent;
+            pageDataScript.remove();
+            const blob = new Blob([text], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const script = document.createElement("script");
+            script.src = url;
+            script.type = "module";
+            script.setAttribute("data-page", "true");
+            script.setAttribute("data-pathname", `${pathname}`);
+            newDOM.head.appendChild(script);
+        }
     }
     pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
     return newDOM;
