@@ -4,8 +4,7 @@ function Link(options, ...children) {
     const handler = eventListener((event) => {
         const targetUrl = new URL(event.currentTarget.href, window.location.href);
         const currentUrl = new URL(window.location.href);
-        const isSameHost = targetUrl.hostname === currentUrl.hostname &&
-            targetUrl.port === currentUrl.port;
+        const isSameHost = targetUrl.host === currentUrl.host;
         if (!isSameHost) {
             return;
         }
