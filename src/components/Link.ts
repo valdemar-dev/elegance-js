@@ -31,7 +31,7 @@ function Link(options: ElementOptionsOrChild<"a", ExtraOptions>, ...children: An
 
         event.preventDefault();
 
-        eleganceClient.navigateLocally(targetUrl.pathname + targetUrl.search + targetUrl.hash, true);
+        eleganceClient.navigateLocally(targetUrl.href, true);
     }, []);
 
     const extraOptions = options && typeof options === "object" ? options : {};
