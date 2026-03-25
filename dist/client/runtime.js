@@ -77,7 +77,7 @@ function createHTMLElementFromElement(element) {
 DEV_BUILD && (() => {
     let isErrored = false;
     (function connect() {
-        const es = new EventSource("http://localhost:4000/elegance-hot-reload");
+        const es = new EventSource(`${window.location.origin}/elegance-hot-reload`);
         es.onopen = () => {
             if (isErrored) {
                 window.location.reload();
