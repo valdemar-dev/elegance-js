@@ -1,5 +1,5 @@
 import { eventListener, SetEvent } from "../client/eventListener";
-import { AnyElement, ElementOptionsOrChild, isAnElement } from "../elements/element";
+import { AnyElement, ElementOptionsOrChild, isAnElement, SpecialElementOption } from "../elements/element";
 
 /**
  * Create a custom anchor element that let's you hook into client-side navigation.
@@ -11,7 +11,7 @@ import { AnyElement, ElementOptionsOrChild, isAnElement } from "../elements/elem
 
 type ExtraOptions = {
     /** Mandatory, where this Link should take the user to. */
-    href: string,
+    href: string | SpecialElementOption,
     /** Set window.scrollTop to 0 whenever this link navigates. */
     resetScrollOnNav?: boolean,
 };

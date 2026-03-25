@@ -1,4 +1,4 @@
-import { AnyElement, ElementOptionsOrChild } from "../elements/element";
+import { AnyElement, ElementOptionsOrChild, SpecialElementOption } from "../elements/element";
 /**
  * Create a custom anchor element that let's you hook into client-side navigation.
  * If provided a URL that is non-local, it will default to normal navigation.
@@ -8,7 +8,7 @@ import { AnyElement, ElementOptionsOrChild } from "../elements/element";
  */
 type ExtraOptions = {
     /** Mandatory, where this Link should take the user to. */
-    href: string;
+    href: string | SpecialElementOption;
     /** Set window.scrollTop to 0 whenever this link navigates. */
     resetScrollOnNav?: boolean;
 };
