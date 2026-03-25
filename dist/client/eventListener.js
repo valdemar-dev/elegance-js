@@ -25,7 +25,7 @@ class EventListener {
         this.dependencies = dependencies.map(d => d.id);
     }
     serialize() {
-        return `{id:\"${this.id}\",callback:${this.callback.toString()},dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}]}`;
+        return `{id:"${this.id}",callback:${this.callback.toString()},dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}]}`;
     }
 }
 /**

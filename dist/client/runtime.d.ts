@@ -60,15 +60,15 @@ type ClientEventListenerOption = {
  */
 declare class ClientEventListener {
     id: string;
-    callback: EventListenerCallback<any>;
+    callback: EventListenerCallback<any, any, any>;
     dependencies: string[];
-    constructor(id: string, callback: EventListenerCallback<any>, depencencies: string[]);
+    constructor(id: string, callback: EventListenerCallback<any, any, any>, depencencies: string[]);
     call(ev: Event): void;
 }
 declare class EventListenerManager {
     private readonly eventListeners;
     constructor();
-    loadValues(serverEventListeners: EventListener<any>[], doOverride?: boolean): void;
+    loadValues(serverEventListeners: EventListener<any, any, any>[], doOverride?: boolean): void;
     hookCallbacks(eventListenerOptions: ClientEventListenerOption[]): void;
     get(id: string): ClientEventListener | undefined;
 }

@@ -10,9 +10,6 @@ type ToClientTuple<T extends readonly ServerSubject<any>[]> = {
     [K in keyof T]: T[K] extends ServerSubject<infer V> ? ClientSubject<V> : never;
 };
 
-type EventListenerCallback<T extends readonly ServerSubject<any>[]> =
-    (event: SetEvent, ...dependencies: ToClientTuple<T>) => void;
-
 class EventListenerOption extends SpecialElementOption {
     id: string;
 
@@ -36,19 +33,29 @@ class EventListenerOption extends SpecialElementOption {
     }
 }
 
-class EventListener<T extends readonly ServerSubject<any>[]> {
+type EventListenerCallback<
+    E extends Event,
+    Target extends EventTarget,
+    T extends readonly ServerSubject<any>[]
+> = (event: SetEvent<E, Target>, ...dependencies: ToClientTuple<T>) => void;
+
+class EventListener<
+    E extends Event,
+    Target extends EventTarget,
+    T extends readonly ServerSubject<any>[]
+> {
     id: string;
-    callback: EventListenerCallback<T>;
+    callback: EventListenerCallback<E, Target, T>;
     dependencies: string[];
 
-    constructor(id: string, callback: EventListenerCallback<T>, dependencies: [...T]) {
+    constructor(id: string, callback: EventListenerCallback<E, Target, T>, dependencies: [...T]) {
         this.id = id;
         this.callback = callback;
         this.dependencies = dependencies.map(d => d.id);
     }
 
     serialize(): string {
-        return `{id:\"${this.id}\",callback:${this.callback.toString()},dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}]}`;
+        return `{id:"${this.id}",callback:${this.callback.toString()},dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}]}`;
     }
 }
 
@@ -64,15 +71,19 @@ class EventListener<T extends readonly ServerSubject<any>[]> {
  * @param dependencies An array of ServerSubject's that should be passed into the callback when it is run.
  * @returns A special element option that you can use as a value on an option of an EleganceElement.
  */
-function eventListener<T extends readonly ServerSubject<any>[]>(
-    callback: EventListenerCallback<T>,
+function eventListener<
+    E extends Event,
+    Target extends EventTarget,
+    T extends readonly ServerSubject<any>[]
+>(
+    callback: EventListenerCallback<E, Target, T>,
     dependencies: [...T]
 ) {
     const store = compilerStore.getStore();
     if (!store) throw new Error("Illegal invocation of eventListener(). Ensure that the eventListener() function is only called inside components, and never at the top-level of a page or layout.");
 
     const id = store.generateId();
-    const listener = new EventListener<T>(id, callback, dependencies);
+    const listener = new EventListener<E, Target, T>(id, callback, dependencies);
 
     store.addClientToken(listener);
 

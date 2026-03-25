@@ -258,10 +258,10 @@ type ClientEventListenerOption = {
  */
 class ClientEventListener {
     id: string;
-    callback: EventListenerCallback<any>;
+    callback: EventListenerCallback<any, any, any>;
     dependencies: string[];
 
-    constructor(id: string, callback: EventListenerCallback<any>, depencencies: string[]) {
+    constructor(id: string, callback: EventListenerCallback<any, any, any>, depencencies: string[]) {
         this.id = id;
         this.callback = callback;
         this.dependencies = depencencies;
@@ -278,7 +278,7 @@ class EventListenerManager {
 
     constructor() {}
 
-    loadValues(serverEventListeners: EventListener<any>[], doOverride: boolean = false) {
+    loadValues(serverEventListeners: EventListener<any, any, any>[], doOverride: boolean = false) {
         for (const serverEventListener of serverEventListeners) {
             if (this.eventListeners.has(serverEventListener.id) && doOverride === false) continue;
 
