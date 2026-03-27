@@ -1,6 +1,6 @@
 {
   "name": "elegance-js",
-  "version": "2.1.32",
+  "version": "2.1.33",
   "description": "Web-Framework",
   "type": "module",
   "main": "dist/index.mjs",
