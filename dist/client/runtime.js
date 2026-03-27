@@ -412,8 +412,8 @@ const domParser = new DOMParser();
 const xmlSerializer = new XMLSerializer();
 const fetchPage = async (targetURL) => {
     const pathname = sanitizePathname(targetURL.pathname);
-    if (pageStringCache.has(pathname)) {
-        return domParser.parseFromString(pageStringCache.get(pathname), "text/html");
+    if (pageStringCache.has(targetURL.href)) {
+        return domParser.parseFromString(pageStringCache.get(targetURL.href), "text/html");
     }
     const res = await fetch(targetURL);
     const newDOM = domParser.parseFromString(await res.text(), "text/html");
@@ -444,7 +444,7 @@ const fetchPage = async (targetURL) => {
             newDOM.head.appendChild(script);
         }
     }
-    pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
+    pageStringCache.set(targetURL.href, xmlSerializer.serializeToString(newDOM));
     return newDOM;
 };
 let navigationCallbacks = [];

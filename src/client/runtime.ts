@@ -571,8 +571,8 @@ const xmlSerializer = new XMLSerializer();
 const fetchPage = async (targetURL: URL): Promise<Document | void> => {
     const pathname = sanitizePathname(targetURL.pathname);
 
-    if (pageStringCache.has(pathname)) {
-        return domParser.parseFromString(pageStringCache.get(pathname)!, "text/html");
+    if (pageStringCache.has(targetURL.href)) {
+        return domParser.parseFromString(pageStringCache.get(targetURL.href)!, "text/html");
     }
 
     const res = await fetch(targetURL);
@@ -617,7 +617,7 @@ const fetchPage = async (targetURL: URL): Promise<Document | void> => {
         }
     }
 
-    pageStringCache.set(pathname, xmlSerializer.serializeToString(newDOM));
+    pageStringCache.set(targetURL.href, xmlSerializer.serializeToString(newDOM));
 
     return newDOM;
 };
