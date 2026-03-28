@@ -13,7 +13,7 @@ async function runtime() {
         outputDirectory: outputDirectory,
         environment: "production",
 
-        doHotReload: true,
+        doHotReload: false,
     });
 
     const { allLayouts, allPages, allStatusCodePages, compiledStaticLayouts, compiledStaticPages, } = await compileEntireProject();
