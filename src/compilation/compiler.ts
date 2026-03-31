@@ -1520,14 +1520,22 @@ async function compileEntireProject() {
     // make sure to hook every element builder into the global scope
     Object.assign(globalThis, allElements);
 
-    const gracefulErr = (err: unknown) => { console.error(err); }
+    const gracefulErr = (err: unknown) => { 
+        console.error(err); 
+        return;
+    }
+
+    formattedLog(LogLevel.DEBUG, "Compiling project..");
+
+    // This is used to restart us if we crash, via an FS watcher.
+    process.send?.(JSON.stringify({ message: "set-compiler-options", content: JSON.stringify(compilerOptions)}));
 
     process.on("uncaughtException", gracefulErr);
     process.on("unhandledRejection", gracefulErr);
 
     if (compilerOptions.doHotReload) {
         createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
-            process.send?.(`restart-me`);
+            process.send?.(JSON.stringify({ message: `restart-me`}));
         })
     }
 
@@ -1577,6 +1585,8 @@ export {
     serializeElement,
     generatePageDataScript,
     compileEntireProject,
+
+    createRecursiveWatcher,
 
     compileEntireProjectToDisk,
     compilePageToDisk,

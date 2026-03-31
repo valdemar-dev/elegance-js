@@ -13,8 +13,9 @@ import { PageInformation } from "./page";
 import { createServer, IncomingMessage, Server, ServerResponse, } from "http";
 import { Dirent, existsSync, readdirSync, readFileSync, statSync, createReadStream } from "fs";
 import * as zlib from "zlib";
-import { promisify } from "util";
+import { log, promisify } from "util";
 import { URLSearchParams } from "url";
+import { formattedLog, LogLevel } from "./log";
 
 const gzipAsync = promisify(zlib.gzip);
 
@@ -791,16 +792,21 @@ async function serveProject(startupServerOptions: ServerOptions): Promise<Server
     server.on("error", (error: any) => {
         if (error.code === "EADDRINUSE") {
             setTimeout(() => {
+                formattedLog(LogLevel.WARN, `${port} was not available, trying port ${port + 1}..`);
+
                 port += 1;
                 server.listen(port);
+
             }, 500)
         }
     })
 
     server.listen({ port: serverOptions.port, hostname: serverOptions.hostname, }, () => {
         if (compilerOptions.doHotReload) {
-            process.send?.("hot-reload-finish")
+            process.send?.(JSON.stringify({ message: "hot-reload-finish" }))
         }
+
+        formattedLog(LogLevel.INFO, `Server listening on port ${port}`)
     });
 
     return {

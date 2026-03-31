@@ -11,6 +11,7 @@ import { existsSync, readdirSync, statSync, createReadStream } from "fs";
 import * as zlib from "zlib";
 import { promisify } from "util";
 import { URLSearchParams } from "url";
+import { formattedLog, LogLevel } from "./log.js";
 const gzipAsync = promisify(zlib.gzip);
 function removePrefix(str, prefix) {
     return str.startsWith(prefix) ? str.slice(prefix.length) : str;
@@ -535,6 +536,7 @@ async function serveProject(startupServerOptions) {
     server.on("error", (error) => {
         if (error.code === "EADDRINUSE") {
             setTimeout(() => {
+                formattedLog(LogLevel.WARN, `${port} was not available, trying port ${port + 1}..`);
                 port += 1;
                 server.listen(port);
             }, 500);
@@ -542,8 +544,9 @@ async function serveProject(startupServerOptions) {
     });
     server.listen({ port: serverOptions.port, hostname: serverOptions.hostname, }, () => {
         if (compilerOptions.doHotReload) {
-            process.send?.("hot-reload-finish");
+            process.send?.(JSON.stringify({ message: "hot-reload-finish" }));
         }
+        formattedLog(LogLevel.INFO, `Server listening on port ${port}`);
     });
     return {
         port,

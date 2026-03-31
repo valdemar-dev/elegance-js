@@ -131,6 +131,7 @@ declare function compileLayout(layoutInformation: LayoutInformation, allLayouts:
     req?: IncomingMessage;
     res?: ServerResponse;
 }): Promise<CompiledLayout>;
+declare function createRecursiveWatcher(targetDir: string, callback: (path: string) => Promise<void>): void;
 /**
  * Run the general compilation process for the project.
  * This compiles all static-pages & static-layouts, as well as gathers a list of every page (dynamic and static) & layout (dynamic and static).
@@ -152,4 +153,4 @@ declare function compileEntireProject(): Promise<{
  */
 declare function compileEntireProjectToDisk(): Promise<void>;
 export type { CompilerOptions, CompiledLayout, CompiledPage, };
-export { setCompilerOptions, generatePageCompilationContext, generateLayoutCompilationContext, serializeElement, generatePageDataScript, compileEntireProject, compileEntireProjectToDisk, compilePageToDisk, compileLayoutToDisk, compilerStore, compilerOptions, compilePage, compileLayout, clientPackages, };
+export { setCompilerOptions, generatePageCompilationContext, generateLayoutCompilationContext, serializeElement, generatePageDataScript, compileEntireProject, createRecursiveWatcher, compileEntireProjectToDisk, compilePageToDisk, compileLayoutToDisk, compilerStore, compilerOptions, compilePage, compileLayout, clientPackages, };

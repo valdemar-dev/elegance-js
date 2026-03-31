@@ -2,6 +2,7 @@ import { ChildProcess, spawn } from "child_process"
 import { resolve } from "path"
 import { formattedLog, LogLevel } from "./log";
 import { createServer, ServerResponse, IncomingMessage, Server } from "http";
+import { CompilerOptions, createRecursiveWatcher } from "../compilation/compiler";
 
 let child: ChildProcess;
 let childPath: string;
@@ -9,6 +10,8 @@ const clients: Set<ServerResponse> = new Set();
 
 let server: Server;
 let serverIsActive: boolean = false;
+
+let compilerOptions: CompilerOptions;
 
 /**
  * Run the elegance runtime, and if hot-reloading is enabled, will start the hot-reload server.
@@ -59,14 +62,34 @@ function restartEleganceRuntime() {
         env: { ...process.env }
     });
 
-    child.on("message", (content: string) => {
-        if (content === "restart-me") {
+    child.on("exit", (code) => {
+        if (code === 0) return;
+
+        createRecursiveWatcher(compilerOptions.pagesDirectory, async (path: string) => {
+            formattedLog(LogLevel.INFO, "Change noticed after error, restarting Elegance Runtime..");
+
+            restartEleganceRuntime();
+        })
+    })
+
+    child.on("message", (raw: string) => {
+        const { message, content } = JSON.parse(raw);
+        
+        if (message === "restart-me") {
             formattedLog(LogLevel.INFO, "Rebuilding..");
             
             restartEleganceRuntime();
         }
 
-        if (content === "hot-reload-finish") {
+        if (message === "set-compiler-options") {
+            compilerOptions = JSON.parse(content);
+
+            formattedLog(LogLevel.DEBUG, "Setting compiler options in parent..")
+
+            return;
+        }
+
+        if (message === "hot-reload-finish") {
             if (!serverIsActive) {
                 serverIsActive = true;
 
@@ -80,10 +103,7 @@ function restartEleganceRuntime() {
             }
         }
 
-        if (content === "enable-hot-reload") {
-        }
-
-        if (content === "disable-hot-reload") {
+        if (message === "disable-hot-reload") {
             if (!serverIsActive) return;
             serverIsActive = false;
             

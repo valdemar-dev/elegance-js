@@ -20,6 +20,8 @@ async function runtime() {
 
     execSync(`npx @tailwindcss/cli -i ${path.join(pagesDirectory, "input.css")} -o ${path.join(outputDirectory, "DIST", "index.css")}`);
 
+    throw "hi";
+
     const { port } = await serveProject({
         port: 3000,
         hostname: "0.0.0.0",

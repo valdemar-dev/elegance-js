@@ -1117,12 +1117,18 @@ function createRecursiveWatcher(targetDir, callback) {
 async function compileEntireProject() {
     // make sure to hook every element builder into the global scope
     Object.assign(globalThis, allElements);
-    const gracefulErr = (err) => { console.error(err); };
+    const gracefulErr = (err) => {
+        console.error(err);
+        return;
+    };
+    formattedLog(LogLevel.DEBUG, "Compiling project..");
+    // This is used to restart us if we crash, via an FS watcher.
+    process.send?.(JSON.stringify({ message: "set-compiler-options", content: JSON.stringify(compilerOptions) }));
     process.on("uncaughtException", gracefulErr);
     process.on("unhandledRejection", gracefulErr);
     if (compilerOptions.doHotReload) {
         createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
-            process.send?.(`restart-me`);
+            process.send?.(JSON.stringify({ message: `restart-me` }));
         });
     }
     const allLayouts = await gatherAllLayouts();
@@ -1150,4 +1156,4 @@ async function compileEntireProject() {
 async function compileEntireProjectToDisk() {
     throw new Error("Not yet implemented.");
 }
-export { setCompilerOptions, generatePageCompilationContext, generateLayoutCompilationContext, serializeElement, generatePageDataScript, compileEntireProject, compileEntireProjectToDisk, compilePageToDisk, compileLayoutToDisk, compilerStore, compilerOptions, compilePage, compileLayout, clientPackages, };
+export { setCompilerOptions, generatePageCompilationContext, generateLayoutCompilationContext, serializeElement, generatePageDataScript, compileEntireProject, createRecursiveWatcher, compileEntireProjectToDisk, compilePageToDisk, compileLayoutToDisk, compilerStore, compilerOptions, compilePage, compileLayout, clientPackages, };
