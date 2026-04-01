@@ -16,6 +16,7 @@ import * as zlib from "zlib";
 import { log, promisify } from "util";
 import { URLSearchParams } from "url";
 import { formattedLog, LogLevel } from "./log";
+import { AddressInfo } from "net";
 
 const gzipAsync = promisify(zlib.gzip);
 
@@ -806,7 +807,7 @@ async function serveProject(startupServerOptions: ServerOptions): Promise<Server
             process.send?.(JSON.stringify({ message: "hot-reload-finish" }))
         }
 
-        formattedLog(LogLevel.INFO, `Server listening on port ${port}`)
+        formattedLog(LogLevel.INFO, `Website Live at: http://${serverOptions.hostname}:${port}/`)
     });
 
     return {

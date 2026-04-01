@@ -1531,6 +1531,8 @@ async function compileEntireProject() {
 
     formattedLog(LogLevel.DEBUG, "Compiling project..");
 
+    const start = performance.now();
+
     // This is used to restart us if we crash, via an FS watcher.
     process.send?.(JSON.stringify({ message: "set-compiler-options", content: JSON.stringify(compilerOptions)}));
 
@@ -1555,6 +1557,10 @@ async function compileEntireProject() {
 
     process.off("uncaughtException", gracefulErr);
     process.off("unhandledRejection", gracefulErr);
+
+    const end = performance.now();
+
+    formattedLog(LogLevel.INFO, `Finished building in: ${Math.round(end - start)}ms`)
 
     return {
         allPages,

@@ -48,9 +48,8 @@ function restartEleganceRuntime() {
     child.on("exit", (code) => {
         if (code === 0)
             return;
-        formattedLog(LogLevel.ERROR, "The Elegance runtime has crashed. Waiting for file changes..");
+        formattedLog(LogLevel.ERROR, "Waiting for file changes..");
         createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
-            formattedLog(LogLevel.INFO, "Change noticed after error, restarting Elegance Runtime..");
             restartEleganceRuntime();
         });
     });
@@ -69,7 +68,7 @@ function restartEleganceRuntime() {
             if (!serverIsActive) {
                 serverIsActive = true;
                 server.listen(4000, () => {
-                    formattedLog(LogLevel.INFO, "Hot-reload server listening on port 4000");
+                    formattedLog(LogLevel.DEBUG, "Hot-reload server listening on port 4000");
                 });
             }
             for (const client of clients) {

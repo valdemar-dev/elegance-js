@@ -1123,6 +1123,7 @@ async function compileEntireProject() {
         return;
     };
     formattedLog(LogLevel.DEBUG, "Compiling project..");
+    const start = performance.now();
     // This is used to restart us if we crash, via an FS watcher.
     process.send?.(JSON.stringify({ message: "set-compiler-options", content: JSON.stringify(compilerOptions) }));
     process.on("uncaughtException", gracefulErr);
@@ -1140,6 +1141,8 @@ async function compileEntireProject() {
     cpSync(compilerOptions.publicDirectory, getDistDir(), { recursive: true, });
     process.off("uncaughtException", gracefulErr);
     process.off("unhandledRejection", gracefulErr);
+    const end = performance.now();
+    formattedLog(LogLevel.INFO, `Finished building in: ${Math.round(end - start)}ms`);
     return {
         allPages,
         allLayouts,

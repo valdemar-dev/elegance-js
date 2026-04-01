@@ -546,7 +546,7 @@ async function serveProject(startupServerOptions) {
         if (compilerOptions.doHotReload) {
             process.send?.(JSON.stringify({ message: "hot-reload-finish" }));
         }
-        formattedLog(LogLevel.INFO, `Server listening on port ${port}`);
+        formattedLog(LogLevel.INFO, `Website Live at: http://${serverOptions.hostname}:${port}/`);
     });
     return {
         port,
