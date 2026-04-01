@@ -18,7 +18,7 @@ import { AsyncLocalStorage } from "async_hooks";
 import { ServerSubject } from "../client/state";
 import { EventListenerOption, EventListener } from "../client/eventListener";
 import { LoadHook } from "../client/loadHook";
-import { formattedLog, formatToLog, LogLevel } from "../server/log";
+import { formattedLog, formatToLog, LogLevel, setLogLevel } from "../server/log";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,6 +75,8 @@ type CompilerOptions = {
     outputDirectory: string;
 
     doHotReload: boolean;
+
+    logLevel: LogLevel,
 };
 
 type CompiledLayout = {
@@ -154,6 +156,8 @@ function setCompilerOptions(newOptions: CompilerOptions) {
     }
 
     compilerOptions = newOptions;
+
+    setLogLevel(compilerOptions.logLevel);
 }
 
 

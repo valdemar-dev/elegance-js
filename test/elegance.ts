@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { serveProject, compileEntireProject, setCompilerOptions, } from "elegance-js";
+import { serveProject, compileEntireProject, setCompilerOptions, LogLevel, } from "elegance-js";
 import path from "path";
 
 async function runtime() {
@@ -14,13 +14,13 @@ async function runtime() {
         environment: "development",
 
         doHotReload: true,
+
+        logLevel: LogLevel.INFO,
     });
 
     const { allLayouts, allPages, allStatusCodePages, compiledStaticLayouts, compiledStaticPages, } = await compileEntireProject();
 
     execSync(`npx @tailwindcss/cli -i ${path.join(pagesDirectory, "input.css")} -o ${path.join(outputDirectory, "DIST", "index.css")}`);
-
-    throw "hi";
 
     const { port } = await serveProject({
         port: 3000,

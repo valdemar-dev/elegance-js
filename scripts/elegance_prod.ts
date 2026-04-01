@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { serveProject, compileEntireProject, setCompilerOptions, } from "elegance-js";
+import { serveProject, compileEntireProject, setCompilerOptions, LogLevel, } from "elegance-js";
 import path from "path";
 
 async function runtime() {
@@ -14,6 +14,8 @@ async function runtime() {
         environment: "production",
 
         doHotReload: false,
+
+        logLevel: LogLevel.INFO,
     });
 
     const { allLayouts, allPages, allStatusCodePages, compiledStaticLayouts, compiledStaticPages, } = await compileEntireProject();

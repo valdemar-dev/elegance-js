@@ -1,3 +1,4 @@
+export { LogLevel } from "./server/log";
 export { observer, getSelf, } from "./client/observer";
 export { eventListener, } from "./client/eventListener";
 export { loadHook, } from "./client/loadHook";

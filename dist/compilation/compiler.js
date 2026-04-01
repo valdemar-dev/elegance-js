@@ -16,7 +16,7 @@ import { AsyncLocalStorage } from "async_hooks";
 import { ServerSubject } from "../client/state.js";
 import { EventListenerOption, EventListener } from "../client/eventListener.js";
 import { LoadHook } from "../client/loadHook.js";
-import { formattedLog, LogLevel } from "../server/log.js";
+import { formattedLog, LogLevel, setLogLevel } from "../server/log.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { raw, unwrapAllRaw, } from "../elements/raw.js";
@@ -47,6 +47,7 @@ function setCompilerOptions(newOptions) {
         mkdirSync(newOptions.outputDirectory, { recursive: true, });
     }
     compilerOptions = newOptions;
+    setLogLevel(compilerOptions.logLevel);
 }
 function invalidElementError(element, fullPath, reason) {
     const stacktrace = formatStacktrace(fullPath);

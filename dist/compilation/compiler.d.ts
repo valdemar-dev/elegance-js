@@ -5,6 +5,7 @@ import { AnyElement, SpecialElementOption } from "../elements/element";
 import { PageInformation } from "../server/page";
 import { LayoutInformation, LayoutProps } from "../server/layout";
 import { AsyncLocalStorage } from "async_hooks";
+import { LogLevel } from "../server/log";
 import { IncomingMessage, ServerResponse } from "http";
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
@@ -44,6 +45,7 @@ type CompilerOptions = {
     publicDirectory: string;
     outputDirectory: string;
     doHotReload: boolean;
+    logLevel: LogLevel;
 };
 type CompiledLayout = {
     /** Compiled result of the layoutConstructor */

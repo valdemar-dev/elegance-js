@@ -26,7 +26,6 @@ function startEleganceRuntime(file: string) {
         formattedLog(LogLevel.DEBUG, "Received hot-reload listener.");
         
         if (req.url === "/elegance-hot-reload") {
-
             res.writeHead(200, {
                 "Content-Type": "text/event-stream",
                 "Cache-Control": "no-cache",
@@ -64,6 +63,8 @@ function restartEleganceRuntime() {
 
     child.on("exit", (code) => {
         if (code === 0) return;
+
+        formattedLog(LogLevel.ERROR, "The Elegance runtime has crashed. Waiting for file changes..");
 
         createRecursiveWatcher(compilerOptions.pagesDirectory, async (path: string) => {
             formattedLog(LogLevel.INFO, "Change noticed after error, restarting Elegance Runtime..");
