@@ -525,7 +525,7 @@ export type SpecificPropsMap = {
     polyline: {
         points?: MaybeSpecial<string>;
     };
-    stopElement: {
+    stop: {
         offset?: MaybeSpecial<string | number>;
         stopColor?: MaybeSpecial<string>;
         stopOpacity?: MaybeSpecial<string | number>;
