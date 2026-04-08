@@ -1,4 +1,4 @@
-import { AnyElement, loadHook, observer, state } from "elegance-js";
+import { LayoutParams, loadHook, observer, state } from "elegance-js";
 
 function Header() {
     const pathname = state("");
@@ -24,7 +24,7 @@ function Header() {
     );
 }
 
-export function layout(child: AnyElement) {
+export function layout({ child }: LayoutParams) {
     return html(
         body({
             class: "bg-black text-white h-screen w-screen grid grid-cols-1 p-4 gap-4 grid-rows-[auto_1fr]",
