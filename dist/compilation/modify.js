@@ -31,49 +31,47 @@ const project = new Project({
  * @param filePath The in-memory filename (you probably don't need to touch this)
  * @returns The modified source-code.
  */
+let sharedFile;
 export function transformSource(source, filePath = "input.ts") {
-    const file = project.createSourceFile(filePath, source, { overwrite: true });
-    const checker = project.getTypeChecker();
-    //@ts-ignore
+    if (!sharedFile) {
+        sharedFile = project.createSourceFile(filePath, source);
+    }
+    else {
+        sharedFile.replaceWithText(source);
+    }
     const stateSymbolToId = new Map();
-    for (const decl of file.getVariableDeclarations()) {
+    const declarations = sharedFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
+    for (const decl of declarations) {
         const init = decl.getInitializer();
         if (!Node.isCallExpression(init))
             continue;
-        const expr = init.getExpression();
-        if (Node.isIdentifier(expr) && expr.getText() === "state") {
-            const symbol = decl.getSymbol();
-            if (!symbol)
-                continue;
-            const id = makeId(filePath, decl.getName(), decl.getStart());
-            stateSymbolToId.set(symbol, id);
+        if (init.getExpression().getText() === "state") {
+            const name = decl.getName();
+            const id = makeId(filePath, name, decl.getStart());
+            stateSymbolToId.set(name, id);
         }
     }
-    const callExpressions = file.getDescendantsOfKind(SyntaxKind.CallExpression);
-    for (const call of callExpressions) {
-        const expression = call.getExpression();
-        if (!Node.isIdentifier(expression) || expression.getText() !== "loadHook")
+    const loadHooks = sharedFile.getDescendantsOfKind(SyntaxKind.CallExpression)
+        .filter((c) => c.getExpression().getText() === "loadHook");
+    for (const hook of loadHooks) {
+        const arg = hook.getArguments()[0];
+        const fn = arg?.asKind(SyntaxKind.ArrowFunction) || arg?.asKind(SyntaxKind.FunctionExpression);
+        if (!fn)
             continue;
-        const args = call.getArguments();
-        const arg = args;
-        if (!arg || !Node.isFunctionLikeDeclaration(arg))
-            continue;
-        const identifiers = arg.getDescendantsOfKind(SyntaxKind.Identifier);
-        for (const idNode of identifiers) {
-            const parent = idNode.getParent();
-            if (Node.isPropertyAccessExpression(parent) && parent.getNameNode() === idNode) {
+        const identifiers = fn.getDescendantsOfKind(SyntaxKind.Identifier);
+        for (const node of identifiers) {
+            const parent = node.getParent();
+            if (Node.isPropertyAccessExpression(parent) && parent.getNameNode() === node) {
                 continue;
             }
-            const symbol = checker.getSymbolAtLocation(idNode);
-            if (!symbol)
-                continue;
-            const stateId = stateSymbolToId.get(symbol);
-            if (stateId) {
-                idNode.replaceWithText(`_state["${stateId}"]`);
+            const name = node.getText();
+            const id = stateSymbolToId.get(name);
+            if (id) {
+                node.replaceWithText(`_state["${id}"]`);
             }
         }
     }
-    const output = file.getFullText();
-    file.forget();
-    return output;
+    const result = sharedFile.getFullText();
+    sharedFile.forgetDescendants();
+    return result;
 }

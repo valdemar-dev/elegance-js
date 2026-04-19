@@ -2,7 +2,8 @@ import { readFileSync } from "fs";
 import {
     Project,
     SyntaxKind,
-    Node
+    Node,
+    SourceFile
 } from "ts-morph";
 import crypto from "crypto";
 
@@ -42,65 +43,58 @@ const project = new Project({
  * @param filePath The in-memory filename (you probably don't need to touch this)
  * @returns The modified source-code.
  */
-export function transformSource(source: string, filePath = "input.ts") {
-    const file = project.createSourceFile(filePath, source, { overwrite: true })
-    const checker = project.getTypeChecker()
+let sharedFile: SourceFile | undefined;
 
-    const stateSymbolToId = new Map<string, string>()
-
-    for (const decl of file.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
-        const init = decl.getInitializer()
-        if (!Node.isCallExpression(init)) continue
-
-        const expr = init.getExpression().getText()
-        if (expr !== "state") continue
-
-        const symbol = checker.getSymbolAtLocation(decl.getNameNode())
-        if (!symbol) continue
-
-        const key = checker.getFullyQualifiedName(symbol)
-
-        const id = makeId(
-            filePath,
-            decl.getName(),
-            decl.getStart()
-        )
-
-        stateSymbolToId.set(key, id)
+export function transformSource(source: string, filePath = "input.ts"): string {
+    if (!sharedFile) {
+        sharedFile = project.createSourceFile(filePath, source);
+    } else {
+        sharedFile.replaceWithText(source);
     }
 
-    const loadHooks = file.getDescendantsOfKind(SyntaxKind.CallExpression)
-        .filter(c => c.getExpression().getText() === "loadHook")
+    const stateSymbolToId = new Map<string, string>();
+    const declarations = sharedFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
+
+    for (const decl of declarations) {
+        const init = decl.getInitializer();
+        if (!Node.isCallExpression(init)) continue;
+
+        if (init.getExpression().getText() === "state") {
+            const name = decl.getName();
+            const id = makeId(filePath, name, decl.getStart());
+            stateSymbolToId.set(name, id);
+        }
+    }
+
+    const loadHooks = sharedFile.getDescendantsOfKind(SyntaxKind.CallExpression)
+        .filter((c: any) => c.getExpression().getText() === "loadHook");
 
     for (const hook of loadHooks) {
-        const arg = hook.getArguments()[0]
-
-        const fn =
-            arg?.asKind(SyntaxKind.ArrowFunction) ||
-            arg?.asKind(SyntaxKind.FunctionExpression)
+        const arg = hook.getArguments()[0];
+        const fn = arg?.asKind(SyntaxKind.ArrowFunction) || arg?.asKind(SyntaxKind.FunctionExpression);
 
         if (!fn) continue;
 
-        fn.forEachDescendant(node => {
-            if (!Node.isIdentifier(node)) return;
+        const identifiers = fn.getDescendantsOfKind(SyntaxKind.Identifier);
 
+        for (const node of identifiers) {
             const parent = node.getParent();
-
-            if (Node.isPropertyAccessExpression(parent)) {
-                if (parent.getNameNode() === node) return;
+            if (Node.isPropertyAccessExpression(parent) && parent.getNameNode() === node) {
+                continue;
             }
 
-            const symbol = checker.getSymbolAtLocation(node);
-            if (!symbol) return;
+            const name = node.getText();
+            const id = stateSymbolToId.get(name);
 
-            const key = checker.getFullyQualifiedName(symbol);
-            const id = stateSymbolToId.get(key);
-
-            if (!id) return;
-
-            node.replaceWithText(`_state["${id}"]`);
-        })
+            if (id) {
+                node.replaceWithText(`_state["${id}"]`);
+            }
+        }
     }
 
-    return file.getFullText()
+    const result = sharedFile.getFullText();
+    
+    sharedFile.forgetDescendants();
+
+    return result;
 }
