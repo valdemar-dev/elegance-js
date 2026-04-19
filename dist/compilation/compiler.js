@@ -4,7 +4,7 @@
 import path from "path";
 import crypto from "crypto";
 import { EleganceElement, SpecialElementOption } from "../elements/element.js";
-import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, watch, writeFileSync } from "fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from "fs";
 import esbuild from "esbuild";
 import { invalidPageError } from "../server/page.js";
 import { invalidLayoutError } from "../server/layout.js";
@@ -21,6 +21,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { raw, unwrapAllRaw, } from "../elements/raw.js";
 import { Effect } from "../client/effect.js";
+import { tmpdir } from "os";
+import { transformSource } from "./modify.js";
 let compilerOptions;
 const compilerStore = new AsyncLocalStorage();
 /**
@@ -536,10 +538,16 @@ async function walkDirectory(fullPath, callback) {
  * This file *should* be the first thing that imports a page.
  */
 async function getPageExports(modulePath) {
-    const rawExports = await import("file://" + modulePath).catch((err) => {
+    const moduleSource = readFileSync(modulePath).toString();
+    const transformedSource = transformSource(moduleSource);
+    const filePath = path.join(tmpdir(), `mod-${Date.now()}.ts`);
+    writeFileSync(filePath, transformedSource);
+    // check out ts-arc if you're curious about copycat uri
+    const rawExports = await import(`copycat://${modulePath}?real=${filePath}`).catch((err) => {
         console.error(`Encountered an error in file:\n    ${modulePath}`);
         throw err;
     });
+    rmSync(filePath);
     let isDynamic = rawExports?.isDynamic === true;
     const pageConstructor = rawExports.page;
     {

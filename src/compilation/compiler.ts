@@ -6,7 +6,7 @@
 import path from "path";
 import crypto from "crypto";
 import { AnyElement, EleganceElement, SpecialElementOption } from "../elements/element";
-import { cpSync, Dirent, existsSync, FSWatcher, lstatSync, mkdirSync, readdirSync, readFileSync, watch, writeFileSync } from "fs";
+import { cpSync, Dirent, existsSync, FSWatcher, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from "fs";
 import esbuild from "esbuild";
 import { invalidPageError, PageExports, PageInformation } from "../server/page";
 import { invalidLayoutError, LayoutExports, LayoutInformation, LayoutProps } from "../server/layout";
@@ -26,6 +26,8 @@ const __dirname = path.dirname(__filename);
 import { raw, unwrapAllRaw, } from "../elements/raw";
 import { IncomingMessage, ServerResponse } from "http";
 import { Effect } from "../client/effect";
+import { tmpdir } from "os";
+import { transformSource } from "./modify";
 
 /** Context of a page that is currently being compiled. */
 type PageCompilationContext = {
@@ -772,10 +774,20 @@ async function walkDirectory(fullPath: string, callback: (file: Dirent) => Promi
  * This file *should* be the first thing that imports a page.
  */
 async function getPageExports(modulePath: string): Promise<PageExports> {
-    const rawExports = await import("file://" + modulePath).catch((err: unknown) => {
+    const moduleSource = readFileSync(modulePath).toString();
+    const transformedSource = transformSource(moduleSource);
+
+    const filePath = path.join(tmpdir(), `mod-${Date.now()}.ts`);
+
+    writeFileSync(filePath, transformedSource);
+
+    // check out ts-arc if you're curious about copycat uri
+    const rawExports = await import(`copycat://${modulePath}?real=${filePath}`).catch((err: unknown) => {
         console.error(`Encountered an error in file:\n    ${modulePath}`);
         throw err;
     });
+
+    rmSync(filePath);
 
     let isDynamic = rawExports?.isDynamic === true
 
