@@ -521,40 +521,20 @@
   }
 }
 @layer utilities {
-  .top-0 {
-    top: calc(var(--spacing) * 0);
-  }
-  .right-0 {
-    right: calc(var(--spacing) * 0);
-  }
-  .left-0 {
-    left: calc(var(--spacing) * 0);
+  .static {
+    position: static;
   }
   .table {
     display: table;
   }
-  .h-12 {
-    height: calc(var(--spacing) * 12);
+  .bg-black {
+    background-color: var(--color-black);
   }
-  .w-full {
-    width: 100%;
-  }
-  .bg-yellow-300 {
-    background-color: var(--color-yellow-300);
+  .text-white {
+    color: var(--color-white);
   }
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
-  }
-  .duration-200 {
-    --tw-duration: 200ms;
-    transition-duration: 200ms;
-  }
-  .hover\:bg-white {
-    &:hover {
-      @media (hover: hover) {
-        background-color: var(--color-white);
-      }
-    }
   }
 }
 @keyframes spin {
@@ -616,10 +596,6 @@
   inherits: false;
 }
 @property --tw-sepia {
-  syntax: "*";
-  inherits: false;
-}
-@property --tw-duration {
   syntax: "*";
   inherits: false;
 }

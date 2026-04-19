@@ -375,7 +375,7 @@ class ClientObserver {
         else if (key in element) {
             const isTruthy = value === "true" || value === "false";
             if (isTruthy) {
-                (element as any)[key] = Boolean(value);
+                (element as any)[key] = value === "true";
             } else {
                 (element as any)[key] = value;
             }
@@ -525,7 +525,7 @@ class LoadHookManager {
             this.activeLoadHooks.push(loadHook.id);
 
             const cleanupFunction = loadHook.callback(...depencencies);
-            if (cleanupFunction) {
+            if (typeof cleanupFunction === "function") {
                 this.cleanupProcedures.push({ 
                     kind: loadHook.kind,
                     cleanupFunction: cleanupFunction,

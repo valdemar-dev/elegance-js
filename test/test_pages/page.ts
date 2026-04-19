@@ -1,17 +1,28 @@
-import { effect, eventListener, state } from "elegance-js";
+import { loadHook, state } from "elegance-js"
+
+function counter() {
+    const counter = state(1);
+    
+    loadHook(() => {
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+    });
+
+    return div();
+}
 
 export function page() {
-    const counter = state(0);
 
-    effect(() => {
-        console.log("counter changed");
-    }, [counter])
+    return div({
+        className: "bg-black text-white",
+    },
+        h1("this is static"),
 
-    return div(
-        button({
-            onClick: eventListener((_, counter) => {counter.value += 1}, [counter])
-        }, "increment")
+        counter(),
     );
 }
 
-export function metadata() {}
+export function metadata() {
+    return [];
+}

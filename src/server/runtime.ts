@@ -13,6 +13,8 @@ let serverIsActive: boolean = false;
 
 let compilerOptions: CompilerOptions;
 
+let isWatching = false;
+
 /**
  * Run the elegance runtime, and if hot-reloading is enabled, will start the hot-reload server.
  * @param file The runtime file to execute.
@@ -64,19 +66,14 @@ function restartEleganceRuntime() {
     child.on("exit", (code) => {
         if (code === 0) return;
 
+        if (isWatching) return;
+        isWatching = true;
+
         formattedLog(LogLevel.ERROR, "Waiting for file changes..");
 
         const { watchers } = createRecursiveWatcher(compilerOptions.pagesDirectory, async (path: string) => {
-            deleteWatchers();
-
             restartEleganceRuntime();
         })
-
-        function deleteWatchers() {
-            for (const [_, watcher] of watchers) {
-                watcher.close();
-            }
-        }
     })
 
     child.on("message", (raw: string) => {

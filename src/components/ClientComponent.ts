@@ -25,13 +25,13 @@ function ClientComponent<const T extends readonly ServerSubject<unknown>[]>(
     callback: ClientComponentCallback<T>, 
     dependencies: [...T]
 ): EleganceElement<any, true> {
-    const callbackState = state(callback);
-
     const store = compilerStore.getStore();
 
     if (!store) {
-        throw new Error("ClientComponent() can only be invoked during the compilation of a page or layout.");
+        throw new Error("ClientComponent() can only be invoked during the compilation of a page or layout, never at the top-level of a file.");
     }
+
+    const callbackState = state(callback);
 
     const componentId = state(store.generateId());
 

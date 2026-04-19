@@ -16,11 +16,11 @@ import { compilerStore } from "../compilation/compiler.js";
  * @returns An HTML element to track the position of the Client Component.
  */
 function ClientComponent(callback, dependencies) {
-    const callbackState = state(callback);
     const store = compilerStore.getStore();
     if (!store) {
-        throw new Error("ClientComponent() can only be invoked during the compilation of a page or layout.");
+        throw new Error("ClientComponent() can only be invoked during the compilation of a page or layout, never at the top-level of a file.");
     }
+    const callbackState = state(callback);
     const componentId = state(store.generateId());
     loadHook((componentId, callback, ...dependencies) => {
         let node;

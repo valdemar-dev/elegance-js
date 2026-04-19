@@ -46,7 +46,8 @@ function loadHook(callback, dependencies) {
     const loadHookKind = isLayoutLoadHook === true ? LoadHookKind.LAYOUT_LOADHOOK : LoadHookKind.PAGE_LOADHOOK;
     const pathname = loadHookKind === LoadHookKind.LAYOUT_LOADHOOK ? store.compilationContext.pathname : undefined;
     const id = store.generateId();
-    const loadHook = new LoadHook(callback, dependencies, loadHookKind, id, pathname);
+    // horrible.
+    const loadHook = new LoadHook(callback, dependencies || [], loadHookKind, id, pathname);
     store.addClientToken(loadHook);
 }
 export { loadHook, LoadHook };

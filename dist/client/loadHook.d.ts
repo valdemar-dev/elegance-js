@@ -7,7 +7,7 @@ declare enum LoadHookKind {
 type LoadHookCleanupFunction = (() => void);
 type LoadHookCallback<D extends readonly ServerSubject<unknown>[]> = (...dependencies: {
     [K in keyof D]: ClientSubject<D[K]["value"]>;
-}) => LoadHookCleanupFunction | void;
+}) => LoadHookCleanupFunction | void | Promise<void>;
 declare class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
     pathname?: string;
     kind: LoadHookKind;
@@ -29,6 +29,6 @@ declare class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
  * @param callback The browser-side contextless code the loadHook will run.
  * @param dependencies A dependency of state that will be passed into this loadHook
  */
-declare function loadHook<const T extends readonly ServerSubject<unknown>[]>(callback: LoadHookCallback<T>, dependencies: [...T]): void;
+declare function loadHook<const T extends readonly ServerSubject<unknown>[]>(callback: LoadHookCallback<T>, dependencies?: [...T]): void;
 export { loadHook, LoadHook };
 export type { LoadHookCallback, LoadHookCleanupFunction, LoadHookKind, };

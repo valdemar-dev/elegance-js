@@ -12,7 +12,10 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/three": "^0.182.0",
-    "three": "^0.182.0",
-    "elegance-js": "../"
+    "elegance-js": "../",
+    "three": "^0.182.0"
+  },
+  "dependencies": {
+    "ts-morph": "^28.0.0"
   }
 }

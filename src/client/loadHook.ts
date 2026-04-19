@@ -10,7 +10,7 @@ enum LoadHookKind {
 type LoadHookCleanupFunction = (() => void);
 
 type LoadHookCallback<D extends readonly ServerSubject<unknown>[]> =
-    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => LoadHookCleanupFunction | void;
+    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => LoadHookCleanupFunction | void | Promise<void>;
 
 class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
     pathname?: string;
@@ -60,7 +60,7 @@ class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
  */
 function loadHook<const T extends readonly ServerSubject<unknown>[]>(
     callback: LoadHookCallback<T>,
-    dependencies: [...T]
+    dependencies?: [...T]
 ) {
     const store = compilerStore.getStore();
     if (!store) throw new Error("Illegal invocation of loadHook(). Ensure that the loadHook() function is only called inside components, and never at the top-level of a page or layout.");
@@ -72,7 +72,8 @@ function loadHook<const T extends readonly ServerSubject<unknown>[]>(
 
     const id = store.generateId();
 
-    const loadHook = new LoadHook<T>(callback, dependencies, loadHookKind, id, pathname);
+    // horrible.
+    const loadHook = new LoadHook<T>(callback, dependencies || [] as any, loadHookKind, id, pathname);
 
     store.addClientToken(loadHook);
 }
