@@ -1432,7 +1432,7 @@ async function transpileClientRuntime() {
 function createRecursiveWatcher(
     targetDir: string,
     callback: (path: string) => Promise<void>
-): void {
+) {
     const watchers = new Map<string, FSWatcher>();
     const timeouts = new Map<string, NodeJS.Timeout>();
 
@@ -1512,6 +1512,8 @@ function createRecursiveWatcher(
     }
 
     registerWatcher(targetDir);
+
+    return { watchers, timeouts, unregisterWatcher }
 }
 
 /** 

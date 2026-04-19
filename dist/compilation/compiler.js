@@ -1108,6 +1108,7 @@ function createRecursiveWatcher(targetDir, callback) {
         catch (e) { }
     }
     registerWatcher(targetDir);
+    return { watchers, timeouts, unregisterWatcher };
 }
 /**
  * Run the general compilation process for the project.

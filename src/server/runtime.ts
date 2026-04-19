@@ -66,9 +66,17 @@ function restartEleganceRuntime() {
 
         formattedLog(LogLevel.ERROR, "Waiting for file changes..");
 
-        createRecursiveWatcher(compilerOptions.pagesDirectory, async (path: string) => {
+        const { watchers } = createRecursiveWatcher(compilerOptions.pagesDirectory, async (path: string) => {
+            deleteWatchers();
+
             restartEleganceRuntime();
         })
+
+        function deleteWatchers() {
+            for (const [_, watcher] of watchers) {
+                watcher.close();
+            }
+        }
     })
 
     child.on("message", (raw: string) => {

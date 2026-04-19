@@ -2,6 +2,7 @@
  * This file contains the functions used by compiler_process to compile pages.
  */
 import { AnyElement, SpecialElementOption } from "../elements/element";
+import { FSWatcher } from "fs";
 import { PageInformation } from "../server/page";
 import { LayoutInformation, LayoutProps } from "../server/layout";
 import { AsyncLocalStorage } from "async_hooks";
@@ -133,7 +134,11 @@ declare function compileLayout(layoutInformation: LayoutInformation, allLayouts:
     req?: IncomingMessage;
     res?: ServerResponse;
 }): Promise<CompiledLayout>;
-declare function createRecursiveWatcher(targetDir: string, callback: (path: string) => Promise<void>): void;
+declare function createRecursiveWatcher(targetDir: string, callback: (path: string) => Promise<void>): {
+    watchers: Map<string, FSWatcher>;
+    timeouts: Map<string, NodeJS.Timeout>;
+    unregisterWatcher: (path: string) => void;
+};
 /**
  * Run the general compilation process for the project.
  * This compiles all static-pages & static-layouts, as well as gathers a list of every page (dynamic and static) & layout (dynamic and static).

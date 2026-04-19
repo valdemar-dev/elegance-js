@@ -49,9 +49,15 @@ function restartEleganceRuntime() {
         if (code === 0)
             return;
         formattedLog(LogLevel.ERROR, "Waiting for file changes..");
-        createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
+        const { watchers } = createRecursiveWatcher(compilerOptions.pagesDirectory, async (path) => {
+            deleteWatchers();
             restartEleganceRuntime();
         });
+        function deleteWatchers() {
+            for (const [_, watcher] of watchers) {
+                watcher.close();
+            }
+        }
     });
     child.on("message", (raw) => {
         const { message, content } = JSON.parse(raw);
