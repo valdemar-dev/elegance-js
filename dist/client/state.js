@@ -27,7 +27,8 @@ class ServerSubject {
         }
         const mapId = state(store.generateId());
         const templateState = state(callback);
-        loadHook((templateState, thisState, mapId) => {
+        const thisState = state(this);
+        loadHook(() => {
             let trackedElements = [];
             function updateCallback() {
                 const mapTemplateElement = document.querySelector(`template[map-id="${mapId.value}"]`);
@@ -52,7 +53,7 @@ class ServerSubject {
             return () => {
                 thisState.unobserve(callbackId);
             };
-        }, [templateState, this, mapId]);
+        });
         return template({ "map-id": mapId.value, });
     }
     /**
@@ -104,7 +105,6 @@ function state(value, options) {
         throw new Error(message);
     }
     const { ourCaller } = getCallerFile();
-    console.log("guy who called state", ourCaller);
     const subjectId = makeId(ourCaller.fileName, ourCaller.line, ourCaller.char);
     const serverSubject = new ServerSubject(subjectId, value);
     store.addClientToken(serverSubject);

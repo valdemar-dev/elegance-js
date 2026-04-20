@@ -28,14 +28,14 @@ class LoadHook {
 
     serialize(): string {
         let result = "{";
-        result += `callback:(_state) => {(${this.processedCallback})()},`;
+        result += `c:(_s) => {(${this.processedCallback})()},`;
 
-        result += `id:"${this.id}",`;
+        result += `i:"${this.id}",`;
 
-        result += `kind:${this.kind}`;
+        result += `k:${this.kind}`;
 
         if (this.kind === LoadHookKind.LAYOUT_LOADHOOK && this.pathname) {
-            result += `,pathname:"${this.pathname}"`;
+            result += `,p:"${this.pathname}"`;
         }
 
         result += "}";

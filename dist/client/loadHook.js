@@ -15,11 +15,11 @@ class LoadHook {
     }
     serialize() {
         let result = "{";
-        result += `callback:(_state) => {(${this.processedCallback})()},`;
-        result += `id:"${this.id}",`;
-        result += `kind:${this.kind}`;
+        result += `c:(_s) => {(${this.processedCallback})()},`;
+        result += `i:"${this.id}",`;
+        result += `k:${this.kind}`;
         if (this.kind === LoadHookKind.LAYOUT_LOADHOOK && this.pathname) {
-            result += `,pathname:"${this.pathname}"`;
+            result += `,p:"${this.pathname}"`;
         }
         result += "}";
         return result;

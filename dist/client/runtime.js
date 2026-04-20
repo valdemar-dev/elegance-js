@@ -370,16 +370,16 @@ class LoadHookManager {
     }
     loadValues(loadHooks) {
         for (const loadHook of loadHooks) {
-            if (this.activeLoadHooks.includes(loadHook.id)) {
+            if (this.activeLoadHooks.includes(loadHook.i)) {
                 continue;
             }
-            this.activeLoadHooks.push(loadHook.id);
-            const cleanupFunction = loadHook.callback(stateManager);
+            this.activeLoadHooks.push(loadHook.i);
+            const cleanupFunction = loadHook.c(stateManager);
             if (typeof cleanupFunction === "function") {
                 this.cleanupProcedures.push({
-                    kind: loadHook.kind,
+                    kind: loadHook.k,
                     cleanupFunction: cleanupFunction,
-                    pathname: loadHook.pathname,
+                    pathname: loadHook.p,
                     loadHookIdx: this.activeLoadHooks.length - 1,
                 });
             }

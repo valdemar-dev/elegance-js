@@ -508,10 +508,14 @@ class EffectManager {
 }
 
 type ClientLoadHook = {
-    callback: LoadHookCallback<any>,
-    kind: LoadHookKind
-    id: string;
-    pathname?: string;
+    // callback
+    c: LoadHookCallback<any>,
+    // kind
+    k: LoadHookKind
+    // id
+    i: string;
+    // pathname
+    p?: string;
 }
 
 class LoadHookManager {
@@ -523,18 +527,18 @@ class LoadHookManager {
 
     loadValues(loadHooks: ClientLoadHook[]) {
         for (const loadHook of loadHooks) {
-            if (this.activeLoadHooks.includes(loadHook.id)) {
+            if (this.activeLoadHooks.includes(loadHook.i)) {
                 continue;
             }
 
-            this.activeLoadHooks.push(loadHook.id);
+            this.activeLoadHooks.push(loadHook.i);
 
-            const cleanupFunction = loadHook.callback(stateManager);
+            const cleanupFunction = loadHook.c(stateManager);
             if (typeof cleanupFunction === "function") {
                 this.cleanupProcedures.push({ 
-                    kind: loadHook.kind,
+                    kind: loadHook.k,
                     cleanupFunction: cleanupFunction,
-                    pathname: loadHook.pathname,
+                    pathname: loadHook.p,
                     loadHookIdx: this.activeLoadHooks.length - 1,
                 })
             }

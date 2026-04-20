@@ -46,7 +46,9 @@ class ServerSubject<T extends any> {
 
         const templateState = state(callback);
 
-        loadHook((templateState, thisState, mapId) => {
+        const thisState = state(this);
+
+        loadHook(() => {
             let trackedElements: Node[] = [];
 
             function updateCallback() {
@@ -80,7 +82,7 @@ class ServerSubject<T extends any> {
             return () => {
                 thisState.unobserve(callbackId);
             };
-        }, [templateState, this, mapId]);
+        });
 
         return template({ "map-id": mapId.value, });
     }
@@ -141,7 +143,6 @@ function state<T>(value: T, options?: StateCreationOptions): ServerSubject<T> {
     }
 
     const { ourCaller } = getCallerFile();
-    console.log("guy who called state", ourCaller)
     const subjectId = makeId(ourCaller.fileName, ourCaller.line, ourCaller.char);
 
     const serverSubject = new ServerSubject(subjectId, value);

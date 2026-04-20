@@ -11,7 +11,7 @@ async function runtime() {
         pagesDirectory: pagesDirectory,
         publicDirectory: publicDirectory,
         outputDirectory: outputDirectory,
-        environment: "development",
+        environment: "production",
 
         doHotReload: true,
 

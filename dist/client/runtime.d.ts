@@ -100,10 +100,10 @@ declare class EffectManager {
     loadValues(effects: Effect<any>[]): void;
 }
 type ClientLoadHook = {
-    callback: LoadHookCallback<any>;
-    kind: LoadHookKind;
-    id: string;
-    pathname?: string;
+    c: LoadHookCallback<any>;
+    k: LoadHookKind;
+    i: string;
+    p?: string;
 };
 declare class LoadHookManager {
     private cleanupProcedures;

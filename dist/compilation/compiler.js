@@ -80,6 +80,7 @@ function generateId(compilationContext) {
     return id;
 }
 export function makeId(filePath, lineNumber, columnNumber) {
+    console.log("Making an id:", filePath, lineNumber, columnNumber);
     const id = crypto
         .createHash('sha256')
         .update(filePath + ':' + lineNumber.toString() + ":" + columnNumber.toString())
