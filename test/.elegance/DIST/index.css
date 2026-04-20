@@ -521,9 +521,6 @@
   }
 }
 @layer utilities {
-  .static {
-    position: static;
-  }
   .table {
     display: table;
   }
