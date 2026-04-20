@@ -1,4 +1,5 @@
 import { compilerStore } from "../compilation/compiler.js";
+import { getProcessedFunctionBody } from "../compilation/modify.js";
 var LoadHookKind;
 (function (LoadHookKind) {
     LoadHookKind[LoadHookKind["LAYOUT_LOADHOOK"] = 0] = "LAYOUT_LOADHOOK";
@@ -42,6 +43,7 @@ function loadHook(callback, dependencies) {
     const store = compilerStore.getStore();
     if (!store)
         throw new Error("Illegal invocation of loadHook(). Ensure that the loadHook() function is only called inside components, and never at the top-level of a page or layout.");
+    console.log(getProcessedFunctionBody());
     const isLayoutLoadHook = store.compilationContext.kind === "layout";
     const loadHookKind = isLayoutLoadHook === true ? LoadHookKind.LAYOUT_LOADHOOK : LoadHookKind.PAGE_LOADHOOK;
     const pathname = loadHookKind === LoadHookKind.LAYOUT_LOADHOOK ? store.compilationContext.pathname : undefined;

@@ -543,7 +543,7 @@ async function getPageExports(modulePath) {
     const filePath = path.join(tmpdir(), `mod-${Date.now()}.ts`);
     writeFileSync(filePath, transformedSource);
     // check out ts-arc if you're curious about copycat uri
-    const rawExports = await import(`copycat://${modulePath}?real=${filePath}`).catch((err) => {
+    const rawExports = await import(`${modulePath}`).catch((err) => {
         console.error(`Encountered an error in file:\n    ${modulePath}`);
         throw err;
     });

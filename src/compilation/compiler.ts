@@ -782,7 +782,7 @@ async function getPageExports(modulePath: string): Promise<PageExports> {
     writeFileSync(filePath, transformedSource);
 
     // check out ts-arc if you're curious about copycat uri
-    const rawExports = await import(`copycat://${modulePath}?real=${filePath}`).catch((err: unknown) => {
+    const rawExports = await import(`${modulePath}`).catch((err: unknown) => {
         console.error(`Encountered an error in file:\n    ${modulePath}`);
         throw err;
     });

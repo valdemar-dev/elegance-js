@@ -58,7 +58,7 @@ function restartEleganceRuntime() {
         child.kill();
     }
  
-    child = spawn("node", ["--import", "ts-arc/register", childPath], { 
+    child = spawn("node", ["--import", "ts-arc/register", "--enable-source-maps", childPath], { 
         stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
         env: { ...process.env }
     });

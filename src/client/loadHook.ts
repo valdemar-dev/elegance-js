@@ -1,6 +1,7 @@
 import { compilerStore } from "../compilation/compiler";
 import { ServerSubject } from "./state";
 import type { ClientSubject } from "./runtime";
+import { _getCallerFile, getProcessedFunctionBody } from "../compilation/modify";
 
 enum LoadHookKind {
     LAYOUT_LOADHOOK,
@@ -46,6 +47,7 @@ class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
     }
 }
 
+
 /**
  * Creates a browser-side callback that is called upon navigation to a given page.
  * It may return a cleanup function which will be called when the loadHook goes out of scope.
@@ -64,6 +66,8 @@ function loadHook<const T extends readonly ServerSubject<unknown>[]>(
 ) {
     const store = compilerStore.getStore();
     if (!store) throw new Error("Illegal invocation of loadHook(). Ensure that the loadHook() function is only called inside components, and never at the top-level of a page or layout.");
+
+    console.log(getProcessedFunctionBody())
 
     const isLayoutLoadHook = store.compilationContext.kind === "layout";
     
