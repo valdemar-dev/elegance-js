@@ -23,14 +23,17 @@
  * @returns The modified source-code (full file) or the processed function text (in specific mode).
  */
 export declare function transformSource(source: string, filePath?: string, targetFunctionName?: string, targetLine?: number, targetChar?: number): string;
-export declare function _getCallerFile(): {
+export declare function getCallerFile(): {
     ourCaller: {
-        getFunctionName: () => any;
+        functionName: string;
+        fileName: string;
+        line: number;
+        char: number;
     };
     targetCaller: {
-        fileName: any;
+        fileName: string;
         line: number;
-        char: any;
+        char: number;
     };
 };
 /**

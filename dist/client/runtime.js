@@ -1,5 +1,5 @@
-import { allElements } from "../elements/element_list.js";
-import { SpecialElementOption, EleganceElement } from "../elements/element.js";
+import { allElements } from "../elements/element_list";
+import { SpecialElementOption, EleganceElement } from "../elements/element";
 Object.assign(window, allElements);
 const newArray = Array.from;
 let idCounter = 0;
@@ -370,12 +370,11 @@ class LoadHookManager {
     }
     loadValues(loadHooks) {
         for (const loadHook of loadHooks) {
-            const depencencies = stateManager.getAll(loadHook.dependencies);
             if (this.activeLoadHooks.includes(loadHook.id)) {
                 continue;
             }
             this.activeLoadHooks.push(loadHook.id);
-            const cleanupFunction = loadHook.callback(...depencencies);
+            const cleanupFunction = loadHook.callback(stateManager);
             if (typeof cleanupFunction === "function") {
                 this.cleanupProcedures.push({
                     kind: loadHook.kind,

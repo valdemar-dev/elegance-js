@@ -1,6 +1,6 @@
-import { loadHook } from "../client/loadHook.js";
-import { state } from "../client/state.js";
-import { compilerStore } from "../compilation/compiler.js";
+import { loadHook } from "../client/loadHook";
+import { state } from "../client/state";
+import { compilerStore } from "../compilation/compiler";
 /**
  * Create a component that will be client-side rendered.
  *

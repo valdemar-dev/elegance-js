@@ -90,6 +90,7 @@ type CompilerStore = {
 };
 declare const compilerStore: AsyncLocalStorage<CompilerStore>;
 declare function setCompilerOptions(newOptions: CompilerOptions): void;
+export declare function makeId(filePath: string, lineNumber: number, columnNumber: number): string;
 declare function generatePageCompilationContext(pathname: string): PageCompilationContext;
 declare function generateLayoutCompilationContext(pathname: string): LayoutCompilationContext;
 /**

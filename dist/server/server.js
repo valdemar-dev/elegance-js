@@ -5,13 +5,13 @@
  * It's HTTP only, so if you want HTTPS, use a proxy.
  */
 import { join, normalize, relative, resolve } from "path";
-import { compilePage, compilerOptions, compilerStore } from "../compilation/compiler.js";
+import { compilePage, compilerOptions, compilerStore } from "../compilation/compiler";
 import { createServer, } from "http";
 import { existsSync, readdirSync, statSync, createReadStream } from "fs";
 import * as zlib from "zlib";
 import { promisify } from "util";
 import { URLSearchParams } from "url";
-import { formattedLog, LogLevel } from "./log.js";
+import { formattedLog, LogLevel } from "./log";
 const gzipAsync = promisify(zlib.gzip);
 function removePrefix(str, prefix) {
     return str.startsWith(prefix) ? str.slice(prefix.length) : str;

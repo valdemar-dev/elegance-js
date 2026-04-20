@@ -1,4 +1,4 @@
-import { compilerStore } from "../compilation/compiler.js";
+import { compilerStore } from "../compilation/compiler";
 class Effect {
     constructor(callback, dependencies, id) {
         this.callback = callback;

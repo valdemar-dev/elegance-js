@@ -1,26 +1,17 @@
 import { readFileSync } from "fs";
 import { Project, SyntaxKind, Node } from "ts-morph";
-import crypto from "crypto";
 import { fileURLToPath } from "url";
-function makeId(filePath, name, pos) {
-    const id = crypto
-        .createHash('sha256')
-        .update(filePath + ':' + name + pos.toString())
-        .digest('base64url')
-        .slice(0, 11); // 66 bits of entropy
-    return `${id}`;
-}
-const project = new Project({
-    useInMemoryFileSystem: true
-});
+import { makeId } from "./compiler";
 /**
  * notes:
  * we really should be using symbols to determine whether or not state() and loadHook() calls are *ours*
  * otherwise they're prone to shadowing, which might be rare, but can still happen.
  */
-let sharedFile;
 const processedFiles = new Map();
 const fileSourceFiles = new Map();
+const project = new Project({
+    useInMemoryFileSystem: true
+});
 /**
  * Take all references to state() calls within client-side functions (loadHook, observer), and turn them into appropriate references.
  *
@@ -59,7 +50,9 @@ export function transformSource(source, filePath = "input.ts", targetFunctionNam
             continue;
         if (init.getExpression().getText() === "state") {
             const name = decl.getName();
-            const id = makeId(filePath, name, decl.getStart());
+            const pos = init.getStart();
+            const { line, column } = sharedFile.getLineAndColumnAtPos(pos);
+            const id = makeId(filePath, line, column);
             stateSymbolToId.set(name, id);
         }
     }
@@ -70,14 +63,14 @@ export function transformSource(source, filePath = "input.ts", targetFunctionNam
         let targetCall = undefined;
         for (const c of callExpressions) {
             const startPos = c.getStart();
-            const { line, column } = sharedFile.getLineAndColumnAtPos(startPos);
-            if (line === targetLine && column === targetChar - 1) {
+            const { line } = sharedFile.getLineAndColumnAtPos(startPos);
+            if (line === targetLine) {
                 targetCall = c;
                 break;
             }
         }
         if (!targetCall) {
-            throw new Error(`Could not find call to ${targetFunctionName} at line ${targetLine}, column ${targetChar} in ${filePath}`);
+            throw new Error(`Could not find call to ${targetFunctionName} at line ${targetLine} in ${filePath}`);
         }
         const arg = targetCall.getArguments()[0];
         const fn = arg?.asKind(SyntaxKind.ArrowFunction) || arg?.asKind(SyntaxKind.FunctionExpression);
@@ -93,7 +86,7 @@ export function transformSource(source, filePath = "input.ts", targetFunctionNam
             const name = node.getText();
             const id = stateSymbolToId.get(name);
             if (id) {
-                node.replaceWithText(`_state["${id}"]`);
+                node.replaceWithText(`_state.get("${id}")`);
             }
         }
         return fn.getText();
@@ -121,7 +114,7 @@ export function transformSource(source, filePath = "input.ts", targetFunctionNam
     }
     return sharedFile.getFullText();
 }
-export function _getCallerFile() {
+export function getCallerFile() {
     const err = new Error();
     const stackString = err.stack;
     const lines = stackString.split('\n');
@@ -133,18 +126,29 @@ export function _getCallerFile() {
         let content = trimmed.slice(3).trim();
         let functionName;
         let locationPart = content;
-        const nameMatch = content.match(/^([^(]+?)\s+(.*)$/);
-        if (nameMatch) {
-            functionName = nameMatch[1].trim();
-            locationPart = nameMatch[2].trim();
+        // extract function name if present before the location part
+        const openParenIndex = content.indexOf('(');
+        if (openParenIndex > 0) {
+            functionName = content.slice(0, openParenIndex).trim();
+            locationPart = content.slice(openParenIndex).trim();
         }
+        // strip outer parentheses from location
         locationPart = locationPart.replace(/^\(/, '').replace(/\)$/, '');
-        const parts = locationPart.split(':');
-        if (parts.length < 3)
+        // robust extraction of file:line:col using last two colons (handles file:// URLs and plain paths)
+        const lastColon = locationPart.lastIndexOf(':');
+        if (lastColon === -1)
             continue;
-        const col = parseInt(parts.pop(), 10);
-        const lineNum = parseInt(parts.pop(), 10);
-        const file = parts.join(':');
+        const colStr = locationPart.slice(lastColon + 1);
+        const before = locationPart.slice(0, lastColon);
+        const prevColon = before.lastIndexOf(':');
+        if (prevColon === -1)
+            continue;
+        const lineStr = before.slice(prevColon + 1);
+        let file = before.slice(0, prevColon);
+        const lineNum = parseInt(lineStr, 10);
+        const col = parseInt(colStr, 10);
+        if (isNaN(lineNum) || isNaN(col))
+            continue;
         let fileName = file;
         if (file.startsWith('file://')) {
             fileName = fileURLToPath(file);
@@ -162,12 +166,10 @@ export function _getCallerFile() {
         throw new Error(`Stack parsing failed (only got ${callSites.length} frames). Make sure --enable-source-maps is active and source maps are inline.`);
     }
     return {
-        ourCaller: {
-            getFunctionName: () => ourCallerParsed.functionName,
-        },
+        ourCaller: ourCallerParsed,
         targetCaller: {
             fileName: targetCallerParsed.fileName,
-            line: targetCallerParsed.line - 1,
+            line: targetCallerParsed.line,
             char: targetCallerParsed.char,
         },
     };
@@ -184,11 +186,10 @@ export function _getCallerFile() {
  * however typescript is of course very slow.
  */
 export function getProcessedFunctionBody() {
-    const { ourCaller, targetCaller, } = _getCallerFile();
-    console.log(targetCaller);
+    const { ourCaller, targetCaller, } = getCallerFile();
     // find out what function calls body we're searching for.
-    const targetFunctionName = ourCaller.getFunctionName();
-    const filePath = targetCaller.fileName.startsWith("file://") ? fileURLToPath(targetCaller.fileName) : targetCaller.fileName;
+    const targetFunctionName = ourCaller.functionName;
+    const filePath = targetCaller.fileName;
     let source;
     if (processedFiles.has(filePath)) {
         source = processedFiles.get(filePath);
@@ -197,7 +198,6 @@ export function getProcessedFunctionBody() {
         source = readFileSync(filePath, "utf8");
         processedFiles.set(filePath, source);
     }
-    console.log(source);
     const result = transformSource(source, filePath, targetFunctionName, targetCaller.line, targetCaller.char);
     return result;
 }

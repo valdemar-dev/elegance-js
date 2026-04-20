@@ -3,26 +3,24 @@
  */
 import path from "path";
 import crypto from "crypto";
-import { EleganceElement, SpecialElementOption } from "../elements/element.js";
-import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from "fs";
+import { EleganceElement, SpecialElementOption } from "../elements/element";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, watch, writeFileSync } from "fs";
 import esbuild from "esbuild";
-import { invalidPageError } from "../server/page.js";
-import { invalidLayoutError } from "../server/layout.js";
-import { allElements } from "../elements/element_list.js";
-import { ObserverOption, ServerObserver } from "../client/observer.js";
+import { invalidPageError } from "../server/page";
+import { invalidLayoutError } from "../server/layout";
+import { allElements } from "../elements/element_list";
+import { ObserverOption, ServerObserver } from "../client/observer";
 import { fileURLToPath } from "url";
 import util from "util";
 import { AsyncLocalStorage } from "async_hooks";
-import { ServerSubject } from "../client/state.js";
-import { EventListenerOption, EventListener } from "../client/eventListener.js";
-import { LoadHook } from "../client/loadHook.js";
-import { formattedLog, LogLevel, setLogLevel } from "../server/log.js";
+import { ServerSubject } from "../client/state";
+import { EventListenerOption, EventListener } from "../client/eventListener";
+import { LoadHook } from "../client/loadHook";
+import { formattedLog, LogLevel, setLogLevel } from "../server/log";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import { raw, unwrapAllRaw, } from "../elements/raw.js";
-import { Effect } from "../client/effect.js";
-import { tmpdir } from "os";
-import { transformSource } from "./modify.js";
+import { raw, unwrapAllRaw, } from "../elements/raw";
+import { Effect } from "../client/effect";
 let compilerOptions;
 const compilerStore = new AsyncLocalStorage();
 /**
@@ -80,6 +78,15 @@ function generateId(compilationContext) {
     }
     compilationContext.usedHashes.push(id);
     return id;
+}
+export function makeId(filePath, lineNumber, columnNumber) {
+    console.log("making an id with", filePath, lineNumber, columnNumber);
+    const id = crypto
+        .createHash('sha256')
+        .update(filePath + ':' + lineNumber.toString() + ":" + columnNumber.toString())
+        .digest('base64url')
+        .slice(0, 11); // 66 bits of entropy
+    return `${id}`;
 }
 function generateLayoutId(layoutInformation) {
     return crypto
@@ -538,16 +545,22 @@ async function walkDirectory(fullPath, callback) {
  * This file *should* be the first thing that imports a page.
  */
 async function getPageExports(modulePath) {
+    /*
     const moduleSource = readFileSync(modulePath).toString();
     const transformedSource = transformSource(moduleSource);
+
     const filePath = path.join(tmpdir(), `mod-${Date.now()}.ts`);
+
     writeFileSync(filePath, transformedSource);
+    */
     // check out ts-arc if you're curious about copycat uri
     const rawExports = await import(`${modulePath}`).catch((err) => {
         console.error(`Encountered an error in file:\n    ${modulePath}`);
         throw err;
     });
+    /*
     rmSync(filePath);
+    */
     let isDynamic = rawExports?.isDynamic === true;
     const pageConstructor = rawExports.page;
     {

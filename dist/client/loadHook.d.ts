@@ -1,20 +1,17 @@
 import { ServerSubject } from "./state";
-import type { ClientSubject } from "./runtime";
+import type { StateManager } from "./runtime";
 declare enum LoadHookKind {
     LAYOUT_LOADHOOK = 0,
     PAGE_LOADHOOK = 1
 }
 type LoadHookCleanupFunction = (() => void);
-type LoadHookCallback<D extends readonly ServerSubject<unknown>[]> = (...dependencies: {
-    [K in keyof D]: ClientSubject<D[K]["value"]>;
-}) => LoadHookCleanupFunction | void | Promise<void>;
-declare class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
+type LoadHookCallback<D extends readonly ServerSubject<unknown>[]> = (_state: StateManager) => LoadHookCleanupFunction | void | Promise<void>;
+declare class LoadHook {
     pathname?: string;
     kind: LoadHookKind;
-    callback: LoadHookCallback<T>;
-    dependencies: string[];
+    processedCallback: string;
     id: string;
-    constructor(callback: LoadHookCallback<T>, dependencies: [...T], kind: LoadHookKind, id: string, pathname?: string);
+    constructor(processedCallback: string, kind: LoadHookKind, id: string, pathname?: string);
     serialize(): string;
 }
 /**

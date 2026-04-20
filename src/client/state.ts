@@ -1,4 +1,5 @@
-import { compilerStore } from "../compilation/compiler";
+import { compilerStore, makeId } from "../compilation/compiler";
+import { getCallerFile } from "../compilation/modify";
 import { EleganceElement } from "../elements/element";
 import { raw } from "../elements/raw";
 import { loadHook } from "./loadHook";
@@ -101,7 +102,6 @@ class ServerSubject<T extends any> {
     serialize(): string {
         let result = `{id:"${this.id}",value:`;
 
-
         switch (typeof this.value) {
         case "string":
             result += `"${this.value}"`;
@@ -140,7 +140,9 @@ function state<T>(value: T, options?: StateCreationOptions): ServerSubject<T> {
         throw new Error(message);
     }
 
-    const subjectId = options?.explicitId ?? store.generateId();
+    const { ourCaller } = getCallerFile();
+    console.log("guy who called state", ourCaller)
+    const subjectId = makeId(ourCaller.fileName, ourCaller.line, ourCaller.char);
 
     const serverSubject = new ServerSubject(subjectId, value);
 

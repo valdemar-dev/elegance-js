@@ -1,4 +1,4 @@
-import { EleganceElement, } from "./element.js";
+import { EleganceElement, } from "./element";
 const htmlChildrenlessElementTags = [
     "area", "base", "br", "col", "embed", "hr", "img", "input",
     "link", "meta", "param", "source", "track", "wbr",

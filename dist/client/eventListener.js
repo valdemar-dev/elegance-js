@@ -1,5 +1,5 @@
-import { SpecialElementOption } from "../elements/element.js";
-import { compilerStore } from "../compilation/compiler.js";
+import { SpecialElementOption } from "../elements/element";
+import { compilerStore } from "../compilation/compiler";
 class EventListenerOption extends SpecialElementOption {
     constructor(id) {
         super();

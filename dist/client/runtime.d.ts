@@ -1,5 +1,5 @@
 import type { EventListener, EventListenerCallback } from "./eventListener";
-import type { LoadHook } from "./loadHook";
+import type { LoadHookCallback } from "./loadHook";
 import type { ServerObserver } from "./observer";
 import type { ServerSubject } from "./state";
 import type { Effect } from "./effect";
@@ -90,16 +90,26 @@ declare class ObserverManager {
      */
     transformSubjectObserverNodes(): void;
 }
+declare enum LoadHookKind {
+    LAYOUT_LOADHOOK = 0,
+    PAGE_LOADHOOK = 1
+}
 declare class EffectManager {
     private activeEffects;
     private cleanupProcedures;
     loadValues(effects: Effect<any>[]): void;
 }
+type ClientLoadHook = {
+    callback: LoadHookCallback<any>;
+    kind: LoadHookKind;
+    id: string;
+    pathname?: string;
+};
 declare class LoadHookManager {
     private cleanupProcedures;
     private activeLoadHooks;
     constructor();
-    loadValues(loadHooks: LoadHook<any>[]): void;
+    loadValues(loadHooks: ClientLoadHook[]): void;
     callCleanupFunctions(): void;
 }
 export { ClientSubject, StateManager, ObserverManager, LoadHookManager, EventListenerManager, EffectManager, };

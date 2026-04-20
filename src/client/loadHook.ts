@@ -1,7 +1,7 @@
 import { compilerStore } from "../compilation/compiler";
 import { ServerSubject } from "./state";
-import type { ClientSubject } from "./runtime";
-import { _getCallerFile, getProcessedFunctionBody } from "../compilation/modify";
+import type { ClientSubject, StateManager } from "./runtime";
+import { getProcessedFunctionBody } from "../compilation/modify";
 
 enum LoadHookKind {
     LAYOUT_LOADHOOK,
@@ -11,27 +11,24 @@ enum LoadHookKind {
 type LoadHookCleanupFunction = (() => void);
 
 type LoadHookCallback<D extends readonly ServerSubject<unknown>[]> =
-    (...dependencies: { [K in keyof D]: ClientSubject<D[K]["value"]> }) => LoadHookCleanupFunction | void | Promise<void>;
+    (_state: StateManager) => LoadHookCleanupFunction | void | Promise<void>;
 
-class LoadHook<const T extends readonly ServerSubject<unknown>[]> {
+class LoadHook {
     pathname?: string;
     kind: LoadHookKind;
-    callback: LoadHookCallback<T>;
-    dependencies: string[];
+    processedCallback: string;
     id: string;
 
-    constructor(callback: LoadHookCallback<T>, dependencies: [...T], kind: LoadHookKind, id: string, pathname?: string) {
+    constructor(processedCallback: string, kind: LoadHookKind, id: string, pathname?: string) {
         this.pathname = pathname;
-        this.callback = callback;
+        this.processedCallback = processedCallback;
         this.kind = kind;
-        this.dependencies = dependencies.map(d => d.id); 
         this.id = id;
     }
 
     serialize(): string {
         let result = "{";
-        result += `callback:${this.callback.toString()},`;
-        result += `dependencies:[${this.dependencies.map(d => `"${d}"`).join(",")}],`;
+        result += `callback:(_state) => {(${this.processedCallback})()},`;
 
         result += `id:"${this.id}",`;
 
@@ -67,7 +64,7 @@ function loadHook<const T extends readonly ServerSubject<unknown>[]>(
     const store = compilerStore.getStore();
     if (!store) throw new Error("Illegal invocation of loadHook(). Ensure that the loadHook() function is only called inside components, and never at the top-level of a page or layout.");
 
-    console.log(getProcessedFunctionBody())
+    const processed = getProcessedFunctionBody();
 
     const isLayoutLoadHook = store.compilationContext.kind === "layout";
     
@@ -77,7 +74,7 @@ function loadHook<const T extends readonly ServerSubject<unknown>[]>(
     const id = store.generateId();
 
     // horrible.
-    const loadHook = new LoadHook<T>(callback, dependencies || [] as any, loadHookKind, id, pathname);
+    const loadHook = new LoadHook(processed, loadHookKind, id, pathname);
 
     store.addClientToken(loadHook);
 }

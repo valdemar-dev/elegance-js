@@ -1,5 +1,5 @@
-import { eventListener } from "../client/eventListener.js";
-import { isAnElement } from "../elements/element.js";
+import { eventListener } from "../client/eventListener";
+import { isAnElement } from "../elements/element";
 function Link(options, ...children) {
     const handler = eventListener((event) => {
         const targetUrl = new URL(event.currentTarget.href, window.location.href);

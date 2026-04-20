@@ -203,6 +203,18 @@ function generateId(compilationContext: PageCompilationContext): string {
     return id;
 }
 
+export function makeId(filePath: string, lineNumber: number, columnNumber: number) {
+    console.log("making an id with", filePath, lineNumber, columnNumber);
+    const id = crypto
+            .createHash('sha256')
+            .update(filePath + ':' + lineNumber.toString() + ":" + columnNumber.toString())
+            .digest('base64url')
+            .slice(0, 11); // 66 bits of entropy
+
+
+    return `${id}`;
+}
+
 function generateLayoutId(layoutInformation: LayoutInformation): string {
     return crypto
         .createHash('sha256')
@@ -774,12 +786,14 @@ async function walkDirectory(fullPath: string, callback: (file: Dirent) => Promi
  * This file *should* be the first thing that imports a page.
  */
 async function getPageExports(modulePath: string): Promise<PageExports> {
+    /*
     const moduleSource = readFileSync(modulePath).toString();
     const transformedSource = transformSource(moduleSource);
 
     const filePath = path.join(tmpdir(), `mod-${Date.now()}.ts`);
 
     writeFileSync(filePath, transformedSource);
+    */
 
     // check out ts-arc if you're curious about copycat uri
     const rawExports = await import(`${modulePath}`).catch((err: unknown) => {
@@ -787,7 +801,9 @@ async function getPageExports(modulePath: string): Promise<PageExports> {
         throw err;
     });
 
+    /*
     rmSync(filePath);
+    */
 
     let isDynamic = rawExports?.isDynamic === true
 

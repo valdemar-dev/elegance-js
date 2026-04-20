@@ -1,6 +1,7 @@
-import { compilerStore } from "../compilation/compiler.js";
-import { raw } from "../elements/raw.js";
-import { loadHook } from "./loadHook.js";
+import { compilerStore, makeId } from "../compilation/compiler";
+import { getCallerFile } from "../compilation/modify";
+import { raw } from "../elements/raw";
+import { loadHook } from "./loadHook";
 class ServerSubject {
     constructor(id, value) {
         this.id = id;
@@ -102,7 +103,9 @@ function state(value, options) {
         const message = "Illegal invocation of state(). Ensure that the state() function is only called inside components, and never at the top-level of a page or layout.";
         throw new Error(message);
     }
-    const subjectId = options?.explicitId ?? store.generateId();
+    const { ourCaller } = getCallerFile();
+    console.log("guy who called state", ourCaller);
+    const subjectId = makeId(ourCaller.fileName, ourCaller.line, ourCaller.char);
     const serverSubject = new ServerSubject(subjectId, value);
     store.addClientToken(serverSubject);
     return serverSubject;

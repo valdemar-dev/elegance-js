@@ -1,6 +1,6 @@
 
 import type { EventListener, EventListenerCallback, EventListenerOption } from "./eventListener";
-import type { LoadHookCleanupFunction, LoadHook } from "./loadHook";
+import type { LoadHookCleanupFunction, LoadHook, LoadHookCallback } from "./loadHook";
 import type { ObserverCallback, ServerObserver } from "./observer";
 import type { ServerSubject } from "./state";
 
@@ -507,6 +507,13 @@ class EffectManager {
     }
 }
 
+type ClientLoadHook = {
+    callback: LoadHookCallback<any>,
+    kind: LoadHookKind
+    id: string;
+    pathname?: string;
+}
+
 class LoadHookManager {
     private cleanupProcedures: CleanupProcedure[] = [];
     private activeLoadHooks: string[] = [];
@@ -514,17 +521,15 @@ class LoadHookManager {
     constructor() {
     }
 
-    loadValues(loadHooks: LoadHook<any>[]) {
+    loadValues(loadHooks: ClientLoadHook[]) {
         for (const loadHook of loadHooks) {
-            const depencencies = stateManager.getAll(loadHook.dependencies);
-
             if (this.activeLoadHooks.includes(loadHook.id)) {
                 continue;
             }
 
             this.activeLoadHooks.push(loadHook.id);
 
-            const cleanupFunction = loadHook.callback(...depencencies);
+            const cleanupFunction = loadHook.callback(stateManager);
             if (typeof cleanupFunction === "function") {
                 this.cleanupProcedures.push({ 
                     kind: loadHook.kind,

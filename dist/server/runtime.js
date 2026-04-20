@@ -1,8 +1,8 @@
 import { spawn } from "child_process";
 import { resolve } from "path";
-import { formattedLog, LogLevel } from "./log.js";
+import { formattedLog, LogLevel } from "./log";
 import { createServer } from "http";
-import { createRecursiveWatcher } from "../compilation/compiler.js";
+import { createRecursiveWatcher } from "../compilation/compiler";
 let child;
 let childPath;
 const clients = new Set();
