@@ -13,6 +13,2007 @@ export function page() {
         console.log(counter.value);
     });
 
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+        loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+    loadHook(() => {
+        console.log(counter.value);
+
+        for (let i = 0; i < 10; i++) {
+            counter.value++;
+        } 
+
+        console.log(counter.value);
+    });
+
     return div({
         className: "bg-black text-white",
     },

@@ -204,7 +204,6 @@ function generateId(compilationContext: PageCompilationContext): string {
 }
 
 export function makeId(filePath: string, lineNumber: number, columnNumber: number) {
-    console.log("making an id with", filePath, lineNumber, columnNumber);
     const id = crypto
             .createHash('sha256')
             .update(filePath + ':' + lineNumber.toString() + ":" + columnNumber.toString())

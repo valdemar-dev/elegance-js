@@ -3,7 +3,7 @@ import {
     Project,
     SyntaxKind,
     Node,
-    SourceFile
+    SourceFile,
 } from "ts-morph";
 import { fileURLToPath } from "url";
 import { makeId } from "./compiler";
@@ -16,72 +16,53 @@ import { makeId } from "./compiler";
 
 const processedFiles = new Map<string, string>();
 const fileSourceFiles = new Map<string, SourceFile>();
+const fileStateSymbolToId = new Map<string, Map<string, string>>();
+const processedFunctionBodies = new Map<string, string>(); // NEW: cache for getProcessedFunctionBody results
 
 const project = new Project({
-    useInMemoryFileSystem: true
-})
+    useInMemoryFileSystem: true,
+});
 
-/**
- * Take all references to state() calls within client-side functions (loadHook, observer), and turn them into appropriate references.
- * 
- * It will generate an id for the state, a sha256 hash of filePath:name+pos, as base64url.
- * 
- * For example, `counter.value++` might turn into `_state["Gj331A_YJI"].value++`
- * 
- * This function is necessary to remove the dependency array within client-side functions.
- * 
- * It's currently in a very experimental state, and thus is slow!!! And not good!
- * 
- * When `targetFunctionName`, `targetLine`, and `targetChar` are provided, it switches to "specific call" mode:
- * it finds *only* the matching call to that function name at the exact source location (line + column),
- * processes *only* the function argument passed to it, and returns the processed function text.
- * 
- * Otherwise it falls back to the original full-file behavior (for backward compatibility).
- * 
- * The SourceFile for each filePath is cached and kept alive indefinitely so subsequent calls
- * to the same file are much faster (no re-parsing).
- * 
- * @param source The raw source-code of the file.
- * @param filePath The in-memory filename (you probably don't need to touch this)
- * @returns The modified source-code (full file) or the processed function text (in specific mode).
- */
 export function transformSource(
-    source: string, 
+    source: string,
     filePath = "input.ts",
     targetFunctionName?: string,
     targetLine?: number,
     targetChar?: number
 ): string {
+    // Ensure SourceFile exists (cached forever)
     if (!fileSourceFiles.has(filePath)) {
         fileSourceFiles.set(filePath, project.createSourceFile(filePath, source));
     }
-    // subsequent calls reuse the exact same SourceFile instance (kept alive, no re-parse)
-
     const sharedFile = fileSourceFiles.get(filePath)!;
 
-    const stateSymbolToId = new Map<string, string>();
-    const declarations = sharedFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
+    // === NEW: stateSymbolToId is now cached per file (only built once) ===
+    let stateSymbolToId: Map<string, string>;
+    if (!fileStateSymbolToId.has(filePath)) {
+        stateSymbolToId = new Map<string, string>();
+        const declarations = sharedFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
 
-    for (const decl of declarations) {
-        const init = decl.getInitializer();
-        if (!Node.isCallExpression(init)) continue;
+        for (const decl of declarations) {
+            const init = decl.getInitializer();
+            if (!Node.isCallExpression(init)) continue;
 
-        if (init.getExpression().getText() === "state") {
-            const name = decl.getName();
-            
-            const pos = init.getStart();
-            
-            const { line, column } = sharedFile.getLineAndColumnAtPos(pos);
-
-            const id = makeId(filePath, line, column);
-
-            stateSymbolToId.set(name, id);
+            if (init.getExpression().getText() === "state") {
+                const name = decl.getName();
+                const pos = init.getStart();
+                const { line, column } = sharedFile.getLineAndColumnAtPos(pos);
+                const id = makeId(filePath, line, column);
+                stateSymbolToId.set(name, id);
+            }
         }
+        fileStateSymbolToId.set(filePath, stateSymbolToId);
+    } else {
+        stateSymbolToId = fileStateSymbolToId.get(filePath)!;
     }
 
     if (targetFunctionName !== undefined && targetLine !== undefined && targetChar !== undefined) {
         // specific-call mode for getProcessedFunctionBody
-        const callExpressions = sharedFile.getDescendantsOfKind(SyntaxKind.CallExpression)
+        const callExpressions = sharedFile
+            .getDescendantsOfKind(SyntaxKind.CallExpression)
             .filter((c: any) => c.getExpression().getText() === targetFunctionName);
 
         let targetCall: any = undefined;
@@ -125,7 +106,8 @@ export function transformSource(
     }
 
     // original full-file behavior (hardcoded loadHook for backward compatibility)
-    const loadHooks = sharedFile.getDescendantsOfKind(SyntaxKind.CallExpression)
+    const loadHooks = sharedFile
+        .getDescendantsOfKind(SyntaxKind.CallExpression)
         .filter((c: any) => c.getExpression().getText() === "loadHook");
 
     for (const hook of loadHooks) {
@@ -155,6 +137,7 @@ export function transformSource(
 }
 
 export function getCallerFile() {
+    // ... (unchanged – your existing stack parser)
     const err = new Error();
     const stackString = err.stack!;
 
@@ -169,17 +152,14 @@ export function getCallerFile() {
         let functionName: string | undefined;
         let locationPart = content;
 
-        // extract function name if present before the location part
         const openParenIndex = content.indexOf('(');
         if (openParenIndex > 0) {
             functionName = content.slice(0, openParenIndex).trim();
             locationPart = content.slice(openParenIndex).trim();
         }
 
-        // strip outer parentheses from location
         locationPart = locationPart.replace(/^\(/, '').replace(/\)$/, '');
 
-        // robust extraction of file:line:col using last two colons (handles file:// URLs and plain paths)
         const lastColon = locationPart.lastIndexOf(':');
         if (lastColon === -1) continue;
         const colStr = locationPart.slice(lastColon + 1);
@@ -208,15 +188,8 @@ export function getCallerFile() {
         });
     }
 
-    type CallSite = {
-        functionName: string;
-        fileName: string,
-        line: number;
-        char: number;
-    }
-
-    const ourCallerParsed = callSites[2] as CallSite;
-    const targetCallerParsed = callSites[3] as CallSite;
+    const ourCallerParsed = callSites[2];
+    const targetCallerParsed = callSites[3];
 
     if (!ourCallerParsed || !targetCallerParsed) {
         throw new Error(`Stack parsing failed (only got ${callSites.length} frames). Make sure --enable-source-maps is active and source maps are inline.`);
@@ -229,28 +202,29 @@ export function getCallerFile() {
             line: targetCallerParsed.line,
             char: targetCallerParsed.char,
         },
-    }
+    };
 }
 
 /**
  * Get a browser-ready processed version for a client-side function.
- * This finds the caller of the function that called getProcessedFunctionBody(),
- * get's the callers position, uses typescript to logically parse the function body,
- * then converts all references to state calls to be "nicer" and browser ready,
- * and then returns a .toString()'ed version of the function body.
- * 
- * NOTE: This operation is very slow for the first call to any file,
- * but afterwards the file is cached, and subsequent requests *should* be faster,
- * however typescript is of course very slow.
+ * Now heavily cached for repeated calls (hundreds of times per file).
  */
 export function getProcessedFunctionBody() {
-    const { ourCaller, targetCaller, } = getCallerFile();
+    const { ourCaller, targetCaller } = getCallerFile();
 
-    // find out what function calls body we're searching for.
     const targetFunctionName = ourCaller.functionName;
-    
     const filePath = targetCaller.fileName;
+    const targetLine = targetCaller.line;
+    const targetChar = targetCaller.char;
 
+    // === NEW: ultra-fast cache key for this exact call site ===
+    const cacheKey = `${filePath}|${targetFunctionName ?? 'undefined'}|${targetLine}|${targetChar}`;
+
+    if (processedFunctionBodies.has(cacheKey)) {
+        return processedFunctionBodies.get(cacheKey)!;
+    }
+
+    // source is already cached (you had this before)
     let source: string;
     if (processedFiles.has(filePath)) {
         source = processedFiles.get(filePath)!;
@@ -259,7 +233,8 @@ export function getProcessedFunctionBody() {
         processedFiles.set(filePath, source);
     }
 
-    const result = transformSource(source, filePath, targetFunctionName, targetCaller.line, targetCaller.char);
+    const result = transformSource(source, filePath, targetFunctionName, targetLine, targetChar);
 
+    processedFunctionBodies.set(cacheKey, result);
     return result;
 }
