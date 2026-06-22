@@ -5,7 +5,8 @@
   "main": "dist/user-utils.js",
   "bin": {
     "bootstrap": "./bin/bootstrap.js",
-    "elegance": "./bin/run.js"
+    "elegance": "./bin/run.js",
+    "export": "./bin/export.js"
   },
   "files": [
     "dist"
