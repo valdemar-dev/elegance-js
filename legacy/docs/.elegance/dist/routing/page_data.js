@@ -1,1 +1,0 @@
-let o="/routing";export const data={state:[{id:43,value:["/pages/recipes/cake/page.ts"]},{id:44,value:function(i,l){(async(d,e,a)=>{await navigator.clipboard.writeText(`${e.value}`),a.value="Copied to Clipboard",a.signal()})(l,...i.getAll([{id:43},{id:6}]))}}],soa:[{id:44,key:36,attribute:"onclick"}]};globalThis.pd||(globalThis.pd={}),globalThis.pd[o]=data;

@@ -1,22 +1,33 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "declaration": true,
-    "outDir": "./dist",
-    "strict": true,
+    "module": "esnext",
     "esModuleInterop": true,
-    "strictFunctionTypes": false,
-    "emitDeclarationOnly": false,
-    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "bundler",
+    "target": "esnext",
+    "types": [ "node" ],
+    "lib": ["esnext", "DOM"],
+
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "dist",
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "exactOptionalPropertyTypes": true,
+
+    "strict": true,
+    "jsx": "react",
+    "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": [
-        "ES2022",
-        "dom"
-    ]
+    "rootDir": "./src"
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["testing", "legacy"],
+  "include": ["src/**/*"],
 }
