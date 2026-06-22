@@ -81,15 +81,6 @@ my-app/
 └── ...
 ```
 
-## Core Concepts
-
-- **Atoms**: units of reactive state. Reading `.value` subscribes; writing triggers re‑renders.
-- **Components**: reusable units with per‑instance state and lifecycle hooks (`onMount`, `onUnmount`, `onNavigate`, `init`).
-- **Props**: passed to components, typed with generics.
-- **Dynamic Pages**: export `isDynamic = true` for per‑request rendering, or `getEnumeratedRoutes` for static generation.
-- **Middleware**: export a default async function that receives `req`, `res`, and `next`. Can short‑circuit or attach data.
-- **Bundle Generation**: server‑only code (e.g., `init`, `//!no-bundle`) is stripped from client bundles.
-
 ## Documentation
 
 Full documentation is available via [Our Website](https://elegance.js.org/)
