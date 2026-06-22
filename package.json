@@ -1,13 +1,15 @@
 {
   "name": "elegance-js",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "type": "module",
   "main": "dist/user-utils.js",
   "bin": {
     "bootstrap": "./bin/bootstrap.js",
     "elegance": "./bin/run.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "lint": "oxlint ./src --fix -D unused-variable -D unused-import",
     "build": "esbuild './src/*.ts' './src/**/*.ts' --outdir=./dist --outbase=./src --format=esm --platform=node --bundle=false && tsc --emitDeclarationOnly && node scripts/fix-imports.js"
