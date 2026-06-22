@@ -47,7 +47,7 @@ function startHotReloadServer() {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
             Connection: "keep-alive",
-            "Access-Control-Allow-Origin": "http://192.168.100.53:3000",
+            "Access-Control-Allow-Origin": "*",
         });
 
         res.write("data: connected\n\n");
