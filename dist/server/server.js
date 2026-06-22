@@ -1,712 +1,862 @@
-/**
- * The Elegance.JS server.
- * This server can be used to run your project.
- *
- * It's HTTP only, so if you want HTTPS, use a proxy.
- */
-import { join, normalize, relative, resolve } from "path";
-import { compilePage, compilerOptions, compilerStore } from "../compilation/compiler";
-import { createServer, } from "http";
-import { existsSync, readdirSync, statSync, createReadStream } from "fs";
-import * as zlib from "zlib";
-import { promisify } from "util";
-import { URLSearchParams } from "url";
-import { formattedLog, LogLevel } from "./log";
-const gzipAsync = promisify(zlib.gzip);
-function removePrefix(str, prefix) {
-    return str.startsWith(prefix) ? str.slice(prefix.length) : str;
+import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import { readFile, readdir, writeFile, mkdir, stat } from "node:fs/promises";
+import { join, dirname, extname, relative, basename } from "node:path";
+import {
+  gzip as gzipCb,
+  brotliCompress as brotliCb,
+  constants as zlibConstants
+} from "node:zlib";
+import { promisify } from "node:util";
+const gzipAsync = promisify(gzipCb);
+const brotliAsync = promisify(brotliCb);
+import { performance } from "node:perf_hooks";
+import { generateSyntheticBundle } from "../processing/oxc.js";
+import { generatePageHTML, generateDynamicPageHTML, createRenderContext, runWithRenderContext } from "../build/render.js";
+import { loadRouteFromCache, runBuildHooks, preClientMjsPath } from "../build/common.js";
+import { OUT_DIR, DIST_DIR, PAGES_DIR, loadPaths } from "../constants.js";
+import { getConfig } from "../config.js";
+import { createSecurityHeaders } from "./security.js";
+import { isRichError, printError, richError } from "../error.js";
+import { logger } from "../logger.js";
+async function loadServerOptions() {
+  await loadPaths();
+  const config = await getConfig();
+  return config.server;
 }
 let serverOptions;
-const allAPIRoutes = new Map();
-async function gatherAPIRoutes() {
-    await walkDirectory(compilerOptions.pagesDirectory, async (file) => {
-        if (file.name !== "route.ts")
-            return;
-        const pathname = sanitizePathname(relative(compilerOptions.pagesDirectory, file.parentPath));
-        const fullPath = join(file.parentPath, file.name);
-        const { POST, GET, PUT, DELETE, OPTIONS } = await import("file://" + fullPath);
-        const methods = { POST, GET, PUT, DELETE, OPTIONS };
-        for (const [name, method] of Object.entries(methods)) {
-            if (method && typeof method !== "function") {
-                throw new Error(`In file: "${fullPath}":\nThe export ${method} is not of type "function". Got: ${typeof method}`);
-            }
-        }
-        const apiRouteInformation = {
-            exports: {
-                methods,
-            },
-            modulePath: fullPath,
-            pathname: pathname,
-        };
-        allAPIRoutes.set(pathname, apiRouteInformation);
-    });
+const IS_DEV = process.env.ELEGANCE_DEV_MODE === "dev";
+class LRU {
+  constructor(max) {
+    this.max = max;
+  }
+  max;
+  map = /* @__PURE__ */ new Map();
+  get(key) {
+    if (!this.map.has(key)) return void 0;
+    const v = this.map.get(key);
+    this.map.delete(key);
+    this.map.set(key, v);
+    return v;
+  }
+  set(key, val) {
+    if (this.map.has(key)) this.map.delete(key);
+    else if (this.map.size >= this.max) this.map.delete(this.map.keys().next().value);
+    this.map.set(key, val);
+  }
+  has(key) {
+    return this.map.has(key);
+  }
+  delete(key) {
+    this.map.delete(key);
+  }
 }
-async function handleAPIRequest(req, res, pathname) {
-    const route = allAPIRoutes.get(pathname);
-    if (!route) {
-        res.statusCode = 404;
-        await sendResponse(req, res, "Route does not exist.");
-        return;
-    }
-    if (!req.method) {
-        res.statusCode = 400;
-        await sendResponse(req, res, "Bad request");
-        return;
-    }
-    const method = route.exports.methods[req.method];
-    if (!method) {
-        res.statusCode = 405;
-        await sendResponse(req, res, "Method not allowed");
-        return;
-    }
-    method(req, res);
-}
-/**
- * Go through a directory, including all it's subdirectories,
- * and call callback() for each file.
- */
-async function walkDirectory(fullPath, callback) {
-    const stack = [];
-    stack.push(...readdirSync(fullPath, { withFileTypes: true, }));
-    while (true) {
-        const entry = stack.pop();
-        if (!entry)
-            break;
-        if (entry.isDirectory()) {
-            const fullPath = join(entry.parentPath, entry.name);
-            stack.push(...readdirSync(fullPath, { withFileTypes: true, }));
-            continue;
-        }
-        if (!entry.isFile())
-            continue;
-        await callback(entry);
-    }
-}
-function safePercentDecode(input) {
-    return input.replace(/%[0-9A-Fa-f]{2}/g, (m) => String.fromCharCode(parseInt(m.slice(1), 16)));
-}
-function sanitizePathname(pathname = "") {
-    if (!pathname)
-        return "/";
-    pathname = safePercentDecode(pathname);
-    pathname = "/" + pathname;
-    pathname = pathname.replace(/\/+/g, "/");
-    const segments = pathname.split("/");
-    const resolved = [];
-    for (const segment of segments) {
-        if (!segment || segment === ".")
-            continue;
-        if (segment === "..") {
-            resolved.pop();
-            continue;
-        }
-        resolved.push(segment);
-    }
-    const encoded = resolved.map((s) => encodeURIComponent(s));
-    return "/" + encoded.join("/");
-}
-function getStatusCodePage(statusCode, pathname) {
-    const pages = serverOptions.allStatusCodePages;
-    let currentPath = pathname;
-    if (!currentPath.startsWith("/")) {
-        currentPath = "/" + currentPath;
-    }
-    while (true) {
-        let candidate;
-        if (currentPath === "/") {
-            candidate = `/${statusCode}`;
-        }
-        else {
-            candidate = `${currentPath.replace(/\/$/, "")}/${statusCode}`;
-        }
-        const pageInfo = pages.get(candidate);
-        if (pageInfo) {
-            pageInfo.pathname = pathname;
-            return pageInfo;
-        }
-        if (currentPath === "/") {
-            break;
-        }
-        const lastSlash = currentPath.lastIndexOf("/");
-        if (lastSlash <= 0) {
-            currentPath = "/";
-        }
-        else {
-            currentPath = currentPath.slice(0, lastSlash);
-        }
-    }
-}
-async function respondWithStatusCodePage(req, res, pathname, statusCode, message) {
-    const statusCodePage = getStatusCodePage(statusCode, pathname);
-    if (!statusCodePage) {
-        res.statusCode = statusCode;
-        await sendResponse(req, res, message);
-        return;
-    }
-    const compiledPage = await compilePage(serverOptions.allLayouts, statusCodePage, { req, res });
-    res.statusCode = 200;
-    await sendResponse(req, res, compiledPage.pageHTML, "text/html");
-}
-async function respondWithStatusCode(req, res, pathname, statusCode, message) {
-    if (serverOptions.allowStatusCodePages === true) {
-        return respondWithStatusCodePage(req, res, pathname, statusCode, message);
-    }
-    res.statusCode = statusCode;
-    await sendResponse(req, res, message);
-}
-/**
- * Ensure a given pathname is safe, and does not escape the root directory.
- * @param userInputPath The path to turn into a safe path
- * @returns A safe path, or null if the path was not safe, or does not exist.
- */
-async function getSafePath(userInputPath) {
-    const rootDirectory = resolve(join(compilerOptions.outputDirectory, "DIST"));
-    const decodedPath = decodeURIComponent(userInputPath);
-    const normalizedPath = normalize(decodedPath).replace(/^(\.\.(\/|\\|$))+/, '');
-    const finalPath = join(rootDirectory, normalizedPath);
-    const resolvedFinalPath = resolve(finalPath);
-    if (!resolvedFinalPath.startsWith(rootDirectory) || existsSync(resolvedFinalPath) === false) {
-        return null;
-    }
-    return resolvedFinalPath;
-}
-async function handlePageRequest(req, res, pathname, pageInformation, matchHit) {
-    if (pageInformation.exports.isDynamic) {
-        if (serverOptions.allowDynamic === false) {
-            return respondWithStatusCode(req, res, pathname, 404, "Page not found.");
-        }
-        const informationClone = {
-            ...pageInformation,
-        };
-        informationClone.pathname = pathname;
-        const result = await compilePage(serverOptions.allLayouts, informationClone, { req, res }, matchHit.params);
-        if (res.writableEnded || res.headersSent)
-            return;
-        res.statusCode = 200;
-        await sendResponse(req, res, result.pageHTML, "text/html");
-        return;
-    }
-    const { pageHTML } = serverOptions.builtStaticPages.get(pageInformation.pathname);
-    res.statusCode = 200;
-    await sendResponse(req, res, pageHTML, "text/html");
-}
-const mimeByExt = {
-    ".html": "text/html",
-    ".htm": "text/html",
-    ".css": "text/css",
-    ".js": "text/javascript",
-    ".mjs": "text/javascript",
-    ".json": "application/json",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".svg": "image/svg+xml",
-    ".txt": "text/plain",
-    ".mp4": "video/mp4",
-    ".webm": "video/webm",
-    ".mkv": "video/x-matroska",
-    ".avi": "video/x-msvideo",
-    ".mov": "video/quicktime",
-    ".mp3": "audio/mpeg",
+const staticCache = /* @__PURE__ */ new Map();
+const dynamicModuleCache = new LRU(256);
+const aotStaticCache = /* @__PURE__ */ new Map();
+const statusCodePageCache = /* @__PURE__ */ new Map();
+const middlewareChainCache = /* @__PURE__ */ new Map();
+const encCache = new LRU(512);
+let staticRouteMap = null;
+let paramRoutes = null;
+let apiRoutesCache = null;
+let middlewareMapCache = null;
+const MIME_TYPES = {
+  ".html": "text/html",
+  ".js": "application/javascript",
+  ".mjs": "application/javascript",
+  ".css": "text/css",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".json": "application/json",
+  ".ico": "image/x-icon",
+  ".txt": "text/plain"
 };
-function isCompressible(mime) {
-    return mime.startsWith('text/') ||
-        mime === 'application/javascript' ||
-        mime === 'application/json' ||
-        mime === 'image/svg+xml';
+const GZIP_PARAMS = { level: 6 };
+const BROTLI_PARAMS = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 4 } };
+const BODY_TIMEOUT_MS = parseInt(process.env.BODY_TIMEOUT_MS ?? "10000", 10);
+let SECURITY_HEADERS;
+async function initSecurityHeaders() {
+  const config = await getConfig();
+  SECURITY_HEADERS = createSecurityHeaders(config.security);
 }
-async function handleFileRequest(req, res, pathname) {
-    const safePath = await getSafePath(pathname);
-    if (!safePath) {
-        return respondWithStatusCode(req, res, pathname, 404, "File not found.");
+function buildCachedFileHeaders(mime, etag, rawLen, gzipLen, brotliLen, cacheControl = "public, max-age=31536000, immutable") {
+  const base = {
+    ...SECURITY_HEADERS,
+    "ETag": etag,
+    "Cache-Control": cacheControl,
+    "Vary": "Accept-Encoding"
+  };
+  return {
+    raw: { ...base, "Content-Type": mime, "Content-Length": rawLen },
+    gzip: { ...base, "Content-Type": mime, "Content-Length": gzipLen, "Content-Encoding": "gzip" },
+    brotli: { ...base, "Content-Type": mime, "Content-Length": brotliLen, "Content-Encoding": "br" }
+  };
+}
+async function primeStaticCache() {
+  async function walk(dir) {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
     }
-    const stats = statSync(safePath);
-    if (stats.isDirectory()) {
-        return respondWithStatusCode(req, res, pathname, 404, "File not found.");
-    }
-    const fileSize = stats.size;
-    const ext = safePath.slice(safePath.lastIndexOf(".")).toLowerCase();
-    const mime = mimeByExt[ext] ?? "application/octet-stream";
-    const acceptEncoding = req.headers["accept-encoding"] || "";
-    const rangeHeader = req.headers.range;
-    if (!rangeHeader) {
-        const useGzip = acceptEncoding.includes('gzip') && isCompressible(mime);
-        const head = {
-            'Content-Type': mime,
-            'Accept-Ranges': 'bytes',
-        };
-        if (!useGzip) {
-            head['Content-Length'] = fileSize;
-        }
-        if (useGzip) {
-            head['Content-Encoding'] = 'gzip';
-            head['Vary'] = 'Accept-Encoding';
-        }
-        res.writeHead(200, head);
-        const stream = createReadStream(safePath);
-        if (useGzip) {
-            const gzip = zlib.createGzip();
-            stream.pipe(gzip).pipe(res);
-        }
-        else {
-            stream.pipe(res);
-        }
+    await Promise.all(entries.map(async (e) => {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) {
+        await walk(full);
         return;
+      }
+      const urlPath = "/" + relative(DIST_DIR, full).replace(/\\/g, "/");
+      const [raw, filestat] = await Promise.all([readFile(full), stat(full)]);
+      const [gzip, brotli] = await Promise.all([
+        gzipAsync(raw, GZIP_PARAMS),
+        brotliAsync(raw, BROTLI_PARAMS)
+      ]);
+      const mime = MIME_TYPES[extname(full)] ?? "application/octet-stream";
+      const etag = `"${filestat.size}-${filestat.mtimeMs}"`;
+      staticCache.set(urlPath, {
+        raw,
+        gzip,
+        brotli,
+        mime,
+        etag,
+        headers: buildCachedFileHeaders(mime, etag, raw.length, gzip.length, brotli.length)
+      });
+    }));
+  }
+  await walk(DIST_DIR);
+}
+function compileRouteMatcher(pattern) {
+  const norm = (p) => (p.endsWith("/") && p !== "/" ? p.slice(0, -1) : p) || "/";
+  const normalisedPattern = norm(pattern);
+  if (!normalisedPattern.includes("[")) {
+    return (pathname) => norm(pathname) === normalisedPattern ? {} : null;
+  }
+  const paramMeta = [];
+  const reSource = normalisedPattern.split("/").filter(Boolean).map((seg) => {
+    if (seg.startsWith("[...") && seg.endsWith("]")) {
+      paramMeta.push({ name: seg.slice(4, -1), catchAll: true, optional: false });
+      return "(.+)";
     }
-    const ranges = rangeHeader.replace(/bytes=/, '').split('-');
-    let start = parseInt(ranges[0], 10);
-    let end = ranges[1] ? parseInt(ranges[1], 10) : fileSize - 1;
-    if (isNaN(start))
-        start = 0;
-    if (isNaN(end) || end >= fileSize)
-        end = fileSize - 1;
-    if (start >= fileSize || start > end) {
-        res.writeHead(416, {
-            'Content-Range': `bytes */${fileSize}`,
+    if (seg.startsWith(":[") && seg.endsWith("]")) {
+      paramMeta.push({ name: seg.slice(2, -1), catchAll: false, optional: true });
+      return "([^/]+)?";
+    }
+    if (seg.startsWith("[") && seg.endsWith("]")) {
+      paramMeta.push({ name: seg.slice(1, -1), catchAll: false, optional: false });
+      return "([^/]+)";
+    }
+    return seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }).join("/");
+  const re = new RegExp(`^/?${reSource}/?$`);
+  return (pathname) => {
+    const m = re.exec(pathname);
+    if (!m) return null;
+    const params = {};
+    for (let i = 0; i < paramMeta.length; i++) {
+      const { name, catchAll, optional } = paramMeta[i];
+      const val = m[i + 1];
+      if (catchAll) {
+        params[name] = val ? val.split("/") : [];
+      } else {
+        params[name] = optional && !val ? void 0 : val;
+      }
+    }
+    return params;
+  };
+}
+function routeEntryToMatched(entry) {
+  let matcher;
+  if (entry.kind === "enumerated") {
+    const patternMatcher = compileRouteMatcher(entry.patternPathname);
+    const norm = (p) => (p.endsWith("/") && p !== "/" ? p.slice(0, -1) : p) || "/";
+    const concreteNorm = norm(entry.pathname);
+    matcher = (pathname) => norm(pathname) === concreteNorm ? patternMatcher(pathname) : null;
+  } else {
+    matcher = compileRouteMatcher(entry.pathname);
+  }
+  return {
+    pathname: entry.pathname,
+    pageFile: entry.pageFile,
+    layouts: entry.layouts,
+    layoutCacheKeys: entry.layoutCacheKeys,
+    cacheKey: entry.cacheKey,
+    sharedChunkPaths: entry.sharedChunkPaths,
+    isDynamic: entry.kind === "dynamic",
+    patternPathname: entry.kind === "enumerated" ? entry.patternPathname : void 0,
+    matcher
+  };
+}
+async function warmDynamicCaches(manifest) {
+  const sMap = /* @__PURE__ */ new Map();
+  const pRoutes = [];
+  await Promise.all(manifest.routes.map(async (entry) => {
+    const route = routeEntryToMatched(entry);
+    if (entry.kind === "enumerated") {
+      pRoutes.push(route);
+    } else {
+      sMap.set(entry.pathname, route);
+    }
+    if (entry.kind === "dynamic") {
+      try {
+        const compiled = await loadRouteFromCache(route);
+        dynamicModuleCache.set(entry.pathname, compiled);
+      } catch (err) {
+        if (isRichError(err)) throw err;
+        throw richError({
+          title: "Failed to Load Cached Route",
+          cause: `${err}`,
+          origin: entry.pageFile,
+          doShowStack: false
         });
-        res.end();
-        return;
+      }
     }
-    const contentLength = end - start + 1;
-    const headers = {
-        'Content-Type': mime,
-        'Accept-Ranges': 'bytes',
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Content-Length': contentLength,
-    };
-    res.writeHead(206, headers);
-    const stream = createReadStream(safePath, { start, end });
-    stream.pipe(res);
+    if (entry.kind !== "dynamic" && IS_DEV) {
+      try {
+        const compiled = await loadRouteFromCache(route);
+        aotStaticCache.set(entry.pathname, compiled);
+      } catch (err) {
+        if (isRichError(err)) throw err;
+        throw richError({
+          title: "Failed to Load Cached Route",
+          cause: `${err}`,
+          origin: entry.pageFile,
+          doShowStack: false
+        });
+      }
+    }
+  }));
+  await Promise.all(manifest.statusCodePages.map(async (ep) => {
+    try {
+      const compiled = await loadRouteFromCache({
+        pageFile: ep.pageFile,
+        layouts: ep.layouts,
+        layoutCacheKeys: ep.layoutCacheKeys,
+        cacheKey: ep.cacheKey,
+        pathname: ""
+      });
+      const code = parseInt(basename(ep.pageFile), 10);
+      statusCodePageCache.set(
+        `${dirname(ep.pageFile)}:${isNaN(code) ? 0 : code}`,
+        {
+          compiled,
+          pageFile: ep.pageFile,
+          layouts: ep.layouts,
+          layoutCacheKeys: ep.layoutCacheKeys,
+          cacheKey: ep.cacheKey
+        }
+      );
+    } catch (err) {
+      if (isRichError(err)) throw err;
+      throw richError({
+        title: "Failed to Load Status Code Route",
+        cause: err,
+        origin: ep.pageFile,
+        doShowStack: false
+      });
+    }
+  }));
+  return { staticRouteMap: sMap, paramRoutes: pRoutes };
 }
-function getPathSubparts(path) {
-    const rawParts = path.split('/').filter(Boolean);
-    const parts = [...rawParts];
-    if (parts.length > 0 && parts[parts.length - 1].includes('.')) {
-        parts.pop();
+async function loadApiRoutes(manifest) {
+  if (apiRoutesCache) return apiRoutesCache;
+  apiRoutesCache = /* @__PURE__ */ new Map();
+  await Promise.all(manifest.apiRoutes.map(async (entry) => {
+    apiRoutesCache.set(entry.pathname, await import(entry.file));
+  }));
+  return apiRoutesCache;
+}
+async function loadMiddlewareMap(manifest) {
+  if (middlewareMapCache) return middlewareMapCache;
+  middlewareMapCache = /* @__PURE__ */ new Map();
+  await Promise.all(manifest.middlewares.map(async (entry) => {
+    const mod = await import(entry.file);
+    if (!mod.default) {
+      printError(richError({
+        title: "Invalid Middleware",
+        cause: "Could not get module.default within a middleware file, which is required for the middleware to function.",
+        hint: "Did you forget the *default* keyword when exporting your function?",
+        origin: entry.file,
+        doShowStack: false
+      }));
+      process.exit(1);
     }
-    const result = ['/'];
-    let current = '';
-    for (const part of parts) {
-        current += '/' + part;
-        result.push(current);
+    middlewareMapCache.set(dirname(entry.file), [typeof mod.default === "function" ? mod.default : mod]);
+  }));
+  return middlewareMapCache;
+}
+function getMiddlewareChain(routePattern) {
+  if (middlewareChainCache.has(routePattern)) return middlewareChainCache.get(routePattern);
+  const dirMap = middlewareMapCache;
+  const parts = routePattern.replace(/^\//, "").split("/").filter(Boolean);
+  const chain = [];
+  let dir = PAGES_DIR;
+  if (dirMap.has(dir)) chain.push(...dirMap.get(dir));
+  for (const part of parts) {
+    dir = join(dir, part);
+    if (dirMap.has(dir)) chain.push(...dirMap.get(dir));
+  }
+  middlewareChainCache.set(routePattern, chain);
+  return chain;
+}
+function extractPathname(rawUrl) {
+  if (!rawUrl) return "/";
+  let end = rawUrl.length;
+  for (let i = 0; i < rawUrl.length; i++) {
+    const ch = rawUrl.charCodeAt(i);
+    if (ch === 63 || ch === 35) {
+      end = i;
+      break;
     }
+  }
+  const path = rawUrl.slice(0, end) || "/";
+  if (path.indexOf("%") !== -1) {
+    try {
+      return decodeURIComponent(path);
+    } catch {
+      return path;
+    }
+  }
+  return path;
+}
+function acceptEncoding(req) {
+  const raw = req.headers["accept-encoding"];
+  if (!raw) return null;
+  const cached = encCache.get(raw);
+  if (cached !== void 0) return cached;
+  const result = raw.includes("br") ? "br" : raw.includes("gzip") ? "gzip" : null;
+  encCache.set(raw, result);
+  return result;
+}
+async function buildRouteHTML(compiled, route, params, requestPathname, req, res) {
+  const ctx = createRenderContext();
+  for (const { id, initial } of compiled.atomSeeds) {
+    if (!ctx.atomValues.has(id)) {
+      ctx.atomValues.set(id, initial);
+      ctx.atomRegistry.push({ id });
+    }
+  }
+  const preClientCode = await readFile(preClientMjsPath(route.cacheKey), "utf-8");
+  let html = await runWithRenderContext(ctx, async () => {
+    const [rootNode, metaNodes] = await Promise.all([
+      compiled.default(params, req, res),
+      compiled.metadata(params, req, res)
+    ]);
+    const getClientCode = () => generateSyntheticBundle(
+      preClientCode,
+      requestPathname,
+      ctx.regions,
+      route.layoutCacheKeys
+    );
+    return generateDynamicPageHTML(rootNode, metaNodes, route, getClientCode, ctx);
+  });
+  const chunks = route.sharedChunkPaths.filter((chunkPath) => preClientCode.includes(chunkPath));
+  if (chunks.length > 0) {
+    const preloadTags = chunks.map((p) => `<link rel="modulepreload" href="${p}">`).join("");
+    html = html.replace("</head>", `${preloadTags}</head>`);
+  }
+  return html;
+}
+async function pipeRouteToResponse(compiled, route, params, requestPathname, req, res, statusCode = 200) {
+  const start = IS_DEV ? performance.now() : 0;
+  const html = await buildRouteHTML(compiled, route, params, requestPathname, req, res);
+  if (IS_DEV) {
+    logger.debug(`rendered ${requestPathname} (${(performance.now() - start).toFixed(1)}ms)`);
+  }
+  if (res.writableEnded || res.destroyed) return;
+  const enc = acceptEncoding(req);
+  const body = enc === "br" ? await brotliAsync(html, BROTLI_PARAMS) : enc === "gzip" ? await gzipAsync(html, GZIP_PARAMS) : Buffer.from(html);
+  const headers = {
+    ...SECURITY_HEADERS,
+    "Content-Type": "text/html",
+    "Content-Length": body.length,
+    "Vary": "Accept-Encoding",
+    "Cache-Control": "no-store"
+  };
+  if (enc) headers["Content-Encoding"] = enc;
+  res.writeHead(statusCode, headers);
+  res.end(body);
+}
+async function lazyBuildStaticPage(compiled, route, params, requestPathname, req, res) {
+  const overallStart = performance.now();
+  const timings = {};
+  await runBuildHooks(compiled, "pre");
+  const ctx = createRenderContext();
+  for (const { id, initial } of compiled.atomSeeds) {
+    if (!ctx.atomValues.has(id)) {
+      ctx.atomValues.set(id, initial);
+      ctx.atomRegistry.push({ id });
+    }
+  }
+  let t = performance.now();
+  const bundleUrl = `${route.pathname === "/" ? "" : route.pathname}/bundle.js`;
+  const { fullHtml } = await runWithRenderContext(ctx, async () => {
+    const [rootNode, metaNodes] = await Promise.all([
+      compiled.default(params, req, res),
+      compiled.metadata(params, req, res)
+    ]);
+    timings["render"] = performance.now() - t;
+    t = performance.now();
+    const result = await generatePageHTML(
+      rootNode,
+      metaNodes,
+      route,
+      bundleUrl,
+      ctx,
+      route.sharedChunkPaths
+    );
+    timings["html"] = performance.now() - t;
     return result;
+  });
+  const preClientCode = await readFile(preClientMjsPath(route.cacheKey), "utf-8");
+  t = performance.now();
+  const syntheticCode = generateSyntheticBundle(
+    preClientCode,
+    requestPathname,
+    ctx.regions,
+    route.layoutCacheKeys
+  );
+  timings["bundle"] = performance.now() - t;
+  await runBuildHooks(compiled, "post");
+  t = performance.now();
+  const routeOutDir = route.pathname === "/" ? DIST_DIR : join(DIST_DIR, route.pathname);
+  await mkdir(routeOutDir, { recursive: true });
+  await Promise.all([
+    writeFile(join(routeOutDir, "index.html"), fullHtml),
+    writeFile(join(routeOutDir, "bundle.js"), syntheticCode)
+  ]);
+  timings["write"] = performance.now() - t;
+  t = performance.now();
+  const htmlBuf = Buffer.from(fullHtml);
+  const jsBuf = Buffer.from(syntheticCode);
+  const [htmlGzip, htmlBrotli, jsGzip, jsBrotli] = await Promise.all([
+    gzipAsync(htmlBuf, GZIP_PARAMS),
+    brotliAsync(htmlBuf, BROTLI_PARAMS),
+    gzipAsync(jsBuf, GZIP_PARAMS),
+    brotliAsync(jsBuf, BROTLI_PARAMS)
+  ]);
+  timings["compress"] = performance.now() - t;
+  const htmlMime = "text/html";
+  const jsMime = "application/javascript";
+  const now = Date.now();
+  const htmlEtag = `"${htmlBuf.length}-${now}"`;
+  const jsEtag = `"${jsBuf.length}-${now}"`;
+  const htmlCached = {
+    raw: htmlBuf,
+    gzip: htmlGzip,
+    brotli: htmlBrotli,
+    mime: htmlMime,
+    etag: htmlEtag,
+    headers: buildCachedFileHeaders(htmlMime, htmlEtag, htmlBuf.length, htmlGzip.length, htmlBrotli.length, "no-store")
+  };
+  const jsCached = {
+    raw: jsBuf,
+    gzip: jsGzip,
+    brotli: jsBrotli,
+    mime: jsMime,
+    etag: jsEtag,
+    headers: buildCachedFileHeaders(jsMime, jsEtag, jsBuf.length, jsGzip.length, jsBrotli.length, "no-store")
+  };
+  staticCache.set(resolveStaticIndexKey(route.pathname), htmlCached);
+  staticCache.set(bundleUrl, jsCached);
+  const total = performance.now() - overallStart;
+  const steps = Object.entries(timings).map(
+    ([step, ms], i, arr) => `  ${i === arr.length - 1 ? "\u2514\u2500" : "\u251C\u2500"} ${step}: ${ms.toFixed(1)}ms`
+  ).join("\n");
+  logger.debug(`built ${route.pathname} (${total.toFixed(1)}ms total)
+${steps}`);
+  serveCachedFile(req, res, htmlCached);
 }
-const allMiddleware = new Map();
-async function gatherMiddleware() {
-    await walkDirectory(compilerOptions.pagesDirectory, async (file) => {
-        if (file.name !== "middleware.ts")
-            return;
-        const pathname = sanitizePathname(relative(compilerOptions.pagesDirectory, file.parentPath));
-        const fullPath = join(file.parentPath, file.name);
-        const { middleware } = await import("file://" + fullPath);
-        if (!middleware || typeof middleware !== "function") {
-            throw new Error(`In file: "${fullPath}":\nThe export middleware is not of type "function". Got: ${typeof middleware}`);
-        }
-        const middlewareInformation = {
-            exports: {
-                middleware,
-            },
-            modulePath: fullPath,
-            pathname: pathname,
-        };
-        allMiddleware.set(pathname, middlewareInformation);
-    });
+async function runMiddlewareChain(mws, req, res, final) {
+  let i = 0;
+  const next = async () => {
+    if (i < mws.length) await mws[i++](req, res, next);
+    else await final();
+  };
+  await next();
 }
-async function runMiddleware(req, res, pathname) {
-    const parts = getPathSubparts(pathname);
-    const middlewares = [];
-    for (const part of parts) {
-        if (allMiddleware.has(part) === false) {
-            continue;
-        }
-        middlewares.push(allMiddleware.get(part));
+async function respondWithStatusCode(code, requestPathname, params, req, res) {
+  if (serverOptions.allowStatusCodePages) {
+    let bestEntry = null;
+    let bestDepth = -1;
+    for (const [key, entry] of statusCodePageCache) {
+      const colonIdx = key.lastIndexOf(":");
+      const dirPath = key.slice(0, colonIdx);
+      const keyCode = parseInt(key.slice(colonIdx + 1), 10);
+      if (keyCode !== code && keyCode !== 0) continue;
+      const relDir = relative(PAGES_DIR, dirPath);
+      const dirPattern = relDir === "" ? "/" : `/${relDir.replace(/\\/g, "/")}`;
+      const trailPattern = dirPattern === "/" ? "/[...__trail]" : `${dirPattern}/[...__trail]`;
+      const exactMatches = compileRouteMatcher(dirPattern)(requestPathname);
+      const trailMatches = compileRouteMatcher(trailPattern)(requestPathname);
+      if (exactMatches === null && trailMatches === null) continue;
+      const depth = dirPattern === "/" ? 0 : dirPattern.split("/").filter(Boolean).length;
+      if (depth > bestDepth) {
+        bestEntry = entry;
+        bestDepth = depth;
+      }
     }
-    if (middlewares.length < 1)
+    if (bestEntry) {
+      const route = {
+        pathname: requestPathname,
+        pageFile: bestEntry.pageFile,
+        layouts: bestEntry.layouts,
+        layoutCacheKeys: bestEntry.layoutCacheKeys,
+        cacheKey: bestEntry.cacheKey,
+        sharedChunkPaths: [],
+        isDynamic: true,
+        matcher: () => ({})
+      };
+      await pipeRouteToResponse(bestEntry.compiled, route, params, requestPathname, req, res, code);
+      return;
+    }
+  }
+  res.writeHead(code);
+  res.end();
+}
+function stripTrailingSlash(p) {
+  return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
+}
+function resolveStaticIndexKey(pathname) {
+  if (extname(pathname)) return pathname;
+  const clean = pathname.replace(/\/$/, "") || "/";
+  return clean === "/" ? "/index.html" : `${clean}/index.html`;
+}
+function serveCachedFile(req, res, cached, statusCode = 200) {
+  if (req.headers["if-none-match"] === cached.etag) {
+    res.writeHead(304);
+    res.end();
+    return;
+  }
+  const enc = acceptEncoding(req);
+  if (enc === "br") {
+    res.writeHead(statusCode, cached.headers.brotli);
+    res.end(cached.brotli);
+  } else if (enc === "gzip") {
+    res.writeHead(statusCode, cached.headers.gzip);
+    res.end(cached.gzip);
+  } else {
+    res.writeHead(statusCode, cached.headers.raw);
+    res.end(cached.raw);
+  }
+}
+function getRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalLen = 0;
+    const timer = setTimeout(() => {
+      req.socket.destroy();
+      reject(new Error("Request body timeout"));
+    }, BODY_TIMEOUT_MS);
+    req.on("data", (chunk) => {
+      totalLen += chunk.length;
+      if (totalLen > 1e6) {
+        clearTimeout(timer);
+        req.socket.destroy();
+        reject(new Error("Request body too large"));
         return;
-    const next = (idx) => {
-        if (idx >= middlewares.length) {
-            return;
-        }
-        const middleware = middlewares[idx];
-        const localNext = () => {
-            next(idx + 1);
-        };
-        middleware.exports.middleware(req, res, localNext);
-    };
-    next(0);
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      clearTimeout(timer);
+      const body = Buffer.concat(chunks).toString("utf8");
+      try {
+        resolve(JSON.parse(body));
+      } catch {
+        resolve(body);
+      }
+    });
+    req.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
 }
-async function sendResponse(req, res, data, contentType = "text/plain") {
-    let buffer = typeof data === "string" ? Buffer.from(data) : data;
-    const acceptEncoding = req.headers["accept-encoding"] || "";
-    if (acceptEncoding.match(/\bgzip\b/)) {
-        try {
-            buffer = await gzipAsync(buffer);
-            res.setHeader("Content-Encoding", "gzip");
-            res.setHeader("Vary", "Accept-Encoding");
-        }
-        catch (err) {
-            console.error("Gzip compression error:", err);
-        }
+async function runServerAction(req, res) {
+  let actionId;
+  {
+    const header = req.headers["elegance-action"];
+    if (!header || Array.isArray(header)) {
+      res.statusCode = 400;
+      res.end();
+      return;
     }
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Length", buffer.length.toString());
-    res.end(buffer);
-}
-async function requestHandler(req, res) {
-    if (req.method === "OPTIONS") {
-        res.writeHead(204, {
-            "Allow": "GET,POST,PUT,DELETE,OPTIONS",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-            "Access-Control-Allow-Headers": req.headers["access-control-request-headers"] || "*",
-            "Access-Control-Max-Age": "86400",
-        });
+    actionId = header;
+  }
+  const serverAction = globalThis.__serverActions.find((a) => a.id === actionId);
+  if (!serverAction) {
+    res.statusCode = 404;
+    res.end();
+    return;
+  }
+  if (req.method !== "POST") {
+    res.statusCode = 405;
+    res.end();
+    return;
+  }
+  const requestParams = await getRequestBody(req);
+  if (!requestParams || typeof requestParams !== "object" || Array.isArray(requestParams)) {
+    res.statusCode = 400;
+    res.end();
+    return;
+  }
+  if (serverAction.props) {
+    for (const [key, value] of Object.entries(serverAction.props)) {
+      let badRequest2 = function(reason) {
+        res.statusCode = 400;
+        res.end(reason);
+      };
+      var badRequest = badRequest2;
+      const requestParam = requestParams[key];
+      if (requestParam === void 0 || requestParam === null) {
+        if (value.required) return badRequest2(`${key} is a required value`);
+        continue;
+      }
+      switch (value.type) {
+        case "string":
+          if (typeof requestParam !== "string")
+            return badRequest2(`${key} is not of type string`);
+          if (value.length && requestParam.length < value.length[0])
+            return badRequest2(`${key} is too short (min ${value.length[0]})`);
+          if (value.length && requestParam.length > value.length[1])
+            return badRequest2(`${key} is too long (max ${value.length[1]})`);
+          break;
+        case "array":
+          if (!Array.isArray(requestParam))
+            return badRequest2(`${key} is not an Array`);
+          if (value.length && requestParam.length < value.length[0])
+            return badRequest2(`${key} is too short (min ${value.length[0]})`);
+          if (value.length && requestParam.length > value.length[1])
+            return badRequest2(`${key} is too long (max ${value.length[1]})`);
+          break;
+        case "boolean":
+          if (typeof requestParam !== "boolean")
+            return badRequest2(`${key} is not of type boolean`);
+          break;
+        case "number":
+          if (typeof requestParam !== "number")
+            return badRequest2(`${key} is not of type number`);
+          if (value.min && requestParam < value.min)
+            return badRequest2(`${key} is too small`);
+          if (value.max && requestParam > value.max)
+            return badRequest2(`${key} is too large`);
+          break;
+      }
+      if (typeof requestParam !== value.type) {
+        res.statusCode = 400;
         res.end();
         return;
+      }
     }
-    if (!req.url) {
-        res.statusCode = 400;
-        await sendResponse(req, res, "Bad request.");
-        return;
-    }
-    const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`);
-    if (serverOptions.base && url.pathname.startsWith(serverOptions.base) === false) {
-        res.statusCode = 501;
-        await sendResponse(req, res, "Path does not start with basename.");
-        return;
-    }
-    const pathname = sanitizePathname(serverOptions.base ? removePrefix(serverOptions.base, url.pathname) : url.pathname);
-    runMiddleware(req, res, pathname);
-    if (res.writableEnded)
-        return;
-    if (pathname.startsWith("/api/")) {
-        return handleAPIRequest(req, res, pathname);
-    }
-    const matchingPage = matchPathnameToPathParts(pathname, [...serverOptions.allPages.values()].map(v => getPathPattern(v)));
-    if (!matchingPage) {
-        return handleFileRequest(req, res, pathname);
-    }
-    handlePageRequest(req, res, pathname, serverOptions.allPages.get(matchingPage.matchedPathname), matchingPage);
-}
-function getPathPattern(value) {
-    return {
-        pathname: value.pathname,
-        pathnameParts: value.pathnameParts,
-    };
-}
-function escapeRegExp(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-/**
- * Take a set of pathname parts, like ["blog", ":[postId]"], and turn that into a regex string to match a pathname against.
- * @param pathnameParts Parts to turn into a regex string
- * @returns Regex string
- */
-function buildRegexStrFromParts(pathnameParts) {
-    let patternRegex = '^/';
-    let hasPart = false;
-    let previousCanSkip = false;
-    for (let part of pathnameParts) {
-        if (part === '') {
-            continue;
-        }
-        const optional = part.startsWith(':');
-        const currentPart = optional ? part.slice(1) : part;
-        const isCatchAll = currentPart.startsWith('*') && currentPart.endsWith('*');
-        const isDynamic = currentPart.startsWith('[') && currentPart.endsWith(']');
-        let matcher;
-        if (isCatchAll) {
-            matcher = '[^/]+(?:/[^/]+)*';
-        }
-        else if (isDynamic) {
-            matcher = '[^/]+';
-        }
-        else {
-            matcher = escapeRegExp(currentPart);
-        }
-        if (isCatchAll || isDynamic) {
-            const paramName = currentPart.slice(1, -1);
-            matcher = `(?<${paramName}>${matcher})`;
-        }
-        let sep;
-        if (hasPart) {
-            sep = previousCanSkip ? '/?' : '/';
-        }
-        else {
-            sep = '';
-        }
-        let addition = sep + matcher;
-        if (optional) {
-            if (hasPart || sep !== '') {
-                addition = '(?:' + sep + matcher + ')?';
-            }
-            else {
-                addition = '(?:' + matcher + ')?';
-            }
-            previousCanSkip = true;
-        }
-        else {
-            previousCanSkip = false;
-        }
-        patternRegex += addition;
-        hasPart = true;
-    }
-    if (patternRegex === '^/') {
-        patternRegex = '^/?';
-    }
-    patternRegex += '$';
-    return patternRegex;
-}
-/**
- * Find a pathname in a given set of pathnames that use the Elegance routing convention - that matches.
- *
- * For example, for an input of `pathname="/recipes/cake"` `allPatterns=[{ pathname: "/recipes/[name]", pathnameParts: ["recipes", "[name]"]}]`
- *
- * You'd get: { matchedPathname: "/recipes/[name]", params: { name: "cake" } }.
- *
- * @param pathname The pathname to find a match for.
- * @param allPatterns Patterns to match against, use getPathPattern to generate.
- * @returns A hit with params, or undefined matchedPathname if none.
- */
-function matchPathnameToPathParts(pathname, allPatterns) {
-    const last = pathname.split('/').pop();
-    if (last.includes('.')) {
-        return null;
-    }
-    const candidates = [];
-    for (const pattern of allPatterns) {
-        const patternParts = pattern.pathnameParts;
-        const regexStr = buildRegexStrFromParts(patternParts);
-        const regex = new RegExp(regexStr);
-        const match = pathname.match(regex);
-        if (match) {
-            const getBasePart = (p) => p.startsWith(':') ? p.slice(1) : p;
-            const isDynamicPart = (p) => p.startsWith(':') || p.startsWith('[') || p.startsWith('*');
-            const fixedCount = patternParts.filter(p => p !== '' && !isDynamicPart(p)).length;
-            const dynamicSingleCount = patternParts.filter(p => {
-                const pp = getBasePart(p);
-                return pp.startsWith('[') && pp.endsWith(']');
-            }).length;
-            const catchallCount = patternParts.filter(p => {
-                const pp = getBasePart(p);
-                return pp.startsWith('*') && pp.endsWith('*');
-            }).length;
-            const optionalCount = patternParts.filter(p => p.startsWith(':')).length;
-            const totalDynamic = dynamicSingleCount + catchallCount;
-            candidates.push({ pattern, fixedCount, dynamicSingleCount, catchallCount, optionalCount, totalDynamic, match });
-        }
-    }
-    if (candidates.length === 0) {
-        return null;
-    }
-    candidates.sort((a, b) => {
-        if (a.fixedCount !== b.fixedCount) {
-            return b.fixedCount - a.fixedCount;
-        }
-        if (a.totalDynamic !== b.totalDynamic) {
-            return a.totalDynamic - b.totalDynamic;
-        }
-        if (a.catchallCount !== b.catchallCount) {
-            return a.catchallCount - b.catchallCount;
-        }
-        if (a.optionalCount !== b.optionalCount) {
-            return a.optionalCount - b.optionalCount;
-        }
-        return 0;
-    });
-    const best = candidates[0];
-    return { matchedPathname: best.pattern.pathname, params: best.match.groups || {} };
-}
-/**
- * Starts the Elegance server and distributes the DIST directory to the public.
- * If hot-reloading is enabled, this also tells the clients to refresh the page.
- */
-async function serveProject(startupServerOptions) {
-    serverOptions = startupServerOptions;
-    if (serverOptions.base && serverOptions.base.startsWith("/") === false) {
-        throw new Error("Failed to serve the Elegance project, the `base` option in the startUpServerOptions must start with a / in order to be a valid pathname. Currently, it is:" + serverOptions.base);
-    }
-    await gatherMiddleware();
-    await gatherAPIRoutes();
-    let port = serverOptions.port ?? 3000;
-    const server = createServer(requestHandler);
-    /** Prefer to sacrifice port desireability in-exchange for getting the thing running */
-    server.on("error", (error) => {
-        if (error.code === "EADDRINUSE") {
-            setTimeout(() => {
-                formattedLog(LogLevel.WARN, `${port} was not available, trying port ${port + 1}..`);
-                port += 1;
-                server.listen(port);
-            }, 500);
-        }
-    });
-    server.listen({ port: serverOptions.port, hostname: serverOptions.hostname, }, () => {
-        if (compilerOptions.doHotReload) {
-            process.send?.(JSON.stringify({ message: "hot-reload-finish" }));
-        }
-        formattedLog(LogLevel.INFO, `Website Live at: http://${serverOptions.hostname}:${port}/`);
-    });
-    return {
-        port,
-    };
-}
-/** Get the current query as `URLSearchParams` */
-function getQuery() {
-    const store = compilerStore.getStore();
-    if (!store) {
-        throw new Error("getQuery() cannot be called outside of a page or layout.");
-    }
-    if (!store.req) {
-        throw new Error("getQuery() cannot be used inside of a static page, since it depends on the *request query*.");
-    }
-    if (!store.req.url) {
-        throw new Error("Invalid req.url");
-    }
-    return new URLSearchParams(new URL(`http://${process.env.HOST ?? 'localhost'}${store.req.url}`).searchParams);
-}
-/** Get the current page's request and response. */
-function getRequest() {
-    const store = compilerStore.getStore();
-    if (!store) {
-        throw new Error("getQuery() cannot be called outside of a page or layout.");
-    }
-    if (!store.req || !store.res) {
-        throw new Error("getQuery() cannot be used inside of a static page, since it depends on the *request query*.");
-    }
-    return { req: store.req, res: store.res };
-}
-/**
- * Get the cookies for the current request.
- * Requires a dynamic page.
- */
-function getCookieStore() {
-    const { req, res } = getRequest();
-    let cookieMap = null;
-    const getCookies = () => {
-        if (cookieMap)
-            return cookieMap;
-        cookieMap = new Map();
-        if (req.headers.cookie) {
-            req.headers.cookie.split(';').forEach(part => {
-                const trimmed = part.trim();
-                if (!trimmed)
-                    return;
-                const [name, ...valueParts] = trimmed.split('=');
-                if (name) {
-                    const value = valueParts.join('=').trim();
-                    cookieMap.set(name, decodeURIComponent(value));
-                }
-            });
-        }
-        return cookieMap;
-    };
-    return {
-        /**
-         * Get a cookie value by name
-         */
-        get(name) {
-            return getCookies().get(name);
-        },
-        /**
-         * Check if a cookie exists
-         */
-        has(name) {
-            return getCookies().has(name);
-        },
-        /**
-         * Get all cookies as a plain object
-         */
-        getAll() {
-            return Object.fromEntries(getCookies());
-        },
-        /**
-         * Set a cookie
-         *
-         * @param name Cookie name
-         * @param value Cookie value
-         * @param options Optional cookie attributes
-         */
-        set(name, value, options = {}) {
-            let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
-            if (options.maxAge !== undefined) {
-                cookieStr += `; Max-Age=${Math.floor(options.maxAge)}`;
-            }
-            if (options.expires) {
-                cookieStr += `; Expires=${options.expires.toUTCString()}`;
-            }
-            if (options.path) {
-                cookieStr += `; Path=${options.path}`;
-            }
-            if (options.domain) {
-                cookieStr += `; Domain=${options.domain}`;
-            }
-            if (options.secure) {
-                cookieStr += `; Secure`;
-            }
-            if (options.httpOnly) {
-                cookieStr += `; HttpOnly`;
-            }
-            if (options.sameSite) {
-                cookieStr += `; SameSite=${options.sameSite}`;
-            }
-            const existing = res.getHeader('Set-Cookie');
-            if (existing) {
-                if (Array.isArray(existing)) {
-                    res.setHeader('Set-Cookie', [...existing, cookieStr]);
-                }
-                else {
-                    res.setHeader('Set-Cookie', [existing, cookieStr]);
-                }
-            }
-            else {
-                res.setHeader('Set-Cookie', cookieStr);
-            }
-        },
-        /**
-         * Delete a cookie (sets it to expire immediately)
-         */
-        delete(name, path = '/', domain) {
-            this.set(name, '', {
-                maxAge: 0,
-                expires: new Date(0),
-                path,
-                domain,
-            });
-        },
-    };
-}
-function redirect(location, statusCode = 302) {
-    const { res } = getRequest();
-    res.statusCode = statusCode;
-    res.setHeader("Location", location);
+  }
+  try {
+    const returnValue = await serverAction.callback({ ...requestParams, req, res });
+    if (res.writableEnded || res.destroyed) return;
+    res.end(JSON.stringify(returnValue));
+    return;
+  } catch {
+    res.statusCode = 500;
     res.end();
+    return;
+  }
 }
-const respondWith = {
-    async notFound() {
-        const { req, res } = getRequest();
-        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`);
-        const pathname = sanitizePathname(url.pathname);
-        await respondWithStatusCode(req, res, pathname, 404, "Not found.");
-    },
-    async notAuthorized() {
-        const { req, res } = getRequest();
-        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`);
-        const pathname = sanitizePathname(url.pathname);
-        await respondWithStatusCode(req, res, pathname, 401, "Not authorized.");
-    },
-    async forbidden() {
-        const { req, res } = getRequest();
-        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`);
-        const pathname = sanitizePathname(url.pathname);
-        await respondWithStatusCode(req, res, pathname, 403, "Forbidden.");
-    },
-    async internalError() {
-        const { req, res } = getRequest();
-        const url = new URL(`http://${process.env.HOST ?? 'localhost'}${req.url}`);
-        const pathname = sanitizePathname(url.pathname);
-        await respondWithStatusCode(req, res, pathname, 500, "Internal server error.");
+async function handleRequest(req, res) {
+  req.socket.setNoDelay(IS_DEV);
+  const pathname = extractPathname(req.url);
+  if (IS_DEV) logger.info(`- ${req.method} : ${pathname}`);
+  if (pathname === "/__action") {
+    runServerAction(req, res);
+    return;
+  }
+  const cached = staticCache.get(pathname);
+  if (cached) {
+    serveCachedFile(req, res, cached);
+    return;
+  }
+  const apiModule = apiRoutesCache.get(stripTrailingSlash(pathname));
+  if (apiModule) {
+    const handler = apiModule[req.method];
+    if (typeof handler !== "function") {
+      res.writeHead(405);
+      res.end();
+      return;
     }
+    runMiddlewareChain(getMiddlewareChain(pathname), req, res, async () => {
+      handler(req, res).catch((e) => {
+        res.writeHead(500);
+        res.end();
+        printError(richError({
+          title: "API Route Threw",
+          cause: "An API Route threw an error whilst it was being executed.",
+          origin: pathname,
+          doShowStack: false
+        }));
+        logger.error(e);
+      });
+    });
+    return;
+  }
+  const normalizedPathname = stripTrailingSlash(pathname) || "/";
+  let matchedRoute = staticRouteMap.get(normalizedPathname) ?? null;
+  let params = {};
+  if (!matchedRoute) {
+    for (const r of paramRoutes) {
+      const match = r.matcher(pathname);
+      if (match) {
+        matchedRoute = r;
+        params = match;
+        break;
+      }
+    }
+  }
+  await runMiddlewareChain(getMiddlewareChain(matchedRoute?.pathname ?? pathname), req, res, async () => {
+    if (!matchedRoute) {
+      const staticIndex = staticCache.get(resolveStaticIndexKey(pathname));
+      if (staticIndex) {
+        serveCachedFile(req, res, staticIndex);
+        return;
+      }
+      await respondWithStatusCode(404, pathname, params, req, res);
+      return;
+    }
+    if (matchedRoute.isDynamic) {
+      const compiled = dynamicModuleCache.get(matchedRoute.pathname);
+      if (!compiled) {
+        printError(richError({
+          title: "No Cached Module for Dynamic Route",
+          cause: "A dynamic route was not warmed during server startup, this is likely an internal error.",
+          origin: matchedRoute.pathname,
+          doShowStack: true
+        }));
+        await respondWithStatusCode(500, pathname, params, req, res);
+        return;
+      }
+      await pipeRouteToResponse(compiled, matchedRoute, params, pathname, req, res, 200);
+      return;
+    }
+    if (IS_DEV) {
+      const builtHtml = staticCache.get(resolveStaticIndexKey(matchedRoute.pathname));
+      if (builtHtml) {
+        serveCachedFile(req, res, builtHtml);
+        return;
+      }
+      const compiled = aotStaticCache.get(matchedRoute.pathname);
+      if (!compiled) {
+        printError(richError({
+          title: "Internal Error",
+          cause: "A static route was not cached during lazy compilation on the server.",
+          origin: matchedRoute.pathname,
+          doShowStack: false
+        }));
+        await respondWithStatusCode(500, pathname, params, req, res);
+        return;
+      }
+      try {
+        await lazyBuildStaticPage(compiled, matchedRoute, params, pathname, req, res);
+      } catch (e) {
+        respondWithStatusCode(500, pathname, {}, req, res);
+        if (isRichError(e)) throw e;
+        throw richError({
+          title: "Failed to lazy build a static page.",
+          cause: e,
+          doShowStack: true
+        });
+      }
+      return;
+    }
+    const pageCached = staticCache.get(resolveStaticIndexKey(matchedRoute.pathname));
+    if (pageCached) {
+      serveCachedFile(req, res, pageCached);
+      return;
+    }
+    await respondWithStatusCode(404, pathname, params, req, res);
+  }).catch((e) => {
+    if (isRichError(e)) {
+      printError(e);
+      return;
+    }
+    printError(richError({
+      title: "Failed to run request.",
+      cause: e,
+      doShowStack: true
+    }));
+  });
+}
+async function startMainServer() {
+  const port = serverOptions.port;
+  if (!IS_DEV) {
+    return new Promise((resolve, reject) => {
+      const srv = createServer(handleRequest);
+      srv.keepAliveTimeout = 65e3;
+      srv.headersTimeout = 66e3;
+      srv.once("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+          printError(richError({
+            title: "Busy Port",
+            cause: `The port ${port} is already hogged by another process. Please kill the process hogging it, or change the port.`,
+            doShowStack: true
+          }));
+          process.exit(1);
+        }
+        reject(err);
+      });
+      srv.listen(port, "0.0.0.0", () => {
+        logger.success(`Live at: http://localhost:${port}`);
+        resolve(srv);
+      });
+    });
+  }
+  for (let i = port; i < port + 100; i++) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const srv = createServer(handleRequest);
+        srv.keepAliveTimeout = 65e3;
+        srv.headersTimeout = 66e3;
+        srv.once("error", reject);
+        srv.listen(i, "0.0.0.0", () => {
+          logger.success(`Live at: http://localhost:${i}`);
+          resolve(srv);
+        });
+      });
+    } catch {
+    }
+  }
+  throw new Error("Could not find an available port");
+}
+async function serve() {
+  serverOptions = await loadServerOptions();
+  const manifest = JSON.parse(
+    await readFile(join(OUT_DIR, "paths.json"), "utf-8")
+  );
+  const routes = await warmDynamicCaches(manifest);
+  staticRouteMap = routes.staticRouteMap;
+  paramRoutes = routes.paramRoutes;
+  await Promise.all([
+    primeStaticCache(),
+    serverOptions.serveAPI ? loadApiRoutes(manifest) : Promise.resolve(),
+    loadMiddlewareMap(manifest),
+    initSecurityHeaders()
+  ]);
+  await startMainServer();
+  if (process.send) process.send({ type: "ready" });
+}
+export {
+  aotStaticCache,
+  apiRoutesCache,
+  compileRouteMatcher,
+  dynamicModuleCache,
+  encCache,
+  loadApiRoutes,
+  loadMiddlewareMap,
+  middlewareChainCache,
+  middlewareMapCache,
+  paramRoutes,
+  primeStaticCache,
+  serve,
+  staticCache,
+  staticRouteMap,
+  statusCodePageCache,
+  warmDynamicCaches
 };
-export { serveProject, getQuery, getRequest, getCookieStore, redirect, respondWith };

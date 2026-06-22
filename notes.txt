@@ -1,0 +1,3 @@
+top level non-component elements can never be reactive, as the code containing them is not shipped to the browser.
+
+client.ts is just fully slop.

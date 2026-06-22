@@ -1,47 +1,35 @@
 {
   "name": "elegance-js",
-  "version": "2.1.37",
-  "description": "Web-Framework",
+  "version": "3.0.0",
   "type": "module",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "main": "dist/user-utils.js",
   "bin": {
-    "run": "./scripts/run.js",
-    "static": "./scripts/static.js",
-    "prod": "./scripts/prod.js",
-    "bootstrap": "./scripts/bootstrap.js"
+    "bootstrap": "./bin/bootstrap.js",
+    "elegance": "./bin/run.js"
   },
+  "files": ["dist"],
   "scripts": {
-    "build": "npx tsc --project tsconfig.json --rootDir ./src --outDir ./dist && node ./build_scripts/fix_imports.js",
-    "prepare": "npm run build"
+    "lint": "oxlint ./src --fix -D unused-variable -D unused-import",
+    "build": "esbuild './src/*.ts' './src/**/*.ts' --outdir=./dist --outbase=./src --format=esm --platform=node --bundle=false && tsc --emitDeclarationOnly && node scripts/fix-imports.js"
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "types": "./dist/user-utils.d.ts",
+      "import": "./dist/user-utils.js",
+      "default": "./dist/user-utils.js"
     },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "import": "./dist/*.js",
-      "require": "./dist/*.js"
+    "./types": {
+      "types": "./dist/types/index.d.ts"
     }
   },
-  "files": [
-    "dist",
-    "scripts"
-  ],
-  "author": "vqldemar",
-  "license": "MIT",
   "dependencies": {
-    "@swc/core": "^1.15.30",
-    "esbuild": "^0.25.9",
-    "ts-arc": "^1.3.0"
+    "esbuild": "^0.28.0",
+    "oxc-parser": "^0.127.0",
+    "ts-arc": "^1.3.2"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.0.3",
-    "@types/node": "^22.19.17",
-    "tailwindcss": "^4.0.3",
-    "typescript": "^5.8.2"
+    "@types/node": "^25.6.0",
+    "oxlint": "^1.68.0",
+    "typescript": "^5.0.0"
   }
 }
