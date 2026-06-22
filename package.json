@@ -22,6 +22,36 @@
       "types": "./dist/types/index.d.ts"
     }
   },
+  "author": "vqldemar <npm-elegance@val.sh> (https://github.com/valdemar-dev)",
+  "keywords": [
+    "elegance",
+    "elegance-js",
+    "css",
+    "jsx",
+    "tsx",
+    "web-framework",
+    "framework",
+    "web",
+    "html",
+    "javascript",
+    "typescript",
+    "js",
+    "ts",
+    "web-dev",
+    "web",
+    "speed",
+    "fast",
+    "optimized"
+  ],
+  "license": "MIT",
+  "github": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valdemar-dev/elegance-js"
+  },
+  "bugs": {
+    "url": "https://github.com/valdemar-dev/elegance-js/issues"
+  },
   "dependencies": {
     "esbuild": "^0.28.0",
     "oxc-parser": "^0.127.0",
