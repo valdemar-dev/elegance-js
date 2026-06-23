@@ -543,6 +543,76 @@ function applyReachabilityDCECore(
         }
     }
 
+    // !allow-bundling enforcement
+    {
+        const programComments = ast.comments ?? [];
+        const allowedImports = new Set<any>();
+
+        for (const comment of programComments) {
+            if (comment.type !== "Line") continue;
+            if ((comment.value as string).trim() !== "!allow-bundling") continue;
+
+            const afterComment = comment.end as number;
+            const annotatedNode = body.find((n: any) => n.start >= afterComment);
+            if (annotatedNode && annotatedNode.type === "ImportDeclaration") {
+                allowedImports.add(annotatedNode);
+            }
+        }
+
+        const violations: Array<{ importNode: any; exampleSpec?: string }> = [];
+
+        for (const node of body) {
+            if (node.type !== "ImportDeclaration") continue;
+
+            const specs = node.specifiers ?? [];
+
+            if (specs.length === 0) {
+                if (!allowedImports.has(node)) {
+                    violations.push({ importNode: node });
+                }
+                continue;
+            }
+
+            const hasReachable = specs.some((s: any) => reachable.has(s.local.name));
+            if (!hasReachable) continue;
+
+            if (!allowedImports.has(node)) {
+                const reachableSpec = specs.find((s: any) => reachable.has(s.local.name));
+                violations.push({ importNode: node, exampleSpec: reachableSpec.local.name });
+            }
+        }
+
+        if (violations.length > 0) {
+            const list = violations
+                .map(({ importNode, exampleSpec }) => {
+                    let chain = "";
+                    if (exampleSpec) {
+                        chain = formatReachabilityChain(source, filePath, exampleSpec, reachableFrom);
+                    } else {
+                        const { line, col } = offsetToLineCol(source, importNode.start);
+                        const sourceLine = getSourceLine(source, importNode.start);
+                        const pipe = "    |   ";
+                        const caretLine = `${pipe}${" ".repeat(col - 1)}^`;
+                        chain =
+                            `    at import "${importNode.source.value}" (side-effect import) (${filePath}:${line}:${col})\n` +
+                            `${pipe}${sourceLine}\n` +
+                            `${caretLine}`;
+                    }
+                    return `  • Import from "${importNode.source.value}"\n${chain}`;
+                })
+                .join("\n\n");
+
+            throw richError({
+                title: "Missing allow‑bundling directive",
+                cause: `\\The following imports are reachable and will be bundled, ` +
+                    `but they are not marked with //!allow-bundling:\n\n${list}\n\n` +
+                    `Every import that survives into the client bundle must be explicitly allowed.`,
+                hint: `\\Add a line comment //!allow-bundling immediately above each import statement.`,
+                doShowStack: false,
+            });
+        }
+    }
+
     const removalEdits: Edit[] = [];
 
     function trailingEnd(end: number): number {
@@ -1239,7 +1309,7 @@ function computeSyntheticBundleStaticParts(
             : replaced;
 
     const layoutImports = layoutCacheKeys
-        .map((lk, i) => `import { default as __l${i} } from "/chunks/${lk}.client.mjs";`)
+        .map((lk, i) => `//!allow-bundling\nimport { default as __l${i} } from "/chunks/${lk}.client.mjs";`)
         .join("\n");
 
     const layoutCalls = layoutCacheKeys
