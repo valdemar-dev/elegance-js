@@ -9,7 +9,8 @@
     "export": "./bin/export.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "lint": "oxlint ./src --fix -D unused-variable -D unused-import",
