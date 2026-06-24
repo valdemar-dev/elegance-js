@@ -40,11 +40,8 @@ export type ServerOptions = {
     port?:                 number;
 };
 
-async function loadServerOptions(): Promise<DeepRequired<ServerOptions>> {
-    await loadPaths();
-    const config = await getConfig();
-    return config.server as DeepRequired<ServerOptions>;
-}
+const config = await getConfig();
+await loadPaths();
 
 let serverOptions: DeepRequired<ServerOptions>;
 
@@ -1054,7 +1051,11 @@ async function startMainServer(): Promise<ReturnType<typeof createServer>> {
 }
 
 export async function serve(): Promise<void> {
-    serverOptions = await loadServerOptions();
+    serverOptions = config.server as DeepRequired<ServerOptions>;
+
+    if (config.runtime.init) {
+        await import(config.runtime.init);
+    }
 
     const manifest: Manifest = JSON.parse(
         await readFile(join(OUT_DIR, "paths.json"), "utf-8"),

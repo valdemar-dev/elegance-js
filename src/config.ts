@@ -64,7 +64,9 @@ const defaultConfig: SafeEleganceConfig = {
     console: {
         suppressEleganceLogs: false,
         clearConsoleOnRebuilds: true,
-    }
+    },
+
+    runtime: {}
 };
 
 let userConfig: EleganceConfig;

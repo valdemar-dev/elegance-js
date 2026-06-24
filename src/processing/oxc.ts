@@ -1,7 +1,6 @@
 import { parseSync } from "oxc-parser";
 import { ALL_TAGS } from "./taglist";
 import { createHash } from "node:crypto";
-import { isBuiltin } from "node:module";
 import { richError } from "../error";
 
 const ALL_TAGS_SET = new Set<string>(ALL_TAGS as readonly string[]);
@@ -543,19 +542,28 @@ function applyReachabilityDCECore(
         }
     }
 
-    // !allow-bundling enforcement
+    const forcedImports = new Set<any>();
+
+    // !allow-bundling enforcement for named imports, and !force-bundling for side-effect imports
     {
         const programComments = ast.comments ?? [];
         const allowedImports = new Set<any>();
 
         for (const comment of programComments) {
             if (comment.type !== "Line") continue;
-            if ((comment.value as string).trim() !== "!allow-bundling") continue;
-
-            const afterComment = comment.end as number;
-            const annotatedNode = body.find((n: any) => n.start >= afterComment);
-            if (annotatedNode && annotatedNode.type === "ImportDeclaration") {
-                allowedImports.add(annotatedNode);
+            const trimmed = (comment.value as string).trim();
+            if (trimmed === "!allow-bundling") {
+                const afterComment = comment.end as number;
+                const annotatedNode = body.find((n: any) => n.start >= afterComment);
+                if (annotatedNode && annotatedNode.type === "ImportDeclaration") {
+                    allowedImports.add(annotatedNode);
+                }
+            } else if (trimmed === "!force-bundling") {
+                const afterComment = comment.end as number;
+                const annotatedNode = body.find((n: any) => n.start >= afterComment);
+                if (annotatedNode && annotatedNode.type === "ImportDeclaration") {
+                    forcedImports.add(annotatedNode);
+                }
             }
         }
 
@@ -565,13 +573,8 @@ function applyReachabilityDCECore(
             if (node.type !== "ImportDeclaration") continue;
 
             const specs = node.specifiers ?? [];
-
-            if (specs.length === 0) {
-                if (!allowedImports.has(node)) {
-                    violations.push({ importNode: node });
-                }
-                continue;
-            }
+            // Side-effect imports are not subject to allow-bundling; they are handled separately.
+            if (specs.length === 0) continue;
 
             const hasReachable = specs.some((s: any) => reachable.has(s.local.name));
             if (!hasReachable) continue;
@@ -622,12 +625,19 @@ function applyReachabilityDCECore(
     for (const node of body) {
         if (node.type === "ImportDeclaration") {
             const specs: any[] = node.specifiers ?? [];
+            // Side-effect imports: keep only if //!force-bundling is present
+            if (specs.length === 0) {
+                if (!forcedImports.has(node)) {
+                    removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
+                }
+                continue;
+            }
+
+            // Named imports: existing logic
             const reachableSpecs = specs.filter((s) => reachable.has(s.local.name));
 
             if (reachableSpecs.length === specs.length) {
-                if (specs.length === 0 && isBuiltin(node.source.value as string)) {
-                    removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
-                }
+                // All specifiers reachable: keep as is (but we still might need to handle built-in? not needed)
                 continue;
             }
 

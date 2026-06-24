@@ -7,6 +7,10 @@ import { watch } from "node:fs";
 import { logger } from "./logger";
 import { loadPaths } from "./constants";
 
+export type RuntimeOptions = {
+    init?: string;
+};
+
 await loadPaths();
 
 import { PAGES_DIR } from "./constants";

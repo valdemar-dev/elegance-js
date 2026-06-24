@@ -18,11 +18,8 @@ import { getConfig } from "../config.js";
 import { createSecurityHeaders } from "./security.js";
 import { isRichError, printError, richError } from "../error.js";
 import { logger } from "../logger.js";
-async function loadServerOptions() {
-  await loadPaths();
-  const config = await getConfig();
-  return config.server;
-}
+const config = await getConfig();
+await loadPaths();
 let serverOptions;
 const IS_DEV = process.env.ELEGANCE_DEV_MODE === "dev";
 class LRU {
@@ -77,8 +74,8 @@ const BROTLI_PARAMS = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 4 } };
 const BODY_TIMEOUT_MS = parseInt(process.env.BODY_TIMEOUT_MS ?? "10000", 10);
 let SECURITY_HEADERS;
 async function initSecurityHeaders() {
-  const config = await getConfig();
-  SECURITY_HEADERS = createSecurityHeaders(config.security);
+  const config2 = await getConfig();
+  SECURITY_HEADERS = createSecurityHeaders(config2.security);
 }
 function buildCachedFileHeaders(mime, etag, rawLen, gzipLen, brotliLen, cacheControl = "public, max-age=31536000, immutable") {
   const base = {
@@ -826,7 +823,10 @@ async function startMainServer() {
   throw new Error("Could not find an available port");
 }
 async function serve() {
-  serverOptions = await loadServerOptions();
+  serverOptions = config.server;
+  if (config.runtime.init) {
+    await import(config.runtime.init);
+  }
   const manifest = JSON.parse(
     await readFile(join(OUT_DIR, "paths.json"), "utf-8")
   );
