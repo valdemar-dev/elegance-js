@@ -51,6 +51,7 @@ const defaultConfig: SafeEleganceConfig = {
     output: {
         outputDirectory: ".elegance",
         pagesDirectory: "pages",
+        publicDirectory: "public",
     },
 
     server: {
@@ -58,6 +59,11 @@ const defaultConfig: SafeEleganceConfig = {
         serveAPI: true,
         allowDynamicPages: true,
         allowStatusCodePages: true, 
+    },
+
+    console: {
+        suppressEleganceLogs: false,
+        clearConsoleOnRebuilds: true,
     }
 };
 

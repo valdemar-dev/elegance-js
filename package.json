@@ -28,8 +28,7 @@
     "./run": {
       "types": "./dist/run.d.ts",
       "import": "./dist/run.js",
-      "default": "./dist/run.js",
-      "require": "./dist/run.js"
+      "default": "./dist/run.js"
     }
   },
   "author": "vqldemar <npm-elegance@val.sh> (https://github.com/valdemar-dev)",

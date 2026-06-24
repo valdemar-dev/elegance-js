@@ -24,20 +24,29 @@ import { createSecurityHeaders } from "./security";
 import { isRichError, printError, richError } from "../error";
 import { logger } from "../logger";
 
-export type ServerOptions = {
-    serveAPI:             boolean;
-    allowDynamicPages:    boolean;
-    allowStatusCodePages: boolean;
-    port:                 number;
+// Make all properties required recursively
+type DeepRequired<T> = {
+    [P in keyof T]-?: T[P] extends (...args: any[]) => any
+        ? T[P]
+        : T[P] extends object
+            ? DeepRequired<NonNullable<T[P]>>
+            : NonNullable<T[P]>;
 };
 
-async function loadServerOptions(): Promise<ServerOptions> {
+export type ServerOptions = {
+    serveAPI?:             boolean;
+    allowDynamicPages?:    boolean;
+    allowStatusCodePages?: boolean;
+    port?:                 number;
+};
+
+async function loadServerOptions(): Promise<DeepRequired<ServerOptions>> {
     await loadPaths();
     const config = await getConfig();
-    return config.server;
+    return config.server as DeepRequired<ServerOptions>;
 }
 
-let serverOptions: ServerOptions;
+let serverOptions: DeepRequired<ServerOptions>;
 
 const IS_DEV = process.env.ELEGANCE_DEV_MODE === "dev";
 

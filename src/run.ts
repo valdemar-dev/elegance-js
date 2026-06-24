@@ -5,11 +5,16 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { watch } from "node:fs";
 import { logger } from "./logger";
+import { loadPaths } from "./constants";
+
+await loadPaths();
+
+import { PAGES_DIR } from "./constants";
+import { getConfig } from "./config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 
-const PAGES_DIR         = join(process.cwd(), "pages");
 const BUILD_DEV_ENTRY   = join(__dirname, "build", "dev.js");
 const BUILD_PROD_ENTRY  = join(__dirname, "build", "prod.js");
 const SERVER_DEV_ENTRY  = join(__dirname, "server", "dev.js");
@@ -136,7 +141,11 @@ async function startServer(): Promise<void> {
 }
 
 async function cycle(): Promise<void> {
-    process.stdout.write('\x1bc');
+    const config = await getConfig();
+
+    if (config.console.suppressEleganceLogs === false && config.console.clearConsoleOnRebuilds === true) {
+        process.stdout.write('\x1bc');
+    }
 
     if (serverProcess && !serverProcess.killed) {
         serverProcess.kill("SIGTERM");

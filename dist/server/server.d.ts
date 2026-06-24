@@ -1,10 +1,10 @@
 import { IncomingMessage, ServerResponse } from "node:http";
 import type { CompiledRoute, Manifest, CacheKey } from "../build/common";
 export type ServerOptions = {
-    serveAPI: boolean;
-    allowDynamicPages: boolean;
-    allowStatusCodePages: boolean;
-    port: number;
+    serveAPI?: boolean;
+    allowDynamicPages?: boolean;
+    allowStatusCodePages?: boolean;
+    port?: number;
 };
 interface ApiRouteModule {
     GET?: (req: IncomingMessage, res: ServerResponse) => void | Promise<void>;

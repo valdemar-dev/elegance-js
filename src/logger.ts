@@ -1,3 +1,5 @@
+import { getConfig } from "./config"
+
 export const c = {
     reset:   "\x1b[0m",
     bold:    "\x1b[1m",
@@ -12,6 +14,13 @@ export const c = {
     white:   "\x1b[37m",
     gray:    "\x1b[90m",
 } as const
+
+export type ConsoleOptions = {
+    suppressEleganceLogs?: boolean,
+    clearConsoleOnRebuilds?: boolean,
+}
+
+const config = await getConfig();
 
 export type ColorKey = keyof typeof c
 
@@ -39,6 +48,10 @@ export interface LogOptions {
 }
 
 function emit(level: Level, msg: string, opts: LogOptions = {}): void {
+    if (config.console.suppressEleganceLogs) {
+        return;
+    }
+
     const { icon, badge, color } = LEVELS[level]
     const fn = level === 'error' ? console.error : console.log
 
@@ -62,10 +75,18 @@ export const logger = {
     debug  (msg: string, opts?: LogOptions): void { emit('debug',   msg, opts) },
 
     gap(): void {
+        if (config.console.suppressEleganceLogs) {
+            return;
+        }
+        
         console.log('')
     },
 
     divider(label?: string): void {
+        if (config.console.suppressEleganceLogs) {
+            return;
+        }
+
         const W = 54
         if (label) {
             const dashes = '─'.repeat(Math.max(2, W - label.length - 4))
@@ -76,6 +97,10 @@ export const logger = {
     },
 
     field(key: string, value: string, color: ColorKey = 'cyan'): void {
+        if (config.console.suppressEleganceLogs) {
+            return;
+        }
+
         const k = paint(key.padEnd(10), color)
         console.log(`  ${MSG_INDENT}${k}  ${value}`)
     },

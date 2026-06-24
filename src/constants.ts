@@ -4,6 +4,7 @@ import { getConfig } from "./config";
 export type OutputOptions = {
     outputDirectory?: string,
     pagesDirectory?: string,
+    publicDirectory?: string,
 };
 
 export let OUT_DIR: string;
