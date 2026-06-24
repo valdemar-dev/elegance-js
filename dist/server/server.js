@@ -190,7 +190,7 @@ async function warmDynamicCaches(manifest) {
   const pRoutes = [];
   await Promise.all(manifest.routes.map(async (entry) => {
     const route = routeEntryToMatched(entry);
-    if (entry.kind === "enumerated") {
+    if (entry.kind === "enumerated" || entry.kind === "dynamic") {
       pRoutes.push(route);
     } else {
       sMap.set(entry.pathname, route);
