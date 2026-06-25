@@ -78,8 +78,16 @@ function convertJSXElement(node: any, src: string): string {
     if (!opening.selfClosing) {
         const kids = convertJSXChildren(node.children, src);
         if (kids.length > 0) {
-            if (isComponent && args.length === 0) args.push("{}");
-            args.push(`[${kids.join(", ")}]`);
+            const childExpr = kids.length === 1 ? kids[0]! : `[${kids.join(", ")}]`;
+            if (isComponent) {
+                if (args.length === 0) {
+                    args.push(`{ children: ${childExpr} }`);
+                } else {
+                    args[0] = args[0]!.replace(/^{ /, `{ children: ${childExpr}, `);
+                }
+            } else {
+                args.push(`[${kids.join(", ")}]`);
+            }
         }
     }
 
