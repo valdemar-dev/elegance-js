@@ -6,16 +6,14 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 
-const BUILD_PROD_ENTRY  = join(__dirname, "build", "prod.js");
-
-const MODE = process.argv.includes("-prod") ? "prod" : "dev";
+const BUILD_PROD_ENTRY  = join(__dirname, "..", "dist", "build", "prod.js");
 
 function spawnTs(entry, extraEnv = {}) {
     return spawn("node", ["--import", "ts-arc/register", entry], {
         stdio: ["inherit", "inherit", "inherit", "ipc"],
         env: {
             ...process.env,
-            ELEGANCE_DEV_MODE: MODE,
+            ELEGANCE_DEV_MODE: "prod",
             ARGS: JSON.stringify(process.argv.slice(2)),
             ...extraEnv,
         },

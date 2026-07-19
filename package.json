@@ -6,7 +6,7 @@
   "bin": {
     "bootstrap": "./bin/bootstrap.js",
     "elegance": "./bin/run.js",
-    "export": "./bin/export.js"
+    "elegance-export": "./bin/export.js"
   },
   "files": [
     "dist",
@@ -31,7 +31,7 @@
       "default": "./dist/run.js"
     }
   },
-  "author": "vqldemar <npm-elegance@val.sh> (https://github.com/valdemar-dev)",
+  "author": "vqldemar (https://github.com/valdemar-dev)",
   "keywords": [
     "elegance",
     "elegance-js",

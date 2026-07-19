@@ -1,3 +1,5 @@
 top level non-component elements can never be reactive, as the code containing them is not shipped to the browser.
 
 client.ts is just fully slop.
+
+layouts end up being items children: [ Promise ] for async pages because children are never awaited; idk how JSX is meant to handle async children, you can't exactly <await Child>
