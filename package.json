@@ -1,6 +1,6 @@
 {
   "name": "elegance-js",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "type": "module",
   "main": "dist/user-utils.js",
   "bin": {
