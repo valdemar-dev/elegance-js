@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "target": "esnext",
     "types": [ "node" ],
-    "lib": ["esnext", "DOM"],
+    "lib": ["esnext", "DOM", "DOM.Iterable"],
 
     "sourceMap": true,
     "declaration": true,
