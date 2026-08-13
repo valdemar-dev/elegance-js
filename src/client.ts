@@ -299,8 +299,8 @@ function patch(dom: Node, vn: any, owner?: any): Node {
         return fresh;
     }
     if (vn.__type === "live") {
-        const ex = instanceMap.get(vn.__componentId + "::" + vn.__instanceId);
-        if (ex?.root === dom) { ex.props = vn.props; ex.children = vn.children ?? []; ex._markDirty(); return dom; }
+        const ex = (dom as any).__instance;
+        if (ex?.cid === vn.__componentId) { ex.props = vn.props; ex.children = vn.children ?? []; ex._markDirty(); return dom; }
         const old = (dom as any).__instance;
         const rendered = mount(vn);
         dom.parentNode?.replaceChild(rendered, dom);
