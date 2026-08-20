@@ -457,7 +457,8 @@ function execView(inst: any): any {
 });
 
 const importBundle = (tag: HTMLScriptElement): Promise<any> => {
-    if (tag.src) return import(tag.src);
+    const src = tag.getAttribute("src");
+    if (src) return import(new URL(src, location.href).href);
 
     const blobCode = tag.textContent.replace(
         /(['"])\/chunks\//g,
@@ -561,6 +562,19 @@ function syncOptions(from: Element, to: Element): void {
 function morphKids(parent: Element, incoming: Element): void {
     const existing = significantChildren(parent);
     const wanted = significantChildren(incoming);
+
+    const sameShape = existing.length === wanted.length && existing.every((n, i) => {
+        const w = wanted[i]!;
+        
+        return n.nodeType === w.nodeType && (n.nodeType !== Node.ELEMENT_NODE || (n as Element).tagName === (w as Element).tagName);
+    });
+
+    if (!sameShape) {
+        for (const child of Array.from(parent.childNodes)) detachNode(child);
+        for (const child of Array.from(incoming.childNodes)) parent.appendChild(child.cloneNode(true));
+
+        return;
+    }
 
     const len = Math.max(existing.length, wanted.length);
     for (let i = 0; i < len; i++) {
@@ -704,9 +718,17 @@ function scroll() {
 }
 
 async function navigate(url: string, push = true): Promise<void> {
-    const { pathname } = new URL(url, location.href);
+    const target = new URL(url, location.href);
+    const { pathname } = target;
 
-    if (push && pathname === location.pathname) {
+    if (target.pathname === location.pathname) {
+        if (push) {
+            if (target.href === location.href) {
+                scroll();
+                return;
+            }
+            history.pushState(null, "", url);
+        }
         scroll();
         return;
     };

@@ -642,7 +642,9 @@ function applyReachabilityDCECore(
             }
 
             if (reachableSpecs.length === 0) {
-                removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
+                if (!node.source.value.startsWith("/chunks/")) {
+                    removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
+                }
             } else {
                 removalEdits.push({
                     start: node.start,
