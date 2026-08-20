@@ -12,7 +12,7 @@ function bootstrap() {
     }
 
     cpSync(join(__dirname, "./template_project"), process.cwd(), { recursive: true, })
-    execSync("npm init -y && npm install esbuild ts-arc elegance-js")
+    execSync("npm init -y && npm pkg set type=module && npm install esbuild ts-arc elegance-js")
 }
 
 bootstrap();
