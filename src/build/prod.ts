@@ -1,4 +1,4 @@
-import { getPageRoutes, } from "../page-tools";
+import { getPageRoutes, hasSlugSegment } from "../page-tools";
 import { generateSyntheticBundle } from "../processing/oxc";
 import { generatePageHTML, createRenderContext, runWithRenderContext } from "./render";
 import type { RouteInfo } from "../page-tools";
@@ -168,7 +168,15 @@ async function buildProdAll(): Promise<void> {
         const cacheKey       = pageCacheKey(transpiled.pathname);
         const layoutKeys     = transpiled.layouts.map(layoutFileCacheKey);
 
-        if (!route.isDynamic) {
+        const compiled = await loadRouteFromCache({
+            pageFile:        route.pageFile,
+            layouts:         route.layouts,
+            layoutCacheKeys: layoutKeys,
+            cacheKey:        cacheKey,
+            pathname:        route.pathname,
+        });
+
+        if (!compiled.isDynamic && !hasSlugSegment(route.pathname)) {
             staticTasks.push({ route, transpiled, layoutCacheKeys: layoutKeys, cacheKey, params: {}, outPathname: route.pathname });
             
             manifestRoutes.push({
@@ -183,14 +191,6 @@ async function buildProdAll(): Promise<void> {
 
             continue;
         }
-
-        const compiled = await loadRouteFromCache({
-            pageFile:        route.pageFile,
-            layouts:         route.layouts,
-            layoutCacheKeys: layoutKeys,
-            cacheKey:        cacheKey,
-            pathname:        route.pathname,
-        });
 
         if (!compiled.getEnumeratedRoutes) {
             manifestRoutes.push({

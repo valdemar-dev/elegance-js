@@ -11,9 +11,7 @@ export interface RouteInfo {
     layouts:  string[];
 }
 
-export interface PageRoute extends RouteInfo {
-    isDynamic: boolean;
-}
+export interface PageRoute extends RouteInfo {}
 
 export function pathnameFromFile(filePath: string): string {
     const withoutExt = filePath.replace(/\.[^.]+$/, "");
@@ -47,32 +45,9 @@ async function getRoutes(pagesDir: string): Promise<RouteInfo[]> {
     }
 }
 
-function hasSlugSegment(pathname: string): boolean {
-    const segments = pathname.split("/").filter(Boolean);
-    return segments.some(
-        seg => /^\[.+\]$/.test(seg) || /^\.\.\.\[.+\]$/.test(seg) || /^:\[.+\]$/.test(seg),
-    );
-}
-
 export async function getPageRoutes(pagesDir: string): Promise<PageRoute[]> {
-    const raw    = await getRoutes(pagesDir);
-    const result: PageRoute[] = [];
-
-    for (const r of raw) {
-        const pageDynamic  = await fileHasDynamicExport(r.pageFile) || hasSlugSegment(r.pathname);
-        const layoutInfos  = await Promise.all(
-            r.layouts.map(async (lp) => ({
-                path:      lp,
-                isDynamic: await fileHasDynamicExport(lp),
-            })),
-        );
-        result.push({
-            ...r,
-            isDynamic: pageDynamic || layoutInfos.some(l => l.isDynamic),
-        });
-    }
-
-    return result;
+    const raw = await getRoutes(pagesDir);
+    return raw.map(r => ({ ...r }));
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -108,13 +83,11 @@ export async function collectLayouts(pageDir: string, rootDir: string): Promise<
     return layouts;
 }
 
-export async function fileHasDynamicExport(path: string): Promise<boolean> {
-    try {
-        const source = await readFile(path, "utf-8");
-        return /\bexport\s+(?:const|let)\s+isDynamic\s*=\s*true\b/.test(source);
-    } catch {
-        return false;
-    }
+export function hasSlugSegment(pathname: string): boolean {
+    const segments = pathname.split("/").filter(Boolean);
+    return segments.some(
+        seg => /^\[.+\]$/.test(seg) || /^\.\.\.\[.+\]$/.test(seg) || /^:\[.+\]$/.test(seg),
+    );
 }
 
 export function sanitize(pathname: string): string {

@@ -109,6 +109,7 @@ export interface CompiledRoute {
     default:              Function;
     metadata:                 (...params: unknown[]) => Promise<VirtualNode[]>;
     getEnumeratedRoutes?: () => Promise<string[]>;
+    isDynamic:            boolean;
     pathname:             string;
     preBuildHooks:        Array<() => Promise<void>>;
     postBuildHooks:       Array<() => Promise<void>>;
@@ -717,6 +718,8 @@ export async function loadLayoutFromCache(pathname: string, cacheKey: CacheKey):
         return {
             default:       module.default,
             metadata:          module.metadata ? module.metadata : () => ([]),
+            getEnumeratedRoutes: module.getEnumeratedRoutes,
+            isDynamic:      module.isDynamic === true,
             pathname,
             buildCallbacks,
             postBuildHooks,
@@ -773,6 +776,7 @@ export async function loadRouteFromCache(entry: {
         default:             composeRenderFn(module, layoutModules),
         metadata:                async (params?: any) => gatherMetaFromModules(module, layoutModules, params ?? {}),
         getEnumeratedRoutes: module.getEnumeratedRoutes,
+        isDynamic:           module.isDynamic === true || layoutModules.some(l => l.isDynamic === true),
         pathname:            entry.pathname,
         preBuildHooks,
         buildCallbacks,

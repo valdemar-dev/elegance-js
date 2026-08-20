@@ -1,4 +1,4 @@
-import { getPageRoutes } from "../page-tools";
+import { getPageRoutes, hasSlugSegment } from "../page-tools";
 import { rm, mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -28,7 +28,6 @@ import { isRichError, printError, richError } from "../error";
 
 const PUBLIC_DIR     = join(process.cwd(), "public");
 const IS_INCREMENTAL = process.env.ELEGANCE_BUILD_MODE === "incremental";
-const SLUG_PATTERN   = /\[([^\]]+)\]/;
 
 async function buildDevAll(): Promise<void> {
     logger.info(`Beginning build.. (${IS_INCREMENTAL ? "incremental" : "full"})`);
@@ -61,21 +60,7 @@ async function buildDevAll(): Promise<void> {
         await pruneStaleOutputs(allRoutes.map(r => r.pageFile));
     }
 
-    for (const route of allRoutes) {
-        if (!route.isDynamic && SLUG_PATTERN.test(route.pathname)) {
-            printError(richError({
-                title:       "Missing Enumerations",
-                cause:       `Route ${route.pathname} is marked as a [slug] route, and is currently set to isDynamic = false.` +
-                             `For a [slug] route to be static, it must export getEnumeratedRoutes(); so that all possible paths can be generated statically.`,
-                origin:      route.pathname,
-                doShowStack: false,
-            }));
-
-            process.exit(1);
-        }
-    }
-
-    const prevState                           = IS_INCREMENTAL ? await loadIncrementalState() : { fileHashes: {}, clientCodeHashes: {} };
+    const prevState = IS_INCREMENTAL ? await loadIncrementalState() : { fileHashes: {}, clientCodeHashes: {} };
     const nextFileHashes: Record<string, string> = {};
     const skipServerKeys                      = new Set<CacheKey>();
     const unchangedPathnames                  = new Set<string>();
@@ -131,11 +116,19 @@ async function buildDevAll(): Promise<void> {
             process.exit(1);
         }
 
-        const key            = pageCacheKey(t.pathname);
+const key            = pageCacheKey(t.pathname);
         const layoutKeys     = t.layouts.map(layoutFileCacheKey);
         const sharedChunks   = t.sharedChunkPaths;
 
-        if (!route.isDynamic) {
+        const mod = await loadRouteFromCache({
+            pageFile:        route.pageFile,
+            layouts:         route.layouts,
+            layoutCacheKeys: layoutKeys,
+            cacheKey:        key,
+            pathname:        route.pathname,
+        });
+
+        if (!mod.isDynamic && !hasSlugSegment(route.pathname)) {
             manifestRoutes.push({
                 kind:             "static",
                 pathname:         route.pathname,
@@ -147,14 +140,6 @@ async function buildDevAll(): Promise<void> {
             });
             continue;
         }
-
-        const mod = await loadRouteFromCache({
-            pageFile:        route.pageFile,
-            layouts:         route.layouts,
-            layoutCacheKeys: layoutKeys,
-            cacheKey:        key,
-            pathname:        route.pathname,
-        });
 
         if (!mod.getEnumeratedRoutes) {
             if (unchangedPathnames.has(route.pathname) && prevManifest) {
