@@ -155,13 +155,38 @@ function renderTopLevel(
     return renderVirtualNode(node, into, ctx);
 }
 
+const ESCAPE_MAP: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+};
+
+// this is still naive but it's ever so slightly faster than a .replace() chain
 function escapeHtml(str: string): string {
-    return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+    let out = str;
+
+    if (out.indexOf("&") === -1 && out.indexOf("<") === -1 &&
+        out.indexOf(">") === -1 && out.indexOf('"') === -1 &&
+        out.indexOf("'") === -1) {
+        return out;
+    }
+
+    let result = "";
+    let last = 0;
+
+    for (let i = 0; i < str.length; i++) {
+        const ch = str[i];
+        const esc = ESCAPE_MAP[ch];
+
+        if (esc) {
+            result += str.slice(last, i) + esc;
+            last = i + 1;
+        }
+    }
+
+    return result + str.slice(last);
 }
 
 function renderVirtualNode(

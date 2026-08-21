@@ -59,6 +59,7 @@ export declare const statusCodePageCache: Map<string, {
 }>;
 export declare const middlewareChainCache: Map<string, MiddlewareFn[]>;
 export declare const encCache: LRU<string, Encoding>;
+export declare const preClientCodeCache: Map<string, string>;
 export declare let staticRouteMap: Map<string, MatchedRoute> | null;
 export declare let paramRoutes: MatchedRoute[] | null;
 export declare let apiRoutesCache: Map<string, ApiRouteModule> | null;

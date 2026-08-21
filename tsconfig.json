@@ -29,5 +29,5 @@
     "rootDir": "./src"
   },
   "exclude": ["testing", "legacy"],
-  "include": ["src/**/*"],
+  "include": ["src/**/*"]
 }

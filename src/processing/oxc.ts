@@ -1283,6 +1283,21 @@ interface SyntheticBundleStaticParts {
 const syntheticBundleStaticCache = new Map<string, SyntheticBundleStaticParts>();
 const SYNTHETIC_BUNDLE_CACHE_MAX = 256;
 
+const syntheticBundleDceCache = new Map<string, string>();
+const SYNTHETIC_BUNDLE_DCE_MAX = 256;
+
+function getDceCacheKey(finalSource: string): string {
+    let h1 = 0x811c9dc5, h2 = 0x01000193;
+    for (let i = 0; i < finalSource.length; i++) {
+        const c = finalSource.charCodeAt(i);
+        
+        h1 = (h1 ^ c) * 0x01000193 >>> 0;
+        h2 = (h2 + c) * 0x85ebca6b >>> 0;
+    }
+    
+    return h1.toString(36) + ":" + h2.toString(36);
+}
+
 function syntheticBundleCacheKey(preClientCode: string, layoutCacheKeys: string[]): string {
     return preClientCode + "\x00" + layoutCacheKeys.join(",");
 }
@@ -1415,6 +1430,10 @@ ${layoutCalls}
     const importSection = layoutImports ? layoutImports + "\n" : "";
     const finalSource   = importSection + withoutDefault + syntheticFn;
 
+    const dceKey = getDceCacheKey(finalSource);
+    const cached = syntheticBundleDceCache.get(dceKey);
+    if (cached !== undefined) return cached;
+
     let dceAst: any;
     try {
         dceAst = parseSync(filePath, finalSource, { sourceType: "module" });
@@ -1423,5 +1442,13 @@ ${layoutCalls}
         return finalSource;
     }
 
-    return applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds);
+    const result = applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds);
+
+    if (syntheticBundleDceCache.size >= SYNTHETIC_BUNDLE_DCE_MAX) {
+        syntheticBundleDceCache.delete(syntheticBundleDceCache.keys().next().value!);
+    }
+    
+    syntheticBundleDceCache.set(dceKey, result);
+
+    return result;
 }

@@ -122,6 +122,17 @@ export const statusCodePageCache = new Map<string, {
 }>();
 export const middlewareChainCache = new Map<string, MiddlewareFn[]>();
 export const encCache           = new LRU<string, Encoding>(512);
+export const preClientCodeCache = new Map<string, string>();
+
+interface StatusCodePageIndexEntry {
+    code: number;
+    depth: number;
+    exactMatcher: MatchedRoute["matcher"];
+    trailMatcher: MatchedRoute["matcher"];
+    entry: NonNullable<ReturnType<typeof statusCodePageCache.get>>;
+}
+
+let statusCodePageIndex: StatusCodePageIndexEntry[] = [];
 
 export let staticRouteMap:    Map<string, MatchedRoute> | null = null;
 export let paramRoutes:       MatchedRoute[] | null            = null;
@@ -144,6 +155,48 @@ const MIME_TYPES: Record<string, string> = {
 const GZIP_PARAMS    = { level: 6 };
 const BROTLI_PARAMS  = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 4 } };
 const BODY_TIMEOUT_MS = parseInt(process.env.BODY_TIMEOUT_MS ?? "10000", 10);
+
+const compressedCache = new Map<string, { gzip: Buffer; brotli: Buffer }>();
+const COMPRESSED_CACHE_MAX = 512;
+
+function compressedCacheKey(body: string | Buffer): string {
+    const s = typeof body === "string" ? body : body.toString("latin1");
+    let h1 = 0x811c9dc5, h2 = 0x01000193;
+    
+    for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+    
+        h1 = (h1 ^ c) * 0x01000193 >>> 0;
+        h2 = (h2 + c) * 0x85ebca6b >>> 0;
+    }
+    
+    return h1.toString(36) + ":" + h2.toString(36);
+}
+
+async function compressBody(
+    body: Buffer,
+    encoding: "br" | "gzip",
+): Promise<Buffer> {
+    if (body.length < 256) {
+        return encoding === "br" ? await brotliAsync(body, BROTLI_PARAMS) : await gzipAsync(body, GZIP_PARAMS);
+    }
+
+    const key = compressedCacheKey(body);
+    
+    const entry = compressedCache.get(key);
+    if (entry) return encoding === "br" ? entry.brotli : entry.gzip;
+
+    const gzip   = await gzipAsync(body, GZIP_PARAMS);
+    const brotli = await brotliAsync(body, BROTLI_PARAMS);
+
+    if (compressedCache.size >= COMPRESSED_CACHE_MAX) {
+        compressedCache.delete(compressedCache.keys().next().value!);
+    }
+    
+    compressedCache.set(key, { gzip, brotli });
+    
+    return encoding === "br" ? brotli : gzip;
+}
 
 let SECURITY_HEADERS: Record<string, string>;
 
@@ -217,14 +270,21 @@ export async function primeStaticCache(): Promise<void> {
     await walk(DIST_DIR);
 }
 
+const matcherCache = new Map<string, MatchedRoute["matcher"]>();
+
 export function compileRouteMatcher(
     pattern: string,
 ): (pathname: string) => Record<string, string | string[] | undefined> | null {
+    const cached = matcherCache.get(pattern);
+    if (cached) return cached;
+
     const norm = (p: string) => (p.endsWith("/") && p !== "/" ? p.slice(0, -1) : p) || "/";
     const normalisedPattern = norm(pattern);
-
     if (!normalisedPattern.includes("[")) {
-        return (pathname: string) => norm(pathname) === normalisedPattern ? {} : null;
+        const m = (pathname: string) => norm(pathname) === normalisedPattern ? {} : null;
+        matcherCache.set(pattern, m);
+       
+        return m;
     }
 
     type ParamMeta = { name: string; catchAll: boolean; optional: boolean };
@@ -252,21 +312,29 @@ export function compileRouteMatcher(
 
     const re = new RegExp(`^/?${reSource}/?$`);
 
-    return (pathname: string) => {
-        const m = re.exec(pathname);
-        if (!m) return null;
+    const m = (pathname: string) => {
+        const match = re.exec(pathname);
+        if (!match) return null;
+    
         const params: Record<string, string | string[] | undefined> = {};
+    
         for (let i = 0; i < paramMeta.length; i++) {
             const { name, catchAll, optional } = paramMeta[i]!;
-            const val = m[i + 1];
+            const val = match[i + 1];
+    
             if (catchAll) {
                 params[name] = val ? val.split("/") : [];
             } else {
                 params[name] = optional && !val ? undefined : val;
             }
         }
+    
         return params;
     };
+
+    matcherCache.set(pattern, m);
+    
+    return m;
 }
 
 function routeEntryToMatched(entry: RouteEntry): MatchedRoute {
@@ -372,6 +440,25 @@ export async function warmDynamicCaches(manifest: Manifest): Promise<{
             });
         }
     }));
+
+    statusCodePageIndex = [...statusCodePageCache.entries()].map(([key, entry]) => {
+        const colonIdx = key.lastIndexOf(":");
+        const dirPath  = key.slice(0, colonIdx);
+        const code     = parseInt(key.slice(colonIdx + 1), 10);
+
+        const relDir      = relative(PAGES_DIR, dirPath);
+        const dirPattern  = relDir === "" ? "/" : `/${relDir.replace(/\\/g, "/")}`;
+        const trailPattern = dirPattern === "/" ? "/[...__trail]" : `${dirPattern}/[...__trail]`;
+        const depth = dirPattern === "/" ? 0 : dirPattern.split("/").filter(Boolean).length;
+
+        return {
+            code,
+            depth,
+            exactMatcher: compileRouteMatcher(dirPattern),
+            trailMatcher: compileRouteMatcher(trailPattern),
+            entry,
+        };
+    });
 
     return { staticRouteMap: sMap, paramRoutes: pRoutes };
 }
@@ -480,7 +567,12 @@ async function buildRouteHTML(
         }
     }
 
-    const preClientCode = await readFile(preClientMjsPath(route.cacheKey), "utf-8");
+    const key = route.cacheKey;
+    let preClientCode = preClientCodeCache.get(key);
+    if (preClientCode === undefined) {
+        preClientCode = await readFile(preClientMjsPath(key), "utf-8");
+        preClientCodeCache.set(key, preClientCode);
+    }
 
     let html = await runWithRenderContext(ctx, async () => {
         const [rootNode, metaNodes] = await Promise.all([
@@ -527,9 +619,9 @@ async function pipeRouteToResponse(
     if (res.writableEnded || res.destroyed) return;
 
     const enc  = acceptEncoding(req);
-    const body = enc === "br"   ? await brotliAsync(html, BROTLI_PARAMS)
-               : enc === "gzip" ? await gzipAsync(html, GZIP_PARAMS)
-               : Buffer.from(html);
+    const body = enc === "br" || enc === "gzip"
+        ? await compressBody(Buffer.from(html), enc)
+        : Buffer.from(html);
 
     const headers: Record<string, string | number> = {
         ...SECURITY_HEADERS,
@@ -653,6 +745,7 @@ async function runMiddlewareChain(
     res:   ServerResponse,
     final: () => Promise<void>,
 ) {
+    if (mws.length === 0) return final();
     let i = 0;
     const next = async () => {
         if (i < mws.length) await mws[i++]!(req, res, next);
@@ -669,44 +762,32 @@ async function respondWithStatusCode(
     res:             ServerResponse,
 ): Promise<void> {
     if (serverOptions.allowStatusCodePages) {
-        let bestEntry: ReturnType<typeof statusCodePageCache.get> | null = null;
+        let bestEntry: StatusCodePageIndexEntry | null = null;
         let bestDepth = -1;
 
-        for (const [key, entry] of statusCodePageCache) {
-            const colonIdx = key.lastIndexOf(":");
-            const dirPath  = key.slice(0, colonIdx);
-            const keyCode  = parseInt(key.slice(colonIdx + 1), 10);
+        for (const entry of statusCodePageIndex) {
+            if (entry.code !== code && entry.code !== 0) continue;
 
-            if (keyCode !== code && keyCode !== 0) continue;
+            if (entry.exactMatcher(requestPathname) === null && entry.trailMatcher(requestPathname) === null) continue;
 
-            const relDir      = relative(PAGES_DIR, dirPath);
-            const dirPattern  = relDir === "" ? "/" : `/${relDir.replace(/\\/g, "/")}`;
-            const trailPattern = dirPattern === "/" ? "/[...__trail]" : `${dirPattern}/[...__trail]`;
-
-            const exactMatches = compileRouteMatcher(dirPattern)(requestPathname);
-            const trailMatches = compileRouteMatcher(trailPattern)(requestPathname);
-
-            if (exactMatches === null && trailMatches === null) continue;
-
-            const depth = dirPattern === "/" ? 0 : dirPattern.split("/").filter(Boolean).length;
-            if (depth > bestDepth) {
+            if (entry.depth > bestDepth) {
                 bestEntry = entry;
-                bestDepth = depth;
+                bestDepth = entry.depth;
             }
         }
 
         if (bestEntry) {
             const route: MatchedRoute = {
                 pathname:         requestPathname,
-                pageFile:         bestEntry.pageFile,
-                layouts:          bestEntry.layouts,
-                layoutCacheKeys:  bestEntry.layoutCacheKeys,
-                cacheKey:         bestEntry.cacheKey,
+                pageFile:         bestEntry.entry.pageFile,
+                layouts:          bestEntry.entry.layouts,
+                layoutCacheKeys:  bestEntry.entry.layoutCacheKeys,
+                cacheKey:         bestEntry.entry.cacheKey,
                 sharedChunkPaths: [],
                 isDynamic:        true,
                 matcher:          () => ({}),
             };
-            await pipeRouteToResponse(bestEntry.compiled, route, params, requestPathname, req, res, code);
+            await pipeRouteToResponse(bestEntry.entry.compiled, route, params, requestPathname, req, res, code);
             return;
         }
     }
@@ -903,7 +984,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse) {
         }
 
         runMiddlewareChain(getMiddlewareChain(pathname), req, res, async () => {
-            handler(req, res).catch((e) => {
+            Promise.resolve(handler(req, res)).catch((e) => {
                 res.writeHead(500);
                 res.end();
 
