@@ -1,209 +1,209 @@
 {
-  "buildTime": 1787256081347,
+  "buildTime": 1787291218241,
   "routes": [
     {
-      "kind": "static",
       "pathname": "/",
-      "pageFile": "pages/page.ts",
-      "layouts": [],
-      "layoutCacheKeys": [],
-      "cacheKey": "route_index",
-      "sharedChunkPaths": [
-        "/chunks/chunk-A4SHWCB5.js"
-      ]
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/start/setup",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/start/creating-a-page",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/start/creating-components",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/server/api-routes",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/server/middleware",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/server/dynamic-pages",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/server/hooks",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/server/slug-routes",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/client/hooks",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/client/components",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/reference/atoms",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/extra/bundle-generation",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
-      "kind": "enumerated",
-      "pathname": "/docs/extra/tsx",
-      "patternPathname": "/docs/[...filename]",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": []
-    },
-    {
       "kind": "static",
-      "pathname": "/speed",
-      "pageFile": "pages/speed/page.ts",
-      "layouts": [],
+      "pageFile": "pages/page.ts",
       "layoutCacheKeys": [],
-      "cacheKey": "route_speed",
+      "layouts": [],
       "sharedChunkPaths": [
         "/chunks/chunk-A4SHWCB5.js"
-      ]
+      ],
+      "cacheKey": "route_index"
+    },
+    {
+      "pathname": "/docs/start/setup",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/start/creating-a-page",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/start/creating-components",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/server/api-routes",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/server/middleware",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/server/dynamic-pages",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/server/hooks",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/server/slug-routes",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/client/hooks",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/client/components",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/reference/atoms",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/extra/bundle-generation",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/extra/tsx",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/speed",
+      "kind": "static",
+      "pageFile": "pages/speed/page.ts",
+      "layoutCacheKeys": [],
+      "layouts": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-A4SHWCB5.js"
+      ],
+      "cacheKey": "route_speed"
     }
   ],
   "statusCodePages": [
