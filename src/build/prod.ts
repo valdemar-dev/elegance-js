@@ -1,4 +1,4 @@
-import { getPageRoutes, hasSlugSegment } from "../page-tools";
+import { getRoutes, hasSlugSegment } from "../page-tools";
 import { generateSyntheticBundle } from "../processing/oxc";
 import { generatePageHTML, createRenderContext, runWithRenderContext } from "./render";
 import type { RouteInfo } from "../page-tools";
@@ -145,7 +145,7 @@ async function buildProdAll(): Promise<void> {
     await copyPublicDir(PUBLIC_DIR);
     await buildClientRuntime(true);
 
-    const allRoutes = await getPageRoutes(PAGES_DIR);
+    const allRoutes = await getRoutes(PAGES_DIR);
     const splitMap  = await transpileAllRoutes(allRoutes, true);
 
     const staticTasks:    StaticTask[]  = [];

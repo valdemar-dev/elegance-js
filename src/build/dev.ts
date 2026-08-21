@@ -1,4 +1,4 @@
-import { getPageRoutes, hasSlugSegment } from "../page-tools";
+import { getRoutes, hasSlugSegment } from "../page-tools";
 import { rm, mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -54,7 +54,7 @@ async function buildDevAll(): Promise<void> {
         await buildClientRuntime(false);
     }
 
-    const allRoutes = await getPageRoutes(PAGES_DIR);
+    const allRoutes = await getRoutes(PAGES_DIR);
 
     if (IS_INCREMENTAL) {
         await pruneStaleOutputs(allRoutes.map(r => r.pageFile));

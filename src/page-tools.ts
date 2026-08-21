@@ -6,12 +6,10 @@ import { PAGES_DIR } from "./constants";
 import type { CompiledLayout } from "./build/common";
 
 export interface RouteInfo {
-    pathname: string;
     pageFile: string;
+    pathname: string;
     layouts:  string[];
 }
-
-export interface PageRoute extends RouteInfo {}
 
 export function pathnameFromFile(filePath: string): string {
     const withoutExt = filePath.replace(/\.[^.]+$/, "");
@@ -20,7 +18,7 @@ export function pathnameFromFile(filePath: string): string {
     return normalized === "index" ? "/" : `/${normalized}`;
 }
 
-async function getRoutes(pagesDir: string): Promise<RouteInfo[]> {
+export async function getRoutes(pagesDir: string): Promise<RouteInfo[]> {
     const routes: RouteInfo[] = [];
     await walkDir(pagesDir, "/");
     return routes;
@@ -43,11 +41,6 @@ async function getRoutes(pagesDir: string): Promise<RouteInfo[]> {
             }
         }
     }
-}
-
-export async function getPageRoutes(pagesDir: string): Promise<PageRoute[]> {
-    const raw = await getRoutes(pagesDir);
-    return raw.map(r => ({ ...r }));
 }
 
 async function fileExists(path: string): Promise<boolean> {
