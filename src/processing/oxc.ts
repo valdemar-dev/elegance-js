@@ -890,7 +890,7 @@ export function serializePropValue(value: unknown): string {
 
     if (typeof value === "boolean") return String(value);
     if (typeof value === "number") return isFinite(value) ? String(value) : "undefined";
-    if (typeof value === "string") return JSON.stringify(value);
+    if (typeof value === "string") return JSON.stringify(value).replace(/</g, "\\u003c");
     
     if (typeof value === "function") {
         const name = (value as Function).name;
@@ -902,10 +902,10 @@ export function serializePropValue(value: unknown): string {
     if (typeof value === "object") {
         const obj = value as any;
         if (typeof obj.id === "string" && "value" in obj) {
-            return `_getAtom(${JSON.stringify(obj.id)}, ${serializePropValue(obj.value)})`;
+            return `_getAtom(${JSON.stringify(obj.id).replace(/</g, "\\u003c")}, ${serializePropValue(obj.value)})`;
         }
         const entries = Object.entries(value as Record<string, unknown>).map(
-            ([k, v]) => `${JSON.stringify(k)}: ${serializePropValue(v)}`,
+            ([k, v]) => `${JSON.stringify(k).replace(/</g, "\\u003c")}: ${serializePropValue(v)}`,
         );
         return `{ ${entries.join(", ")} }`;
     }
@@ -926,7 +926,7 @@ function propsComparisonKey(props: Record<string, unknown> | undefined): string 
 function serializePropsRecord(props: Record<string, unknown> | undefined): string {
     if (!props || Object.keys(props).length === 0) return "{}";
     const entries = Object.entries(props)
-        .map(([k, v]) => `${JSON.stringify(k)}: ${serializePropValue(v)}`);
+        .map(([k, v]) => `${JSON.stringify(k).replace(/</g, "\\u003c")}: ${serializePropValue(v)}`);
     return `{ ${entries.join(", ")} }`;
 }
 

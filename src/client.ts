@@ -64,7 +64,7 @@ const untrack = (a: ReturnType<typeof atom>, cb: (v: any) => void) => a._removeU
 
 const componentConfigs = new Map<string, any>();
 const instanceMap = new Map<string, any>();
-const rootInstanceIds: Record<string, number> = {};
+let nextInstanceId = 0;
 const view = (fn: Function) => fn;
 
 interface ClientComponentConfig extends ComponentConfig {
@@ -82,13 +82,10 @@ function component(cfg: ClientComponentConfig) {
     componentConfigs.set(__id, cfg);
 
     return (props?: Record<string, unknown>, children?: Array<VirtualNode>) => {
-        const counters = currentInst ? (currentInst._childCounters ??= {}) : rootInstanceIds;
-        const idx = counters[__id] ?? 0;
-        counters[__id] = idx + 1;
         return {
             __type: "live",
             __componentId: __id,
-            __instanceId: `${__id}#${idx}`,
+            __instanceId: `${__id}#${nextInstanceId++}`,
             props: props ?? {},
             children: children,
         };
@@ -338,14 +335,17 @@ function bootstrapComponent(desc: any, existingDom?: Node): any {
     const cfg = componentConfigs.get(cid);
     if (!cfg) return existingDom ?? document.createDocumentFragment();
 
-    const existing = instanceMap.get(instanceId);
-    if (existing && existingDom) {
-        existing.props = desc.props ?? {};
-        existing.children = desc.children ?? [];
-        existing.config = cfg;
-        existingDom.parentNode?.replaceChild(existing.root, existingDom);
-        existing._markDirty();
-        return existing;
+    const existingOnDom = existingDom ? (existingDom as any).__instance : undefined;
+    if (existingOnDom && existingOnDom.cid === cid) {
+        existingOnDom.props = desc.props ?? {};
+        existingOnDom.children = desc.children ?? [];
+        existingOnDom.config = cfg;
+        existingOnDom._markDirty();
+        return existingOnDom;
+    }
+
+    if (existingDom && (existingDom as any).__instance) {
+        (existingDom as any).__instance._destroy();
     }
 
     const atomsObj: any = {};
@@ -364,7 +364,6 @@ function bootstrapComponent(desc: any, existingDom?: Node): any {
         _atoms: atomsObj,
         _navigationCallback: null,
         root: existingDom || null,
-        _childCounters: {} as Record<string, number>,
         _markDirty() {
             if (this._scheduled) return;
             this._scheduled = true;
@@ -424,7 +423,6 @@ function mount(desc: any): Node {
 }
 
 function execView(inst: any): any {
-    inst._childCounters = {};
     currentInst = inst;
     for (const a of inst._deps) a._removeListener(inst);
     inst._deps.clear();
@@ -485,7 +483,6 @@ async function hydrateWithRegions(
     handlers?: Array<{ eid: number; h: Array<{ event: string; fn: Function }>; count?: number }>
 ): Promise<void> {
     const queue: Array<{ desc: any; dom: Node }> = [];
-    const instanceCounters: Record<string, number> = {};
 
     for (const marker of document.body.querySelectorAll<Element>('template[data-region]')) {
         const regionIdx = parseInt(marker.getAttribute('data-region')!, 10);
@@ -504,9 +501,7 @@ async function hydrateWithRegions(
             for (let i = 0; i < count; i++) {
                 while (sibling?.nodeType === Node.TEXT_NODE && !(sibling.nodeValue ?? "").trim())
                     sibling = sibling.nextSibling!;
-                const idx = instanceCounters[cid] ?? 0;
-                instanceCounters[cid] = idx + 1;
-                const syntheticDesc = { __type: "live", __componentId: cid, __instanceId: `${cid}#${idx}`, props };
+                const syntheticDesc = { __type: "live", __componentId: cid, __instanceId: `${cid}#${nextInstanceId++}`, props };
                 if (sibling !== null) {
                     queue.push({ desc: syntheticDesc, dom: sibling });
                     sibling = sibling.nextSibling;
@@ -819,16 +814,3 @@ async function _action(target: string, params: unknown) {
 Object.assign(globalThis, { view, component, onPageLoad, track, untrack, navigate, rawHTML, _getAtom, _action, });
 
 requestAnimationFrame(() => hydrate());
-
-// test
-{
-    const source = new EventSource(`http://${location.hostname}:4000/__reload`);
-
-    source.onmessage = (msg: any) => {
-        if (msg.data === "connected") return;
-        window.location.reload();
-    };
-
-    // ignoring is fine
-    source.onerror = () => {};
-}

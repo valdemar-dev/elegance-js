@@ -152,13 +152,27 @@ async function initSecurityHeaders(): Promise<void> {
     SECURITY_HEADERS = createSecurityHeaders(config.security);
 }
 
+const REVALIDATE_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+const IMMUTABLE_CACHE_CONTROL  = "public, max-age=31536000, immutable";
+
+function cacheControlForMime(mime: string): string {
+    if (
+        mime === "text/html" ||
+        mime === "text/css" ||
+        mime === "application/javascript"
+    ) {
+        return REVALIDATE_CACHE_CONTROL;
+    }
+    return IMMUTABLE_CACHE_CONTROL;
+}
+
 function buildCachedFileHeaders(
     mime:         string,
     etag:         string,
     rawLen:       number,
     gzipLen:      number,
     brotliLen:    number,
-    cacheControl = "public, max-age=31536000, immutable",
+    cacheControl = cacheControlForMime(mime),
 ): CachedFileHeaders {
     const base = {
         ...SECURITY_HEADERS,

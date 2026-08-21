@@ -84,7 +84,7 @@ export async function generatePageHTML(
         headBuilder.append("\n");
     }
 
-    const hydrationPayload = JSON.stringify({ atoms: getAtomSnapshot(ctx) });
+    const hydrationPayload = JSON.stringify({ atoms: getAtomSnapshot(ctx) }).replace(/</g, "\\u003c");
     const bodyHtml = bodyBuilder.join();
 
     const fullHtml = `<!DOCTYPE html>
@@ -126,7 +126,7 @@ export async function generateDynamicPageHTML(
     }
 
     const clientCode = getClientCode();
-    const hydrationPayload = JSON.stringify({ atoms: getAtomSnapshot(ctx) });
+    const hydrationPayload = JSON.stringify({ atoms: getAtomSnapshot(ctx) }).replace(/</g, "\\u003c");
 
     return `<!DOCTYPE html>
 <html>

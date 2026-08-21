@@ -143,7 +143,7 @@ async function buildProdAll(): Promise<void> {
     await mkdir(CACHE_DIR, { recursive: true });
 
     await copyPublicDir(PUBLIC_DIR);
-    await buildClientRuntime(true);
+    await buildClientRuntime(true, false);
 
     const allRoutes = await getRoutes(PAGES_DIR);
     const splitMap  = await transpileAllRoutes(allRoutes, true);

@@ -44,14 +44,14 @@ async function buildDevAll(): Promise<void> {
         await mkdir(DIST_DIR,  { recursive: true });
         await mkdir(CACHE_DIR, { recursive: true });
         await copyPublicDirIncremental(PUBLIC_DIR);
-        await buildClientRuntime(false);
+        await buildClientRuntime(false, true);
     } else {
         await rm(OUT_DIR, { recursive: true, force: true });
         await mkdir(OUT_DIR,   { recursive: true });
         await mkdir(DIST_DIR,  { recursive: true });
         await mkdir(CACHE_DIR, { recursive: true });
         await copyPublicDir(PUBLIC_DIR);
-        await buildClientRuntime(false);
+        await buildClientRuntime(false, true);
     }
 
     const allRoutes = await getRoutes(PAGES_DIR);

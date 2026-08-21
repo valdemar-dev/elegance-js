@@ -347,8 +347,19 @@ export async function copyPublicDirIncremental(publicDir: string): Promise<void>
     await walk(publicDir, DIST_DIR);
 }
 
-export async function buildClientRuntime(minify: boolean): Promise<void> {
-    await esbuild.build({
+const DEV_HOT_RELOAD_FOOTER = `
+{
+    const source = new EventSource(\`http://\${location.hostname}:4000/__reload\`);
+    source.onmessage = (msg) => {
+        if (msg.data === "connected") return;
+        window.location.reload();
+    };
+    source.onerror = () => {};
+}
+`;
+
+export async function buildClientRuntime(minify: boolean, isDev: boolean): Promise<void> {
+    const options: esbuild.BuildOptions = {
         entryPoints: [join(import.meta.dirname, "..", "client.js")],
         bundle:      true,
         outfile:     join(DIST_DIR, "client.js"),
@@ -359,7 +370,11 @@ export async function buildClientRuntime(minify: boolean): Promise<void> {
         treeShaking: true,
         loader:      { ".ts": "ts", ".tsx": "ts" },
         plugins:     [eleganceTsxPlugin],
-    });
+    };
+
+    if (isDev) options.footer = { js: DEV_HOT_RELOAD_FOOTER };
+
+    await esbuild.build(options);
 }
 
 export const ROUTE_ESBUILD_BASE = {
