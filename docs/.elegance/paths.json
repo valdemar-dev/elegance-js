@@ -1,12 +1,16 @@
 {
-  "buildTime": 1787291218241,
+  "buildTime": 1787291956276,
   "routes": [
     {
       "pathname": "/",
       "kind": "static",
       "pageFile": "pages/page.ts",
-      "layoutCacheKeys": [],
-      "layouts": [],
+      "layoutCacheKeys": [
+        "layout_layout"
+      ],
+      "layouts": [
+        "pages/layout.ts"
+      ],
       "sharedChunkPaths": [
         "/chunks/chunk-A4SHWCB5.js"
       ],
@@ -17,9 +21,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -31,9 +37,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -45,9 +53,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -59,9 +69,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -73,9 +85,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -87,9 +101,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -101,9 +117,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -115,9 +133,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -129,9 +149,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -143,9 +165,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -157,9 +181,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -171,9 +197,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -185,9 +213,11 @@
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
@@ -198,8 +228,12 @@
       "pathname": "/speed",
       "kind": "static",
       "pageFile": "pages/speed/page.ts",
-      "layoutCacheKeys": [],
-      "layouts": [],
+      "layoutCacheKeys": [
+        "layout_layout"
+      ],
+      "layouts": [
+        "pages/layout.ts"
+      ],
       "sharedChunkPaths": [
         "/chunks/chunk-A4SHWCB5.js"
       ],
@@ -210,9 +244,11 @@
     {
       "pageFile": "pages/docs/[...filename]/404.tsx",
       "layouts": [
+        "pages/layout.ts",
         "pages/docs/[...filename]/layout.ts"
       ],
       "layoutCacheKeys": [
+        "layout_layout",
         "layout_docs_[...filename]"
       ],
       "cacheKey": "statusCode_docs_[...filename]_404"
