@@ -31,7 +31,7 @@ Visit `http://localhost:3000` to see the default page.
 A simple counter:
 
 ```tsx
-const counter = state(0);
+const counter = atom(0);
 
 export default function CounterPage() {
     return div(
@@ -42,6 +42,8 @@ export default function CounterPage() {
         )
     );
 }
+
+// JSX is also supported!
 ```
 
 A reusable component version:

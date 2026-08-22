@@ -1,14 +1,14 @@
-top level non-component elements can never be reactive, as the code containing them is not shipped to the browser.
+top level non-component elements can never be reactive, as the code containing them is not shipped to the browser. -- this is fine, but needs to be documented
 
-client.ts is just fully slop.
+client.ts is just fully slop. -- i want it to be like 2kb in prod.
 
 layouts end up being items children: [ Promise ] for async pages because children are never awaited; idk how JSX is meant to handle async children, you can't exactly <await Child>
-weird bug in client, mismatch between get instance key and set instance key
+weird bug in client, mismatch between get instance key and set instance key -- i think this is fixed.
 
+server actions are technically enumerable -- idk if it's even a problem
 
-server actions are technically enumerable
+patching rawhtml doesnt update dom -- feature ? 
 
-patching rawhtml doesnt update dom
+all the caches are unbound rn -- fix!
 
-all the caches are unbound rn
-
+docs are stale !!!!!
