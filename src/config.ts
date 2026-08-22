@@ -66,7 +66,9 @@ const defaultConfig: SafeEleganceConfig = {
         clearConsoleOnRebuilds: true,
     },
 
-    runtime: {}
+    runtime: {
+        hotReloadPort: 4000,
+    }
 };
 
 let userConfig: EleganceConfig;

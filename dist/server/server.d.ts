@@ -25,6 +25,7 @@ interface CachedFile {
     brotli: Buffer;
     mime: string;
     etag: string;
+    compressible: boolean;
     headers: CachedFileHeaders;
 }
 export interface MatchedRoute {

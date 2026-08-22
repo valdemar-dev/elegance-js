@@ -1,4 +1,4 @@
-import { getRoutes, hasSlugSegment } from "../page-tools";
+import { getRoutes, hasSlugSegment, resolveEnumeratedPath } from "../page-tools";
 import { generateSyntheticBundle } from "../processing/oxc";
 import { generatePageHTML, createRenderContext, runWithRenderContext } from "./render";
 import type { RouteInfo } from "../page-tools";
@@ -208,7 +208,7 @@ async function buildProdAll(): Promise<void> {
         const rawSlugs = await compiled.getEnumeratedRoutes();
 
         for (const slug of rawSlugs) {
-            const concretePath = route.pathname.replace(/\[([^\]]+)\]/g, slug);
+            const concretePath = resolveEnumeratedPath(route.pathname, slug);
             staticTasks.push({
                 route,
                 transpiled,

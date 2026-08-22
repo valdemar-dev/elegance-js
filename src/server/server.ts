@@ -73,6 +73,7 @@ interface CachedFile {
     brotli:  Buffer;
     mime:    string;
     etag:    string;
+    compressible: boolean;
     headers: CachedFileHeaders;
 }
 
@@ -151,6 +152,18 @@ const MIME_TYPES: Record<string, string> = {
     ".ico":  "image/x-icon",
     ".txt":  "text/plain",
 };
+
+const COMPRESSIBLE_MIMES = new Set([
+    "text/html",
+    "application/javascript",
+    "text/css",
+    "application/json",
+    "text/plain",
+]);
+
+function mimeIsCompressible(mime: string): boolean {
+    return COMPRESSIBLE_MIMES.has(mime);
+}
 
 const GZIP_PARAMS    = { level: 6 };
 const BROTLI_PARAMS  = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 4 } };
@@ -252,16 +265,17 @@ export async function primeStaticCache(): Promise<void> {
 
             const urlPath            = "/" + relative(DIST_DIR, full).replace(/\\/g, "/");
             const [raw, filestat]    = await Promise.all([readFile(full), stat(full)]);
-            const [gzip, brotli]     = await Promise.all([
-                gzipAsync(raw, GZIP_PARAMS),
-                brotliAsync(raw, BROTLI_PARAMS),
-            ]);
 
             const mime = MIME_TYPES[extname(full)] ?? "application/octet-stream";
             const etag = `"${filestat.size}-${filestat.mtimeMs}"`;
+            const compressible = mimeIsCompressible(mime);
+
+            const [gzip, brotli] = compressible
+                ? await Promise.all([gzipAsync(raw, GZIP_PARAMS), brotliAsync(raw, BROTLI_PARAMS)])
+                : [raw, raw];
 
             staticCache.set(urlPath, {
-                raw, gzip, brotli, mime, etag,
+                raw, gzip, brotli, mime, etag, compressible,
                 headers: buildCachedFileHeaders(mime, etag, raw.length, gzip.length, brotli.length),
             });
         }));
@@ -725,12 +739,12 @@ async function lazyBuildStaticPage(
 
     const htmlCached: CachedFile = {
         raw: htmlBuf, gzip: htmlGzip, brotli: htmlBrotli,
-        mime: htmlMime, etag: htmlEtag,
+        mime: htmlMime, etag: htmlEtag, compressible: true,
         headers: buildCachedFileHeaders(htmlMime, htmlEtag, htmlBuf.length, htmlGzip.length, htmlBrotli.length, "no-store"),
     };
     const jsCached: CachedFile = {
         raw: jsBuf, gzip: jsGzip, brotli: jsBrotli,
-        mime: jsMime, etag: jsEtag,
+        mime: jsMime, etag: jsEtag, compressible: true,
         headers: buildCachedFileHeaders(jsMime, jsEtag, jsBuf.length, jsGzip.length, jsBrotli.length, "no-store"),
     };
 
@@ -822,7 +836,16 @@ function serveCachedFile(
     statusCode = 200,
 ): void {
     if (req.headers["if-none-match"] === cached.etag) {
-        res.writeHead(304); res.end(); return;
+        const notModified = {
+            ...SECURITY_HEADERS,
+            "ETag":          cached.etag,
+            "Cache-Control": cached.headers.raw["Cache-Control"],
+            "Vary":          "Accept-Encoding",
+        };
+        res.writeHead(304, notModified); res.end(); return;
+    }
+    if (!cached.compressible) {
+        res.writeHead(statusCode, cached.headers.raw); res.end(cached.raw); return;
     }
     const enc = acceptEncoding(req);
     if (enc === "br")        { res.writeHead(statusCode, cached.headers.brotli); res.end(cached.brotli); }
@@ -947,12 +970,6 @@ async function runServerAction(req: IncomingMessage, res: ServerResponse) {
                         return badRequest(`${key} is too large`);
                     break;
             }
-
-            if (typeof requestParam !== value.type) {
-                res.statusCode = 400;
-                res.end();
-                return;
-            }
         }
     }
 
@@ -977,7 +994,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse) {
 
     if (IS_DEV) logger.info(`- ${req.method} : ${pathname}`);
 
-    if (pathname === "/__action") { runServerAction(req, res); return; }
+    if (pathname === "/__action") {
+        runServerAction(req, res).catch((e) => {
+            if (!res.writableEnded && !res.destroyed) {
+                res.writeHead(500);
+                res.end();
+            }
+            logger.error(e);
+        });
+        return;
+    }
 
     const cached = staticCache.get(pathname);
     if (cached) { serveCachedFile(req, res, cached); return; }

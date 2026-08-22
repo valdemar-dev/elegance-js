@@ -9,6 +9,7 @@ import { loadPaths } from "./constants";
 
 export type RuntimeOptions = {
     init?: string;
+    hotReloadPort?: number;
 };
 
 await loadPaths();
@@ -41,9 +42,7 @@ function sendReloadToClients() {
     }
 }
 
-function startHotReloadServer() {
-    const hotReloadPort = 4000;
-
+function startHotReloadServer(hotReloadPort: number) {
     const sseServer = createServer((req, res) => {
         if (req.url !== "/__reload") {
             res.writeHead(404);
@@ -160,10 +159,10 @@ async function cycle(): Promise<void> {
     try {
         await runBuild();
         await startServer();
-
-    } catch {
+    } catch (err: any) {
+        logger.error(`Build or server startup failed:\n${err?.message ?? err}`);
     }
-    
+
     sendReloadToClients();
 }
 
@@ -188,7 +187,8 @@ async function scheduleRebuild(): Promise<void> {
 
 (async () => {
     if (IS_DEV) {
-        startHotReloadServer();
+        const config = await getConfig();
+        startHotReloadServer(config.runtime.hotReloadPort ?? 4000);
         watch(PAGES_DIR, { recursive: true }, (_, filename) => {
             if (filename) scheduleRebuild();
         });

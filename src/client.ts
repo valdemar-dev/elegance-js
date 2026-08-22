@@ -375,6 +375,8 @@ function bootstrapComponent(desc: any, existingDom?: Node): any {
             });
         },
         _destroy() {
+            if (inst._destroyed) return;
+            inst._destroyed = true;
             inst._onMountCleanup?.();
             inst._onNavigateCleanup?.();
             if (inst._navigationCallback)
@@ -383,6 +385,11 @@ function bootstrapComponent(desc: any, existingDom?: Node): any {
             instanceMap.delete(instanceId);
             for (const a of inst._deps) a._removeListener(inst);
             inst._deps.clear();
+            if (inst.root) {
+                for (const el of inst.root.querySelectorAll("*")) {
+                    (el as any).__instance?._destroy();
+                }
+            }
             inst.root?.remove();
         },
     };

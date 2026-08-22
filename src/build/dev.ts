@@ -1,4 +1,4 @@
-import { getRoutes, hasSlugSegment } from "../page-tools";
+import { getRoutes, hasSlugSegment, resolveEnumeratedPath } from "../page-tools";
 import { rm, mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -25,6 +25,7 @@ import {
 } from "./common";
 import { existsSync } from "node:fs";
 import { isRichError, printError, richError } from "../error";
+import { getConfig } from "../config";
 
 const PUBLIC_DIR     = join(process.cwd(), "public");
 const IS_INCREMENTAL = process.env.ELEGANCE_BUILD_MODE === "incremental";
@@ -33,6 +34,9 @@ async function buildDevAll(): Promise<void> {
     logger.info(`Beginning build.. (${IS_INCREMENTAL ? "incremental" : "full"})`);
 
     const start = performance.now();
+
+    const config = await getConfig();
+    const hotReloadPort = config.runtime.hotReloadPort;
 
     if (existsSync(PAGES_DIR) === false) {
         logger.warn("config.pagesDirectory did not exist, it will be created.");
@@ -44,14 +48,14 @@ async function buildDevAll(): Promise<void> {
         await mkdir(DIST_DIR,  { recursive: true });
         await mkdir(CACHE_DIR, { recursive: true });
         await copyPublicDirIncremental(PUBLIC_DIR);
-        await buildClientRuntime(false, true);
+        await buildClientRuntime(false, true, hotReloadPort);
     } else {
         await rm(OUT_DIR, { recursive: true, force: true });
         await mkdir(OUT_DIR,   { recursive: true });
         await mkdir(DIST_DIR,  { recursive: true });
         await mkdir(CACHE_DIR, { recursive: true });
         await copyPublicDir(PUBLIC_DIR);
-        await buildClientRuntime(false, true);
+        await buildClientRuntime(false, true, hotReloadPort);
     }
 
     const allRoutes = await getRoutes(PAGES_DIR);
@@ -163,7 +167,7 @@ const key            = pageCacheKey(t.pathname);
         }
 
         const slugs = await mod.getEnumeratedRoutes();
-        const freshPaths = new Set(slugs.map(slug => route.pathname.replace(/\[([^\]]+)\]/g, slug)));
+        const freshPaths = new Set(slugs.map(slug => resolveEnumeratedPath(route.pathname, slug)));
 
         if (IS_INCREMENTAL && prevManifest) {
             const prevEnumerated = prevManifest.routes.filter(
@@ -182,7 +186,7 @@ const key            = pageCacheKey(t.pathname);
         }
 
         for (const slug of slugs) {
-            const concretePath = route.pathname.replace(/\[([^\]]+)\]/g, slug);
+            const concretePath = resolveEnumeratedPath(route.pathname, slug);
             manifestRoutes.push({
                 kind:             "enumerated",
                 pathname:         concretePath,

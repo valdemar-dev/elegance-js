@@ -83,6 +83,44 @@ export function hasSlugSegment(pathname: string): boolean {
     );
 }
 
+/**
+ * this resolves slugs that have multiple parts properly.
+ */
+export function resolveEnumeratedPath(routePathname: string, slug: string): string {
+    const parts = slug.split("/").filter(Boolean);
+    let partIdx = 0;
+
+    const segments = routePathname.split("/").map((seg) => {
+        if (!seg) return seg;
+        
+        if (seg.startsWith("[...") && seg.endsWith("]")) {
+            const rest = parts.slice(partIdx).join("/");
+        
+            partIdx = parts.length;
+        
+            return rest;
+        }
+        
+        if (seg.startsWith(":[") && seg.endsWith("]")) {
+            if (partIdx >= parts.length) return "";
+        
+            const next = parts[partIdx++]!;
+        
+            return next;
+        }
+        
+        if (seg.startsWith("[") && seg.endsWith("]")) {
+            const next = parts[partIdx++] ?? "";
+        
+            return next;
+        }
+        
+        return seg;
+    });
+
+    return "/" + segments.filter(Boolean).join("/");
+}
+
 export function sanitize(pathname: string): string {
     return pathname.replace(/\//g, "_") || "index";
 }

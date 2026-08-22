@@ -347,9 +347,10 @@ export async function copyPublicDirIncremental(publicDir: string): Promise<void>
     await walk(publicDir, DIST_DIR);
 }
 
-const DEV_HOT_RELOAD_FOOTER = `
+function devHotReloadFooter(port: number): string {
+    return `
 {
-    const source = new EventSource(\`http://\${location.hostname}:4000/__reload\`);
+    const source = new EventSource(\`http://\${location.hostname}:${port}/__reload\`);
     source.onmessage = (msg) => {
         if (msg.data === "connected") return;
         window.location.reload();
@@ -357,8 +358,9 @@ const DEV_HOT_RELOAD_FOOTER = `
     source.onerror = () => {};
 }
 `;
+}
 
-export async function buildClientRuntime(minify: boolean, isDev: boolean): Promise<void> {
+export async function buildClientRuntime(minify: boolean, isDev: boolean, hotReloadPort?: number): Promise<void> {
     const options: esbuild.BuildOptions = {
         entryPoints: [join(import.meta.dirname, "..", "client.js")],
         bundle:      true,
@@ -372,7 +374,7 @@ export async function buildClientRuntime(minify: boolean, isDev: boolean): Promi
         plugins:     [eleganceTsxPlugin],
     };
 
-    if (isDev) options.footer = { js: DEV_HOT_RELOAD_FOOTER };
+    if (isDev) options.footer = { js: devHotReloadFooter(hotReloadPort ?? 4000) };
 
     await esbuild.build(options);
 }
