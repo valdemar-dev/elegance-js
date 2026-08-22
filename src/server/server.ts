@@ -382,7 +382,7 @@ export async function warmDynamicCaches(manifest: Manifest): Promise<{
             try {
                 const compiled = await loadRouteFromCache(route);
                 dynamicModuleCache.set(entry.pathname, compiled);
-            } catch (err: any) {
+                } catch (err: any) {
                 if (isRichError(err)) throw err;
                 throw richError({
                     title:       "Failed to Load Cached Route",
@@ -458,6 +458,15 @@ export async function warmDynamicCaches(manifest: Manifest): Promise<{
             trailMatcher: compileRouteMatcher(trailPattern),
             entry,
         };
+    });
+
+    pRoutes.sort((a, b) => {
+        const segA = a.pathname.split("/").filter(s => s.includes("[") || s.includes(":")).length;
+        const segB = b.pathname.split("/").filter(s => s.includes("[") || s.includes(":")).length;
+        
+        if (segA !== segB) return segA - segB;
+        
+        return a.pathname.length - b.pathname.length;
     });
 
     return { staticRouteMap: sMap, paramRoutes: pRoutes };

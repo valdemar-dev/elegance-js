@@ -57,9 +57,9 @@ export interface HtmlSink {
 }
 
 export class HtmlBuilder implements HtmlSink {
-    private parts: string[] = [];
-    append(s: string) { this.parts.push(s); }
-    join(): string { return this.parts.join(""); }
+    private out = "";
+    append(s: string) { this.out += s; }
+    join(): string { return this.out; }
 }
 
 export interface GeneratePageHtmlResult {
@@ -155,37 +155,36 @@ function renderTopLevel(
     return renderVirtualNode(node, into, ctx);
 }
 
-const ESCAPE_MAP: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-};
-
-// this is still naive but it's ever so slightly faster than a .replace() chain
 function escapeHtml(str: string): string {
-    let out = str;
+    let i = 0;
+    const n = str.length;
 
-    if (out.indexOf("&") === -1 && out.indexOf("<") === -1 &&
-        out.indexOf(">") === -1 && out.indexOf('"') === -1 &&
-        out.indexOf("'") === -1) {
-        return out;
+    for (; i < n; i++) {
+        const c = str.charCodeAt(i);
+        if (c === 38 || c === 60 || c === 62 || c === 34 || c === 39) break;
     }
+    if (i === n) return str;
 
     let result = "";
     let last = 0;
-
-    for (let i = 0; i < str.length; i++) {
-        const ch = str[i];
-        const esc = ESCAPE_MAP[ch];
-
-        if (esc) {
-            result += str.slice(last, i) + esc;
-            last = i + 1;
+    for (;;) {
+        for (; i < n; i++) {
+            const c = str.charCodeAt(i);
+            if (c === 38 || c === 60 || c === 62 || c === 34 || c === 39) break;
         }
-    }
+        if (i === n) break;
 
+        const c = str.charCodeAt(i);
+        const esc =
+            c === 38 ? "&amp;" :
+            c === 60 ? "&lt;" :
+            c === 62 ? "&gt;" :
+            c === 34 ? "&quot;" :
+            "&#39;";
+        result += str.slice(last, i) + esc;
+        i++;
+        last = i;
+    }
     return result + str.slice(last);
 }
 
@@ -209,17 +208,17 @@ function renderVirtualNode(
         return renderChildren(node as VirtualNode[], into, ctx);
     }
 
-    if (typeof node === "object" && "__rawHTML" in node) {
-        into.append((node as any).content);
-        return;
+    if ((node as any).__type === "element") {
+        return renderElement(node as ElementDescriptor, into, ctx);
     }
 
     if ((node as any).__type === "live") {
         return renderLiveComponent(node as any, into, ctx);
     }
 
-    if ((node as any).__type === "element") {
-        return renderElement(node as ElementDescriptor, into, ctx);
+    if ((node as any).__rawHTML) {
+        into.append((node as any).content);
+        return;
     }
 }
 
@@ -228,45 +227,59 @@ function renderElement(
     into: HtmlSink,
     ctx: RenderContext,
 ): void | Promise<void> {
-    into.append(`<${element.tag}`);
+    const tag = element.tag;
+    let open = `<${tag}`;
 
     if (ctx.insideComponentDepth === 0) {
         const eid = element.options.__eid;
         if (typeof eid === "number") {
-            into.append(` e-id="${eid}"`);
+            open += ` e-id="${eid}"`;
         }
     }
 
-    for (const optionName in element.options) {
+    const options = element.options;
+    for (const optionName in options) {
         if (optionName.startsWith("on")) continue;
         if (optionName === "__eid") continue;
 
-        const value = element.options[optionName];
+        const value = options[optionName];
+        const htmlOptionName = optionName === "className" ? "class" : optionName;
 
-        const htmlOptionName =
-            optionName === "className" ? "class" : optionName;
-
-        into.append(
-            ` ${htmlOptionName}="${escapeHtml(String(value))}"`
-        );
+        open += ` ${htmlOptionName}="${escapeHtml(typeof value === "string" ? value : String(value))}"`;
     }
 
-    if (SELF_CLOSING_TAGS.has(element.tag)) {
-        into.append("/>");
+    if (SELF_CLOSING_TAGS.has(tag)) {
+        into.append(open + "/>");
         return;
     }
 
-    into.append(">");
+    into.append(open + ">");
 
-    const childResult = renderChildren(element.children, into, ctx);
+    const children = element.children;
+
+    if (children.length === 1) {
+        const single = children[0];
+        if (typeof single === "string") {
+            into.append(escapeHtml(single));
+            into.append(`</${tag}>`);
+            return;
+        }
+        if (typeof single === "number") {
+            into.append(String(single));
+            into.append(`</${tag}>`);
+            return;
+        }
+    }
+
+    const childResult = renderChildren(children, into, ctx);
 
     if (childResult) {
         return childResult.then(() => {
-            into.append(`</${element.tag}>`);
+            into.append(`</${tag}>`);
         });
     }
 
-    into.append(`</${element.tag}>`);
+    into.append(`</${tag}>`);
 }
 
 function renderChildren(
@@ -274,25 +287,67 @@ function renderChildren(
     into: HtmlSink,
     ctx: RenderContext,
 ): void | Promise<void> {
-    const flat: VirtualNode[] = [];
-    flattenVNodes(flat, children);
+    for (let i = 0; i < children.length; i++) {
+        const c = children[i];
+        if (c === null || c === false || c === undefined) continue;
+        if (Array.isArray(c)) {
+            const flat: VirtualNode[] = [];
+            flattenVNodes(flat, children.slice(i) as VirtualNode[]);
+            return renderChildrenFlat(flat, into, ctx);
+        }
+        if (isLiveNode(c)) {
+            const flat: VirtualNode[] = [];
+            flattenVNodes(flat, children.slice(i) as VirtualNode[]);
+            return renderChildrenAsyncFrom(flat, 0, into, ctx);
+        }
+        const r = renderChildNode(c, into, ctx);
+        if (r) return r.then(() => renderChildrenAsyncFrom(children.slice(i + 1) as VirtualNode[], 0, into, ctx));
+    }
+}
 
+function isLiveNode(child: VirtualNode): boolean {
+    return (
+        typeof child === "object" &&
+        child !== null &&
+        !Array.isArray(child) &&
+        (child as any).__type === "live"
+    );
+}
+
+function renderChildNode(
+    child: VirtualNode,
+    into: HtmlSink,
+    ctx: RenderContext,
+): void | Promise<void> {
+    if (typeof child === "string") {
+        into.append(escapeHtml(child));
+        return;
+    }
+    if (typeof child === "number") {
+        into.append(String(child));
+        return;
+    }
+    if ((child as any).__type === "element") {
+        return renderElement(child as ElementDescriptor, into, ctx);
+    }
+    if ((child as any).__rawHTML) {
+        into.append((child as any).content);
+        return;
+    }
+}
+
+function renderChildrenFlat(
+    flat: VirtualNode[],
+    into: HtmlSink,
+    ctx: RenderContext,
+): void | Promise<void> {
     for (let i = 0; i < flat.length; i++) {
         const child = flat[i]!;
-        const isLive =
-            typeof child === "object" &&
-            child !== null &&
-            !Array.isArray(child) &&
-            (child as any).__type === "live";
-
-        if (isLive) {
+        if (isLiveNode(child)) {
             return renderChildrenAsyncFrom(flat, i, into, ctx);
         }
-
-        const result = renderVirtualNode(child, into, ctx);
-        if (result) {
-            return result.then(() => renderChildrenAsyncFrom(flat, i + 1, into, ctx));
-        }
+        const r = renderChildNode(child, into, ctx);
+        if (r) return r.then(() => renderChildrenAsyncFrom(flat, i + 1, into, ctx));
     }
 }
 
