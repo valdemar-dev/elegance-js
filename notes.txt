@@ -4,3 +4,11 @@ client.ts is just fully slop.
 
 layouts end up being items children: [ Promise ] for async pages because children are never awaited; idk how JSX is meant to handle async children, you can't exactly <await Child>
 weird bug in client, mismatch between get instance key and set instance key
+
+
+server actions are technically enumerable
+
+patching rawhtml doesnt update dom
+
+all the caches are unbound rn
+

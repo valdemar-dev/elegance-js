@@ -384,7 +384,6 @@ export const ROUTE_ESBUILD_BASE = {
     target:        `node${process.versions.node}`,
     legalComments: "inline"   as const,
     packages:      "external" as const,
-    external:      ["../../../v11/user-utils"],
     loader:        { ".ts": "ts", ".tsx": "ts" } as Record<string, "ts">,
     plugins:       [eleganceTsxPlugin],
     minify:        false,
