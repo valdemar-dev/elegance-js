@@ -1,0 +1,7 @@
+// snapshot of: guard-allow-bundling.client
+
+import { helper } from "./utils";
+
+export default function Layout() {
+    return __tags.div({ __eid: 0, onClick: () => helper() }, ["hello"]);
+}

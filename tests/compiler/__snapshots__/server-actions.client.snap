@@ -1,0 +1,13 @@
+// snapshot of: server-actions.client
+
+import { serverAction } from "elegance-js";
+
+const save = serverAction({ id: "oNNHTi6",
+    run: async (data: any) => {
+        console.log(data);
+    },
+});
+
+export default function Page() {
+    return __tags.button({ __eid: 0, onClick: () => save({ text: "hi" }) }, ["Save"]);
+}

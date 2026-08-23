@@ -1,0 +1,18 @@
+// snapshot of: component.server
+
+const Counter = component({ __id: "0mzElbq",
+    atoms: {
+        counter: 0,
+    },
+    view(_, { counter }) {
+        return __tags.button({
+            onClick: () => counter.value++,
+        },
+            `Counter: ${counter.value}`
+        );
+    }
+});
+
+export default function Page() {
+    return Counter();
+}

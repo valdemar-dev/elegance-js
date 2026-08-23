@@ -1,0 +1,7 @@
+// snapshot of: guard-allow-bundling.jsx
+
+import { helper } from "./utils";
+
+export default function Layout() {
+    return div({ onClick: () => helper() }, ["hello"]);
+}

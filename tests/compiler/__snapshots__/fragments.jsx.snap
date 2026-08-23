@@ -1,0 +1,9 @@
+// snapshot of: fragments.jsx
+
+export default function Page({ items, cond }: any) {
+    return (
+        [header(["Top"]), items.map((i: any) => (
+                li({ key: i.id }, [i.name])
+            )), cond ? span(["A"]) : span(["B"])]
+    );
+}

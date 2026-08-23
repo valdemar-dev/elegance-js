@@ -1,0 +1,8 @@
+const helper = "server-only";
+
+//!no-bundle
+const secret = helper;
+
+export default function Layout() {
+    return <div onClick={() => console.log(secret)}>hello</div>;
+}

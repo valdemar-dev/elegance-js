@@ -1,0 +1,11 @@
+import { serverAction } from "elegance-js";
+
+const save = serverAction({
+    run: async (data: any) => {
+        console.log(data);
+    },
+});
+
+export default function Page() {
+    return <button onClick={() => save({ text: "hi" })}>Save</button>;
+}

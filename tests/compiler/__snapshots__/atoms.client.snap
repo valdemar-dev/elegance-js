@@ -1,0 +1,8 @@
+// snapshot of: atoms.client
+
+const count = _getAtom("J1HKmXH");
+const name = _getAtom("_lqkgz3");
+
+export default function Page() {
+    return __tags.div([count.value, name.value]);
+}

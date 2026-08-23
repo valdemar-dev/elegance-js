@@ -1,0 +1,18 @@
+// snapshot of: layout.layout
+
+
+//!force-bundling
+import "./keep.css";
+
+//!allow-bundling
+import { format } from "./utils";
+
+
+
+
+export default function __constructor() {
+    const _h0 = [{ event: "click", fn: () => console.log(format("hi")) }];
+    const regions  = [];
+    const handlers = [{ eid: 0, h: _h0 }];
+    return { regions, handlers };
+}

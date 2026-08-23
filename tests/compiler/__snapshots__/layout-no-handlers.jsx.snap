@@ -1,0 +1,5 @@
+// snapshot of: layout-no-handlers.jsx
+
+export default function Layout() {
+    return div(["static content"]);
+}

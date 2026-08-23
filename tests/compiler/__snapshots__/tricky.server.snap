@@ -1,0 +1,14 @@
+// snapshot of: tricky.server
+
+const svgIcon = (
+    __tags.svg({ viewBox: "0 0 24 24" }, [__tags.path({ d: "M0 0h24v24H0z", fill: "none" })])
+);
+
+export default function Page() {
+    const list = [1, 2, 3];
+    return (
+        __tags.div([list.map((n: number) => (
+                __tags.span({ "data-index": n }, [n])
+            )), __tags.input({ type: "text", "aria-label": "Name", autoComplete: "off" }), [__tags.b({ key: "a" }, ["B"]), __tags.i({ key: "b" }, ["I"])]])
+    );
+}

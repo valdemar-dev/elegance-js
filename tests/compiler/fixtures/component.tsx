@@ -1,0 +1,16 @@
+const Counter = component({
+    atoms: {
+        counter: 0,
+    },
+    view(_, { counter }) {
+        return button({
+            onClick: () => counter.value++,
+        },
+            `Counter: ${counter.value}`
+        );
+    }
+});
+
+export default function Page() {
+    return <Counter />;
+}

@@ -1,0 +1,6 @@
+const count = atom(0);
+const name = atom("world");
+
+export default function Page() {
+    return <div>{count.value} {name.value}</div>;
+}

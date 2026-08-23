@@ -1,0 +1,7 @@
+// snapshot of: basic-elements.client
+
+export default function Home() {
+    return (
+        __tags.div({ className: "container", "data-active": true }, [__tags.h1(["Hello world"]), __tags.button({ disabled: false }, ["Click me"]), __tags.img({ src: "/logo.png", alt: "Logo" }), __tags.div({ ...props }, ["tail"])])
+    );
+}

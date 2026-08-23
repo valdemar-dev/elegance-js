@@ -1,0 +1,7 @@
+// snapshot of: basic-elements.jsx
+
+export default function Home() {
+    return (
+        div({ className: "container", "data-active": true }, [h1(["Hello world"]), button({ disabled: false }, ["Click me"]), img({ src: "/logo.png", alt: "Logo" }), div({ ...props }, ["tail"])])
+    );
+}

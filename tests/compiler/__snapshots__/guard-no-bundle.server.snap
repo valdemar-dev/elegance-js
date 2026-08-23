@@ -1,0 +1,10 @@
+// snapshot of: guard-no-bundle.server
+
+const helper = "server-only";
+
+//!no-bundle
+const secret = helper;
+
+export default function Layout() {
+    return __tags.div({ __eid: 0, onClick: () => console.log(secret) }, ["hello"]);
+}

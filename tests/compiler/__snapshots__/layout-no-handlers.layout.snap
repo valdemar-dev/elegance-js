@@ -1,0 +1,10 @@
+// snapshot of: layout-no-handlers.layout
+
+
+
+export default function __constructor() {
+
+    const regions  = [];
+    const handlers = [];
+    return { regions, handlers };
+}

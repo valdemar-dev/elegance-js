@@ -1,0 +1,14 @@
+// snapshot of: tricky.jsx
+
+const svgIcon = (
+    svg({ viewBox: "0 0 24 24" }, [path({ d: "M0 0h24v24H0z", fill: "none" })])
+);
+
+export default function Page() {
+    const list = [1, 2, 3];
+    return (
+        div([list.map((n: number) => (
+                span({ "data-index": n }, [n])
+            )), input({ type: "text", "aria-label": "Name", autoComplete: "off" }), [b({ key: "a" }, ["B"]), i({ key: "b" }, ["I"])]])
+    );
+}

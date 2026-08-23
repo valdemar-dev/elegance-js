@@ -1,0 +1,7 @@
+// snapshot of: handlers.server
+
+export default function Page() {
+    return (
+        __tags.div({ __eid: 0, onClick: () => setCount(count + 1) }, [__tags.button({ __eid: 1, onClick: handleClick, onKeyDown: handleKey }, ["Go"])])
+    );
+}

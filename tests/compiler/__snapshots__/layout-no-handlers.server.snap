@@ -1,0 +1,5 @@
+// snapshot of: layout-no-handlers.server
+
+export default function Layout() {
+    return __tags.div(["static content"]);
+}

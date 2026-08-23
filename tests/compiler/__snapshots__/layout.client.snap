@@ -1,0 +1,15 @@
+// snapshot of: layout.client
+
+import "./reset.css";
+
+//!force-bundling
+import "./keep.css";
+
+//!allow-bundling
+import { format } from "./utils";
+
+const unusedVar = 42;
+
+export default function Layout() {
+    return __tags.div({ __eid: 0, onClick: () => console.log(format("hi")) }, ["hello"]);
+}

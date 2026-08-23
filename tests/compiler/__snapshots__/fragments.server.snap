@@ -1,0 +1,9 @@
+// snapshot of: fragments.server
+
+export default function Page({ items, cond }: any) {
+    return (
+        [__tags.header(["Top"]), items.map((i: any) => (
+                __tags.li({ key: i.id }, [i.name])
+            )), cond ? __tags.span(["A"]) : __tags.span(["B"])]
+    );
+}
