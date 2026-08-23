@@ -2,8 +2,6 @@ top level non-component elements can never be reactive, as the code containing t
 
 client.ts is just fully slop. -- i want it to be like 2kb in prod.
 
-layouts end up being items children: [ Promise ] for async pages because children are never awaited; idk how JSX is meant to handle async children, you can't exactly <await Child>
-
 server actions are technically enumerable -- idk if it's even a problem
 
 patching rawhtml doesnt update dom -- feature ? 

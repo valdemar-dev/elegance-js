@@ -220,6 +220,11 @@ function renderVirtualNode(
         into.append((node as any).content);
         return;
     }
+
+    if (node instanceof Promise)
+        return (node as Promise<VirtualNode>).then((resolved) =>
+            renderChildren([resolved], into, ctx)
+        );
 }
 
 function renderElement(
@@ -334,6 +339,11 @@ function renderChildNode(
         into.append((child as any).content);
         return;
     }
+
+    if (child instanceof Promise)
+        return (child as Promise<VirtualNode>).then((resolved) =>
+            renderChildren([resolved], into, ctx)
+        );
 }
 
 function renderChildrenFlat(
