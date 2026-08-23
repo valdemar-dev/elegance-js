@@ -352,7 +352,7 @@ function bootstrapComponent(desc: any, existingDom?: Node): any {
     if (cfg.atoms) for (const key in cfg.atoms) atomsObj[key] = _getAtom(`${cid}:${key}`, cfg.atoms[key]);
 
     let inst: any;
-    const self: any = { get props() { return inst.props; }, get children() { return inst.children; } };
+    const self: any = { get props() { return inst.props; }, get children() { return inst.children; }, get root() { return inst.root; } };
 
     inst = {
         cid, instanceId, config: cfg,

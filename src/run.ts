@@ -178,7 +178,7 @@ async function scheduleRebuild(): Promise<void> {
         try {
             await cycle();
             firstBuildDone = true;
-        } catch (err: any) {
+        } catch (_e: any) {
         } finally {
             cycling = false;
         }

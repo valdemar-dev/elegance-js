@@ -47,8 +47,6 @@ interface StaticTask {
 async function buildStaticTasks(tasks: StaticTask[]): Promise<void> {
     logger.info(`Building ${tasks.length} static route${tasks.length === 1 ? "" : "s"}`);
 
-    let built   = 0;
-
     await Promise.all(tasks.map(async ({ route, transpiled, layoutCacheKeys, cacheKey, params, outPathname }) => {
         if (await fileHasExports(route.pageFile) === false) {
             throw richError({
@@ -108,7 +106,6 @@ async function buildStaticTasks(tasks: StaticTask[]): Promise<void> {
                 await runBuildHooks(compiled, "post");
             });
 
-            built++;
         } catch (err: any) {
             if (isRichError(err)) {
                 throw err;
