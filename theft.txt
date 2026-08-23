@@ -2,11 +2,9 @@ add progressive enchancement forms with revalidation (remix sveltekit next)
 
 streaming all pages (even dynamic ones)
 
-export revalidate setting for static pages.
+export revalidation setting for static pages.
 
 some kind of nice before-render data validation & fetching for pages
-
-automatic image optimization with compression options
 
 utils for auth and cookies
 

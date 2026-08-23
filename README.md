@@ -86,7 +86,7 @@ my-app/
 ## Documentation
 
 Full documentation is available via [Our Website](https://elegance.js.org/)
-
+Performance results, as well as methodology are available [here](https://elegance.js.org/speed)
 ## License
 
 MIT

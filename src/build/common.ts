@@ -320,7 +320,7 @@ function rawTextTagName(tag: string): string | null {
 }
 
 function findRawTextClose(html: string, tag: string, from: number): number {
-    const re = new RegExp(`</${tag}(?=[\\s/>])`, "i");
+    const re = new RegExp(`</${tag}(?=[\\s/>])`, "gi");
     re.lastIndex = from;
     return re.exec(html)?.index ?? -1;
 }
