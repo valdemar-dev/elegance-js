@@ -8,6 +8,8 @@ import {
 } from "../page-tools";
 import { transformBundle, transformChunk, generateLayoutBundle } from "../processing/oxc";
 
+import { resolveImagesInSource } from "../image/resolve";
+
 import { hookGlobals } from "../globals";
 hookGlobals();
 
@@ -450,7 +452,10 @@ async function compileServerFiles(
 
         await Promise.all([...files.keys()].map(async (key) => {
             const raw = await readFile(join(tmpDir, `${key}.js`), "utf-8");
-            const { serverCode, preClientCode } = transformBundle(raw, files.get(key)!);
+            const { serverCode, preClientCode } = transformBundle(
+                await resolveImagesInSource(raw, files.get(key)!),
+                files.get(key)!,
+            );
             result.set(key, { serverCode, preClientCode });
         }));
 
@@ -632,7 +637,7 @@ export async function transpileAllRoutes(
 
     await Promise.all(chunkFiles.map(async (chunkFile) => {
         const raw       = await readFile(join(clientTmpOut, chunkFile), "utf-8");
-        const processed = transformChunk(raw, chunkFile);
+        const processed = transformChunk(await resolveImagesInSource(raw, chunkFile), chunkFile);
 
         chunkUrlMap.set(`./${chunkFile}`, `/chunks/${chunkFile}`);
         await writeFile(join(chunksDir, chunkFile), processed);
@@ -655,14 +660,14 @@ export async function transpileAllRoutes(
     if (hasServerWork) {
         await Promise.all([...allServerFiles.entries()].map(async ([key, filePath]) => {
             const raw = await readFile(join(serverTmpOut, `${key}.js`), "utf-8");
-            const { serverCode } = transformBundle(raw, filePath);
+            const { serverCode } = transformBundle(await resolveImagesInSource(raw, filePath), filePath);
             await writeFile(serverMjsPath(key), serverCode);
         }));
     }
 
     await Promise.all([...keyToLayoutPath.entries()].map(async ([lk, layoutPath]) => {
         const raw = await readFile(join(clientTmpOut, `${lk}.js`), "utf-8");
-        const { preClientCode: rawPre } = transformBundle(raw, layoutPath);
+        const { preClientCode: rawPre } = transformBundle(await resolveImagesInSource(raw, layoutPath), layoutPath);
         const preClientCode = replaceChunkUrls(rawPre);
         let layoutBundle = generateLayoutBundle(preClientCode, layoutPath);
         if (minify) layoutBundle = await minifyCode(layoutBundle);
@@ -680,7 +685,10 @@ export async function transpileAllRoutes(
             readFile(serverMjsPath(key), "utf-8"),
         ]);
 
-        const { preClientCode: rawPreClientCode } = transformBundle(clientRaw, route.pageFile);
+        const { preClientCode: rawPreClientCode } = transformBundle(
+            await resolveImagesInSource(clientRaw, route.pageFile),
+            route.pageFile,
+        );
 
         let preClientCode = replaceChunkUrls(rawPreClientCode);
 

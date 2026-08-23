@@ -1,5 +1,6 @@
 import { existsSync } from "fs";
 import { join } from "path";
+import { defaultImageConfig } from "./image/core";
 
 // Make all properties required recursively
 type DeepRequired<T> = {
@@ -53,6 +54,8 @@ const defaultConfig: SafeEleganceConfig = {
         pagesDirectory: "pages",
         publicDirectory: "public",
     },
+
+    image: defaultImageConfig,
 
     server: {
         port: 3000,

@@ -2,6 +2,9 @@ import { importContext } from "./build/common";
 import { DIST_DIR } from "./constants";
 import { richError } from "./error";
 
+export { Image } from "./image/component";
+export type { ImageProps, ImageFormat, ImageConfig } from "./image/core";
+
 /** Returns the absolute path of the output directory. */
 export function getOutputDirectory(): string {
     return DIST_DIR;

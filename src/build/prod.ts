@@ -2,6 +2,7 @@ import { getRoutes, hasSlugSegment, resolveEnumeratedPath } from "../page-tools"
 import { generateSyntheticBundle } from "../processing/oxc";
 import { generatePageHTML, createRenderContext, runWithRenderContext } from "./render";
 import type { RouteInfo } from "../page-tools";
+import { optimizeImages } from "../image/generate";
 
 import { rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -250,6 +251,7 @@ async function buildProdAll(): Promise<void> {
     };
 
     await writeFile(join(OUT_DIR, "paths.json"), JSON.stringify(manifest, null, 2));
+    await optimizeImages({ distDir: DIST_DIR, cacheDir: CACHE_DIR });
     await rm(join(process.cwd(), ".temp"), { recursive: true, force: true }).catch(() => {});
 }
 

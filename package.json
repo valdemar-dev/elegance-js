@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "lint": "oxlint ./src --fix -D unused-variable -D unused-import",
-    "build": "esbuild './src/*.ts' './src/**/*.ts' --outdir=./dist --outbase=./src --format=esm --platform=node --bundle=false && tsc --emitDeclarationOnly && node scripts/fix-imports.js"
+    "build": "esbuild './src/*.ts' './src/**/*.ts' --outdir=./dist --outbase=./src --format=esm --platform=node --bundle=false && tsc --emitDeclarationOnly && node scripts/fix-imports.js && node scripts/copy-wasm.js"
   },
   "exports": {
     ".": {

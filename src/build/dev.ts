@@ -2,6 +2,7 @@ import { getRoutes, hasSlugSegment, resolveEnumeratedPath } from "../page-tools"
 import { rm, mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { optimizeImages } from "../image/generate";
 
 import { c, logger } from "../logger";
 import { OUT_DIR, DIST_DIR, CACHE_DIR, PAGES_DIR, loadPaths } from "../constants";
@@ -216,6 +217,7 @@ const key            = pageCacheKey(t.pathname);
 
     await writeFile(join(OUT_DIR, "paths.json"), JSON.stringify(manifest, null, 2));
     await saveIncrementalState({ fileHashes: nextFileHashes, clientCodeHashes: {} });
+    await optimizeImages({ distDir: DIST_DIR, cacheDir: CACHE_DIR });
     await rm(join(process.cwd(), ".temp"), { recursive: true, force: true }).catch(() => {});
 
     logger.debug(`Built in ${c.dim}${(performance.now() - start).toFixed(1)}ms${c.reset}`);
