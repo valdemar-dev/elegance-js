@@ -2,8 +2,4 @@ top level non-component elements can never be reactive, as the code containing t
 
 client.ts is just fully slop. -- i want it to be like 2kb in prod.
 
-server actions are technically enumerable -- idk if it's even a problem
-
 patching rawhtml doesnt update dom -- feature ? 
-
-all the caches are unbound rn -- fix!
