@@ -1,5 +1,5 @@
-import { getRoutes, hasSlugSegment, resolveEnumeratedPath } from "../page-tools";
-import { rm, mkdir, writeFile, readFile, unlink } from "node:fs/promises";
+import { getRoutes, hasSlugSegment, resolveEnumeratedPath, type RouteInfo } from "../page-tools";
+import { rm, mkdir, writeFile, readFile, unlink, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { optimizeImages } from "../image/generate";
@@ -20,9 +20,11 @@ import {
     loadRouteFromCache,
     pageCacheKey,
     layoutFileCacheKey,
+    collectServerActions,
     type CacheKey,
     type RouteEntry,
     type Manifest,
+    type ActionOwner,
 } from "./common";
 import { existsSync } from "node:fs";
 import { isRichError, printError, richError } from "../error";
@@ -62,7 +64,7 @@ async function buildDevAll(): Promise<void> {
     const allRoutes = await getRoutes(PAGES_DIR);
 
     if (IS_INCREMENTAL) {
-        await pruneStaleOutputs(allRoutes.map(r => r.pageFile));
+        await pruneStaleOutputs(allRoutes.map(r => r.pageFile), allRoutes);
     }
 
     const prevState = IS_INCREMENTAL ? await loadIncrementalState() : { fileHashes: {}, clientCodeHashes: {} };
@@ -108,6 +110,7 @@ async function buildDevAll(): Promise<void> {
     }
 
     const manifestRoutes: RouteEntry[] = [];
+    const actions:        Record<string, ActionOwner> = {};
 
     for (const route of allRoutes) {
         const t = transpiled.get(route.pathname);
@@ -131,6 +134,13 @@ const key            = pageCacheKey(t.pathname);
             layoutCacheKeys: layoutKeys,
             cacheKey:        key,
             pathname:        route.pathname,
+        });
+
+        collectServerActions(actions, {
+            pageFile:        route.pageFile,
+            layouts:         route.layouts,
+            layoutCacheKeys: layoutKeys,
+            cacheKey:        key,
         });
 
         if (!mod.isDynamic && !hasSlugSegment(route.pathname)) {
@@ -213,6 +223,7 @@ const key            = pageCacheKey(t.pathname);
         statusCodePages,
         apiRoutes,
         middlewares,
+        actions,
     };
 
     await writeFile(join(OUT_DIR, "paths.json"), JSON.stringify(manifest, null, 2));
@@ -223,7 +234,7 @@ const key            = pageCacheKey(t.pathname);
     logger.debug(`Built in ${c.dim}${(performance.now() - start).toFixed(1)}ms${c.reset}`);
 }
 
-async function pruneStaleOutputs(livePageFiles: string[]): Promise<void> {
+async function pruneStaleOutputs(livePageFiles: string[], liveRoutes: RouteInfo[]): Promise<void> {
     let prev: Manifest;
     try {
         prev = JSON.parse(await readFile(join(OUT_DIR, "paths.json"), "utf-8"));
@@ -240,6 +251,18 @@ async function pruneStaleOutputs(livePageFiles: string[]): Promise<void> {
         const dir = entry.pathname === "/" ? DIST_DIR : join(DIST_DIR, entry.pathname);
         removals.push(unlink(join(dir, "index.html")).catch(() => {}));
         removals.push(unlink(join(dir, "bundle.js")).catch(() => {}));
+    }
+
+    const liveCacheKeys = new Set<string>();
+    for (const route of liveRoutes) {
+        liveCacheKeys.add(pageCacheKey(route.pathname));
+        for (const layout of route.layouts) liveCacheKeys.add(layoutFileCacheKey(layout));
+    }
+
+    for (const file of await readdir(CACHE_DIR).catch(() => [])) {
+        if (!/\.(server|pre_client|client)\.mjs$/.test(file)) continue;
+        const key = file.replace(/\.(server|pre_client|client)\.mjs$/, "");
+        if (!liveCacheKeys.has(key)) removals.push(unlink(join(CACHE_DIR, file)).catch(() => {}));
     }
 
     if (removals.length === 0) return;

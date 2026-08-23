@@ -45,6 +45,8 @@ await loadPaths();
 
 let serverOptions: DeepRequired<ServerOptions>;
 
+let manifest: Manifest;
+
 const IS_DEV = process.env.ELEGANCE_DEV_MODE === "dev";
 
 interface ApiRouteModule {
@@ -111,9 +113,9 @@ class LRU<K, V> {
     delete(key: K): void { this.map.delete(key); }
 }
 
-export const staticCache        = new Map<string, CachedFile>();
-export const dynamicModuleCache = new LRU<string, CompiledRoute>(256);
-export const aotStaticCache     = new Map<string, CompiledRoute>();
+export const staticCache         = new LRU<string, CachedFile>(128);
+export const dynamicModuleCache  = new LRU<string, CompiledRoute>(256);
+export const aotStaticCache      = new LRU<string, CompiledRoute>(256);
 export const statusCodePageCache = new Map<string, {
     compiled:        CompiledRoute;
     pageFile:        string;
@@ -121,9 +123,9 @@ export const statusCodePageCache = new Map<string, {
     layoutCacheKeys: CacheKey[];
     cacheKey:        CacheKey;
 }>();
-export const middlewareChainCache = new Map<string, MiddlewareFn[]>();
-export const encCache           = new LRU<string, Encoding>(512);
-export const preClientCodeCache = new Map<string, string>();
+export const middlewareChainCache = new LRU<string, MiddlewareFn[]>(256);
+export const encCache            = new LRU<string, Encoding>(512);
+export const preClientCodeCache  = new LRU<string, string>(128);
 
 interface StatusCodePageIndexEntry {
     code: number;
@@ -284,7 +286,7 @@ export async function primeStaticCache(): Promise<void> {
     await walk(DIST_DIR);
 }
 
-const matcherCache = new Map<string, MatchedRoute["matcher"]>();
+const matcherCache = new LRU<string, MatchedRoute["matcher"]>(256);
 
 export function compileRouteMatcher(
     pattern: string,
@@ -901,7 +903,17 @@ async function runServerAction(req: IncomingMessage, res: ServerResponse) {
         actionId = header;
     }
 
-    const serverAction = globalThis.__serverActions.find(a => a.id === actionId);
+    let serverAction = (globalThis.__serverActions ?? []).find(a => a.id === actionId);
+
+    // needs slight explanation; instead of loading static modules at startup, we lazy-load them when their actions are needed.
+    // saves startup cost, and it's only paid once per route. 
+    if (!serverAction) {
+        const owner = manifest?.actions?.[actionId];
+        if (owner) {
+            await loadRouteFromCache({ ...owner, pathname: "" });
+            serverAction = (globalThis.__serverActions ?? []).find(a => a.id === actionId);
+        }
+    }
 
     if (!serverAction) {
         res.statusCode = 404;
@@ -1187,7 +1199,7 @@ export async function serve(): Promise<void> {
         await import(config.runtime.init);
     }
 
-    const manifest: Manifest = JSON.parse(
+    manifest = JSON.parse(
         await readFile(join(OUT_DIR, "paths.json"), "utf-8"),
     );
 

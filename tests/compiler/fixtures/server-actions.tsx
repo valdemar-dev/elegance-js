@@ -1,7 +1,5 @@
-import { serverAction } from "elegance-js";
-
 const save = serverAction({
-    run: async (data: any) => {
+    callback: async (data: any) => {
         console.log(data);
     },
 });

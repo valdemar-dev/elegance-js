@@ -1218,20 +1218,32 @@ export function generateLayoutBundle(
         return preClientCode;
     }
 
-    const { handlerSets, seeds } = extractElementHandlersFromAst(preClientCode, ast);
+    const replaced = applyServerActionCallReplacements(preClientCode, ast);
+
+    let bundleSource = preClientCode;
+    let bundleAst    = ast;
+    if (replaced !== preClientCode) {
+        try {
+            bundleAst = parseSync(filePath, replaced, { sourceType: "module" });
+            bundleSource = replaced;
+        } catch (e) {
+            console.error("Failed to parse replaced layout module", e);
+            return preClientCode;
+        }
+    }
+
+    const { handlerSets, seeds } = extractElementHandlersFromAst(bundleSource, bundleAst);
     const { declarations: handlerDecls, expression: handlersExpr, seeds: handlerSeeds } =
         generateHandlersExpression(handlerSets, seeds);
 
     let defaultStart = -1;
     let defaultEnd   = -1;
-    for (const node of ast.program.body as any[]) {
+    for (const node of bundleAst.program.body as any[]) {
         if (node.type === "ExportDefaultDeclaration") {
             defaultStart = node.start as number;
             defaultEnd   = node.end   as number;
         }
     }
-
-    const replaced = applyServerActionCallReplacements(preClientCode, ast);
 
     const withoutDefault =
         defaultStart >= 0
@@ -1315,20 +1327,32 @@ function computeSyntheticBundleStaticParts(
         return null;
     }
 
-    const { handlerSets, seeds } = extractElementHandlersFromAst(preClientCode, ast);
+    const replaced = applyServerActionCallReplacements(preClientCode, ast);
+
+    let bundleSource = preClientCode;
+    let bundleAst    = ast;
+    if (replaced !== preClientCode) {
+        try {
+            bundleAst = parseSync(filePath, replaced, { sourceType: "module" });
+            bundleSource = replaced;
+        } catch (e) {
+            console.error("Failed to parse replaced module", e);
+            return null;
+        }
+    }
+
+    const { handlerSets, seeds } = extractElementHandlersFromAst(bundleSource, bundleAst);
     const { declarations: handlerDecls, expression: handlersExpr, seeds: handlerSeeds } =
         generateHandlersExpression(handlerSets, seeds);
 
     let defaultStart = -1;
     let defaultEnd   = -1;
-    for (const node of ast.program.body as any[]) {
+    for (const node of bundleAst.program.body as any[]) {
         if (node.type === "ExportDefaultDeclaration") {
             defaultStart = node.start as number;
             defaultEnd   = node.end   as number;
         }
     }
-
-    const replaced = applyServerActionCallReplacements(preClientCode, ast);
 
     const withoutDefault =
         defaultStart >= 0

@@ -78,33 +78,45 @@ export async function importModule(path: string): Promise<ImportedModule> {
 }
 
 const importedModules = new Map<string, ImportedModule>();
+const pendingImports  = new Map<string, Promise<ImportedModule>>();
 
 async function importCompiledModule(sourceFile: string, filePath: string): Promise<ImportedModule> {
-    const contents = await readFile(filePath);
-
     if (importedModules.has(sourceFile)) {
         return importedModules.get(sourceFile)!;
     }
 
-    const tmpDir  = join(process.cwd(), ".temp");
-    await mkdir(tmpDir, { recursive: true });
+    const pending = pendingImports.get(sourceFile);
+    if (pending) return pending;
 
-    const tmpPath = join(tmpDir, `${Date.now() + Math.random() * 1000}.mjs`);
-    await writeFile(tmpPath, contents);
+    const promise = (async () => {
+        const contents = await readFile(filePath);
 
-    try {
-        return await importModule(`copycat://${resolve(sourceFile)}?real=${resolve(tmpPath)}`);
-    } catch (err) {
-        if (isRichError(err)) throw err;
+        const tmpDir  = join(process.cwd(), ".temp");
+        await mkdir(tmpDir, { recursive: true });
 
-        throw richError({
-            title:       "Failed to Import Module",
-            cause:       err,
-            doShowStack: true,
-        });
-    } finally {
-        await unlink(tmpPath);
-    }
+        const tmpPath = join(tmpDir, `${Date.now() + Math.random() * 1000}.mjs`);
+        await writeFile(tmpPath, contents);
+
+        try {
+            const imported = await importModule(`copycat://${resolve(sourceFile)}?real=${resolve(tmpPath)}`);
+            importedModules.set(sourceFile, imported);
+            return imported;
+        } catch (err) {
+            if (isRichError(err)) throw err;
+
+            throw richError({
+                title:       "Failed to Import Module",
+                cause:       err,
+                doShowStack: true,
+            });
+        } finally {
+            await unlink(tmpPath);
+            pendingImports.delete(sourceFile);
+        }
+    })();
+
+    pendingImports.set(sourceFile, promise);
+    return promise;
 }
 
 export interface CompiledRoute {
@@ -168,7 +180,7 @@ export interface StatusCodePageEntry {
     cacheKey:        CacheKey;
 }
 
-interface RouteEntryBase {
+export interface RouteEntryBase {
     pageFile:         string;
     layouts:          string[];
     layoutCacheKeys:  CacheKey[];
@@ -194,12 +206,28 @@ export interface DynamicRouteEntry extends RouteEntryBase {
 
 export type RouteEntry = StaticRouteEntry | EnumeratedRouteEntry | DynamicRouteEntry;
 
+export type ActionOwner = Omit<RouteEntryBase, "sharedChunkPaths">;
+
+// we want to bind each server action to a page pathname, so that during the server's lifetime, we don't need to load modules of static paths that don't contain server actions.
+export function collectServerActions(
+    into:  Record<string, ActionOwner>,
+    owner: ActionOwner,
+): void {
+    const registered = globalThis.__serverActions;
+    if (!registered) return;
+
+    for (const action of registered) {
+        if (into[action.id] === undefined) into[action.id] = owner;
+    }
+}
+
 export interface Manifest {
     buildTime:        number;
     routes:           RouteEntry[];
     statusCodePages:  StatusCodePageEntry[];
     apiRoutes:        ApiRouteEntry[];
     middlewares:      MiddlewareEntry[];
+    actions?:         Record<string, ActionOwner>;
 }
 
 export async function runBuildHooks(compiled: CompiledRoute, stage: "pre" | "post"): Promise<void> {

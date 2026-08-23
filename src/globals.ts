@@ -22,7 +22,11 @@ export function hookGlobals() // Assign all globals here.
         console.log("Register serverAction:", params.id);
 
         if (globalThis.__serverActions === undefined) globalThis.__serverActions = [];
-        globalThis.__serverActions.push(params);
+        if (!globalThis.__serverActions.find(a => a.id === params.id)) {
+            globalThis.__serverActions.push(params);
+        }
+
+        return async () => {};
     };
 
     (globalThis as any).rawHTML = (content: string) => ({content, __rawHTML: true});

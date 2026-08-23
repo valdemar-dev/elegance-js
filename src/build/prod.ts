@@ -29,6 +29,8 @@ import {
     layoutFileCacheKey,
     pageCacheKey,
     preClientMjsPath,
+    collectServerActions,
+    type ActionOwner,
 } from "./common";
 import { existsSync } from "node:fs";
 import { isRichError, printError, richError } from "../error";
@@ -148,6 +150,7 @@ async function buildProdAll(): Promise<void> {
 
     const staticTasks:    StaticTask[]  = [];
     const manifestRoutes: RouteEntry[] = [];
+    const actions:        Record<string, ActionOwner> = {};
 
     
     for (const route of allRoutes) {
@@ -172,6 +175,13 @@ async function buildProdAll(): Promise<void> {
             layoutCacheKeys: layoutKeys,
             cacheKey:        cacheKey,
             pathname:        route.pathname,
+        });
+
+        collectServerActions(actions, {
+            pageFile:        route.pageFile,
+            layouts:         route.layouts,
+            layoutCacheKeys: layoutKeys,
+            cacheKey:        cacheKey,
         });
 
         if (!compiled.isDynamic && !hasSlugSegment(route.pathname)) {
@@ -245,6 +255,7 @@ async function buildProdAll(): Promise<void> {
         statusCodePages,
         apiRoutes,
         middlewares,
+        actions,
     };
 
     await writeFile(join(OUT_DIR, "paths.json"), JSON.stringify(manifest, null, 2));
