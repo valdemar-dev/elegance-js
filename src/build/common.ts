@@ -251,8 +251,78 @@ export async function runBuildHooks(compiled: CompiledRoute, stage: "pre" | "pos
     );
 }
 
+const RAW_TEXT_TAGS = new Set(["pre", "textarea", "script", "style"]);
+
 export function minifyHtml(html: string): string {
-    return html.replace(/\s+/g, " ").replace(/> </g, "><").trim();
+    let out = "";
+    let i = 0;
+
+    while (i < html.length) {
+        const lt = html.indexOf("<", i);
+
+        if (lt === -1) {
+            out += html.slice(i).replace(/\s+/g, " ");
+            break;
+        }
+
+        out += html.slice(i, lt).replace(/\s+/g, " ");
+
+        if (html.startsWith("<!--", lt)) {
+            const end = html.indexOf("-->", lt + 4);
+            if (end === -1) {
+                out += html.slice(lt);
+                break;
+            }
+
+            out += html.slice(lt, end + 3);
+            i = end + 3;
+            continue;
+        }
+
+        const gt = html.indexOf(">", lt + 1);
+        if (gt === -1) {
+            out += html.slice(lt);
+            break;
+        }
+
+        const tag = html.slice(lt, gt + 1);
+        out += tag;
+        i = gt + 1;
+
+        const rawTag = rawTextTagName(tag);
+        if (!rawTag) continue;
+
+        const close = findRawTextClose(html, rawTag, i);
+        if (close === -1) {
+            out += html.slice(i);
+            break;
+        }
+
+        const closeGt = html.indexOf(">", close);
+        if (closeGt === -1) {
+            out += html.slice(i);
+            break;
+        }
+
+        out += html.slice(i, closeGt + 1);
+        i = closeGt + 1;
+    }
+
+    return out.trim();
+}
+
+function rawTextTagName(tag: string): string | null {
+    const content = tag.slice(1, -1);
+    if (content.startsWith("/")) return null;
+
+    const name = content.split(/[\s>]/)[0]!.toLowerCase();
+    return RAW_TEXT_TAGS.has(name) ? name : null;
+}
+
+function findRawTextClose(html: string, tag: string, from: number): number {
+    const re = new RegExp(`</${tag}(?=[\\s/>])`, "i");
+    re.lastIndex = from;
+    return re.exec(html)?.index ?? -1;
 }
 
 export async function minifyCode(code: string): Promise<string> {
