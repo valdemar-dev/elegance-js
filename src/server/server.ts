@@ -1,6 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { readFile, readdir, writeFile, mkdir, stat } from "node:fs/promises";
-import { join, dirname, extname, relative, basename } from "node:path";
+import { join, dirname, extname, relative, basename, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
     gzip as gzipCb,
     brotliCompress as brotliCb,
@@ -494,7 +495,7 @@ export async function loadApiRoutes(manifest: Manifest): Promise<Map<string, Api
     apiRoutesCache = new Map();
 
     await Promise.all(manifest.apiRoutes.map(async (entry) => {
-        apiRoutesCache!.set(entry.pathname, await import(entry.file));
+        apiRoutesCache!.set(entry.pathname, await import(pathToFileURL(resolve(entry.file)).href));
     }));
 
     return apiRoutesCache;
@@ -506,7 +507,7 @@ export async function loadMiddlewareMap(manifest: Manifest): Promise<Map<string,
     middlewareMapCache = new Map();
 
     await Promise.all(manifest.middlewares.map(async (entry) => {
-        const mod = await import(entry.file);
+        const mod = await import(pathToFileURL(resolve(entry.file)).href);
 
         if (!mod.default) {
             printError(richError({
