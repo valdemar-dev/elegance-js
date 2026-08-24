@@ -9,11 +9,15 @@ import { importContext } from "./build/common";
 export function hookGlobals() // Assign all globals here.
 // Some of these are stubs, things like track and untrack only exist in the browser.
 {
+    const tagFactoryCache = new Map<string, ReturnType<typeof makeEl>>();
+
     //@ts-ignore
     globalThis.__tags = new Proxy({}, {
-        get(_, tag) {
-            // technically slower maybe, we might want to just lazy return and store the returned value but idk
-            return makeEl(tag as any);
+        get(_, tag: string) {
+            let fn = tagFactoryCache.get(tag);
+            if (!fn) tagFactoryCache.set(tag, fn = makeEl(tag as any));
+
+            return fn;
         }
     });
 

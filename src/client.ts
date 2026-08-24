@@ -440,24 +440,38 @@ function execView(inst: any): any {
     }
 }
 
+const elementFactory = (tag: string) => (options: any, ...children: any[]) => {
+    const isOptions = options !== null && typeof options === "object" && !Array.isArray(options) && !options?.__type;
+    const raw = isOptions ? children : [options, ...children];
+
+    // only flatten when nested arrays are actually present, slight speedup
+    let kids: any[] = raw;
+    for (let i = 0; i < raw.length; i++) {
+        if (Array.isArray(raw[i])) { kids = raw.flat(Infinity); break; }
+    }
+
+    const merged: any[] = [];
+
+    for (const child of kids) {
+        if ((typeof child === "string" || typeof child === "number") &&
+            (typeof merged[merged.length - 1] === "string" || typeof merged[merged.length - 1] === "number")) {
+            merged[merged.length - 1] = String(merged[merged.length - 1]) + String(child);
+        } else {
+            merged.push(child);
+        }
+    }
+
+    return { __type: "element", tag, options: isOptions ? options : {}, children: merged };
+};
+
+const tagFactoryCache = new Map<string, (options: any, ...children: any[]) => any>();
+
 (globalThis as any).__tags = new Proxy({}, {
     get(_, tag: string) {
-        return (options: any, ...children: any[]) => {
-            const isOptions = options !== null && typeof options === "object" && !Array.isArray(options) && !options?.__type;
-            const kids = (isOptions ? children : [options, ...children]).flat(Infinity);
-            const merged: any[] = [];
+        let fn = tagFactoryCache.get(tag);
+        if (!fn) tagFactoryCache.set(tag, fn = elementFactory(tag));
 
-            for (const child of kids) {
-                if ((typeof child === "string" || typeof child === "number") &&
-                    (typeof merged[merged.length - 1] === "string" || typeof merged[merged.length - 1] === "number")) {
-                    merged[merged.length - 1] = String(merged[merged.length - 1]) + String(child);
-                } else {
-                    merged.push(child);
-                }
-            }
-
-            return { __type: "element", tag, options: isOptions ? options : {}, children: merged };
-        };
+        return fn;
     },
 });
 
