@@ -29,7 +29,10 @@ async function optimizeWithWasm(exports: WasmExports, variant: OptimizeVariant):
 
     const inPtr = exports.malloc(variant.input.byteLength);
 
-    const outCap = variant.input.byteLength * 2 + 1024;
+    const srcDims = dimsFromBytes(variant.input);
+    const outCap = srcDims
+        ? srcDims.width * srcDims.height * 4 + 64 * 1024
+        : variant.input.byteLength * 2 + 1024;
     const outPtr = exports.malloc(outCap);
 
     try {
