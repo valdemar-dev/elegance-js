@@ -5,5 +5,5 @@ export * from "./jsx";
 export * from "./server-actions";
 
 declare global {
-    var navigate: (url: string, push?: boolean) => Promise<void>;
+    var navigate: (url: string, push?: boolean, doViewTransition?: boolean) => Promise<void>;
 }

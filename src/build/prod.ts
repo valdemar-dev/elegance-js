@@ -3,6 +3,7 @@ import { generateSyntheticBundle } from "../processing/oxc";
 import { generatePageHTML, createRenderContext, runWithRenderContext } from "./render";
 import type { RouteInfo } from "../page-tools";
 import { optimizeImages } from "../image/generate";
+import { getConfig } from "../config";
 
 import { rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -143,7 +144,9 @@ async function buildProdAll(): Promise<void> {
     await mkdir(CACHE_DIR, { recursive: true });
 
     await copyPublicDir(PUBLIC_DIR);
-    await buildClientRuntime(true, false);
+
+    const config = await getConfig();
+    await buildClientRuntime(true, false, undefined, config.client.viewTransitions);
 
     const allRoutes = await getRoutes(PAGES_DIR);
     const splitMap  = await transpileAllRoutes(allRoutes, true);

@@ -5,6 +5,10 @@ import type { ConsoleOptions } from "../logger";
 import type { RuntimeOptions } from "../run";
 import type { ImageConfig } from "../image/core";
 
+type ClientOptions = {
+    viewTransitions?: boolean,
+};
+
 declare global {
     type EleganceConfig = {
         security?: SecurityHeadersOptions,
@@ -13,6 +17,7 @@ declare global {
         console?: ConsoleOptions,
         runtime?: RuntimeOptions,
         image?: ImageConfig,
+        client?: ClientOptions,
     };
 }
 

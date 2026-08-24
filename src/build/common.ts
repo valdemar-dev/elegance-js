@@ -460,7 +460,7 @@ function devHotReloadFooter(port: number): string {
 `;
 }
 
-export async function buildClientRuntime(minify: boolean, isDev: boolean, hotReloadPort?: number): Promise<void> {
+export async function buildClientRuntime(minify: boolean, isDev: boolean, hotReloadPort?: number, viewTransitions = true): Promise<void> {
     const options: esbuild.BuildOptions = {
         entryPoints: [join(import.meta.dirname, "..", "client.js")],
         bundle:      true,
@@ -472,6 +472,7 @@ export async function buildClientRuntime(minify: boolean, isDev: boolean, hotRel
         treeShaking: true,
         loader:      { ".ts": "ts", ".tsx": "ts" },
         plugins:     [eleganceTsxPlugin],
+        define:      { __VIEW_TRANSITIONS: String(viewTransitions) },
     };
 
     if (isDev) options.footer = { js: devHotReloadFooter(hotReloadPort ?? 4000) };

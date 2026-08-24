@@ -10,8 +10,6 @@ utils for auth and cookies
 
 error boundaries
 
-use view-transitions api for morphkids, semi low effort and should provide nicer results.
-
 getRequestBody() should support more filetypes
 
 some kind of typesafe env system

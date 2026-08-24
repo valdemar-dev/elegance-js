@@ -1,3 +1,5 @@
+declare const __VIEW_TRANSITIONS: boolean;
+
 declare global {
     var __initialAtomValues: Record<string, any> | undefined;
     var _getAtom: (id: string, initial?: any) => ReturnType<typeof atom>;
@@ -618,41 +620,6 @@ function morphKids(parent: Element, incoming: Element): void {
     }
 }
 
-/*
-function morphKids(parent: Element, incoming: Element): void {
-    const existing = significantChildren(parent);
-    let ei = 0;
-
-    for (const want of significantChildren(incoming)) {
-        let matchIdx = -1;
-        for (let i = ei; i < existing.length; i++) {
-            if (structurallyMatches(existing[i]!, want)) { matchIdx = i; break; }
-        }
-
-        if (matchIdx === -1) {
-            parent.insertBefore(want.cloneNode(true), existing[ei] ?? null);
-        } else {
-            for (let i = ei; i < matchIdx; i++) detachNode(existing[i]!);
-            ei = matchIdx;
-            const node = existing[ei]!;
-            if (want.nodeType === Node.TEXT_NODE) {
-                if (node.nodeValue !== want.nodeValue) node.nodeValue = want.nodeValue;
-            } else if (want.nodeType === Node.ELEMENT_NODE) {
-                const inst = (node as any).__instance;
-
-                if (!inst) {
-                    syncOptions(node as Element, want as Element);
-                    morphKids(node as Element, want as Element);
-                } 
-            }
-            ei++;
-        }
-    }
-
-    for (; ei < existing.length; ei++) detachNode(existing[ei]!);
-}
-*/
-
 function patchHead(newHead: HTMLHeadElement): void {
     const newTitle = newHead.querySelector("title");
     if (newTitle) {
@@ -733,7 +700,9 @@ function scroll() {
     }
 }
 
-async function navigate(url: string, push = true): Promise<void> {
+const prefersReducedMotion = () => ((typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null)?.matches) ?? false;
+
+async function navigate(url: string, push = true, doViewTransition?: boolean): Promise<void> {
     const target = new URL(url, location.href);
     const { pathname } = target;
 
@@ -784,7 +753,17 @@ async function navigate(url: string, push = true): Promise<void> {
         return;
     }
 
-    await loadPage(url, result.regions, result.handlers, fetchedDoc);
+    const apply = () => loadPage(url, result.regions, result.handlers, fetchedDoc);
+
+    const wantsTransition = typeof document.startViewTransition === "function" && !prefersReducedMotion() && (doViewTransition ?? __VIEW_TRANSITIONS);
+
+    if (wantsTransition) {
+        const vt = document.startViewTransition(() => apply());
+        try { await vt.finished; } catch {}
+    } else {
+        await apply();
+    }
+
     runPageCallbacks();
     navigationCallbacks.forEach(f => f());
 

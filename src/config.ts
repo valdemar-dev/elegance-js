@@ -71,6 +71,10 @@ const defaultConfig: SafeEleganceConfig = {
 
     runtime: {
         hotReloadPort: 4000,
+    },
+
+    client: {
+        viewTransitions: true,
     }
 };
 

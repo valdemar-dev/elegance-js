@@ -40,6 +40,7 @@ async function buildDevAll(): Promise<void> {
 
     const config = await getConfig();
     const hotReloadPort = config.runtime.hotReloadPort;
+    const viewTransitions = config.client.viewTransitions;
 
     if (existsSync(PAGES_DIR) === false) {
         logger.warn("config.pagesDirectory did not exist, it will be created.");
@@ -51,14 +52,14 @@ async function buildDevAll(): Promise<void> {
         await mkdir(DIST_DIR,  { recursive: true });
         await mkdir(CACHE_DIR, { recursive: true });
         await copyPublicDirIncremental(PUBLIC_DIR);
-        await buildClientRuntime(false, true, hotReloadPort);
+        await buildClientRuntime(false, true, hotReloadPort, viewTransitions);
     } else {
         await rm(OUT_DIR, { recursive: true, force: true });
         await mkdir(OUT_DIR,   { recursive: true });
         await mkdir(DIST_DIR,  { recursive: true });
         await mkdir(CACHE_DIR, { recursive: true });
         await copyPublicDir(PUBLIC_DIR);
-        await buildClientRuntime(false, true, hotReloadPort);
+        await buildClientRuntime(false, true, hotReloadPort, viewTransitions);
     }
 
     const allRoutes = await getRoutes(PAGES_DIR);
