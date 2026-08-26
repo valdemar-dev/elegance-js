@@ -8,8 +8,6 @@ some kind of nice before-render data validation & fetching for pages
 
 utils for auth and cookies
 
-error boundaries
-
 getRequestBody() should support more filetypes
 
 some kind of typesafe env system

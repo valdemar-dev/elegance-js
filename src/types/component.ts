@@ -18,6 +18,7 @@ declare global {
             callbacks: Callbacks<S>;
             render: RenderCallback<S>;
             serverInit: InitCallback<S>;
+            fallback?: (err: unknown) => VirtualNode;
         };
         props: Record<string, unknown>;
     };
@@ -81,6 +82,13 @@ declare global {
         view: ViewFn<Props, A>;
         atoms?: A;
         init?: (self: ComponentSelf<Props, A>, atoms: AtomsOf<A>) => void | Promise<void>;
+
+        /**
+         * If provided, this component is an error boundary. Any error thrown
+         * while rendering this component, its children, or running its lifecycle
+         * and event handlers, replaces the component's subtree with this fallback.
+         */
+        fallback?: VirtualNode | ((err: unknown, self: ComponentSelf<Props, A>, atoms: AtomsOf<A>) => VirtualNode);
 
         /**
          * The `onMount` method of a component is triggered whenever the component *appears* in the DOM.

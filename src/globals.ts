@@ -106,20 +106,29 @@ export function hookGlobals() // Assign all globals here.
                 root: undefined,
             };
 
+            const definition: any = {
+                state: () => ({}),
+                callbacks: {},
+                render: () => view({ self, atoms: atomsObj, children }),
+                serverInit: async () => { if (init) await init(self, atomsObj); },
+            };
+
+            if (cfg.fallback) {
+                definition.fallback = (err: unknown) => {
+                    const fb = cfg.fallback;
+                    return typeof fb === "function" ? fb(err, self, atomsObj) : fb;
+                };
+            }
+
             const descriptor = {
                 __type: "live",
                 __componentId: cid,
-                __definition: {
-                    state: () => ({}),
-                    callbacks: {},
-                    render: () => view({ self, atoms: atomsObj, children }),
-                    serverInit: async () => { if (init) await init(self, atomsObj); },
-                },
+                __definition: definition,
                 props: props ?? {},
             };
 
-            const originalInit = descriptor.__definition.serverInit;
-            descriptor.__definition.serverInit = async () => {
+            const originalInit = definition.serverInit;
+            definition.serverInit = async () => {
                 await originalInit();
             };
 
