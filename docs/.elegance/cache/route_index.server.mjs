@@ -1078,7 +1078,7 @@ function Page() {
           { class: "cta-links" },
           __tags.a({ href: "/docs/start/setup", class: "btn btn--amber" }, "Read the docs"),
           __tags.a({
-            href: "https://github.com/elegance-js/elegance",
+            href: "https://github.com/valdemar-dev/elegance",
             class: "btn btn--ghost",
             rel: "noopener noreferrer",
             target: "_blank"
