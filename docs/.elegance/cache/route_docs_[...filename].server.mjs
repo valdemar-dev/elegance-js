@@ -342,7 +342,6 @@ async function DocsContent(slug) {
       ),
       __tags.div(
         { class: "doc-hero" },
-        __tags.span({ class: "overline" }, sectionLabel),
         __tags.h1({ class: "doc-title" }, title || lastSegment)
       ),
       ...nodes

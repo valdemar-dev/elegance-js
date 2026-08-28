@@ -242,12 +242,9 @@ var DocsNavbar = component({ __id: "3C6OhqO",
         /* ── Right: nav links + GitHub ── */
         __tags.div(
           { class: "nav-links" },
-          __tags.a({ href: "/", class: "nav-link" }, "Home"),
-          __tags.a({ href: "/docs", class: "nav-link nav-link--active" }, "Docs"),
-          __tags.a({ href: "/examples", class: "nav-link" }, "Examples"),
           __tags.a(
             {
-              href: "https://github.com/elegance-js/elegance",
+              href: "https://github.com/valdemar-dev/elegance",
               class: "nav-gh",
               rel: "noopener noreferrer",
               target: "_blank"
