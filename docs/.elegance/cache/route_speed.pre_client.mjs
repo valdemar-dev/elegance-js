@@ -1,6 +1,6 @@
 import {
   Navbar
-} from "/chunks/chunk-YIGR46T5.js";
+} from "/chunks/chunk-HWXHQLBG.js";
 
 // pages/speed/page.ts
 import { readFile } from "node:fs/promises";
@@ -193,7 +193,7 @@ var Footer = () => __tags.footer(
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Community"),
-        __tags.a({ href: "https://github.com/valdemar-dev/elegance", class: "col-link" }, "GitHub")
+        __tags.a({ href: "https://github.com/valdemar-dev/elegance-js", class: "col-link" }, "GitHub")
       )
     )
   ),

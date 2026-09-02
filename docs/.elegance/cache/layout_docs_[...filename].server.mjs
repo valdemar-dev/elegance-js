@@ -159,7 +159,6 @@ var DocsNavbar = component({ __id: "3C6OhqO",
           __tags.span({ class: "nav-context" }, "docs"),
           __tags.span({ class: "nav-version-badge" }, "v3.0 alpha")
         ),
-        /* ── Centre: search + dropdown ── */
         __tags.div(
           { class: "nav-search-wrap" },
           __tags.div(
@@ -239,12 +238,11 @@ var DocsNavbar = component({ __id: "3C6OhqO",
             )
           ) : null
         ),
-        /* ── Right: nav links + GitHub ── */
         __tags.div(
           { class: "nav-links" },
           __tags.a(
             {
-              href: "https://github.com/valdemar-dev/elegance",
+              href: "https://github.com/valdemar-dev/elegance-js",
               class: "nav-gh",
               rel: "noopener noreferrer",
               target: "_blank"

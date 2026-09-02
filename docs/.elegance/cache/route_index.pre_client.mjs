@@ -1,6 +1,6 @@
 import {
   Navbar
-} from "/chunks/chunk-YIGR46T5.js";
+} from "/chunks/chunk-HWXHQLBG.js";
 
 // pages/page.ts
 var isDynamic = false;
@@ -1026,7 +1026,7 @@ function Page() {
           { class: "cta-links" },
           __tags.a({ href: "/docs/start/setup", class: "btn btn--amber" }, "Read the docs"),
           __tags.a({
-            href: "https://github.com/valdemar-dev/elegance",
+            href: "https://github.com/valdemar-dev/elegance-js",
             class: "btn btn--ghost",
             rel: "noopener noreferrer",
             target: "_blank"

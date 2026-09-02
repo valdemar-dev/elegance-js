@@ -38,7 +38,7 @@ var Navbar = component({ __id: "8xBIPlt",
         }, class: "nav-link" }, "Docs"),
         __tags.a(
           {
-            href: "https://github.com/valdemar-dev/elegance",
+            href: "https://github.com/valdemar-dev/elegance-js",
             class: "nav-gh",
             rel: "noopener noreferrer",
             target: "_blank"
@@ -245,7 +245,7 @@ var Footer = () => __tags.footer(
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Community"),
-        __tags.a({ href: "https://github.com/valdemar-dev/elegance", class: "col-link" }, "GitHub")
+        __tags.a({ href: "https://github.com/valdemar-dev/elegance-js", class: "col-link" }, "GitHub")
       )
     )
   ),
