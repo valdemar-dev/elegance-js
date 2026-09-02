@@ -755,11 +755,15 @@ function scroll() {
     }
 }
 
+const normPath = (p: string) => p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
+
 const prefersReducedMotion = () => ((typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null)?.matches) ?? false;
 
 async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
     const target = new URL(url, location.href);
-    if (target.pathname === location.pathname) {
+    target.pathname = normPath(target.pathname);
+    const currentPath = normPath(location.pathname);
+    if (target.pathname === currentPath) {
         if (push && target.href !== location.href) history.pushState(null, "", url);
         scroll();
         return;
@@ -783,7 +787,6 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
             return;
         }
     }
-
     runPageCleanup();
 
     const result = (mod.default ?? (() => null))();
@@ -809,7 +812,7 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
 
 async function hydrate() {
     const bundleTag = document.querySelector<HTMLScriptElement>(
-        `script[data-bundle="true"][data-pathname="${location.pathname}"]`,
+        `script[data-bundle="true"][data-pathname="${normPath(location.pathname)}"]`,
     );
     if (!bundleTag) return;
 
