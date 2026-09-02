@@ -1,5 +1,5 @@
 {
-  "buildTime": 1787939679353,
+  "buildTime": 1788350532128,
   "routes": [
     {
       "pathname": "/",
@@ -12,7 +12,7 @@
         "pages/layout.ts"
       ],
       "sharedChunkPaths": [
-        "/chunks/chunk-A4SHWCB5.js"
+        "/chunks/chunk-YIGR46T5.js"
       ],
       "cacheKey": "route_index"
     },
@@ -331,7 +331,7 @@
         "pages/layout.ts"
       ],
       "sharedChunkPaths": [
-        "/chunks/chunk-A4SHWCB5.js"
+        "/chunks/chunk-YIGR46T5.js"
       ],
       "cacheKey": "route_speed"
     }

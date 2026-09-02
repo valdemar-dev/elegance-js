@@ -1,6 +1,6 @@
 import {
   Navbar
-} from "/chunks/chunk-A4SHWCB5.js";
+} from "/chunks/chunk-YIGR46T5.js";
 
 // pages/page.ts
 var isDynamic = false;

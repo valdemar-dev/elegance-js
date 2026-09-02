@@ -38,7 +38,7 @@ var Navbar = component({ __id: "8xBIPlt",
         }, class: "nav-link" }, "Docs"),
         __tags.a(
           {
-            href: "https://github.com/elegance-js/elegance",
+            href: "https://github.com/valdemar-dev/elegance",
             class: "nav-gh",
             rel: "noopener noreferrer",
             target: "_blank"
