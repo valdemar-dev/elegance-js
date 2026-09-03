@@ -7,6 +7,7 @@ export interface ClientApi {
     track: Function;
     untrack: Function;
     navigate: Function;
+    fetchPage: Function;
     rawHTML: (content: string) => { content: string; __rawHTML: true };
     _getAtom: (id: string, initial?: any) => any;
     _action: Function;
@@ -27,6 +28,7 @@ export async function freshClient(): Promise<ClientApi> {
         track: g.track,
         untrack: g.untrack,
         navigate: g.navigate,
+        fetchPage: g.fetchPage,
         rawHTML: g.rawHTML,
         _getAtom: g._getAtom,
         _action: g._action,

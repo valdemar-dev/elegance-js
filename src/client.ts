@@ -73,13 +73,20 @@ function component(cfg: ClientComponentConfig) {
 
     componentConfigs.set(__id, cfg);
 
-    return (props?: Record<string, unknown>, children?: Array<VirtualNode>) => {
+    return (props?: Record<string, unknown>, ...childrenArgs: Array<VirtualNode>) => {
+        const children: Array<VirtualNode> = [];
+        const stack = [...childrenArgs];
+        while (stack.length > 0) {
+            const item = stack.shift()!;
+            if (Array.isArray(item)) stack.unshift(...item);
+            else children.push(item);
+        }
         return {
             __type: "live",
             __componentId: __id,
             __instanceId: `${__id}#${nextInstanceId++}`,
             props: props ?? {},
-            children: children,
+            children,
         };
     };
 }
@@ -574,10 +581,11 @@ async function hydrateWithRegions(
             const cid: string = entry.__cid ?? entry.__componentId;
             const count: number = entry.count ?? 1;
             const props: Record<string, any> = entry.props ?? {};
+            const children: Array<VirtualNode> = entry.children ?? [];
             for (let i = 0; i < count; i++) {
                 while (sibling?.nodeType === Node.TEXT_NODE && !(sibling.nodeValue ?? "").trim())
                     sibling = sibling.nextSibling!;
-                const syntheticDesc = { __type: "live", __componentId: cid, __instanceId: `${cid}#${nextInstanceId++}`, props };
+                const syntheticDesc = { __type: "live", __componentId: cid, __instanceId: `${cid}#${nextInstanceId++}`, props, children };
                 if (sibling !== null) {
                     queue.push({ desc: syntheticDesc, dom: sibling });
                     sibling = sibling.nextSibling;
@@ -703,9 +711,15 @@ function patchHead(nh: HTMLHeadElement): void {
         }
     }
 
+    const nhHrefs = new Set(
+        [...nh.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")].map(l => l.href)
+    );
     const hrefs = new Set(
         [...document.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")].map(l => l.href)
     );
+    for (const l of document.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")) {
+        l.disabled = !nhHrefs.has(l.href);
+    }
     for (const l of nh.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")) {
         if (!hrefs.has(l.href)) document.head.appendChild(l.cloneNode(true));
     }
@@ -759,16 +773,9 @@ const normPath = (p: string) => p.length > 1 && p.endsWith("/") ? p.slice(0, -1)
 
 const prefersReducedMotion = () => ((typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null)?.matches) ?? false;
 
-async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
+async function fetchPage(url: string): Promise<{ doc: Document; mod: any } | null> {
     const target = new URL(url, location.href);
     target.pathname = normPath(target.pathname);
-    const currentPath = normPath(location.pathname);
-    if (target.pathname === currentPath) {
-        if (push && target.href !== location.href) history.pushState(null, "", url);
-        scroll();
-        return;
-    }
-    if (push) history.pushState(null, "", url);
 
     const doc = new DOMParser().parseFromString(
         await (await fetch(url, { headers: { Accept: "text/html" } })).text(),
@@ -783,19 +790,38 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
         try {
             mod = await import(`${target.pathname === "/" ? "" : target.pathname}/bundle.js`);
         } catch {
-            console.error("navigate: no bundle found for this pathname.");
-            return;
+            console.error("fetchPage: no bundle found for this pathname.");
+            return null;
         }
     }
+
+    return { doc, mod };
+}
+
+let activePath = normPath(location.pathname);
+
+async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
+    const target = new URL(url, location.href);
+    target.pathname = normPath(target.pathname);
+    if (target.pathname === activePath) {
+        if (push && target.href !== location.href) history.pushState(null, "", url);
+        scroll();
+        return;
+    }
+    if (push) history.pushState(null, "", url);
+
+    const page = await fetchPage(url);
+    if (!page) return;
+
     runPageCleanup();
 
-    const result = (mod.default ?? (() => null))();
+    const result = (page.mod.default ?? (() => null))();
     if (!Array.isArray(result?.regions)) {
         console.error("navigate: target is not an Elegance page.");
         return;
     }
 
-    const apply = () => loadPage(url, result.regions, result.handlers, doc);
+    const apply = () => loadPage(url, result.regions, result.handlers, page.doc);
     const wantsVT = typeof document.startViewTransition === "function" && !prefersReducedMotion() && (vt ?? __VIEW_TRANSITIONS);
 
     if (wantsVT) {
@@ -804,6 +830,7 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
     } else {
         await apply();
     }
+    activePath = target.pathname;
 
     runPageCallbacks();
     globalThis.__navCallbacks.forEach(f => f());
@@ -842,6 +869,6 @@ async function _action(target: string, params: unknown) {
     return res.json();
 }
 
-Object.assign(globalThis, { view, component, onPageLoad, track, untrack, navigate, rawHTML, _getAtom, _action, });
+Object.assign(globalThis, { view, component, onPageLoad, track, untrack, navigate, fetchPage, rawHTML, _getAtom, _action, });
 
 requestAnimationFrame(() => hydrate());

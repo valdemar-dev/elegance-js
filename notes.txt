@@ -3,16 +3,3 @@ top level non-component elements can never be reactive, as the code containing t
 client.ts is just fully slop. -- i want it to be like 2kb in prod.
 
 patching rawhtml doesnt update dom -- feature ? 
-
-BUNDLE THIRD-PARTY COMPONENTS (TODO):
-- esbuild onResolve in ROUTE_ESBUILD_BASE: bare import -> check resolved package's elegance.bundle + project config bundling.include -> hit => external:false (inline)
-- per-package: package.json { "elegance": { "bundle": ["./thing", "./components/*"], "no-bundle": ["./dist/server/*"] } }
-- per-project: elegance.config.ts bundling: { include: ["pkg/*"], noBundle: ["local/foo", "pkg/dist/sensitive/*"] } (full globs, bare name = all exports)
-- veto: //!no-bundle-file at file top -> file banned from client bundle
-- all vetos enforced at DCE level (applyReachabilityDCECore): reachable name from banned source file -> error with reachability chain
-- //!no-bundle-file detected from bundle comments; package/project no-bundle resolved at build time, passed to DCE
-- no esbuild onResolve involvement for vetos (only handles positive bundle opt-in)
-- inlined code handled by oxc pass (__id, __tags, DCE) => no //!allow-bundling for consumers
-- globMatch helper, no deps
-- elegance-js: add "./components" subpath export (Image+Link only, no server graph) + declare elegance.bundle + elegance.no-bundle for server-only paths
-- docs imports -> elegance-js/components

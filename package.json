@@ -24,6 +24,11 @@
       "import": "./dist/user-utils.js",
       "default": "./dist/user-utils.js"
     },
+    "./link": {
+      "types": "./dist/components/Link.d.ts",
+      "import": "./dist/components/Link.js",
+      "default": "./dist/components/Link.js"
+    },
     "./types": {
       "types": "./dist/types/index.d.ts"
     },
@@ -32,6 +37,25 @@
       "import": "./dist/run.js",
       "default": "./dist/run.js"
     }
+  },
+  "elegance": {
+    "bundle": [
+      "./link"
+    ],
+    "no-bundle": [
+      "./dist/build/*",
+      "./dist/server/*",
+      "./dist/processing/*",
+      "./dist/image/*",
+      "./dist/globals.js",
+      "./dist/config.js",
+      "./dist/page-tools.js",
+      "./dist/constants.js",
+      "./dist/error.js",
+      "./dist/logger.js",
+      "./dist/run.js",
+      "./dist/elements.js"
+    ]
   },
   "author": "vqldemar (https://github.com/valdemar-dev)",
   "keywords": [

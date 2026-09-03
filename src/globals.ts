@@ -88,7 +88,9 @@ export function hookGlobals() // Assign all globals here.
             throw new Error(`Component "${cid}": must provide 'view', otherwise the component cannot be rendered.`);
         }
 
-        const generator = (props?: Record<string, unknown>, children?: Array<VirtualNode>) => {
+        const generator = (props?: Record<string, unknown>, ...childrenArgs: Array<VirtualNode>) => {
+            const children: Array<VirtualNode> = (childrenArgs as any).flat(Infinity);
+
             const atomsObj: any = {};
             if (atoms) {
                 for (const key of Object.keys(atoms)) {
@@ -125,6 +127,7 @@ export function hookGlobals() // Assign all globals here.
                 __componentId: cid,
                 __definition: definition,
                 props: props ?? {},
+                children,
             };
 
             const originalInit = definition.serverInit;

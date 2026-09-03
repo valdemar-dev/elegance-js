@@ -75,6 +75,11 @@ const defaultConfig: SafeEleganceConfig = {
 
     client: {
         viewTransitions: true,
+    },
+
+    bundling: {
+        include: [],
+        noBundle: [],
     }
 };
 

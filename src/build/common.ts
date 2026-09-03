@@ -7,6 +7,7 @@ import {
     gatherMetaFromModules,
 } from "../page-tools";
 import { transformBundle, transformChunk, generateLayoutBundle } from "../processing/oxc";
+import { eleganceBundlePlugin, computeBannedGlobs } from "./bundling";
 
 import { resolveImagesInSource } from "../image/resolve";
 
@@ -488,7 +489,7 @@ export const ROUTE_ESBUILD_BASE = {
     legalComments: "inline"   as const,
     packages:      "external" as const,
     loader:        { ".ts": "ts", ".tsx": "ts" } as Record<string, "ts">,
-    plugins:       [eleganceTsxPlugin],
+    plugins:       [eleganceTsxPlugin, eleganceBundlePlugin],
     minify:        false,
     treeShaking:   false,
 };
@@ -615,7 +616,8 @@ export async function findAndCacheStatusCodePages(): Promise<StatusCodePageEntry
                     if (existsSync(clientMjsPath(lk))) return;
                     const { preClientCode } = compiled.get(lk) ?? {};
                     if (!preClientCode) return;
-                    let bundle = generateLayoutBundle(preClientCode, layouts[i]!);
+                    const bannedGlobs = await computeBannedGlobs();
+                    let bundle = generateLayoutBundle(preClientCode, layouts[i]!, bannedGlobs);
                     if (!IS_DEV) bundle = await minifyCode(bundle);
                     await Promise.all([
                         writeFile(clientMjsPath(lk),  bundle),
@@ -734,9 +736,11 @@ export async function transpileAllRoutes(
 
     const chunkUrlMap = new Map<string, string>();
 
+    const bannedGlobs = await computeBannedGlobs();
+
     await Promise.all(chunkFiles.map(async (chunkFile) => {
         const raw       = await readFile(join(clientTmpOut, chunkFile), "utf-8");
-        const processed = transformChunk(await resolveImagesInSource(raw, chunkFile), chunkFile);
+        const processed = transformChunk(await resolveImagesInSource(raw, chunkFile), chunkFile, bannedGlobs);
 
         chunkUrlMap.set(`./${chunkFile}`, `/chunks/${chunkFile}`);
         await writeFile(join(chunksDir, chunkFile), processed);
@@ -768,7 +772,7 @@ export async function transpileAllRoutes(
         const raw = await readFile(join(clientTmpOut, `${lk}.js`), "utf-8");
         const { preClientCode: rawPre } = transformBundle(await resolveImagesInSource(raw, layoutPath), layoutPath);
         const preClientCode = replaceChunkUrls(rawPre);
-        let layoutBundle = generateLayoutBundle(preClientCode, layoutPath);
+        let layoutBundle = generateLayoutBundle(preClientCode, layoutPath, bannedGlobs);
         if (minify) layoutBundle = await minifyCode(layoutBundle);
         await Promise.all([
             writeFile(clientMjsPath(lk),  layoutBundle),

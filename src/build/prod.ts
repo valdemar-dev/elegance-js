@@ -1,5 +1,6 @@
 import { getRoutes, hasSlugSegment, resolveEnumeratedPath } from "../page-tools";
 import { generateSyntheticBundle } from "../processing/oxc";
+import { computeBannedGlobs } from "./bundling";
 import { generatePageHTML, createRenderContext, runWithRenderContext } from "./render";
 import type { RouteInfo } from "../page-tools";
 import { optimizeImages } from "../image/generate";
@@ -50,6 +51,8 @@ interface StaticTask {
 async function buildStaticTasks(tasks: StaticTask[]): Promise<void> {
     logger.info(`Building ${tasks.length} static route${tasks.length === 1 ? "" : "s"}`);
 
+    const bannedGlobs = await computeBannedGlobs();
+
     await Promise.all(tasks.map(async ({ route, transpiled, layoutCacheKeys, cacheKey, params, outPathname }) => {
         if (await fileHasExports(route.pageFile) === false) {
             throw richError({
@@ -99,7 +102,7 @@ async function buildStaticTasks(tasks: StaticTask[]): Promise<void> {
 
                 const preClientCode = await readFile(preClientMjsPath(pageCacheKey(transpiled.pathname)), "utf-8");
                 
-                const syntheticCode   = generateSyntheticBundle(preClientCode, outPathname, ctx.regions, layoutCacheKeys);
+                const syntheticCode   = generateSyntheticBundle(preClientCode, outPathname, ctx.regions, layoutCacheKeys, bannedGlobs);
                 const finalClientCode = await minifyCode(syntheticCode);
 
                 await mkdir(routeOutDir, { recursive: true });

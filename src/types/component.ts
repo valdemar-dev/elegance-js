@@ -21,6 +21,7 @@ declare global {
             fallback?: (err: unknown) => VirtualNode;
         };
         props: Record<string, unknown>;
+        children: Array<VirtualNode>;
     };
 
     type VirtualNode<S = any> = number | string | Descriptor<S> | Array<VirtualNode<S>> | null | false;
@@ -120,7 +121,7 @@ declare global {
         Props = typeof NoProps,
         A extends Record<string, any> = {}
     > = {
-        (...args: Props extends typeof NoProps ? [] : [props: Props]): LiveComponentDescriptor;
+        (...args: [...(Props extends typeof NoProps ? [] : [props: Props]), ...Array<VirtualNode>]): LiveComponentDescriptor;
         __config: ComponentConfig<
             Props extends typeof NoProps ? {} : Props,
             A

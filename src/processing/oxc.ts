@@ -5,6 +5,72 @@ import { richError } from "../error";
 
 const ALL_TAGS_SET = new Set<string>(ALL_TAGS as readonly string[]);
 
+export function globMatch(pattern: string, path: string): boolean {
+    const p = pattern.replace(/\\/g, "/");
+    const t = path.replace(/\\/g, "/");
+    let re = "";
+    let i = 0;
+    while (i < p.length) {
+        const c = p[i]!;
+        if (c === "*") {
+            if (p[i + 1] === "*") {
+                if (p[i + 2] === "/") {
+                    re += "(?:.*/)?";
+                    i += 3;
+                } else {
+                    re += ".*";
+                    i += 2;
+                }
+                continue;
+            }
+            re += "[^/]*";
+            i++;
+            continue;
+        }
+        if (c === "?") {
+            re += "[^/]";
+            i++;
+            continue;
+        }
+        if (c === "[") {
+            const close = p.indexOf("]", i + 1);
+            if (close !== -1) {
+                re += p.slice(i, close + 1);
+                i = close + 1;
+                continue;
+            }
+        }
+        re += /[.+^${}()|\\]/.test(c) ? "\\" + c : c;
+        i++;
+    }
+    return new RegExp(`^${re}$`).test(t);
+}
+
+export interface SourcePathMarker {
+    offset: number;
+    path: string;
+}
+
+export function buildSourcePathMarkers(ast: any): SourcePathMarker[] {
+    return ((ast.comments ?? []) as any[])
+        .filter((c) => c.type === "Line" && /^[\w./@-][^\s]*\.[a-z]+$/i.test((c.value as string).trim()))
+        .map((c) => ({ offset: c.start as number, path: (c.value as string).trim() }))
+        .sort((a, b) => a.offset - b.offset);
+}
+
+export function resolveSourcePath(
+    markers: SourcePathMarker[],
+    fallback: string,
+    offset: number,
+): string {
+    let result = fallback;
+    for (const marker of markers) {
+        if (marker.offset <= offset) result = marker.path;
+        else break;
+    }
+    return result;
+}
+
 export interface Edit {
     start: number;
     end: number;
@@ -353,6 +419,7 @@ function applyReachabilityDCECore(
     ast: any,
     filePath: string,
     extraSeeds?: Set<string>,
+    bannedGlobs?: string[],
 ): string {
     const body: any[] = ast.program.body;
 
@@ -542,6 +609,39 @@ function applyReachabilityDCECore(
         }
     }
 
+    // file-level !no-bundle-file guard + banned globs
+    if (bannedGlobs?.length || ast.comments?.some((c: any) => c.type === "Line" && (c.value as string).trim() === "!no-bundle-file")) {
+        const markers = buildSourcePathMarkers(ast);
+        const bannedDirs = new Set<string>();
+        for (const comment of ast.comments ?? []) {
+            if (comment.type === "Line" && (comment.value as string).trim() === "!no-bundle-file") {
+                bannedDirs.add(resolveSourcePath(markers, filePath, comment.start as number));
+            }
+        }
+        const fileViolations: { name: string; chain: string }[] = [];
+        for (const name of reachable) {
+            const decl = bindingMap.get(name);
+            if (!decl) continue;
+            const src = resolveSourcePath(markers, filePath, decl.start as number);
+            if (bannedDirs.has(src)) {
+                fileViolations.push({ name, chain: formatReachabilityChain(source, filePath, name, reachableFrom) });
+            } else if (bannedGlobs?.some(g => globMatch(g, src))) {
+                fileViolations.push({ name, chain: formatReachabilityChain(source, filePath, name, reachableFrom) });
+            }
+        }
+        if (fileViolations.length > 0) {
+            const list = fileViolations
+                .map(({ name, chain }) => `  • ${name}\n${chain}`)
+                .join("\n\n");
+            throw richError({
+                title: "Server Only File",
+                cause: `\\The following files are server-only but were reached by the client bundle:\n\n${list}`,
+                hint: `\\Remove the reference or mark the file with //!no-bundle-file.`,
+                doShowStack: false,
+            });
+        }
+    }
+
     const forcedImports = new Set<any>();
 
     // !allow-bundling enforcement for named imports, and !force-bundling for side-effect imports
@@ -726,23 +826,10 @@ function collectTransformEdits(
     const serverOnlyEdits: Edit[] = [];
     const clientOnlyEdits: Edit[] = [];
 
-    // Build a sorted list of (offset to sourcePath) from bundler-emitted path comments,
-    // e.g. "// pages/actions/lib.ts" injected before each module in a bundle.
-    // This keeps ids hashed against the *declaring* module path rather than the
-    // bundle/chunk file path, so server and client pipelines always agree.
-    const sourcePathMarkers: Array<{ offset: number; path: string }> =
-        ((ast.comments ?? []) as any[])
-            .filter((c) => c.type === "Line" && /^[\w./@-][^\s]*\.[a-z]+$/i.test((c.value as string).trim()))
-            .map((c) => ({ offset: c.start as number, path: (c.value as string).trim() }))
-            .sort((a, b) => a.offset - b.offset);
+    const sourcePathMarkers = buildSourcePathMarkers(ast);
 
     function sourcePathAt(nodeStart: number): string {
-        let result = filePath;
-        for (const marker of sourcePathMarkers) {
-            if (marker.offset <= nodeStart) result = marker.path;
-            else break;
-        }
-        return result;
+        return resolveSourcePath(sourcePathMarkers, filePath, nodeStart);
     }
 
     const callIndexByPath = new Map<string, number>();
@@ -877,9 +964,35 @@ export function transformBundle(
     return { serverCode, preClientCode };
 }
 
-export function transformChunk(source: string, filePath: string): string {
+export function transformChunk(source: string, filePath: string, bannedGlobs?: string[]): string {
     const ast = parseSync(filePath, source, { sourceType: "module" });
     const { sharedEdits, clientOnlyEdits } = collectTransformEdits(source, ast, filePath);
+
+    if (bannedGlobs?.length || ast.comments?.some((c: any) => c.type === "Line" && (c.value as string).trim() === "!no-bundle-file")) {
+        const markers = buildSourcePathMarkers(ast);
+        const bannedDirs = new Set<string>();
+        for (const comment of ast.comments ?? []) {
+            if (comment.type === "Line" && (comment.value as string).trim() === "!no-bundle-file") {
+                bannedDirs.add(resolveSourcePath(markers, filePath, comment.start as number));
+            }
+        }
+        for (const marker of markers) {
+            if (bannedDirs.has(marker.path)) {
+                throw richError({
+                    title: "Server Only File",
+                    cause: `\\The file "${marker.path}" is marked server-only (//!no-bundle-file) but was included in a client chunk.`,
+                    doShowStack: false,
+                });
+            }
+            if (bannedGlobs?.some(g => globMatch(g, marker.path))) {
+                throw richError({
+                    title: "Server Only File",
+                    cause: `\\The file "${marker.path}" is marked server-only but was included in a client chunk.`,
+                    doShowStack: false,
+                });
+            }
+        }
+    }
 
     return applyEdits(source, [...sharedEdits, ...clientOnlyEdits]);
 }
@@ -937,13 +1050,20 @@ function generateRegionsExpression(
     const keyToCode = new Map<string, string>();
     let varCounter = 0;
 
+    function serializeChildrenRecord(children: Array<unknown> | undefined): string {
+        if (!children || children.length === 0) return "[]";
+        return `[${children.map((c) => serializePropValue(c)).join(", ")}]`;
+    }
+
     const regionKeys: string[][] = regions.map((descs) =>
         descs.map((desc) => {
             const props = desc.props as Record<string, unknown> | undefined;
-            const key = propsComparisonKey(props);
+            const children = desc.children as Array<unknown> | undefined;
+            const childrenCode = serializeChildrenRecord(children);
+            const key = propsComparisonKey(props) + "\x00" + childrenCode;
             if (!keyToVar.has(key)) {
                 keyToVar.set(key, `_p${varCounter++}`);
-                keyToCode.set(key, serializePropsRecord(props));
+                keyToCode.set(key, `{ props: ${serializePropsRecord(props)}, children: ${childrenCode} }`);
             }
             return key;
         }),
@@ -961,7 +1081,7 @@ function generateRegionsExpression(
 
         for (let i = 0; i < descs.length; i++) {
             const cid = descs[i].__componentId as string;
-            const propsKey = keys[i]; // cached
+            const propsKey = keys[i];
 
             const last = rle[rle.length - 1];
             if (last && last.cid === cid && last.propsKey === propsKey) {
@@ -972,7 +1092,7 @@ function generateRegionsExpression(
         }
 
         const parts = rle.map(({ cid, propsKey, count }) =>
-            `{ __cid: ${JSON.stringify(cid)}, props: ${keyToVar.get(propsKey)}, count: ${count} }`,
+            `{ __cid: ${JSON.stringify(cid)}, ...${keyToVar.get(propsKey)}, count: ${count} }`,
         );
         return `[${parts.join(", ")}]`;
     });
@@ -1209,6 +1329,7 @@ function applyServerActionCallReplacements(source: string, ast: any): string {
 export function generateLayoutBundle(
     preClientCode: string,
     filePath: string,
+    bannedGlobs?: string[],
 ): string {
     let ast: any;
     try {
@@ -1269,7 +1390,7 @@ ${handlerDecls}
         return finalSource;
     }
 
-    return applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds);
+    return applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds, bannedGlobs);
 }
 
 /**
@@ -1421,6 +1542,7 @@ export function generateSyntheticBundle(
     filePath: string,
     regions: Array<any[]>,
     layoutCacheKeys: string[],
+    bannedGlobs?: string[],
 ): string {
     const { declarations: propsDecls, expression: regionsExpr } =
         generateRegionsExpression(regions);
@@ -1466,7 +1588,7 @@ ${layoutCalls}
         return finalSource;
     }
 
-    const result = applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds);
+    const result = applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds, bannedGlobs);
 
     if (syntheticBundleDceCache.size >= SYNTHETIC_BUNDLE_DCE_MAX) {
         syntheticBundleDceCache.delete(syntheticBundleDceCache.keys().next().value!);

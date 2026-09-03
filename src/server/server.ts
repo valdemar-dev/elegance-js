@@ -15,6 +15,7 @@ const brotliAsync = promisify(brotliCb);
 import { performance } from "node:perf_hooks";
 
 import { generateSyntheticBundle } from "../processing/oxc";
+import { computeBannedGlobs } from "../build/bundling";
 import { generatePageHTML, generateDynamicPageHTML, createRenderContext, runWithRenderContext } from "../build/render";
 import type { CompiledRoute, Manifest, RouteEntry, CacheKey } from "../build/common";
 import { loadRouteFromCache, runBuildHooks, preClientMjsPath } from "../build/common";
@@ -606,11 +607,13 @@ async function buildRouteHTML(
             compiled.metadata(params, req, res),
         ]);
 
+        const bannedGlobs = await computeBannedGlobs();
         const getClientCode = (): string => generateSyntheticBundle(
             preClientCode,
             requestPathname,
             ctx.regions,
             route.layoutCacheKeys,
+            bannedGlobs,
         );
 
         return generateDynamicPageHTML(rootNode, metaNodes, route, getClientCode, ctx);
@@ -701,6 +704,7 @@ async function lazyBuildStaticPage(
         return result;
     });
 
+    const bannedGlobs = await computeBannedGlobs();
     const preClientCode = await readFile(preClientMjsPath(route.cacheKey), "utf-8");
 
     t = performance.now();
@@ -709,6 +713,7 @@ async function lazyBuildStaticPage(
         requestPathname,
         ctx.regions,
         route.layoutCacheKeys,
+        bannedGlobs,
     );
     timings["bundle"] = performance.now() - t;
 
