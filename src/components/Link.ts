@@ -8,18 +8,17 @@ const Link = component<{
     counter: number,
 }
 >({
-    atoms: {
-        counter: 0,
-    },
-    onNavigate(_, atoms) {
-        atoms.counter.value += 1;
+    init(self) {
+        if (!self.props.href) {
+            throw new Error("Link components require an HREF attribute to be set. Received: " + self.props.href);
+        }
     },
     onMount(self) {
         if (self.props.preload === "load") {
             fetchPage(self.props.href);
         }
     },
-    view({ self, children, atoms: { counter, }}) {
+    view({ self, children, }) {
         return a({
             ...self.props,
             onClick(_, event) {
@@ -35,7 +34,6 @@ const Link = component<{
             }
         }, 
             ...children,
-            `Times navigated: ${counter.value}`
         );
     }
 });
