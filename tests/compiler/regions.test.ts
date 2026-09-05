@@ -48,7 +48,7 @@ test("regions: unresolvable cid throws instead of silently breaking hydration", 
     assert.throws(
         () => generateSyntheticBundle(INLINE_COMPONENT, "pages/counter.tsx",
             [[{ __componentId: "missing1", props: {}, children: [] }]], []),
-        /Unhydratable Component/,
+        /Component Missing From Client Bundle/,
     );
 });
 
@@ -112,7 +112,7 @@ test("regions: nested slot descriptor with unresolvable cid throws", () => {
     assert.throws(
         () => generateSyntheticBundle(INLINE_COMPONENT, "pages/counter.tsx",
             REGION({}, [{ __type: "live", __componentId: "missing2", props: {}, children: [] }]), []),
-        /Unhydratable Component/,
+        /Component Missing From Client Bundle/,
     );
 });
 

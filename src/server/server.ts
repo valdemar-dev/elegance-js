@@ -595,9 +595,10 @@ async function buildRouteHTML(
     }
 
     const key = route.cacheKey;
+    const preClientPath = preClientMjsPath(key);
     let preClientCode = preClientCodeCache.get(key);
     if (preClientCode === undefined) {
-        preClientCode = await readFile(preClientMjsPath(key), "utf-8");
+        preClientCode = await readFile(preClientPath, "utf-8");
         preClientCodeCache.set(key, preClientCode);
     }
 
@@ -614,6 +615,7 @@ async function buildRouteHTML(
             ctx.regions,
             route.layoutCacheKeys,
             bannedGlobs,
+            preClientPath,
         );
 
         return generateDynamicPageHTML(rootNode, metaNodes, route, getClientCode, ctx);
@@ -705,7 +707,8 @@ async function lazyBuildStaticPage(
     });
 
     const bannedGlobs = await computeBannedGlobs();
-    const preClientCode = await readFile(preClientMjsPath(route.cacheKey), "utf-8");
+    const preClientPath = preClientMjsPath(route.cacheKey);
+    const preClientCode = await readFile(preClientPath, "utf-8");
 
     t = performance.now();
     const syntheticCode = generateSyntheticBundle(
@@ -714,6 +717,7 @@ async function lazyBuildStaticPage(
         ctx.regions,
         route.layoutCacheKeys,
         bannedGlobs,
+        preClientPath,
     );
     timings["bundle"] = performance.now() - t;
 

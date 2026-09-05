@@ -2,9 +2,9 @@ import { parseSync } from "oxc-parser";
 import { ALL_TAGS } from "./taglist";
 import { createHash } from "node:crypto";
 import { richError } from "../error";
-import { join } from "node:path";
-import { readFileSync, statSync } from "node:fs";
-import { DIST_DIR } from "../constants";
+import { join, relative } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { DIST_DIR, CACHE_DIR } from "../constants";
 
 const ALL_TAGS_SET = new Set<string>(ALL_TAGS as readonly string[]);
 
@@ -528,6 +528,81 @@ function loadChunkComponentInfo(chunkPath: string): ChunkComponentInfo | null {
     return info;
 }
 
+const cidLocationCache = new Map<string, string | null>();
+
+function locateCid(cid: string): string | null {
+    const cached = cidLocationCache.get(cid);
+    if (cached !== undefined) return cached;
+
+    let location: string | null = null;
+
+    const scan = (dir: string, exts: string[]): void => {
+        if (location) return;
+
+        let entries: string[];
+        try { entries = readdirSync(dir); } catch { return; }
+
+        for (const name of entries) {
+            if (!exts.some((e) => name.endsWith(e))) continue;
+
+            const path = join(dir, name);
+            let source: string;
+
+            try { source = readFileSync(path, "utf-8"); } catch { continue; }
+
+            const match = source.match(new RegExp(`__id\\s*:\\s*"${cid}"`));
+            if (!match || match.index === undefined) continue;
+
+            const line  = offsetToLineCol(source, match.index).line;
+            const file  = lastPathMarkerBefore(source, match.index);
+            const where = relative(process.cwd(), path).replace(/\\/g, "/");
+
+            location = file
+                ? `${file} (in ${where}:${line})`
+                : `${where}:${line}`;
+            return;
+        }
+    };
+
+    scan(CACHE_DIR ?? "", [".server.mjs"]);
+    scan(CACHE_DIR ?? "", [".pre_client.mjs"]);
+    scan(CACHE_DIR ?? "", [".client.mjs"]);
+    if (!location) scan(join(DIST_DIR ?? "", "chunks"), [".js", ".mjs"]);
+
+    cidLocationCache.set(cid, location);
+
+    return location;
+}
+
+function isValidPathMarker(value: string): boolean {
+    return /^[\w./@-][^\s]*\.[a-z]+$/i.test(value);
+}
+
+function lastPathMarkerBefore(source: string, offset: number): string | null {
+    const re = /(?:^|\n)\/\/ *([^\n]*)/g;
+    let found: string | null = null;
+    let m: RegExpExecArray | null;
+
+    while ((m = re.exec(source)) && m.index < offset) {
+        const value = m[1]!.trim();
+        if (isValidPathMarker(value)) found = value;
+    }
+
+    return found;
+}
+
+function firstPathMarker(source: string): string | null {
+    const re = /(?:^|\n)\/\/ *([^\n]*)/g;
+    let m: RegExpExecArray | null;
+
+    while ((m = re.exec(source))) {
+        const value = m[1]!.trim();
+        if (isValidPathMarker(value)) return value;
+    }
+
+    return null;
+}
+
 interface PageChunkImport {
     /** Import source as written in preClientCode, e.g. "/chunks/chunk-ABC.js". */
     source: string;
@@ -550,23 +625,28 @@ function createRegionResolver(
     );
 
     const layoutCids = new Set<string>();
-    const layoutLoaded = new Set<string>();
 
     const loadLayoutCids = (): void => {
-        for (const path of layoutPathSet) {
-            if (layoutLoaded.has(path)) continue;
+        const seen = new Set<string>();
 
-            layoutLoaded.add(path);
+        const visit = (path: string): void => {
+            if (seen.has(path)) return;
+
+            seen.add(path);
 
             const info = loadChunkComponentInfo(path);
-            if (!info) continue;
+            if (!info) return;
 
             // layout bundles register their components by side effect (the
             // bundle itself is always loaded), so every cid in them counts.
             for (const cid of info.allCids) {
                 layoutCids.add(cid);
             }
-        }
+
+            for (const dep of info.chunkDeps) visit(dep);
+        };
+
+        for (const path of layoutPathSet) visit(path);
     };
 
     const chunkPathOf = (source: string): string | null => {
@@ -1631,9 +1711,11 @@ interface RegionEmitContext {
     usedExtractions: Set<string>;
     usedChunkSources: Set<string>;
     fnLocations: Map<string, number>;
-    locateOffset: (offset: number) => { line: number; col: number; sourceLine: string };
+    locateOffset: (offset: number) => { file: string; line: number; col: number; sourceLine: string };
     path: string[];
     filePath: string;
+    pageFile: string;
+    cacheFilePath: string | null;
 }
 
 function formatFnTrace(ctx: RegionEmitContext, fn: Function): string {
@@ -1644,9 +1726,12 @@ function formatFnTrace(ctx: RegionEmitContext, fn: Function): string {
         return `    at ${at}\n` + fn.toString().split("\n").map((l) => `    |   ${l}`).join("\n");
     }
 
-    const { line, col, sourceLine } = ctx.locateOffset(offset);
+    const { file, line, col, sourceLine } = ctx.locateOffset(offset);
+    const where = ctx.cacheFilePath
+        ? `${file} (in ${relative(process.cwd(), ctx.cacheFilePath).replace(/\\/g, "/")}:${line}:${col})`
+        : `${file}:${line}:${col}`;
 
-    return `    at ${at} (${ctx.filePath}:${line}:${col})\n` +
+    return `    at ${at} ${where}\n` +
         `    |   ${sourceLine}\n` +
         `    |   ${" ".repeat(col - 1)}^`;
 }
@@ -1656,6 +1741,23 @@ function normalizeFnText(text: string): string {
         .replace(/\s+/g, " ")
         .replace(/^[A-Za-z_$][\w$]*\s*\(/, "(")
         .trim();
+}
+
+function throwUnhydratableComponent(ctx: RegionEmitContext, cid: string, usedIn: string | null): never {
+    const definedAt = locateCid(cid);
+    const page = ctx.pageFile ? `${ctx.filePath} (${ctx.pageFile})` : ctx.filePath;
+
+    throw richError({
+        title: "Component Missing From Client Bundle",
+        cause: `\\A component was rendered on the server, but was not found duration __constructor generation., ` +
+            `Defined at: ${definedAt || "(could not find possible component definition)"}` +
+            `Used at: ${page}, at: ${usedIn}` +
+            `A component id is only minted when the compiler processes a component() call, ` +
+            `so a rendered component with no definition in the cache means the server and client halves of the build are out of sync. This is *most likely* an internal error.`,
+        hint: `\\If this seems unintentional, please report this.`,
+        meta: { cid },
+        doShowStack: false,
+    });
 }
 
 function serializeRegionValue(value: unknown, ctx: RegionEmitContext, label = "value"): string {
@@ -1708,18 +1810,10 @@ function serializeRegionValue(value: unknown, ctx: RegionEmitContext, label = "v
             // by real code instead of serialized closures.
             const resolved = ctx.resolveCid(obj.__componentId, ctx.usedChunkSources);
             if (resolved.kind === "missing") {
-                throw richError({
-                    title: "Unhydratable Component",
-                    cause: `\\The component (cid "${obj.__componentId}") rendered as ${label} ` +
-                        `has no client-side definition in the page bundle, its chunks, or its layouts:\n\n` +
-                        `    at ${ctx.path.join(" → ") || "region data"}\n\n` +
-                        `Without it the client cannot hydrate this slot.`,
-                    hint: `Ensure the component is imported into the page (or mark its module as bundleable) so its client code is shipped.`,
-                    doShowStack: false,
-                });
+                throwUnhydratableComponent(ctx, obj.__componentId, [...ctx.path, label].join(" → "));
             }
-            
-            ctx.path.push(`${resolved.kind === "call" ? resolved.name : obj.__componentId}()`);
+
+            ctx.path.push(resolved.kind === "call" ? `${resolved.name}()` : "component()");
             
             try {
                 if (resolved.kind === "call") {
@@ -1793,7 +1887,7 @@ function generateRegionsExpression(
 
     let varCounter = 0;
 
-    const regionParts = regions.map((descs, regionIdx) => {
+    const regionParts = regions.map((descs) => {
         const parts: string[] = [];
 
         for (const desc of descs) {
@@ -1801,23 +1895,7 @@ function generateRegionsExpression(
             const resolved = ctx.resolveCid(cid, ctx.usedChunkSources);
 
             if (resolved.kind === "missing") {
-                const renderFn = desc.__definition?.render;
-
-                const where = ctx.path.join(" → ") || `regions[${regionIdx}]`;
-
-                const trace = typeof renderFn === "function"
-                    ? `    at ${where}\n` +
-                        renderFn.toString().split("\n").map((l: string) => `    |   ${l}`).join("\n")
-                    : `    at ${where}`;
-
-                throw richError({
-                    title: "Unhydratable Component",
-                    cause: `\\The component (cid "${cid}") rendered at ${where} ` +
-                        `has no client-side definition in the page bundle, its chunks, or its layouts:\n\n${trace}\n\n` +
-                        `Without it the client cannot hydrate this region.`,
-                    hint: `Ensure the component is imported into the page (or mark its module as bundleable) so its client code is shipped.`,
-                    doShowStack: false,
-                });
+                throwUnhydratableComponent(ctx, cid, null);
             }
 
             if (resolved.kind === "call") {
@@ -2171,7 +2249,7 @@ interface SyntheticBundleStaticParts {
     /** Normalized fn text -> offset in the client text heref for error traces. */
     fnLocations:     Map<string, number>;
     /** Precomputed (line, col, sourceLine) for every offset in fnLocations. */
-    fnLocate:        (offset: number) => { line: number; col: number; sourceLine: string };
+    fnLocate:        (offset: number) => { file: string; line: number; col: number; sourceLine: string };
     filePath:        string;
 }
 
@@ -2319,7 +2397,12 @@ function computeSyntheticBundleStaticParts(
     const fnLocate = (offset: number) => {
         const line = offsetToLineCol(bundleSource, offset);
 
-        return { line: line.line, col: line.col, sourceLine: getSourceLine(bundleSource, offset) };
+        return {
+            file:       lastPathMarkerBefore(bundleSource, offset) ?? filePath,
+            line:       line.line,
+            col:        line.col,
+            sourceLine: getSourceLine(bundleSource, offset),
+        };
     };
 
     return {
@@ -2378,6 +2461,7 @@ export function generateSyntheticBundle(
     regions: Array<any[]>,
     layoutCacheKeys: string[],
     bannedGlobs?: string[],
+    cacheFilePath?: string,
 ): string {
     const staticParts = getOrComputeStaticParts(preClientCode, filePath, layoutCacheKeys);
 
@@ -2403,6 +2487,8 @@ export function generateSyntheticBundle(
     const usedChunkSources = new Set<string>();
     const usedExtractions = new Set<string>();
 
+    const pageFileBanner = firstPathMarker(withoutDefault) ?? "";
+
     const emitCtx: RegionEmitContext = {
         resolveCid: createRegionResolver(inlineBindings, pageChunkImports, layoutCacheKeys),
         topLevelNames,
@@ -2413,6 +2499,8 @@ export function generateSyntheticBundle(
         locateOffset: fnLocate,
         path: [],
         filePath,
+        pageFile: pageFileBanner,
+        cacheFilePath: cacheFilePath ?? null,
     };
 
     const { declarations: propsDecls, expression: regionsExpr } =
@@ -2437,15 +2525,20 @@ export function generateSyntheticBundle(
                 continue;
             }
             if (!moduleDeclaredNames.has(free)) continue;
-            const { line, col, sourceLine } = fnLocate(fn.node.start);
+            const { file, line, col, sourceLine } = fnLocate(fn.node.start);
+            const page = pageFileBanner ? `${filePath} (${pageFileBanner})` : filePath;
+            const where = cacheFilePath
+                ? `${file} (in ${relative(process.cwd(), cacheFilePath).replace(/\\/g, "/")}:${line}:${col})`
+                : `${file}:${line}:${col}`;
+
             throw richError({
                 title: "Unshippable Function Closure",
-                cause: `\\The function "${name}" (referenced by region data) closes over "${free}", ` +
-                    `which only exists in server-only scope:\n\n` +
-                    `    at ${filePath}:${line}:${col}\n` +
+                cause: `\\The function "${name}" is referenced by region data of page ${page} ` +
+                    `but closes over "${free}", which only exists in server-only scope:\n\n` +
+                    `    at ${where}\n` +
                     `    |   ${sourceLine}\n` +
                     `    |   ${" ".repeat(col - 1)}^\n\n` +
-                    `Shipping it would reference a value the client bundle does not have.`,
+                    `Splicing this function into the client bundle would reference a value the browser does not have.`,
                 hint: `\\Move the value to the top level of a client-reachable module, pass it as data instead of a closure, ` +
                     `or compute it inside a component.`,
                 doShowStack: false,

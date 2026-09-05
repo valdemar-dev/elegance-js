@@ -100,9 +100,10 @@ async function buildStaticTasks(tasks: StaticTask[]): Promise<void> {
                     transpiled.sharedChunkPaths,
                 );
 
-                const preClientCode = await readFile(preClientMjsPath(pageCacheKey(transpiled.pathname)), "utf-8");
-                
-                const syntheticCode   = generateSyntheticBundle(preClientCode, outPathname, ctx.regions, layoutCacheKeys, bannedGlobs);
+                const preClientPath = preClientMjsPath(pageCacheKey(transpiled.pathname));
+                const preClientCode = await readFile(preClientPath, "utf-8");
+
+                const syntheticCode   = generateSyntheticBundle(preClientCode, outPathname, ctx.regions, layoutCacheKeys, bannedGlobs, preClientPath);
                 const finalClientCode = await minifyCode(syntheticCode);
 
                 await mkdir(routeOutDir, { recursive: true });
