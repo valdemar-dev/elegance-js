@@ -1,5 +1,5 @@
 {
-  "buildTime": 1788624928898,
+  "buildTime": 1788635562137,
   "routes": [
     {
       "pathname": "/",
@@ -270,6 +270,24 @@
       "patternPathname": "/docs/[...filename]"
     },
     {
+      "pathname": "/docs/client/link",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/layout.ts",
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
       "pathname": "/docs/reference/atoms",
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
@@ -361,24 +379,6 @@
     },
     {
       "pathname": "/docs/extra/tsx",
-      "kind": "enumerated",
-      "pageFile": "pages/docs/[...filename]/page.ts",
-      "layouts": [
-        "pages/layout.ts",
-        "pages/docs/[...filename]/layout.ts"
-      ],
-      "layoutCacheKeys": [
-        "layout_layout",
-        "layout_docs_[...filename]"
-      ],
-      "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [
-        "/chunks/chunk-ADESIFDG.js"
-      ],
-      "patternPathname": "/docs/[...filename]"
-    },
-    {
-      "pathname": "/docs/extra/internals",
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
