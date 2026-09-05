@@ -2,6 +2,9 @@ import { parseSync } from "oxc-parser";
 import { ALL_TAGS } from "./taglist";
 import { createHash } from "node:crypto";
 import { richError } from "../error";
+import { join } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { DIST_DIR } from "../constants";
 
 const ALL_TAGS_SET = new Set<string>(ALL_TAGS as readonly string[]);
 
@@ -151,11 +154,501 @@ function generateAtomId(filePath: string, index: number): string {
     return createHash("sha256").update(str).digest("base64url").slice(0, 7);
 }
 
+function collectModuleDeclaredNames(ast: any): Set<string> {
+    const names = new Set<string>();
+    const add = (pattern: any): void => collectPatternNames(pattern, (n) => names.add(n));
+    const walk = (node: any): void => {
+        if (!node || typeof node !== "object" || typeof node.type !== "string") return;
+        switch (node.type) {
+            case "VariableDeclarator":
+                add(node.id);
+                walk(node.init);
+                return;
+            case "FunctionDeclaration":
+            case "FunctionExpression":
+            case "ArrowFunctionExpression":
+            case "ClassDeclaration":
+            case "ClassExpression":
+                if (node.id) names.add(node.id.name);
+                for (const p of node.params ?? []) {
+                    add(p);
+                    walk(p);
+                }
+                walk(node.body);
+                return;
+            case "CatchClause":
+                if (node.param) {
+                    add(node.param);
+                    walk(node.param);
+                }
+                walk(node.body);
+                return;
+            default:
+                forEachChild(node, walk);
+        }
+    };
+    walk(ast.program);
+    return names;
+}
+
+function collectExtractableFns(source: string, ast: any): Map<string, { source: string; node: any }> {
+    const map = new Map<string, { source: string; node: any }>();
+
+    const visit = (node: any): void => {
+        if (!node || typeof node !== "object" || typeof node.type !== "string") return;
+
+        if (node.type === "FunctionDeclaration" && node.id) {
+            if (!map.has(node.id.name)) {
+                map.set(node.id.name, { source: source.slice(node.start, node.end), node });
+            }
+        } else if (
+            node.type === "VariableDeclarator" &&
+            node.id?.type === "Identifier" &&
+            node.init &&
+            (node.init.type === "ArrowFunctionExpression" || node.init.type === "FunctionExpression")
+        ) {
+            if (!map.has(node.id.name)) {
+                const initSource = source.slice(node.init.start, node.init.end);
+                map.set(node.id.name, {
+                    source: `const ${node.id.name} = ${initSource};`,
+                    node: node.init,
+                });
+            }
+        }
+
+        forEachChild(node, visit);
+    };
+
+    visit(ast.program);
+    return map;
+}
+
+function collectFreeIdentifiers(fnNode: any): Set<string> {
+    const declared = new Set<string>();
+    const referenced = new Set<string>();
+
+    const declarePattern = (pattern: any): void => {
+        collectPatternNames(pattern, (n) => {
+            declared.add(n);
+            referenced.add(n);
+        });
+    };
+
+    const walk = (node: any): void => {
+        if (!node || typeof node !== "object" || typeof node.type !== "string") return;
+
+        switch (node.type) {
+            case "Identifier":
+                referenced.add(node.name);
+                return;
+            case "StaticMemberExpression":
+                walk(node.object);
+                return;
+            case "MemberExpression":
+                walk(node.object);
+                if (node.computed) walk(node.property);
+                return;
+            case "Property": {
+                if (node.computed) walk(node.key);
+                else if (node.shorthand && node.key?.type === "Identifier") referenced.add(node.key.name);
+                walk(node.value);
+                return;
+            }
+            case "VariableDeclarator":
+                declarePattern(node.id);
+                walk(node.init);
+                return;
+            case "FunctionDeclaration":
+            case "FunctionExpression":
+            case "ArrowFunctionExpression": {
+                if (node.id) {
+                    declared.add(node.id.name);
+                    referenced.add(node.id.name);
+                }
+                for (const p of node.params ?? []) {
+                    declarePattern(p);
+                    walk(p);
+                }
+                walk(node.body);
+                return;
+            }
+            case "ClassDeclaration":
+            case "ClassExpression":
+                if (node.id) {
+                    declared.add(node.id.name);
+                    referenced.add(node.id.name);
+                }
+                break;
+            case "CatchClause":
+                if (node.param) declarePattern(node.param);
+                walk(node.body);
+                return;
+            default:
+                break;
+        }
+
+        forEachChild(node, walk);
+    };
+
+    if (fnNode.type === "FunctionDeclaration" || fnNode.type === "FunctionExpression" || fnNode.type === "ArrowFunctionExpression") {
+        for (const p of fnNode.params ?? []) {
+            declarePattern(p);
+            walk(p);
+        }
+        walk(fnNode.body);
+    } else {
+        walk(fnNode);
+    }
+
+    const free = new Set<string>();
+    for (const name of referenced) {
+        if (!declared.has(name)) free.add(name);
+    }
+    return free;
+}
+
+function findComponentCid(call: any): string | null {
+    const obj = call.arguments?.[0];
+    if (!obj || obj.type !== "ObjectExpression") return null;
+    for (const prop of obj.properties) {
+        if (
+            prop.type === "Property" &&
+            prop.key?.type === "Identifier" &&
+            prop.key.name === "__id" &&
+            prop.value?.type === "Literal" &&
+            typeof prop.value.value === "string"
+        ) {
+            return prop.value.value;
+        }
+    }
+    return null;
+}
+
+/** cid -> local binding name for component() declarations in a module. */
+function extractComponentBindings(source: string, ast: any): Map<string, string> {
+    void source;
+    const map = new Map<string, string>();
+
+    for (const node of ast.program.body) {
+        const stmt = node.type === "ExportNamedDeclaration" ? node.declaration : node;
+        if (stmt?.type !== "VariableDeclaration") continue;
+
+        for (const decl of stmt.declarations) {
+            const call = decl.init;
+            if (
+                !call ||
+                call.type !== "CallExpression" ||
+                call.callee?.type !== "Identifier" ||
+                call.callee.name !== "component"
+            ) continue;
+
+            const cid = findComponentCid(call);
+            if (!cid) continue;
+            collectPatternNames(decl.id, (name) => {
+                if (!map.has(cid)) map.set(cid, name);
+            });
+        }
+    }
+
+    return map;
+}
+
+interface ChunkComponentInfo {
+    /** cid -> exported name for components defined in (or re-exported by) this chunk. */
+    cidToExport: Map<string, string>;
+    /** Every component cid present in this chunk (exports or side-effect registrations). */
+    allCids: Set<string>;
+    /** Direct imports of other chunks: absolute paths. */
+    chunkDeps: string[];
+}
+
+const chunkComponentInfoCache = new Map<string, { mtimeMs: number; info: ChunkComponentInfo | null }>();
+
+function loadChunkComponentInfo(chunkPath: string): ChunkComponentInfo | null {
+    let stat: { mtimeMs: number };
+    try {
+        stat = statSync(chunkPath);
+    } catch {
+        return null;
+    }
+
+    const cached = chunkComponentInfoCache.get(chunkPath);
+    if (cached && cached.mtimeMs === stat.mtimeMs) return cached.info;
+
+    let info: ChunkComponentInfo | null = null;
+    try {
+        const source = readFileSync(chunkPath, "utf-8");
+        const ast: any = parseSync(chunkPath, source, { sourceType: "module" });
+        const localToCid = new Map<string, string>();
+
+        for (const node of (ast.program.body as any[])) {
+            const stmt: any = node.type === "ExportNamedDeclaration" ? node.declaration : node;
+
+            if (stmt?.type !== "VariableDeclaration") continue;
+
+            for (const decl of stmt.declarations) {
+                const call = decl.init;
+                
+                if (
+                    !call ||
+                    call.type !== "CallExpression" ||
+                    call.callee?.type !== "Identifier" ||
+                    call.callee.name !== "component"
+                ) continue;
+                
+                const cid = findComponentCid(call);
+                if (!cid) continue;
+
+                collectPatternNames(decl.id, (name) => {
+                    if (!localToCid.has(name)) localToCid.set(name, cid);
+                });
+            }
+        }
+
+        const cidToExport = new Map<string, string>();
+        const reExports: Array<{ local: string; exported: string; source: string }> = [];
+
+        // esbuild emits alias bindings (`var Link_default = Link;`) when a
+        // component's local name differs from its export name
+        const aliases = new Map<string, string>();
+        let aliasChanged = true;
+
+        while (aliasChanged) {
+            aliasChanged = false;
+
+            for (const node of (ast.program.body as any[])) {
+                const stmt: any = node.type === "ExportNamedDeclaration" && !node.source ? node.declaration : node;
+
+                if (stmt?.type !== "VariableDeclaration") continue;
+
+                for (const decl of stmt.declarations) {
+                    if (
+                        decl.id?.type === "Identifier" &&
+                        decl.init?.type === "Identifier"
+                    ) {
+                        const target = aliases.get(decl.init.name) ?? decl.init.name;
+
+                        if (aliases.get(decl.id.name) !== target) {
+                            aliases.set(decl.id.name, target);
+                            aliasChanged = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        const resolveAlias = (name: string): string => aliases.get(name) ?? name;
+
+        for (const node of (ast.program.body as any[])) {
+            if (node.type === "ExportNamedDeclaration") {
+                if (node.source) {
+                    for (const spec of node.specifiers ?? []) {
+                        reExports.push({
+                            local: (spec.local as any)?.name ?? (spec.local as any)?.value,
+                            exported: (spec.exported as any)?.name ?? (spec.exported as any)?.value,
+                            source: node.source.value,
+                        });
+                    }
+                } else {
+                    for (const spec of node.specifiers ?? []) {
+                        const cid = localToCid.get(resolveAlias((spec.local as any).name));
+
+                        if (cid && !cidToExport.has(cid)) {
+                            cidToExport.set(cid, (spec.exported as any)?.name ?? (spec.local as any).name);
+                        }
+                    }
+                }
+            } else if (node.type === "ExportDefaultDeclaration") {
+                if (node.declaration?.type === "Identifier") {
+                    const cid = localToCid.get(resolveAlias((node.declaration as any).name));
+
+                    if (cid && !cidToExport.has(cid)) cidToExport.set(cid, "default");
+                } else if ((node.declaration as any)?.type === "VariableDeclaration") {
+                    for (const decl of (node.declaration as any).declarations) {
+                        const call = decl.init;
+
+                        if (
+                            call?.type === "CallExpression" &&
+                            call.callee?.name === "component"
+                        ) {
+                            const cid = findComponentCid(call);
+
+                            if (cid && !cidToExport.has(cid)) {
+                                cidToExport.set(cid, "default");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        const chunkDeps: string[] = [];
+        const allCids = new Set<string>(localToCid.values());
+        const dir = chunkPath.replace(/\\/g, "/").slice(0, chunkPath.replace(/\\/g, "/").lastIndexOf("/"));
+
+        const resolveChunkDep = (rel: string): string => {
+            if (rel.startsWith("/chunks/")) {
+                return join(DIST_DIR ?? "", rel.slice(1));
+            }
+         
+            return join(dir, rel);
+        };
+
+        for (const re of reExports) {
+            const dep = loadChunkComponentInfo(resolveChunkDep(re.source));
+         
+            if (!dep) continue;
+         
+            for (const [cid, exported] of dep.cidToExport) {
+                if (exported === re.local && !cidToExport.has(cid)) {
+                    cidToExport.set(cid, re.exported);
+                }
+            }
+         
+            for (const cid of dep.allCids) {
+                allCids.add(cid);
+            }
+        }
+
+        for (const node of (ast.program.body as any[])) {
+            if (node.type === "ImportDeclaration" &&
+                (node.source.value.startsWith("./chunk-") || node.source.value.startsWith("/chunks/"))
+            ) {
+                chunkDeps.push(resolveChunkDep(node.source.value));
+            }
+        }
+
+        info = { cidToExport, allCids, chunkDeps };
+    } catch {
+        info = null;
+    }
+
+    chunkComponentInfoCache.set(chunkPath, { mtimeMs: stat.mtimeMs, info });
+
+    return info;
+}
+
+interface PageChunkImport {
+    /** Import source as written in preClientCode, e.g. "/chunks/chunk-ABC.js". */
+    source: string;
+    /** imported name -> local binding name. */
+    specifiers: Map<string, string>;
+}
+
+type ResolvedRegionComponent =
+    | { kind: "call"; name: string; chunkSource?: string }
+    | { kind: "blob"; chunkSource?: string }
+    | { kind: "missing" };
+
+function createRegionResolver(
+    inlineBindings: Map<string, string>,
+    pageChunkImports: PageChunkImport[],
+    layoutCacheKeys: string[],
+): (cid: string, usedChunkSources: Set<string>) => ResolvedRegionComponent {
+    const layoutPathSet = new Set(
+        layoutCacheKeys.map((key) => join(DIST_DIR ?? "", "chunks", `${key}.client.mjs`)),
+    );
+
+    const layoutCids = new Set<string>();
+    const layoutLoaded = new Set<string>();
+
+    const loadLayoutCids = (): void => {
+        for (const path of layoutPathSet) {
+            if (layoutLoaded.has(path)) continue;
+
+            layoutLoaded.add(path);
+
+            const info = loadChunkComponentInfo(path);
+            if (!info) continue;
+
+            // layout bundles register their components by side effect (the
+            // bundle itself is always loaded), so every cid in them counts.
+            for (const cid of info.allCids) {
+                layoutCids.add(cid);
+            }
+        }
+    };
+
+    const chunkPathOf = (source: string): string | null => {
+        if (!source.startsWith("/chunks/") || !DIST_DIR) return null;
+
+        return join(DIST_DIR, source.slice(1));
+    };
+
+    return (cid, usedChunkSources): ResolvedRegionComponent => {
+        const inline = inlineBindings.get(cid);
+        if (inline) return { kind: "call", name: inline };
+
+        for (const pageImport of pageChunkImports) {
+            const path = chunkPathOf(pageImport.source);
+            if (!path) continue;
+
+            const info = loadChunkComponentInfo(path);
+            if (!info || !info.cidToExport.has(cid)) continue;
+
+            const exported = info.cidToExport.get(cid)!;
+
+            const local = pageImport.specifiers.get(exported);
+            if (local) return { kind: "call", name: local };
+
+            usedChunkSources.add(pageImport.source);
+
+            return { kind: "blob", chunkSource: pageImport.source };
+        }
+
+        for (const pageImport of pageChunkImports) {
+            const path = chunkPathOf(pageImport.source);
+            if (!path) continue;
+
+            const info = loadChunkComponentInfo(path);
+            if (!info) continue;
+
+            const visited = new Set<string>();
+
+            const walk = (chunk: ChunkComponentInfo): boolean => {
+                if (chunk.allCids.has(cid)) return true;
+
+                for (const depPath of chunk.chunkDeps) {
+                    if (visited.has(depPath)) continue;
+
+                    visited.add(depPath);
+                    const dep = loadChunkComponentInfo(depPath);
+
+                    if (dep && walk(dep)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            };
+
+            if (walk(info)) {
+                usedChunkSources.add(pageImport.source);
+
+                return { 
+                    kind: "blob", 
+                    chunkSource: pageImport.source 
+                };
+            }
+        }
+
+        loadLayoutCids();
+
+        if (layoutCids.has(cid)) return { 
+            kind: "blob" 
+        };
+
+        return { kind: "missing" };
+    };
+}
+
 function collectPatternNames(pattern: any, cb: (name: string) => void): void {
     if (!pattern) return;
+    
     switch (pattern.type) {
         case "Identifier":
             cb(pattern.name);
+    
             break;
         case "ObjectPattern":
             for (const prop of pattern.properties) {
@@ -164,17 +657,21 @@ function collectPatternNames(pattern: any, cb: (name: string) => void): void {
                     cb,
                 );
             }
+    
             break;
         case "ArrayPattern":
             for (const el of pattern.elements) {
                 if (el) collectPatternNames(el, cb);
             }
+    
             break;
         case "AssignmentPattern":
             collectPatternNames(pattern.left, cb);
+    
             break;
         case "RestElement":
             collectPatternNames(pattern.argument, cb);
+    
             break;
     }
 }
@@ -182,9 +679,11 @@ function collectPatternNames(pattern: any, cb: (name: string) => void): void {
 export function forEachChild(node: any, cb: (child: any) => void): void {
     const keys = CHILD_KEYS[node.type];
     if (!keys) return;
+    
     for (const key of keys) {
         const val = node[key];
         if (!val) continue;
+    
         if (Array.isArray(val)) {
             for (const item of val) {
                 if (item && typeof item === "object" && typeof item.type === "string") cb(item);
@@ -195,55 +694,49 @@ export function forEachChild(node: any, cb: (child: any) => void): void {
     }
 }
 
-function collectAllIdentifiers(node: any, into: Set<string>): void {
-    if (!node || typeof node !== "object") return;
-    if (node.type === "Identifier") {
-        into.add(node.name);
-        return;
-    }
-    if (
-        (node.type === "MemberExpression" ||
-         node.type === "StaticMemberExpression") &&
-        !node.computed
-    ) {
-        collectAllIdentifiers(node.object, into);
-        return;
-    }
-    forEachChild(node, (child) => collectAllIdentifiers(child, into));
-}
-
 function collectIdentifiersWithOffsets(node: any, into: Map<string, number>): void {
     if (!node || typeof node !== "object") return;
+
     if (node.type === "Identifier") {
         if (!into.has(node.name)) {
             into.set(node.name, node.start as number);
         }
+
         return;
     }
+
     if (
         (node.type === "MemberExpression" ||
          node.type === "StaticMemberExpression") &&
         !node.computed
     ) {
         collectIdentifiersWithOffsets(node.object, into);
+
         return;
     }
+
     forEachChild(node, (child) => collectIdentifiersWithOffsets(child, into));
 }
 
 function offsetToLineCol(src: string, offset: number): { line: number; col: number } {
     let line = 1, col = 1;
     const end = Math.min(offset, src.length);
+
     for (let i = 0; i < end; i++) {
-        if (src[i] === "\n") { line++; col = 1; }
-        else { col++; }
+        if (src[i] === "\n") { 
+            line++; col = 1; 
+        } else { 
+            col++; 
+        }
     }
+
     return { line, col };
 }
 
 function getSourceLine(src: string, offset: number): string {
     const lineStart = src.lastIndexOf("\n", offset - 1) + 1;
     const lineEnd = src.indexOf("\n", offset);
+    
     return src.slice(lineStart, lineEnd === -1 ? src.length : lineEnd);
 }
 
@@ -254,9 +747,12 @@ function formatChainHop(
     entry: { from: string; offset: number },
 ): string {
     const { line, col } = offsetToLineCol(src, entry.offset);
+    
     const sourceLine = getSourceLine(src, entry.offset);
     const pipe = "    |   ";
+    
     const caretLine = `${pipe}${" ".repeat(col - 1)}^`;
+    
     return (
         `    at ${entry.from} (${filePath}:${line}:${col})\n` +
         `${pipe}${sourceLine}\n` +
@@ -271,14 +767,19 @@ function formatReachabilityChain(
     reachableFrom: Map<string, { from: string; offset: number }>,
 ): string {
     const hops: Array<{ name: string; entry: { from: string; offset: number } }> = [];
+    
     let cur = name;
     const visited = new Set<string>();
+    
     while (reachableFrom.has(cur) && !visited.has(cur)) {
         visited.add(cur);
+    
         const entry = reachableFrom.get(cur)!;
+    
         hops.unshift({ name: cur, entry });
         cur = entry.from;
     }
+    
     return hops.map(({ name: n, entry }) => formatChainHop(src, filePath, n, entry)).join("\n");
 }
 
@@ -297,13 +798,18 @@ export function applyEdits(source: string, edits: Edit[]): string {
     }
 
     const parts: string[] = [];
+    
     let cursor = 0;
+    
     for (const e of sorted) {
         if (cursor < e.start) parts.push(source.slice(cursor, e.start));
         if (e.replacement) parts.push(e.replacement);
+    
         cursor = e.end;
     }
+    
     if (cursor < source.length) parts.push(source.slice(cursor));
+    
     return parts.join("");
 }
 
@@ -334,32 +840,48 @@ function reconstructImport(node: any, reachableSpecs: any[]): string {
 function extractDeclaredNames(node: any, into: Set<string>): void {
     switch (node.type) {
         case "ImportDeclaration":
-            for (const spec of node.specifiers ?? []) into.add(spec.local.name);
+            for (const spec of node.specifiers ?? []) {
+                into.add(spec.local.name);
+            }
+    
             break;
         case "VariableDeclaration":
-            for (const decl of node.declarations) collectPatternNames(decl.id, (n) => into.add(n));
+            for (const decl of node.declarations) {
+                collectPatternNames(decl.id, (n) => into.add(n));
+            }
+
             break;
         case "FunctionDeclaration":
         case "ClassDeclaration":
-            if (node.id?.name) into.add(node.id.name);
+            if (node.id?.name) {
+                into.add(node.id.name);
+            }
+            
             break;
         case "ExportNamedDeclaration":
             if (node.declaration) {
                 extractDeclaredNames(node.declaration, into);
             } else {
-                for (const spec of node.specifiers ?? []) into.add(spec.local.name);
+                for (const spec of node.specifiers ?? []) {
+                    into.add(spec.local.name);
+                }
             }
             break;
         case "ExportDefaultDeclaration":
-            if (node.declaration?.id?.name) into.add(node.declaration.id.name);
+            if (node.declaration?.id?.name) {
+                into.add(node.declaration.id.name);
+            }
+
             break;
     }
 }
 
 function findContainingBodyNode(body: any[], callStart: number, callEnd: number): any | null {
     let lo = 0, hi = body.length - 1, best = -1;
+    
     while (lo <= hi) {
         const mid = (lo + hi) >> 1;
+    
         if (body[mid].start <= callStart) {
             best = mid;
             lo = mid + 1;
@@ -367,19 +889,25 @@ function findContainingBodyNode(body: any[], callStart: number, callEnd: number)
             hi = mid - 1;
         }
     }
+    
     if (best === -1) return null;
+    
     const node = body[best];
+    
     return node.end >= callEnd ? node : null;
 }
 
 function nodeContainsAnyCall(sortedCalls: any[], nodeStart: number, nodeEnd: number): boolean {
-    // Find the first call whose start ≥ nodeStart.
     let lo = 0, hi = sortedCalls.length - 1;
+
     while (lo <= hi) {
         const mid = (lo + hi) >> 1;
-        if (sortedCalls[mid].start < nodeStart) lo = mid + 1;
-        else hi = mid - 1;
+
+        if (sortedCalls[mid].start < nodeStart) {
+            lo = mid + 1;
+        } else hi = mid - 1;
     }
+
     return lo < sortedCalls.length &&
         sortedCalls[lo].start >= nodeStart &&
         sortedCalls[lo].end <= nodeEnd;
@@ -395,19 +923,21 @@ function findSpecialCalls(
 
     if (node.type === "CallExpression" && node.callee?.type === "Identifier") {
         const name: string = node.callee.name;
+    
         if (
             name === "component" &&
             node.arguments?.length === 1 &&
             node.arguments[0]?.type === "ObjectExpression"
         ) {
             componentCalls.push(node);
-            // Keep recursing — components can be nested inside other component props.
         } else if (name === "_getAtom") {
             atomCalls.push(node);
-            return; // don't descend into _getAtom arguments
+
+            return; // don't go into arguments
         } else if (name === "onPageLoad") {
             onPageLoadCalls.push(node);
-            return; // don't descend into onPageLoad arguments
+
+            return; // don't go into arguments
         }
     }
 
@@ -418,8 +948,8 @@ function applyReachabilityDCECore(
     source: string,
     ast: any,
     filePath: string,
-    extraSeeds?: Set<string>,
     bannedGlobs?: string[],
+    opts?: { keepAllChunks?: boolean; keepChunkSources?: Set<string> },
 ): string {
     const body: any[] = ast.program.body;
 
@@ -427,10 +957,13 @@ function applyReachabilityDCECore(
 
     for (const node of body) {
         if (node.type === "ImportDeclaration") {
-            for (const spec of node.specifiers ?? []) bindingMap.set(spec.local.name, node);
+            for (const spec of node.specifiers ?? []) {
+                bindingMap.set(spec.local.name, node);
+            }
         } else if (node.type === "VariableDeclaration") {
-            for (const decl of node.declarations)
+            for (const decl of node.declarations) {
                 collectPatternNames(decl.id, (name) => bindingMap.set(name, node));
+            }
         } else if (node.type === "FunctionDeclaration" && node.id) {
             bindingMap.set(node.id.name, node);
         } else if (node.type === "ClassDeclaration" && node.id) {
@@ -468,10 +1001,13 @@ function applyReachabilityDCECore(
 
     for (const call of componentCalls) {
         const node = findContainingBodyNode(body, call.start as number, call.end as number);
+        
         if (node?.type === "VariableDeclaration") {
             for (const decl of node.declarations) {
                 collectPatternNames(decl.id, (name) => {
-                    if (!componentCallToVar.has(call)) componentCallToVar.set(call, name);
+                    if (!componentCallToVar.has(call)) {
+                        componentCallToVar.set(call, name);
+                    }
                 });
             }
         }
@@ -480,6 +1016,7 @@ function applyReachabilityDCECore(
     for (const call of componentCalls) {
         const obj = call.arguments[0];
         const componentVar = componentCallToVar.get(call) ?? "unknown";
+
         for (const prop of obj.properties) {
             if (
                 prop.type === "Property" &&
@@ -487,15 +1024,21 @@ function applyReachabilityDCECore(
                 CLIENT_ENTRY_PROPS.has(prop.key.name)
             ) {
                 const seedRefs = new Map<string, number>();
+
                 collectIdentifiersWithOffsets(prop.value, seedRefs);
+
                 const seedLabel = `${componentVar} component():${prop.key.name}`;
-                for (const [n, offset] of seedRefs) addReachable(n, seedLabel, offset);
+
+                for (const [n, offset] of seedRefs) {
+                    addReachable(n, seedLabel, offset);
+                }
             }
         }
     }
 
     for (const call of componentCalls) {
         const node = findContainingBodyNode(body, call.start as number, call.end as number);
+        
         if (node?.type === "VariableDeclaration") {
             for (const decl of node.declarations) {
                 collectPatternNames(decl.id, (name) =>
@@ -521,6 +1064,7 @@ function applyReachabilityDCECore(
 
     for (const call of atomCalls) {
         const node = findContainingBodyNode(body, call.start as number, call.end as number);
+        
         if (node?.type === "VariableDeclaration") {
             for (const decl of node.declarations) {
                 collectPatternNames(decl.id, (name) =>
@@ -533,13 +1077,13 @@ function applyReachabilityDCECore(
     for (const call of onPageLoadCalls) {
         for (const arg of call.arguments ?? []) {
             const seedRefs = new Map<string, number>();
+        
             collectIdentifiersWithOffsets(arg, seedRefs);
-            for (const [n, offset] of seedRefs) addReachable(n, "<onPageLoad()>", offset);
+        
+            for (const [n, offset] of seedRefs) {
+                addReachable(n, "<onPageLoad()>", offset);
+            }
         }
-    }
-
-    if (extraSeeds) {
-        for (const name of extraSeeds) addReachable(name, "<elementHandler>", 0);
     }
 
     const processed = new Set<string>();
@@ -547,6 +1091,7 @@ function applyReachabilityDCECore(
 
     while (queue.length > 0) {
         const name = queue.pop()!;
+
         if (processed.has(name)) continue;
         processed.add(name);
 
@@ -554,12 +1099,16 @@ function applyReachabilityDCECore(
         if (!decl) continue;
 
         const refs = new Map<string, number>();
+
         collectIdentifiersWithOffsets(decl, refs);
 
         for (const [ref, offset] of refs) {
             if (!reachable.has(ref)) {
                 addReachable(ref, name, offset);
-                if (bindingMap.has(ref)) queue.push(ref);
+
+                if (bindingMap.has(ref)) {
+                    queue.push(ref);
+                }
             }
         }
     }
@@ -574,10 +1123,12 @@ function applyReachabilityDCECore(
             if ((comment.value as string).trim() !== "!no-bundle") continue;
 
             const afterComment = comment.end as number;
+
             const annotatedNode = body.find((n: any) => n.start >= afterComment);
             if (!annotatedNode) continue;
 
             const annotatedNames = new Set<string>();
+            
             extractDeclaredNames(annotatedNode, annotatedNames);
 
             for (const name of annotatedNames) {
@@ -613,26 +1164,33 @@ function applyReachabilityDCECore(
     if (bannedGlobs?.length || ast.comments?.some((c: any) => c.type === "Line" && (c.value as string).trim() === "!no-bundle-file")) {
         const markers = buildSourcePathMarkers(ast);
         const bannedDirs = new Set<string>();
+
         for (const comment of ast.comments ?? []) {
             if (comment.type === "Line" && (comment.value as string).trim() === "!no-bundle-file") {
                 bannedDirs.add(resolveSourcePath(markers, filePath, comment.start as number));
             }
         }
+
         const fileViolations: { name: string; chain: string }[] = [];
+
         for (const name of reachable) {
             const decl = bindingMap.get(name);
             if (!decl) continue;
+
             const src = resolveSourcePath(markers, filePath, decl.start as number);
+
             if (bannedDirs.has(src)) {
                 fileViolations.push({ name, chain: formatReachabilityChain(source, filePath, name, reachableFrom) });
             } else if (bannedGlobs?.some(g => globMatch(g, src))) {
                 fileViolations.push({ name, chain: formatReachabilityChain(source, filePath, name, reachableFrom) });
             }
         }
+
         if (fileViolations.length > 0) {
             const list = fileViolations
                 .map(({ name, chain }) => `  • ${name}\n${chain}`)
                 .join("\n\n");
+
             throw richError({
                 title: "Server Only File",
                 cause: `\\The following files are server-only but were reached by the client bundle:\n\n${list}`,
@@ -651,16 +1209,20 @@ function applyReachabilityDCECore(
 
         for (const comment of programComments) {
             if (comment.type !== "Line") continue;
+            
             const trimmed = (comment.value as string).trim();
+            
             if (trimmed === "!allow-bundling") {
                 const afterComment = comment.end as number;
                 const annotatedNode = body.find((n: any) => n.start >= afterComment);
+            
                 if (annotatedNode && annotatedNode.type === "ImportDeclaration") {
                     allowedImports.add(annotatedNode);
                 }
             } else if (trimmed === "!force-bundling") {
                 const afterComment = comment.end as number;
                 const annotatedNode = body.find((n: any) => n.start >= afterComment);
+            
                 if (annotatedNode && annotatedNode.type === "ImportDeclaration") {
                     forcedImports.add(annotatedNode);
                 }
@@ -673,14 +1235,16 @@ function applyReachabilityDCECore(
             if (node.type !== "ImportDeclaration") continue;
 
             const specs = node.specifiers ?? [];
-            // Side-effect imports are not subject to allow-bundling; they are handled separately.
             if (specs.length === 0) continue;
 
             const hasReachable = specs.some((s: any) => reachable.has(s.local.name));
             if (!hasReachable) continue;
 
+            if (node.source.value.startsWith("/chunks/")) continue;
+
             if (!allowedImports.has(node)) {
                 const reachableSpec = specs.find((s: any) => reachable.has(s.local.name));
+
                 violations.push({ importNode: node, exampleSpec: reachableSpec.local.name });
             }
         }
@@ -696,14 +1260,14 @@ function applyReachabilityDCECore(
                         const sourceLine = getSourceLine(source, importNode.start);
                         const pipe = "    |   ";
                         const caretLine = `${pipe}${" ".repeat(col - 1)}^`;
+
                         chain =
                             `    at import "${importNode.source.value}" (side-effect import) (${filePath}:${line}:${col})\n` +
                             `${pipe}${sourceLine}\n` +
                             `${caretLine}`;
                     }
                     return `  • Import from "${importNode.source.value}"\n${chain}`;
-                })
-                .join("\n\n");
+                }).join("\n\n");
 
             throw richError({
                 title: "Missing allow‑bundling directive",
@@ -722,27 +1286,35 @@ function applyReachabilityDCECore(
         return end < source.length && source[end] === "\n" ? end + 1 : end;
     }
 
+    function keepChunkImport(node: any): boolean {
+        const src = node.source.value;
+
+        if (!src.startsWith("/chunks/")) return false;
+        if (opts?.keepAllChunks) return true;
+
+        return opts?.keepChunkSources?.has(src) === true;
+    }
+
     for (const node of body) {
         if (node.type === "ImportDeclaration") {
             const specs: any[] = node.specifiers ?? [];
-            // Side-effect imports: keep only if //!force-bundling is present
+
             if (specs.length === 0) {
-                if (!forcedImports.has(node)) {
+                if (!forcedImports.has(node) && !keepChunkImport(node)) {
                     removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
                 }
+
                 continue;
             }
 
-            // Named imports: existing logic
             const reachableSpecs = specs.filter((s) => reachable.has(s.local.name));
 
             if (reachableSpecs.length === specs.length) {
-                // All specifiers reachable: keep as is (but we still might need to handle built-in? not needed)
                 continue;
             }
 
             if (reachableSpecs.length === 0) {
-                if (!node.source.value.startsWith("/chunks/")) {
+                if (!keepChunkImport(node)) {
                     removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
                 }
             } else {
@@ -781,10 +1353,14 @@ function applyReachabilityDCECore(
         } else if (node.type === "ExportNamedDeclaration") {
             if (node.declaration) {
                 const decl = node.declaration;
+
                 if (decl.type === "VariableDeclaration") {
                     const names: string[] = [];
-                    for (const d of decl.declarations)
+
+                    for (const d of decl.declarations) { 
                         collectPatternNames(d.id, (n) => names.push(n));
+                    }
+                    
                     if (names.length > 0 && names.every((n) => !reachable.has(n))) {
                         removalEdits.push({
                             start: node.start,
@@ -801,6 +1377,7 @@ function applyReachabilityDCECore(
                 }
             } else {
                 const specs: any[] = node.specifiers ?? [];
+                
                 if (specs.length > 0 && specs.every((s: any) => !reachable.has(s.local.name))) {
                     removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
                 }
@@ -808,6 +1385,7 @@ function applyReachabilityDCECore(
         } else if (node.type === "ExportDefaultDeclaration") {
             const decl = node.declaration;
             const id: string | undefined = decl?.id?.name;
+            
             if (!id || !reachable.has(id)) {
                 removalEdits.push({ start: node.start, end: trailingEnd(node.end), replacement: "" });
             }
@@ -833,9 +1411,12 @@ function collectTransformEdits(
     }
 
     const callIndexByPath = new Map<string, number>();
+
     function nextCallIndex(path: string): number {
         const i = callIndexByPath.get(path) ?? 0;
+
         callIndexByPath.set(path, i + 1);
+
         return i;
     }
 
@@ -851,6 +1432,7 @@ function collectTransformEdits(
             const sourcePath = sourcePathAt(node.start as number);
             const atomId   = generateAtomId(sourcePath, nextCallIndex(sourcePath));
             const argStart = node.arguments[0].start;
+
             serverOnlyEdits.push({ start: argStart, end: argStart, replacement: `"${atomId}", ` });
             clientOnlyEdits.push({ start: node.start, end: node.end, replacement: `_getAtom("${atomId}")` });
         }
@@ -866,6 +1448,7 @@ function collectTransformEdits(
             const id       = generateAtomId(sourcePath, nextCallIndex(sourcePath));
             const obj      = node.arguments[0];
             const insertAt = obj.start + 1;
+
             sharedEdits.push({ start: insertAt, end: insertAt, replacement: ` __id: "${id}",` });
 
             for (const prop of obj.properties) {
@@ -890,6 +1473,7 @@ function collectTransformEdits(
             }
 
             forEachChild(node, (child) => visitNode(child, componentDepth + 1));
+
             return;
         }
 
@@ -904,7 +1488,9 @@ function collectTransformEdits(
             const id       = generateAtomId(sourcePath, nextCallIndex(sourcePath));
             const obj      = node.arguments[0];
             const insertAt = obj.start + 1;
+
             sharedEdits.push({ start: insertAt, end: insertAt, replacement: ` id: "${id}",` });
+
             return;
         }
 
@@ -926,14 +1512,18 @@ function collectTransformEdits(
                 node.arguments[0].type === "ObjectExpression"
             ) {
                 const optionsObj = node.arguments[0];
+    
                 const hasHandler = optionsObj.properties.some((prop: any) => {
-                    const key =
-                        prop.key?.type === "Identifier" ? prop.key.name :
-                        prop.key?.type === "Literal"    ? String(prop.key.value) : "";
+                    const key = prop.key?.type === "Identifier" ? 
+                        prop.key.name : prop.key?.type === "Literal" ? 
+                            String(prop.key.value) : "";
+
                     return key.startsWith("on");
                 });
+    
                 if (hasHandler) {
                     const eid = eidCounter++;
+                    
                     sharedEdits.push({
                         start:       optionsObj.start + 1,
                         end:         optionsObj.start + 1,
@@ -971,11 +1561,13 @@ export function transformChunk(source: string, filePath: string, bannedGlobs?: s
     if (bannedGlobs?.length || ast.comments?.some((c: any) => c.type === "Line" && (c.value as string).trim() === "!no-bundle-file")) {
         const markers = buildSourcePathMarkers(ast);
         const bannedDirs = new Set<string>();
+        
         for (const comment of ast.comments ?? []) {
             if (comment.type === "Line" && (comment.value as string).trim() === "!no-bundle-file") {
                 bannedDirs.add(resolveSourcePath(markers, filePath, comment.start as number));
             }
         }
+        
         for (const marker of markers) {
             if (bannedDirs.has(marker.path)) {
                 throw richError({
@@ -1007,26 +1599,173 @@ export function serializePropValue(value: unknown): string {
     
     if (typeof value === "function") {
         const name = (value as Function).name;
+        
         return name ? name : "undefined";
     }
+
     if (Array.isArray(value)) {
         return `[${(value as unknown[]).map(serializePropValue).join(", ")}]`;
     }
+    
     if (typeof value === "object") {
         const obj = value as any;
+    
         if (typeof obj.id === "string" && "value" in obj) {
             return `_getAtom(${JSON.stringify(obj.id).replace(/</g, "\\u003c")}, ${serializePropValue(obj.value)})`;
         }
+    
         const entries = Object.entries(value as Record<string, unknown>).map(
             ([k, v]) => `${JSON.stringify(k).replace(/</g, "\\u003c")}: ${serializePropValue(v)}`,
         );
+    
         return `{ ${entries.join(", ")} }`;
     }
+    
     return "undefined";
+}
+
+interface RegionEmitContext {
+    resolveCid: (cid: string, usedChunkSources: Set<string>) => ResolvedRegionComponent;
+    topLevelNames: Set<string>;
+    extractableFns: Map<string, { source: string; node: any }>;
+    usedExtractions: Set<string>;
+    usedChunkSources: Set<string>;
+    fnLocations: Map<string, number>;
+    locateOffset: (offset: number) => { line: number; col: number; sourceLine: string };
+    path: string[];
+    filePath: string;
+}
+
+function formatFnTrace(ctx: RegionEmitContext, fn: Function): string {
+    const at = ctx.path.length > 0 ? ctx.path.join(" → ") : "region data";
+    const offset = ctx.fnLocations.get(normalizeFnText(fn.toString()));
+
+    if (offset === undefined) {
+        return `    at ${at}\n` + fn.toString().split("\n").map((l) => `    |   ${l}`).join("\n");
+    }
+
+    const { line, col, sourceLine } = ctx.locateOffset(offset);
+
+    return `    at ${at} (${ctx.filePath}:${line}:${col})\n` +
+        `    |   ${sourceLine}\n` +
+        `    |   ${" ".repeat(col - 1)}^`;
+}
+
+function normalizeFnText(text: string): string {
+    return text
+        .replace(/\s+/g, " ")
+        .replace(/^[A-Za-z_$][\w$]*\s*\(/, "(")
+        .trim();
+}
+
+function serializeRegionValue(value: unknown, ctx: RegionEmitContext, label = "value"): string {
+    if (value === null) return "null";
+    if (value === undefined) return "undefined";
+
+    if (typeof value === "boolean") return String(value);
+    if (typeof value === "number") return isFinite(value) ? String(value) : "undefined";
+    if (typeof value === "string") return JSON.stringify(value).replace(/</g, "\\u003c");
+
+    if (typeof value === "function") {
+        const name = (value as Function).name;
+        const resolvable =
+            !!name && (ctx.topLevelNames.has(name) || ctx.extractableFns.has(name));
+
+        if (!resolvable) {
+            const where = ctx.path.length > 0 ? ctx.path.join(" → ") : "region data";
+
+            console.warn(
+                `[elegance] Unshippable function prop dropped (serialized as undefined):\n` +
+                `${formatFnTrace(ctx, value)}\n` +
+                `If ${where} needs this handler, define it in client-reachable code ` +
+                `(top level of the page module, or inside the component's view).`,
+            );
+
+            return "undefined";
+        }
+
+        if (!ctx.topLevelNames.has(name)) {
+            ctx.usedExtractions.add(name);
+        }
+
+        return name;
+    }
+
+    if (Array.isArray(value)) {
+        return `[${(value as unknown[]).map((v, i) => serializeRegionValue(v, ctx, `${label}[${i}]`)).join(", ")}]`;
+    }
+
+    if (typeof value === "object") {
+        const obj = value as any;
+
+        if (typeof obj.id === "string" && "value" in obj) {
+            return `_getAtom(${JSON.stringify(obj.id).replace(/</g, "\\u003c")}, ${serializePropValue(obj.value)})`;
+        }
+
+        if (obj.__type === "live" && typeof obj.__componentId === "string") {
+            // nested live descriptor (slot pattern) here we re-emit as a component
+            // call so its definition/registration machinery is referenced
+            // by real code instead of serialized closures.
+            const resolved = ctx.resolveCid(obj.__componentId, ctx.usedChunkSources);
+            if (resolved.kind === "missing") {
+                throw richError({
+                    title: "Unhydratable Component",
+                    cause: `\\The component (cid "${obj.__componentId}") rendered as ${label} ` +
+                        `has no client-side definition in the page bundle, its chunks, or its layouts:\n\n` +
+                        `    at ${ctx.path.join(" → ") || "region data"}\n\n` +
+                        `Without it the client cannot hydrate this slot.`,
+                    hint: `Ensure the component is imported into the page (or mark its module as bundleable) so its client code is shipped.`,
+                    doShowStack: false,
+                });
+            }
+            
+            ctx.path.push(`${resolved.kind === "call" ? resolved.name : obj.__componentId}()`);
+            
+            try {
+                if (resolved.kind === "call") {
+                    return emitComponentCall(resolved.name, obj, ctx);
+                }
+            
+                return `{ __type: "live", __componentId: ${JSON.stringify(obj.__componentId).replace(/</g, "\\u003c")}, props: ${serializePropsRecord(obj.props, ctx)}, children: ${serializeRegionValue(obj.children ?? [], ctx, `${label}.children`)} }`;
+            } finally {
+                ctx.path.pop();
+            }
+        }
+
+        const entries = Object.entries(value as Record<string, unknown>).map(
+            ([k, v]) => `${JSON.stringify(k).replace(/</g, "\\u003c")}: ${serializeRegionValue(v, ctx, `${label}.${k}`)}`,
+        );
+
+        return `{ ${entries.join(", ")} }`;
+    }
+
+    return "undefined";
+}
+
+function emitComponentCall(
+    name: string,
+    desc: { props?: Record<string, unknown>; children?: Array<unknown> },
+    ctx: RegionEmitContext,
+): string {
+    ctx.path.push(`${name}()`);
+    
+    try {
+        const props = serializePropsRecord(desc.props, ctx);
+        const children = desc.children ?? [];
+    
+        const args = children.length > 0
+            ? `, ${children.map((c, i) => serializeRegionValue(c, ctx, `children[${i}]`)).join(", ")}`
+            : "";
+    
+        return `${name}(${props}${args})`;
+    } finally {
+        ctx.path.pop();
+    }
 }
 
 function propsComparisonKey(props: Record<string, unknown> | undefined): string {
     if (!props || Object.keys(props).length === 0) return "";
+    
     return Object.entries(props)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => {
@@ -1036,66 +1775,89 @@ function propsComparisonKey(props: Record<string, unknown> | undefined): string 
         .join(",");
 }
 
-function serializePropsRecord(props: Record<string, unknown> | undefined): string {
+function serializePropsRecord(props: Record<string, unknown> | undefined, ctx?: RegionEmitContext): string {
     if (!props || Object.keys(props).length === 0) return "{}";
+    
     const entries = Object.entries(props)
-        .map(([k, v]) => `${JSON.stringify(k).replace(/</g, "\\u003c")}: ${serializePropValue(v)}`);
-    return `{ ${entries.join(", ")} }`;
+        .map(([k, v]) => `${JSON.stringify(k).replace(/</g, "\\u003c")}: ${ctx ? serializeRegionValue(v, ctx, `props.${k}`) : serializePropValue(v)}`);
+    
+        return `{ ${entries.join(", ")} }`;
 }
 
 function generateRegionsExpression(
     regions: Array<any[]>,
+    ctx: RegionEmitContext,
 ): { declarations: string; expression: string } {
     const keyToVar = new Map<string, string>();
     const keyToCode = new Map<string, string>();
+
     let varCounter = 0;
 
-    function serializeChildrenRecord(children: Array<unknown> | undefined): string {
-        if (!children || children.length === 0) return "[]";
-        return `[${children.map((c) => serializePropValue(c)).join(", ")}]`;
-    }
+    const regionParts = regions.map((descs, regionIdx) => {
+        const parts: string[] = [];
 
-    const regionKeys: string[][] = regions.map((descs) =>
-        descs.map((desc) => {
-            const props = desc.props as Record<string, unknown> | undefined;
-            const children = desc.children as Array<unknown> | undefined;
-            const childrenCode = serializeChildrenRecord(children);
-            const key = propsComparisonKey(props) + "\x00" + childrenCode;
-            if (!keyToVar.has(key)) {
-                keyToVar.set(key, `_p${varCounter++}`);
-                keyToCode.set(key, `{ props: ${serializePropsRecord(props)}, children: ${childrenCode} }`);
+        for (const desc of descs) {
+            const cid = desc.__componentId as string;
+            const resolved = ctx.resolveCid(cid, ctx.usedChunkSources);
+
+            if (resolved.kind === "missing") {
+                const renderFn = desc.__definition?.render;
+
+                const where = ctx.path.join(" → ") || `regions[${regionIdx}]`;
+
+                const trace = typeof renderFn === "function"
+                    ? `    at ${where}\n` +
+                        renderFn.toString().split("\n").map((l: string) => `    |   ${l}`).join("\n")
+                    : `    at ${where}`;
+
+                throw richError({
+                    title: "Unhydratable Component",
+                    cause: `\\The component (cid "${cid}") rendered at ${where} ` +
+                        `has no client-side definition in the page bundle, its chunks, or its layouts:\n\n${trace}\n\n` +
+                        `Without it the client cannot hydrate this region.`,
+                    hint: `Ensure the component is imported into the page (or mark its module as bundleable) so its client code is shipped.`,
+                    doShowStack: false,
+                });
             }
-            return key;
-        }),
-    );
+
+            if (resolved.kind === "call") {
+                parts.push(emitComponentCall(resolved.name, desc, ctx));
+
+                continue;
+            }
+
+            // layout-owned (or transitively-chunked) component: data blob.
+            ctx.path.push(`component(${cid})`);
+
+            let propsCode: string;
+            let childrenCode: string;
+
+            try {
+                propsCode = serializePropsRecord(desc.props as Record<string, unknown> | undefined, ctx);
+                childrenCode = serializeRegionValue(desc.children ?? [], ctx, "children");
+            } finally {
+                ctx.path.pop();
+            }
+
+            const props = desc.props as Record<string, unknown> | undefined;
+            const key = propsComparisonKey(props) + "\x00" + childrenCode;
+
+            if (!keyToVar.has(key)) {
+                const varName = `_p${varCounter++}`;
+
+                keyToVar.set(key, varName);
+                keyToCode.set(key, `{ __cid: ${JSON.stringify(cid).replace(/</g, "\\u003c")}, props: ${propsCode}, children: ${childrenCode} }`);
+            }
+
+            parts.push(keyToVar.get(key)!);
+        }
+
+        return `[${parts.join(", ")}]`;
+    });
 
     const declarations = [...keyToVar.entries()]
         .map(([key, varName]) => `    const ${varName} = ${keyToCode.get(key)};`)
         .join("\n");
-
-    type RLEEntry = { cid: string; propsKey: string; count: number };
-
-    const regionParts = regions.map((descs, ri) => {
-        const keys = regionKeys[ri];
-        const rle: RLEEntry[] = [];
-
-        for (let i = 0; i < descs.length; i++) {
-            const cid = descs[i].__componentId as string;
-            const propsKey = keys[i];
-
-            const last = rle[rle.length - 1];
-            if (last && last.cid === cid && last.propsKey === propsKey) {
-                last.count++;
-            } else {
-                rle.push({ cid, propsKey, count: 1 });
-            }
-        }
-
-        const parts = rle.map(({ cid, propsKey, count }) =>
-            `{ __cid: ${JSON.stringify(cid)}, ...${keyToVar.get(propsKey)}, count: ${count} }`,
-        );
-        return `[${parts.join(", ")}]`;
-    });
 
     return { declarations, expression: `[${regionParts.join(", ")}]` };
 }
@@ -1111,8 +1873,6 @@ interface ExtractedHandlerSet {
 
 interface ExtractedHandlers {
     handlerSets: ExtractedHandlerSet[];
-    /** All identifiers referenced inside handler functions — used as DCE seeds. */
-    seeds: Set<string>;
 }
 
 /**
@@ -1128,7 +1888,6 @@ function extractElementHandlersFromAst(
     ast: any,
 ): ExtractedHandlers {
     const handlerSets: ExtractedHandlerSet[] = [];
-    const seeds = new Set<string>();
 
     let eidCounter = 0;
 
@@ -1184,10 +1943,6 @@ function extractElementHandlersFromAst(
                         val.type !== "Identifier"
                     ) continue;
 
-                    // Collect all identifiers from the handler node as DCE seeds.
-                    // These are already correct client-side (possibly minified) names.
-                    collectAllIdentifiers(val, seeds);
-
                     onProps.push({
                         event: keyName.slice(2).toLowerCase(),
                         fnSource: src(val),
@@ -1220,15 +1975,14 @@ function extractElementHandlersFromAst(
     }
 
     walkNode(ast.program, 0);
-    return { handlerSets, seeds };
+    return { handlerSets };
 }
 
 function generateHandlersExpression(
     elementHandlers: ExtractedHandlerSet[],
-    seeds: Set<string>,
-): { declarations: string; expression: string; seeds: Set<string> } {
+): { declarations: string; expression: string } {
     if (!elementHandlers || elementHandlers.length === 0) {
-        return { declarations: "", expression: "[]", seeds: new Set() };
+        return { declarations: "", expression: "[]" };
     }
 
     function handlerSetKey(handlers: ExtractedHandlerSet["handlers"]): string {
@@ -1263,7 +2017,7 @@ function generateHandlersExpression(
         return `{ eid: ${eid}, h: ${varName} }`;
     });
 
-    return { declarations, expression: `[${parts.join(", ")}]`, seeds };
+    return { declarations, expression: `[${parts.join(", ")}]` };
 }
 
 function applyServerActionCallReplacements(source: string, ast: any): string {
@@ -1353,9 +2107,9 @@ export function generateLayoutBundle(
         }
     }
 
-    const { handlerSets, seeds } = extractElementHandlersFromAst(bundleSource, bundleAst);
-    const { declarations: handlerDecls, expression: handlersExpr, seeds: handlerSeeds } =
-        generateHandlersExpression(handlerSets, seeds);
+    const { handlerSets } = extractElementHandlersFromAst(bundleSource, bundleAst);
+    const { declarations: handlerDecls, expression: handlersExpr } =
+        generateHandlersExpression(handlerSets);
 
     let defaultStart = -1;
     let defaultEnd   = -1;
@@ -1390,7 +2144,7 @@ ${handlerDecls}
         return finalSource;
     }
 
-    return applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds, bannedGlobs);
+    return applyReachabilityDCECore(finalSource, dceAst, filePath, bannedGlobs, { keepAllChunks: true });
 }
 
 /**
@@ -1405,11 +2159,19 @@ interface SyntheticBundleStaticParts {
     withoutDefault:  string;
     handlerDecls:    string;
     handlersExpr:    string;
-    handlerSeeds:    Set<string>;
     layoutImports:   string;
     layoutCalls:     string;
     mergedRegions:   string;
     mergedHandlers:  string;
+    inlineBindings:  Map<string, string>;
+    pageChunkImports: PageChunkImport[];
+    topLevelNames:   Set<string>;
+    moduleDeclaredNames: Set<string>;
+    extractableFns:  Map<string, { source: string; node: any }>;
+    /** Normalized fn text -> offset in the client text heref for error traces. */
+    fnLocations:     Map<string, number>;
+    /** Precomputed (line, col, sourceLine) for every offset in fnLocations. */
+    fnLocate:        (offset: number) => { line: number; col: number; sourceLine: string };
     filePath:        string;
 }
 
@@ -1421,6 +2183,7 @@ const SYNTHETIC_BUNDLE_DCE_MAX = 256;
 
 function getDceCacheKey(finalSource: string): string {
     let h1 = 0x811c9dc5, h2 = 0x01000193;
+
     for (let i = 0; i < finalSource.length; i++) {
         const c = finalSource.charCodeAt(i);
         
@@ -1452,22 +2215,24 @@ function computeSyntheticBundleStaticParts(
 
     let bundleSource = preClientCode;
     let bundleAst    = ast;
+    
     if (replaced !== preClientCode) {
         try {
             bundleAst = parseSync(filePath, replaced, { sourceType: "module" });
             bundleSource = replaced;
         } catch (e) {
             console.error("Failed to parse replaced module", e);
+    
             return null;
         }
     }
 
-    const { handlerSets, seeds } = extractElementHandlersFromAst(bundleSource, bundleAst);
-    const { declarations: handlerDecls, expression: handlersExpr, seeds: handlerSeeds } =
-        generateHandlersExpression(handlerSets, seeds);
+    const { handlerSets } = extractElementHandlersFromAst(bundleSource, bundleAst);
+    const { declarations: handlerDecls, expression: handlersExpr } = generateHandlersExpression(handlerSets);
 
     let defaultStart = -1;
     let defaultEnd   = -1;
+
     for (const node of bundleAst.program.body as any[]) {
         if (node.type === "ExportDefaultDeclaration") {
             defaultStart = node.start as number;
@@ -1494,15 +2259,84 @@ function computeSyntheticBundleStaticParts(
     const mergedRegions  = regionsSpread  ? `[${regionsSpread},  ...regions]`  : `regions`;
     const mergedHandlers = handlersSpread ? `[${handlersSpread}, ...handlers]` : `handlers`;
 
+    const inlineBindings = extractComponentBindings(bundleSource, bundleAst);
+
+    const pageChunkImports: PageChunkImport[] = [];
+
+    for (const node of bundleAst.program.body) {
+        if (node.type !== "ImportDeclaration") continue;
+        if (!node.source.value.startsWith("/chunks/")) continue;
+
+        const specifiers = new Map<string, string>();
+
+        for (const spec of node.specifiers ?? []) {
+            const imported = spec.imported?.name ?? spec.imported?.value ?? spec.local.name;
+
+            specifiers.set(imported, spec.local.name);
+        }
+
+        pageChunkImports.push({ source: node.source.value, specifiers });
+    }
+
+    const topLevelNames = new Set<string>();
+
+    for (const node of bundleAst.program.body) {
+        if (node.type === "ImportDeclaration") {
+            for (const spec of node.specifiers ?? []) topLevelNames.add(spec.local.name);
+        } else if (node.type === "VariableDeclaration") {
+            for (const decl of node.declarations) {
+                collectPatternNames(decl.id, (name) => topLevelNames.add(name));
+            }
+        } else if (node.type === "FunctionDeclaration" && node.id) {
+            topLevelNames.add(node.id.name);
+        } else if (node.type === "ClassDeclaration" && node.id) {
+            topLevelNames.add(node.id.name);
+        }
+    }
+
+    const extractableFns = collectExtractableFns(bundleSource, bundleAst);
+    const moduleDeclaredNames = collectModuleDeclaredNames(bundleAst);
+    const fnLocations = new Map<string, number>();
+
+    const visitFnNodes = (node: any): void => {
+        if (!node || typeof node !== "object" || typeof node.type !== "string") return;
+
+        if (
+            node.type === "FunctionDeclaration" ||
+            node.type === "FunctionExpression" ||
+            node.type === "ArrowFunctionExpression"
+        ) {
+            const text = normalizeFnText(bundleSource.slice(node.start, node.end));
+
+            if (!fnLocations.has(text)) fnLocations.set(text, node.start);
+        }
+
+        forEachChild(node, visitFnNodes);
+    };
+
+    visitFnNodes(bundleAst.program);
+
+    const fnLocate = (offset: number) => {
+        const line = offsetToLineCol(bundleSource, offset);
+
+        return { line: line.line, col: line.col, sourceLine: getSourceLine(bundleSource, offset) };
+    };
+
     return {
         withoutDefault,
         handlerDecls,
         handlersExpr,
-        handlerSeeds,
         layoutImports,
         layoutCalls,
         mergedRegions,
         mergedHandlers,
+        inlineBindings,
+        pageChunkImports,
+        topLevelNames,
+        moduleDeclaredNames,
+        extractableFns,
+        fnLocations,
+        fnLocate,
         filePath,
     };
 }
@@ -1525,6 +2359,7 @@ function getOrComputeStaticParts(
     if (syntheticBundleStaticCache.size >= SYNTHETIC_BUNDLE_CACHE_MAX) {
         syntheticBundleStaticCache.delete(syntheticBundleStaticCache.keys().next().value!);
     }
+
     syntheticBundleStaticCache.set(key, parts);
 
     return parts;
@@ -1544,9 +2379,6 @@ export function generateSyntheticBundle(
     layoutCacheKeys: string[],
     bannedGlobs?: string[],
 ): string {
-    const { declarations: propsDecls, expression: regionsExpr } =
-        generateRegionsExpression(regions);
-
     const staticParts = getOrComputeStaticParts(preClientCode, filePath, layoutCacheKeys);
 
     if (staticParts === null) return preClientCode;
@@ -1555,12 +2387,73 @@ export function generateSyntheticBundle(
         withoutDefault,
         handlerDecls,
         handlersExpr,
-        handlerSeeds,
         layoutImports,
         layoutCalls,
         mergedRegions,
         mergedHandlers,
+        inlineBindings,
+        pageChunkImports,
+        topLevelNames,
+        moduleDeclaredNames,
+        extractableFns,
+        fnLocations,
+        fnLocate,
     } = staticParts;
+
+    const usedChunkSources = new Set<string>();
+    const usedExtractions = new Set<string>();
+
+    const emitCtx: RegionEmitContext = {
+        resolveCid: createRegionResolver(inlineBindings, pageChunkImports, layoutCacheKeys),
+        topLevelNames,
+        extractableFns,
+        usedExtractions,
+        usedChunkSources,
+        fnLocations,
+        locateOffset: fnLocate,
+        path: [],
+        filePath,
+    };
+
+    const { declarations: propsDecls, expression: regionsExpr } =
+        generateRegionsExpression(regions, emitCtx);
+
+    const splicedNames = new Set<string>();
+    const splicedDecls: string[] = [];
+    const spliceQueue: string[] = [...usedExtractions];
+
+    while (spliceQueue.length > 0) {
+        const name = spliceQueue.pop()!;
+        if (splicedNames.has(name)) continue;
+        splicedNames.add(name);
+
+        const fn = extractableFns.get(name)!;
+        splicedDecls.push(fn.source.endsWith(";") ? fn.source : fn.source + ";");
+
+        for (const free of collectFreeIdentifiers(fn.node)) {
+            if (topLevelNames.has(free) || splicedNames.has(free)) continue;
+            if (extractableFns.has(free)) {
+                spliceQueue.push(free);
+                continue;
+            }
+            if (!moduleDeclaredNames.has(free)) continue;
+            const { line, col, sourceLine } = fnLocate(fn.node.start);
+            throw richError({
+                title: "Unshippable Function Closure",
+                cause: `\\The function "${name}" (referenced by region data) closes over "${free}", ` +
+                    `which only exists in server-only scope:\n\n` +
+                    `    at ${filePath}:${line}:${col}\n` +
+                    `    |   ${sourceLine}\n` +
+                    `    |   ${" ".repeat(col - 1)}^\n\n` +
+                    `Shipping it would reference a value the client bundle does not have.`,
+                hint: `\\Move the value to the top level of a client-reachable module, pass it as data instead of a closure, ` +
+                    `or compute it inside a component.`,
+                doShowStack: false,
+            });
+        }
+    }
+
+    const extractedDecls = splicedDecls.length > 0 ? splicedDecls.join("\n") + "\n" : "";
 
     const syntheticFn = `
 export default function __constructor() {
@@ -1574,9 +2467,9 @@ ${layoutCalls}
 `;
 
     const importSection = layoutImports ? layoutImports + "\n" : "";
-    const finalSource   = importSection + withoutDefault + syntheticFn;
+    const finalSource   = importSection + withoutDefault + extractedDecls + syntheticFn;
 
-    const dceKey = getDceCacheKey(finalSource);
+    const dceKey = getDceCacheKey(finalSource + "\x00" + [...usedChunkSources].sort().join("\x01"));
     const cached = syntheticBundleDceCache.get(dceKey);
     if (cached !== undefined) return cached;
 
@@ -1588,12 +2481,14 @@ ${layoutCalls}
         return finalSource;
     }
 
-    const result = applyReachabilityDCECore(finalSource, dceAst, filePath, handlerSeeds, bannedGlobs);
+    const result = applyReachabilityDCECore(finalSource, dceAst, filePath, bannedGlobs, {
+        keepChunkSources: usedChunkSources,
+    });
 
     if (syntheticBundleDceCache.size >= SYNTHETIC_BUNDLE_DCE_MAX) {
         syntheticBundleDceCache.delete(syntheticBundleDceCache.keys().next().value!);
     }
-    
+
     syntheticBundleDceCache.set(dceKey, result);
 
     return result;

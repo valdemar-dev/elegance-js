@@ -376,7 +376,7 @@ async function renderChildrenAsyncFrom(
             !Array.isArray(child) &&
             (child as any).__type === "live";
 
-        if (isLive) {
+        if (isLive && ctx.insideComponentDepth === 0) {
             const regionIdx = ctx.regionCounter++;
             ctx.regions[regionIdx] = [];
             into.append(`<template data-region="${regionIdx}"></template>`);

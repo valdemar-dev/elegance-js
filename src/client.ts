@@ -264,8 +264,8 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
 
         while (el.childNodes.length > newChildren.length) {
             const last = el.lastChild!;
-            (last as any).__instance?._destroy();
             el.removeChild(last);
+            (last as any).__instance?._destroy();
         }
     } else {
         const dc = Array.from(el.childNodes);
@@ -273,8 +273,8 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
         for (let i = 0; i < common; i++) patch(dc[i]!, vc[i], owner);
         for (let i = common; i < vc.length; i++) el.appendChild(vnodeToDom(vc[i], owner));
         for (let i = dc.length - 1; i >= vc.length; i--) {
-            (dc[i] as any).__instance?._destroy();
             el.removeChild(dc[i]!);
+            (dc[i] as any).__instance?._destroy();
         }
     }
 }
@@ -283,8 +283,8 @@ function patch(dom: Node, vn: any, owner?: any): Node {
     if (vn === null || vn === false) {
         if (dom.nodeType === Node.TEXT_NODE && dom.nodeValue === "") return dom;
         const t = document.createTextNode("");
-        (dom as any).__instance?._destroy();
         dom.parentNode?.replaceChild(t, dom);
+        (dom as any).__instance?._destroy();
         return t;
     }
     if (typeof vn === "string" || typeof vn === "number") {
@@ -363,7 +363,10 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
     const cid = desc.__componentId;
     const instanceId = desc.__instanceId;
     const cfg = componentConfigs.get(cid);
-    if (!cfg) return existingDom ?? document.createDocumentFragment();
+    if (!cfg) {
+        console.error(`[elegance] Component "${cid}" was rendered server-side but is not registered client-side. Region skipped.`);
+        return existingDom ?? document.createDocumentFragment();
+    }
 
     const existingOnDom = existingDom ? (existingDom as any).__instance : undefined;
     if (existingOnDom && existingOnDom.cid === cid) {
@@ -375,8 +378,10 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
         return existingOnDom;
     }
 
+    let replaceContent = false;
     if (existingDom && (existingDom as any).__instance) {
-        (existingDom as any).__instance._destroy();
+        (existingDom as any).__instance._destroy(true);
+        replaceContent = true;
     }
 
     const atomsObj: any = {};
@@ -433,7 +438,7 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
                 inst._handlingError = false;
             }
         },
-        _destroy() {
+        _destroy(keepRoot = false) {
             if (inst._destroyed) return;
             inst._destroyed = true;
             try {
@@ -450,7 +455,7 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
                         (el as any).__instance?._destroy();
                     }
                 }
-                inst.root?.remove();
+                if (!keepRoot) inst.root?.remove();
             } catch (err) {
                 console.error("Error during component cleanup:", err);
             }
@@ -464,7 +469,8 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
 
         const vn = execView(inst);
         if (existingDom) {
-            hydrateTree(vn, existingDom, inst);
+            if (replaceContent) (existingDom as any).replaceChildren(vnodeToDom(vn, inst));
+            else hydrateTree(vn, existingDom, inst);
             inst.root = existingDom;
             (existingDom as any).__instance = inst;
         } else {

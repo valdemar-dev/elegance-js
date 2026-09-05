@@ -6,8 +6,7 @@ const Link = component<{
     doViewTransition?: boolean,
 } & ElementOptions<"a", any>, {
     counter: number,
-}
->({
+}>({
     init(self) {
         if (!self.props.href) {
             throw new Error("Link components require an HREF attribute to be set. Received: " + self.props.href);

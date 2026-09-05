@@ -627,10 +627,7 @@ export async function findAndCacheStatusCodePages(): Promise<StatusCodePageEntry
             );
 
             const { preClientCode: pagePreClient } = compiled.get(cacheKey)!;
-            await writeFile(
-                preClientMjsPath(cacheKey),
-                IS_DEV ? pagePreClient : await minifyCode(pagePreClient),
-            );
+            await writeFile(preClientMjsPath(cacheKey), pagePreClient);
 
             return {
                 pageFile:        full,
