@@ -1,3 +1,7 @@
+import {
+  Link_default
+} from "/chunks/chunk-ADESIFDG.js";
+
 // pages/docs/[...filename]/page.ts
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -20,7 +24,7 @@ async function loadConcepts() {
   return _concepts;
 }
 function wrapConcepts(nodes, concepts) {
-  const terms = Object.keys(concepts).sort((a2, b) => b.length - a2.length);
+  const terms = Object.keys(concepts).sort((a, b) => b.length - a.length);
   if (!terms.length) return nodes;
   const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const pattern = new RegExp(`\\b(${escaped.join("|")})\\b`, "gi");
@@ -117,7 +121,7 @@ function parseInline(text, concepts = {}) {
           flush();
           const linkText = text.slice(i + 1, closeB);
           const url = text.slice(closeB + 2, closeP);
-          result.push(__tags.a({ href: url, class: "doc-link" }, linkText));
+          result.push(Link_default({ href: url, class: "doc-link" }, linkText));
           i = closeP + 1;
           continue;
         }
@@ -336,7 +340,7 @@ async function DocsContent(slug) {
       { class: "doc-content" },
       __tags.div(
         { class: "doc-breadcrumb" },
-        __tags.a({ href: "/docs", class: "breadcrumb-link" }, "Docs"),
+        Link_default({ href: "/docs", class: "breadcrumb-link" }, "Docs"),
         __tags.span({ class: "breadcrumb-sep" }, "/"),
         __tags.span({ class: "breadcrumb-current" }, title || lastSegment)
       ),
@@ -415,7 +419,7 @@ var DocsToc = component({ __id: "Q3edowQ",
             item.depth === 3 ? "toc-link--sub" : "",
             isActive ? "toc-link--active" : ""
           ].filter(Boolean).join(" ");
-          return __tags.a({ href: `#${item.id}`, class: cls }, item.label);
+          return Link_default({ href: `#${item.id}`, class: cls }, item.label);
         })
       )
     )

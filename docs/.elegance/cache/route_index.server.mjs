@@ -1,3 +1,36 @@
+// ../../libraries/elegance-js/dist/components/Link.js
+var Link = component({ __id: "NBeH2j0",
+  init(self) {
+    if (!self.props.href) {
+      throw new Error("Link components require an HREF attribute to be set. Received: " + self.props.href);
+    }
+  },
+  onMount(self) {
+    if (self.props.preload === "load") {
+      fetchPage(self.props.href);
+    }
+  },
+  view({ self, children }) {
+    return __tags.a(
+      {
+        ...self.props,
+        onClick(_, event) {
+          event.preventDefault();
+          navigate(self.props.href, true, self.props.doViewTransition);
+        },
+        onMouseenter() {
+          if (self.props.preload !== "hover") {
+            return;
+          }
+          fetchPage(self.props.href);
+        }
+      },
+      ...children
+    );
+  }
+});
+var Link_default = Link;
+
 // pages/components/nav.ts
 var Navbar = component({ __id: "8xBIPlt",
   atoms: { pinned: false },
@@ -10,7 +43,7 @@ var Navbar = component({ __id: "8xBIPlt",
     { class: pinned.value ? "nav nav--pinned" : "nav" },
     __tags.div(
       { class: "nav-wrap" },
-      __tags.a(
+      Link_default(
         { href: "/", onClick: (_, e) => {
           e.preventDefault();
           navigate("/");
@@ -24,19 +57,19 @@ var Navbar = component({ __id: "8xBIPlt",
       ),
       __tags.div(
         { class: "nav-links" },
-        __tags.a({ href: "#examples", onClick: (_, e) => {
+        Link_default({ href: "#examples", onClick: (_, e) => {
           e.preventDefault();
           navigate("/#examples");
         }, class: "nav-link" }, "Examples"),
-        __tags.a({ href: "/speed", onClick: (_, e) => {
+        Link_default({ href: "/speed", onClick: (_, e) => {
           e.preventDefault();
           navigate("/speed");
         }, class: "nav-link nav-link--speed" }, "Speed"),
-        __tags.a({ href: "/docs/start/setup", onClick: (_, e) => {
+        Link_default({ href: "/docs/start/setup", onClick: (_, e) => {
           e.preventDefault();
           navigate("/docs/start/setup");
         }, class: "nav-link" }, "Docs"),
-        __tags.a(
+        Link_default(
           {
             href: "https://github.com/valdemar-dev/elegance-js",
             class: "nav-gh",
@@ -277,8 +310,8 @@ var Hero = component({ __id: "dZPMS1u",
       ),
       __tags.div(
         { class: "hero-actions" },
-        __tags.a({ href: "#how", class: "btn btn--amber" }, "How it works \u2192"),
-        __tags.a(
+        Link_default({ href: "#how", class: "btn btn--amber" }, "How it works \u2192"),
+        Link_default(
           { href: "#examples", class: "btn btn--ghost" },
           __tags.svg(
             { width: 13, height: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "aria-hidden": "true" },
@@ -563,7 +596,7 @@ const PostList = component({
       : ul({ class: "post-list" },
           ...posts.value.map(post =>
             li({},
-              a({ href: \`/blog/\${post.slug}\` }, post.title),
+              Link({ href: \`/blog/\${post.slug}\` }, post.title),
               time({ datetime: post.date }, formatDate(post.date))
             )
           )
@@ -1034,7 +1067,7 @@ function Page() {
             __tags.span({ class: "speed-ratio" }, "2803x"),
             __tags.span({ class: "speed-fn-label" }, " more requests/sec  \xB7  200K ", __tags.code({}, "<p>"), " elements")
           ),
-          __tags.a(
+          Link_default(
             { href: "/speed", class: "speed-full-link" },
             "Full methodology & raw results",
             __tags.span({ class: "speed-arrow" }, " \u2192")
@@ -1076,8 +1109,8 @@ function Page() {
         ),
         __tags.div(
           { class: "cta-links" },
-          __tags.a({ href: "/docs/start/setup", class: "btn btn--amber" }, "Read the docs"),
-          __tags.a({
+          Link_default({ href: "/docs/start/setup", class: "btn btn--amber" }, "Read the docs"),
+          Link_default({
             href: "https://github.com/valdemar-dev/elegance-js",
             class: "btn btn--ghost",
             rel: "noopener noreferrer",
@@ -1109,18 +1142,18 @@ function Page() {
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Framework"),
-            __tags.a({ href: "#", class: "col-link" }, "Documentation")
+            Link_default({ href: "#", class: "col-link" }, "Documentation")
           ),
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Resources"),
-            __tags.a({ href: "#", class: "col-link" }, "Examples")
+            Link_default({ href: "#", class: "col-link" }, "Examples")
           ),
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Community"),
-            __tags.a({ href: "#", class: "col-link" }, "GitHub"),
-            __tags.a({ href: "#", class: "col-link" }, "Twitter / X")
+            Link_default({ href: "#", class: "col-link" }, "GitHub"),
+            Link_default({ href: "#", class: "col-link" }, "Twitter / X")
           )
         )
       ),

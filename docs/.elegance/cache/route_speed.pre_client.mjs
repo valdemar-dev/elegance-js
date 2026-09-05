@@ -1,6 +1,9 @@
 import {
   Navbar
-} from "/chunks/chunk-HWXHQLBG.js";
+} from "/chunks/chunk-ZW5PEK2I.js";
+import {
+  Link_default
+} from "/chunks/chunk-ADESIFDG.js";
 
 // pages/speed/page.ts
 import { readFile } from "node:fs/promises";
@@ -183,17 +186,17 @@ var Footer = () => __tags.footer(
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Framework"),
-        __tags.a({ href: "/docs/start/setup", class: "col-link" }, "Documentation")
+        Link_default({ href: "/docs/start/setup", class: "col-link" }, "Documentation")
       ),
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Resources"),
-        __tags.a({ href: "/testing.zip", class: "col-link" }, "Benchmark data")
+        Link_default({ href: "/testing.zip", class: "col-link" }, "Benchmark data")
       ),
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Community"),
-        __tags.a({ href: "https://github.com/valdemar-dev/elegance-js", class: "col-link" }, "GitHub")
+        Link_default({ href: "https://github.com/valdemar-dev/elegance-js", class: "col-link" }, "GitHub")
       )
     )
   ),
@@ -382,8 +385,8 @@ async function Page() {
         ),
         __tags.div(
           { class: "hero-actions" },
-          __tags.a({ href: "#results", class: "btn btn--amber" }, "See the results \u2193"),
-          __tags.a({ href: "/testing.zip", class: "btn btn--ghost" }, "Download raw data")
+          Link_default({ href: "#results", class: "btn btn--amber" }, "See the results \u2193"),
+          Link_default({ href: "/testing.zip", class: "btn btn--ghost" }, "Download raw data")
         ),
         __tags.div(
           { class: "hero-stats" },
@@ -477,8 +480,8 @@ async function Page() {
             ),
             __tags.div(
               { class: "spd-dl-actions" },
-              __tags.a({ href: "/testing.zip", class: "btn btn--amber", download: "testing.zip" }, "testing.zip \u2193"),
-              __tags.a({ href: "/speed#results", class: "btn btn--ghost" }, "Back to results")
+              Link_default({ href: "/testing.zip", class: "btn btn--amber", download: "testing.zip" }, "testing.zip \u2193"),
+              Link_default({ href: "/speed#results", class: "btn btn--ghost" }, "Back to results")
             )
           ),
           __tags.div(

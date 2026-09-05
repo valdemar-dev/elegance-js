@@ -1,5 +1,5 @@
 {
-  "buildTime": 1788369521735,
+  "buildTime": 1788624928898,
   "routes": [
     {
       "pathname": "/",
@@ -12,9 +12,28 @@
         "pages/layout.ts"
       ],
       "sharedChunkPaths": [
-        "/chunks/chunk-HWXHQLBG.js"
+        "/chunks/chunk-ADESIFDG.js",
+        "/chunks/chunk-ZW5PEK2I.js"
       ],
       "cacheKey": "route_index"
+    },
+    {
+      "pathname": "/demo",
+      "kind": "static",
+      "pageFile": "pages/demo/page.tsx",
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_demo"
+      ],
+      "layouts": [
+        "pages/layout.ts",
+        "pages/demo/layout.tsx"
+      ],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js",
+        "/chunks/chunk-LE4B2OTF.js"
+      ],
+      "cacheKey": "route_demo"
     },
     {
       "pathname": "/docs/start/setup",
@@ -29,7 +48,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -45,7 +66,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -61,7 +84,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -77,7 +102,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -93,7 +120,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -109,7 +138,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -125,7 +156,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -141,7 +174,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -157,7 +192,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -173,7 +210,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -189,7 +228,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -205,7 +246,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -221,7 +264,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -237,7 +282,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -253,7 +300,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -269,7 +318,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -285,7 +336,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -301,7 +354,9 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -317,7 +372,45 @@
         "layout_docs_[...filename]"
       ],
       "cacheKey": "route_docs_[...filename]",
-      "sharedChunkPaths": [],
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/extra/internals",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/layout.ts",
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/extra/page-lifecycle",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/layout.ts",
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -331,7 +424,8 @@
         "pages/layout.ts"
       ],
       "sharedChunkPaths": [
-        "/chunks/chunk-HWXHQLBG.js"
+        "/chunks/chunk-ADESIFDG.js",
+        "/chunks/chunk-ZW5PEK2I.js"
       ],
       "cacheKey": "route_speed"
     }

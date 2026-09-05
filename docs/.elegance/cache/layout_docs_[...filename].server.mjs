@@ -1,3 +1,36 @@
+// ../../libraries/elegance-js/dist/components/Link.js
+var Link = component({ __id: "NBeH2j0",
+  init(self) {
+    if (!self.props.href) {
+      throw new Error("Link components require an HREF attribute to be set. Received: " + self.props.href);
+    }
+  },
+  onMount(self) {
+    if (self.props.preload === "load") {
+      fetchPage(self.props.href);
+    }
+  },
+  view({ self, children }) {
+    return __tags.a(
+      {
+        ...self.props,
+        onClick(_, event) {
+          event.preventDefault();
+          navigate(self.props.href, true, self.props.doViewTransition);
+        },
+        onMouseenter() {
+          if (self.props.preload !== "hover") {
+            return;
+          }
+          fetchPage(self.props.href);
+        }
+      },
+      ...children
+    );
+  }
+});
+var Link_default = Link;
+
 // pages/docs/[...filename]/components/Navbar.ts
 var _docSearchIndex = null;
 async function loadSearchIndex() {
@@ -146,7 +179,7 @@ var DocsNavbar = component({ __id: "3C6OhqO",
               __tags.line({ x1: 3, y1: 18, x2: 21, y2: 18 })
             )
           ),
-          __tags.a(
+          Link_default(
             { href: "/", class: "nav-logo" },
             __tags.svg(
               { width: 20, height: 20, viewBox: "0 0 24 24", "aria-hidden": "true" },
@@ -193,16 +226,11 @@ var DocsNavbar = component({ __id: "3C6OhqO",
             results.value.length > 0 ? results.value.map(({ entry, matchedHeading }) => {
               const q = query.value.trim();
               const href = matchedHeading ? `/docs/${entry.slug}#${matchedHeading.id}` : `/docs/${entry.slug}`;
-              return __tags.a(
+              return Link_default(
                 {
                   href,
                   class: "search-result",
-                  role: "option",
-                  onClick(_, event) {
-                    event.preventDefault();
-                    open.value = false;
-                    navigate(event.target.href);
-                  }
+                  role: "option"
                 },
                 __tags.div(
                   { class: "search-result-icon", "aria-hidden": "true" },
@@ -240,7 +268,7 @@ var DocsNavbar = component({ __id: "3C6OhqO",
         ),
         __tags.div(
           { class: "nav-links" },
-          __tags.a(
+          Link_default(
             {
               href: "https://github.com/valdemar-dev/elegance-js",
               class: "nav-gh",
@@ -326,11 +354,7 @@ async function DocsSidebar() {
           { class: "sidebar-group" },
           __tags.span({ class: "sidebar-group-title" }, group.title),
           ...group.items.map(
-            (item) => __tags.a({ __eid: 0,
-              onClick: (_, event) => {
-                event.preventDefault();
-                navigate(event.target.href);
-              },
+            (item) => Link_default({
               href: item.href,
               class: "sidebar-link"
             }, item.label)

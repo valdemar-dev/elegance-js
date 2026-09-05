@@ -1,6 +1,9 @@
 import {
   Navbar
-} from "/chunks/chunk-HWXHQLBG.js";
+} from "/chunks/chunk-ZW5PEK2I.js";
+import {
+  Link_default
+} from "/chunks/chunk-ADESIFDG.js";
 
 // pages/page.ts
 var isDynamic = false;
@@ -225,8 +228,8 @@ var Hero = component({ __id: "dZPMS1u",
       ),
       __tags.div(
         { class: "hero-actions" },
-        __tags.a({ href: "#how", class: "btn btn--amber" }, "How it works \u2192"),
-        __tags.a(
+        Link_default({ href: "#how", class: "btn btn--amber" }, "How it works \u2192"),
+        Link_default(
           { href: "#examples", class: "btn btn--ghost" },
           __tags.svg(
             { width: 13, height: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "aria-hidden": "true" },
@@ -511,7 +514,7 @@ const PostList = component({
       : ul({ class: "post-list" },
           ...posts.value.map(post =>
             li({},
-              a({ href: \`/blog/\${post.slug}\` }, post.title),
+              Link({ href: \`/blog/\${post.slug}\` }, post.title),
               time({ datetime: post.date }, formatDate(post.date))
             )
           )
@@ -982,7 +985,7 @@ function Page() {
             __tags.span({ class: "speed-ratio" }, "2803x"),
             __tags.span({ class: "speed-fn-label" }, " more requests/sec  \xB7  200K ", __tags.code({}, "<p>"), " elements")
           ),
-          __tags.a(
+          Link_default(
             { href: "/speed", class: "speed-full-link" },
             "Full methodology & raw results",
             __tags.span({ class: "speed-arrow" }, " \u2192")
@@ -1024,8 +1027,8 @@ function Page() {
         ),
         __tags.div(
           { class: "cta-links" },
-          __tags.a({ href: "/docs/start/setup", class: "btn btn--amber" }, "Read the docs"),
-          __tags.a({
+          Link_default({ href: "/docs/start/setup", class: "btn btn--amber" }, "Read the docs"),
+          Link_default({
             href: "https://github.com/valdemar-dev/elegance-js",
             class: "btn btn--ghost",
             rel: "noopener noreferrer",
@@ -1057,18 +1060,18 @@ function Page() {
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Framework"),
-            __tags.a({ href: "#", class: "col-link" }, "Documentation")
+            Link_default({ href: "#", class: "col-link" }, "Documentation")
           ),
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Resources"),
-            __tags.a({ href: "#", class: "col-link" }, "Examples")
+            Link_default({ href: "#", class: "col-link" }, "Examples")
           ),
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Community"),
-            __tags.a({ href: "#", class: "col-link" }, "GitHub"),
-            __tags.a({ href: "#", class: "col-link" }, "Twitter / X")
+            Link_default({ href: "#", class: "col-link" }, "GitHub"),
+            Link_default({ href: "#", class: "col-link" }, "Twitter / X")
           )
         )
       ),

@@ -1,3 +1,36 @@
+// ../../libraries/elegance-js/dist/components/Link.js
+var Link = component({ __id: "NBeH2j0",
+  init(self) {
+    if (!self.props.href) {
+      throw new Error("Link components require an HREF attribute to be set. Received: " + self.props.href);
+    }
+  },
+  onMount(self) {
+    if (self.props.preload === "load") {
+      fetchPage(self.props.href);
+    }
+  },
+  view({ self, children }) {
+    return __tags.a(
+      {
+        ...self.props,
+        onClick(_, event) {
+          event.preventDefault();
+          navigate(self.props.href, true, self.props.doViewTransition);
+        },
+        onMouseenter() {
+          if (self.props.preload !== "hover") {
+            return;
+          }
+          fetchPage(self.props.href);
+        }
+      },
+      ...children
+    );
+  }
+});
+var Link_default = Link;
+
 // pages/components/nav.ts
 var Navbar = component({ __id: "8xBIPlt",
   atoms: { pinned: false },
@@ -10,7 +43,7 @@ var Navbar = component({ __id: "8xBIPlt",
     { class: pinned.value ? "nav nav--pinned" : "nav" },
     __tags.div(
       { class: "nav-wrap" },
-      __tags.a(
+      Link_default(
         { href: "/", onClick: (_, e) => {
           e.preventDefault();
           navigate("/");
@@ -24,19 +57,19 @@ var Navbar = component({ __id: "8xBIPlt",
       ),
       __tags.div(
         { class: "nav-links" },
-        __tags.a({ href: "#examples", onClick: (_, e) => {
+        Link_default({ href: "#examples", onClick: (_, e) => {
           e.preventDefault();
           navigate("/#examples");
         }, class: "nav-link" }, "Examples"),
-        __tags.a({ href: "/speed", onClick: (_, e) => {
+        Link_default({ href: "/speed", onClick: (_, e) => {
           e.preventDefault();
           navigate("/speed");
         }, class: "nav-link nav-link--speed" }, "Speed"),
-        __tags.a({ href: "/docs/start/setup", onClick: (_, e) => {
+        Link_default({ href: "/docs/start/setup", onClick: (_, e) => {
           e.preventDefault();
           navigate("/docs/start/setup");
         }, class: "nav-link" }, "Docs"),
-        __tags.a(
+        Link_default(
           {
             href: "https://github.com/valdemar-dev/elegance-js",
             class: "nav-gh",
@@ -235,17 +268,17 @@ var Footer = () => __tags.footer(
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Framework"),
-        __tags.a({ href: "/docs/start/setup", class: "col-link" }, "Documentation")
+        Link_default({ href: "/docs/start/setup", class: "col-link" }, "Documentation")
       ),
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Resources"),
-        __tags.a({ href: "/testing.zip", class: "col-link" }, "Benchmark data")
+        Link_default({ href: "/testing.zip", class: "col-link" }, "Benchmark data")
       ),
       __tags.div(
         { class: "footer-col" },
         __tags.h5({ class: "col-head" }, "Community"),
-        __tags.a({ href: "https://github.com/valdemar-dev/elegance-js", class: "col-link" }, "GitHub")
+        Link_default({ href: "https://github.com/valdemar-dev/elegance-js", class: "col-link" }, "GitHub")
       )
     )
   ),
@@ -434,8 +467,8 @@ async function Page() {
         ),
         __tags.div(
           { class: "hero-actions" },
-          __tags.a({ href: "#results", class: "btn btn--amber" }, "See the results \u2193"),
-          __tags.a({ href: "/testing.zip", class: "btn btn--ghost" }, "Download raw data")
+          Link_default({ href: "#results", class: "btn btn--amber" }, "See the results \u2193"),
+          Link_default({ href: "/testing.zip", class: "btn btn--ghost" }, "Download raw data")
         ),
         __tags.div(
           { class: "hero-stats" },
@@ -529,8 +562,8 @@ async function Page() {
             ),
             __tags.div(
               { class: "spd-dl-actions" },
-              __tags.a({ href: "/testing.zip", class: "btn btn--amber", download: "testing.zip" }, "testing.zip \u2193"),
-              __tags.a({ href: "/speed#results", class: "btn btn--ghost" }, "Back to results")
+              Link_default({ href: "/testing.zip", class: "btn btn--amber", download: "testing.zip" }, "testing.zip \u2193"),
+              Link_default({ href: "/speed#results", class: "btn btn--ghost" }, "Back to results")
             )
           ),
           __tags.div(

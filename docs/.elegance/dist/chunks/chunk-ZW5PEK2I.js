@@ -1,3 +1,7 @@
+import {
+  Link_default
+} from "./chunk-ADESIFDG.js";
+
 // pages/components/nav.ts
 var Navbar = component({ __id: "8xBIPlt",
   atoms: { pinned: false },
@@ -10,7 +14,7 @@ var Navbar = component({ __id: "8xBIPlt",
     { class: pinned.value ? "nav nav--pinned" : "nav" },
     __tags.div(
       { class: "nav-wrap" },
-      __tags.a(
+      Link_default(
         { href: "/", onClick: (_, e) => {
           e.preventDefault();
           navigate("/");
@@ -24,19 +28,19 @@ var Navbar = component({ __id: "8xBIPlt",
       ),
       __tags.div(
         { class: "nav-links" },
-        __tags.a({ href: "#examples", onClick: (_, e) => {
+        Link_default({ href: "#examples", onClick: (_, e) => {
           e.preventDefault();
           navigate("/#examples");
         }, class: "nav-link" }, "Examples"),
-        __tags.a({ href: "/speed", onClick: (_, e) => {
+        Link_default({ href: "/speed", onClick: (_, e) => {
           e.preventDefault();
           navigate("/speed");
         }, class: "nav-link nav-link--speed" }, "Speed"),
-        __tags.a({ href: "/docs/start/setup", onClick: (_, e) => {
+        Link_default({ href: "/docs/start/setup", onClick: (_, e) => {
           e.preventDefault();
           navigate("/docs/start/setup");
         }, class: "nav-link" }, "Docs"),
-        __tags.a(
+        Link_default(
           {
             href: "https://github.com/valdemar-dev/elegance-js",
             class: "nav-gh",

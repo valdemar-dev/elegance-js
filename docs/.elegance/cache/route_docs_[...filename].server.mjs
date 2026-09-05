@@ -1,3 +1,36 @@
+// ../../libraries/elegance-js/dist/components/Link.js
+var Link = component({ __id: "NBeH2j0",
+  init(self) {
+    if (!self.props.href) {
+      throw new Error("Link components require an HREF attribute to be set. Received: " + self.props.href);
+    }
+  },
+  onMount(self) {
+    if (self.props.preload === "load") {
+      fetchPage(self.props.href);
+    }
+  },
+  view({ self, children }) {
+    return __tags.a(
+      {
+        ...self.props,
+        onClick(_, event) {
+          event.preventDefault();
+          navigate(self.props.href, true, self.props.doViewTransition);
+        },
+        onMouseenter() {
+          if (self.props.preload !== "hover") {
+            return;
+          }
+          fetchPage(self.props.href);
+        }
+      },
+      ...children
+    );
+  }
+});
+var Link_default = Link;
+
 // pages/docs/[...filename]/page.ts
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -117,7 +150,7 @@ function parseInline(text, concepts = {}) {
           flush();
           const linkText = text.slice(i + 1, closeB);
           const url = text.slice(closeB + 2, closeP);
-          result.push(__tags.a({ href: url, class: "doc-link" }, linkText));
+          result.push(Link_default({ href: url, class: "doc-link" }, linkText));
           i = closeP + 1;
           continue;
         }
@@ -336,7 +369,7 @@ async function DocsContent(slug) {
       { class: "doc-content" },
       __tags.div(
         { class: "doc-breadcrumb" },
-        __tags.a({ href: "/docs", class: "breadcrumb-link" }, "Docs"),
+        Link_default({ href: "/docs", class: "breadcrumb-link" }, "Docs"),
         __tags.span({ class: "breadcrumb-sep" }, "/"),
         __tags.span({ class: "breadcrumb-current" }, title || lastSegment)
       ),
@@ -415,7 +448,7 @@ var DocsToc = component({ __id: "Q3edowQ",
             item.depth === 3 ? "toc-link--sub" : "",
             isActive ? "toc-link--active" : ""
           ].filter(Boolean).join(" ");
-          return __tags.a({ href: `#${item.id}`, class: cls }, item.label);
+          return Link_default({ href: `#${item.id}`, class: cls }, item.label);
         })
       )
     )
