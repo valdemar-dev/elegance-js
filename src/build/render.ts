@@ -249,8 +249,11 @@ function renderElement(
 
         const value = options[optionName];
         const htmlOptionName = optionName === "className" ? "class" : optionName;
+        const raw = value && typeof value === "object"
+            ? Object.entries(value).map(([k, sv]) => `${k.replace(/[A-Z]/g, c => "-" + c.toLowerCase())}:${sv}`).join(";")
+            : String(value);
 
-        open += ` ${htmlOptionName}="${escapeHtml(typeof value === "string" ? value : String(value))}"`;
+        open += ` ${htmlOptionName}="${escapeHtml(raw)}"`;
     }
 
     if (SELF_CLOSING_TAGS.has(tag)) {

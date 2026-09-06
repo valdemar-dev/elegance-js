@@ -8,8 +8,10 @@ declare global {
     var __hydrate: (regions: Array<any[]>, handlers?: Array<{ eid: number; h: Array<{ event: string; fn: Function }> }>) => Promise<void> | void;
 }
 
+const doc = document;
+
 {
-    const _s = document.querySelector('script[data-tag="iav"]');
+    const _s = doc.querySelector('script[data-tag="iav"]');
     if (_s) try { globalThis.__initialAtomValues = JSON.parse(_s.textContent || "{}").atoms || {}; } catch {}
 }
 
@@ -162,7 +164,7 @@ const _registeredEventTypes = new Set<string>();
 function ensureEventDelegated(eventType: string) {
     if (_registeredEventTypes.has(eventType)) return;
     _registeredEventTypes.add(eventType);
-    document.addEventListener(eventType, _delegatedListener, true);
+    doc.addEventListener(eventType, _delegatedListener, true);
 }
 
 for (const et of [
@@ -187,8 +189,8 @@ const SVG_TAGS = new Set(["svg","path","circle","polygon","polyline","rect","lin
 
 function createEl(tag: string): Element {
     return SVG_TAGS.has(tag)
-        ? document.createElementNS(SVG_NS, tag)
-        : document.createElement(tag);
+        ? doc.createElementNS(SVG_NS, tag)
+        : doc.createElement(tag);
 }
 
 function applyOptions(el: Element, options: Record<string, unknown>, owner: any, isHydrate = false) {
@@ -200,7 +202,7 @@ function applyOptions(el: Element, options: Record<string, unknown>, owner: any,
         } else if (!isHydrate) {
             if (typeof v === "boolean") el.toggleAttribute(key, v);
             else if (v !== "false") {
-                const s = String(v);
+                const s = v && typeof v === "object" ? Object.entries(v).map(([k, sv]) => `${k.replace(/[A-Z]/g, c => "-" + c.toLowerCase())}:${sv}`).join(";") : String(v);
                 if (el.getAttribute(key) !== s) el.setAttribute(key, s);
             }
         }
@@ -215,9 +217,9 @@ function getVKey(vn: any): string | null {
 }
 
 function vnodeToDom(node: any, owner?: any): Node {
-    if (typeof node === "string" || typeof node === "number") return document.createTextNode(String(node));
-    if (node === null || node === false || node === undefined) return document.createTextNode("");
-    if (node.__rawHTML) return document.createRange().createContextualFragment(node.content).firstElementChild!;
+    if (typeof node === "string" || typeof node === "number") return doc.createTextNode(String(node));
+    if (node === null || node === false || node === undefined) return doc.createTextNode("");
+    if (node.__rawHTML) return doc.createRange().createContextualFragment(node.content).firstElementChild!;
     if (node.__type === "element") {
         const el = createEl(node.tag);
         const k = getVKey(node);
@@ -227,7 +229,7 @@ function vnodeToDom(node: any, owner?: any): Node {
         return el;
     }
     if (node.__type === "live") return mount(node, owner);
-    return document.createDocumentFragment();
+    return doc.createDocumentFragment();
 }
 
 function patchChildren(el: Element, vc: any[], owner?: any): void {
@@ -282,7 +284,7 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
 function patch(dom: Node, vn: any, owner?: any): Node {
     if (vn === null || vn === false) {
         if (dom.nodeType === Node.TEXT_NODE && dom.nodeValue === "") return dom;
-        const t = document.createTextNode("");
+        const t = doc.createTextNode("");
         dom.parentNode?.replaceChild(t, dom);
         (dom as any).__instance?._destroy();
         return t;
@@ -290,11 +292,11 @@ function patch(dom: Node, vn: any, owner?: any): Node {
     if (typeof vn === "string" || typeof vn === "number") {
         const s = String(vn);
         if (dom.nodeType === Node.TEXT_NODE) { if (dom.nodeValue !== s) dom.nodeValue = s; return dom; }
-        const t = document.createTextNode(s);
+        const t = doc.createTextNode(s);
         dom.parentNode?.replaceChild(t, dom);
         return t;
     }
-    if (vn.__rawHTML) return document.createRange().createContextualFragment(vn.content).firstElementChild!;
+    if (vn.__rawHTML) return doc.createRange().createContextualFragment(vn.content).firstElementChild!;
     if (vn.__type === "element") {
         if (dom.nodeType === Node.ELEMENT_NODE && (dom as Element).tagName.toLowerCase() === vn.tag) {
             const el = dom as Element;
@@ -365,7 +367,7 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
     const cfg = componentConfigs.get(cid);
     if (!cfg) {
         console.error(`[elegance] Component "${cid}" was rendered server-side but is not registered client-side. Region skipped.`);
-        return existingDom ?? document.createDocumentFragment();
+        return existingDom ?? doc.createDocumentFragment();
     }
 
     const existingOnDom = existingDom ? (existingDom as any).__instance : undefined;
@@ -475,7 +477,7 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
             (existingDom as any).__instance = inst;
         } else {
             const dom = vnodeToDom(vn, inst);
-            inst.root = dom instanceof Element ? dom : document.createElement("div");
+            inst.root = dom instanceof Element ? dom : doc.createElement("div");
             (inst.root as any).__instance = inst;
         }
 
@@ -498,7 +500,7 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
         });
     } catch (err) {
         inst._handleError(err);
-        if (!inst.root) inst.root = document.createElement("div");
+        if (!inst.root) inst.root = doc.createElement("div");
     }
 
     return inst;
@@ -573,7 +575,7 @@ async function hydrateWithRegions(
 ): Promise<void> {
     const queue: Array<{ desc: any; dom: Node }> = [];
 
-    for (const marker of document.body.querySelectorAll<Element>('template[data-region]')) {
+    for (const marker of doc.body.querySelectorAll<Element>('template[data-region]')) {
         const regionIdx = parseInt(marker.getAttribute('data-region')!, 10);
         if (isNaN(regionIdx)) continue;
 
@@ -607,7 +609,7 @@ async function hydrateWithRegions(
     if (handlers) {
         for (const { eid, h } of handlers) {
             for (const { event } of h) ensureEventDelegated(event);
-            for (const el of document.querySelectorAll<HTMLElement>(`[e-id="${eid}"]`)) {
+            for (const el of doc.querySelectorAll<HTMLElement>(`[e-id="${eid}"]`)) {
                 let m = delegatedHandlers.get(el);
                 if (!m) delegatedHandlers.set(el, m = { inst: null, handlers: {} });
                 for (const { event, fn } of h) {
@@ -695,8 +697,8 @@ globalThis.__hydrate = (regions: Array<any[]>, handlers?: Array<{ eid: number; h
 function patchHead(nh: HTMLHeadElement): void {
     const nt = nh.querySelector("title");
     if (nt) {
-        let t = document.head.querySelector("title");
-        if (!t) { t = document.createElement("title"); document.head.appendChild(t); }
+        let t = doc.head.querySelector("title");
+        if (!t) { t = doc.createElement("title"); doc.head.appendChild(t); }
         if (t.textContent !== nt.textContent) t.textContent = nt.textContent;
     }
 
@@ -709,11 +711,11 @@ function patchHead(nh: HTMLHeadElement): void {
             : property ? `meta[property="${property}"]`
             : equiv ? `meta[http-equiv="${equiv}"]`
             : charset ? "meta[charset]" : null;
-        const existing = sel && document.head.querySelector(sel);
+        const existing = sel && doc.head.querySelector(sel);
         if (existing) {
             for (const a of m.getAttributeNames()) existing.setAttribute(a, m.getAttribute(a)!);
         } else {
-            document.head.appendChild(m.cloneNode(true));
+            doc.head.appendChild(m.cloneNode(true));
         }
     }
 
@@ -721,23 +723,23 @@ function patchHead(nh: HTMLHeadElement): void {
         [...nh.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")].map(l => l.href)
     );
     const hrefs = new Set(
-        [...document.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")].map(l => l.href)
+        [...doc.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")].map(l => l.href)
     );
-    for (const l of document.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")) {
+    for (const l of doc.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")) {
         l.disabled = !nhHrefs.has(l.href);
     }
     for (const l of nh.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")) {
-        if (!hrefs.has(l.href)) document.head.appendChild(l.cloneNode(true));
+        if (!hrefs.has(l.href)) doc.head.appendChild(l.cloneNode(true));
     }
 
     const srcs = new Set(
-        [...document.head.querySelectorAll<HTMLScriptElement>("script[src]")].map(s => s.src)
+        [...doc.head.querySelectorAll<HTMLScriptElement>("script[src]")].map(s => s.src)
     );
     for (const s of nh.querySelectorAll<HTMLScriptElement>("script[src]")) {
         if (s.getAttribute("data-bundle") === "true" || srcs.has(s.src)) continue;
-        const ns = document.createElement("script");
+        const ns = doc.createElement("script");
         for (const a of s.getAttributeNames()) ns.setAttribute(a, s.getAttribute(a)!);
-        document.head.appendChild(ns);
+        doc.head.appendChild(ns);
     }
 }
 
@@ -760,15 +762,15 @@ async function loadPage(
     } catch {}
 
     patchHead(doc.head);
-    syncOptions(document.body, doc.body);
-    morphKids(document.body, doc.body);
+    syncOptions(doc.body, doc.body);
+    morphKids(doc.body, doc.body);
 
     await hydrateWithRegions(regions, handlers);
 }
 
 function scroll() {
     if (location.hash) {
-        const el = document.querySelector(location.hash);
+        const el = doc.querySelector(location.hash);
         el?.scrollIntoView();
     } else {
         scrollTo(0, 0);
@@ -828,10 +830,10 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
     }
 
     const apply = () => loadPage(url, result.regions, result.handlers, page.doc);
-    const wantsVT = typeof document.startViewTransition === "function" && !prefersReducedMotion() && (vt ?? __VIEW_TRANSITIONS);
+    const wantsVT = typeof doc.startViewTransition === "function" && !prefersReducedMotion() && (vt ?? __VIEW_TRANSITIONS);
 
     if (wantsVT) {
-        const t = document.startViewTransition(() => apply());
+        const t = doc.startViewTransition(() => apply());
         try { await t.finished; } catch {}
     } else {
         await apply();
@@ -844,7 +846,7 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
 }
 
 async function hydrate() {
-    const bundleTag = document.querySelector<HTMLScriptElement>(
+    const bundleTag = doc.querySelector<HTMLScriptElement>(
         `script[data-bundle="true"][data-pathname="${normPath(location.pathname)}"]`,
     );
     if (!bundleTag) return;
