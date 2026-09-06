@@ -763,8 +763,8 @@ async function loadPage(
     } catch {}
 
     patchHead(doc.head);
-    syncOptions(doc.body, doc.body);
-    morphKids(doc.body, doc.body);
+    syncOptions(document.body, doc.body);
+    morphKids(document.body, doc.body);
 
     await hydrateWithRegions(regions, handlers);
 }

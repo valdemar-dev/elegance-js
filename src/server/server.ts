@@ -170,7 +170,10 @@ function mimeIsCompressible(mime: string): boolean {
 }
 
 const GZIP_PARAMS    = { level: 6 };
+// q4 keeps first-hit latency low for dynamic bodies; static assets are
+// precompressed once into the file cache, so they get max quality instead!
 const BROTLI_PARAMS  = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 4 } };
+const BROTLI_PARAMS_MAX = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 11 } };
 const BODY_TIMEOUT_MS = parseInt(process.env.BODY_TIMEOUT_MS ?? "10000", 10);
 
 const compressedCache = new Map<string, { gzip: Buffer; brotli: Buffer }>();
@@ -275,7 +278,7 @@ export async function primeStaticCache(): Promise<void> {
             const compressible = mimeIsCompressible(mime);
 
             const [gzip, brotli] = compressible
-                ? await Promise.all([gzipAsync(raw, GZIP_PARAMS), brotliAsync(raw, BROTLI_PARAMS)])
+                ? await Promise.all([gzipAsync(raw, GZIP_PARAMS), brotliAsync(raw, BROTLI_PARAMS_MAX)])
                 : [raw, raw];
 
             staticCache.set(urlPath, {
@@ -737,9 +740,9 @@ async function lazyBuildStaticPage(
     const jsBuf   = Buffer.from(syntheticCode);
     const [htmlGzip, htmlBrotli, jsGzip, jsBrotli] = await Promise.all([
         gzipAsync(htmlBuf,  GZIP_PARAMS),
-        brotliAsync(htmlBuf, BROTLI_PARAMS),
+        brotliAsync(htmlBuf, BROTLI_PARAMS_MAX),
         gzipAsync(jsBuf,    GZIP_PARAMS),
-        brotliAsync(jsBuf,   BROTLI_PARAMS),
+        brotliAsync(jsBuf,   BROTLI_PARAMS_MAX),
     ]);
     timings["compress"] = performance.now() - t;
 

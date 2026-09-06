@@ -475,6 +475,7 @@ export async function buildClientRuntime(minify: boolean, isDev: boolean, hotRel
         loader:      { ".ts": "ts", ".tsx": "ts" },
         plugins:     [eleganceTsxPlugin],
         define:      { __VIEW_TRANSITIONS: String(viewTransitions) },
+        ...(minify && !isDev ? { mangleProps: /^_/, reserveProps: /^(__|_getAtom|_action)/ } : {}),
     };
 
     if (isDev) options.footer = { js: devHotReloadFooter(hotReloadPort ?? 4000) };
