@@ -9,9 +9,21 @@ declare global {
 }
 
 const doc = document;
+const loc = location;
+const TE = 3, EL = 1;
+
+const qs = (e: any, s: string) => e.querySelector(s);
+const qa = (e: any, s: string) => e.querySelectorAll(s);
+const ga = (e: any, k: string) => e.getAttribute(k);
+const gan = (e: any) => e.getAttributeNames();
+const ac = (e: any, c: any) => e.appendChild(c);
+const rc = (o: any, n: any) => (o.parentNode?.replaceChild(n, o), n);
+const fetchDoc = async (u: string) =>
+    new DOMParser().parseFromString(await (await fetch(u, { headers: { Accept: "text/html" } })).text(), "text/html");
+const bpSel = (p: string) => `script[data-bundle="true"][data-pathname="${p}"]`;
 
 {
-    const _s = doc.querySelector('script[data-tag="iav"]');
+    const _s = qs(doc, 'script[data-tag="iav"]');
     if (_s) try { globalThis.__initialAtomValues = JSON.parse(_s.textContent || "{}").atoms || {}; } catch {}
 }
 
@@ -32,7 +44,7 @@ function atom(id: string, initial: any) {
         set value(n: any) {
             if (!Object.is(_v, n)) {
                 _v = n;
-                _L.forEach(c => c._markDirty());
+                _L.forEach(c => c._md());
                 _C.forEach(c => c(n));
             }
         },
@@ -103,11 +115,11 @@ type PageLoadOptions = {
 };
 
 const onPageLoad = (cb: ((...args: any) => any), options: PageLoadOptions = {}) =>
-    pageLoadCallbacks.push({ pathname: location.pathname, cb, options });
+    pageLoadCallbacks.push({ pathname: loc.pathname, cb, options });
 
 function runPageCleanup() {
     for (const [scope, fns] of cleanupFns) {
-        if (!location.pathname.startsWith(scope)) {
+        if (!loc.pathname.startsWith(scope)) {
             fns.forEach(f => f());
             cleanupFns.delete(scope);
         }
@@ -115,7 +127,7 @@ function runPageCleanup() {
 }
 
 function runPageCallbacks() {
-    const current = location.pathname;
+    const current = loc.pathname;
     for (const { pathname, cb, options } of pageLoadCallbacks) {
         const scoped = options?.type === "scoped";
         const unscoped = !options?.type || options.type === "unscoped";
@@ -167,12 +179,6 @@ function ensureEventDelegated(eventType: string) {
     doc.addEventListener(eventType, _delegatedListener, true);
 }
 
-for (const et of [
-    'click', 'input', 'change', 'submit', 'keydown', 'keyup',
-    'mousemove', 'mousedown', 'mouseup', 'mouseenter', 'mouseleave', 'mouseover', 'mouseout',
-    'focus', 'blur', 'pointerdown', 'pointerup', 'pointermove',
-]) { ensureEventDelegated(et); }
-
 function bind(el: Element, type: string, fn: Function, owner: any) {
     let m = delegatedHandlers.get(el);
     if (!m) delegatedHandlers.set(el, m = { inst: owner, handlers: {} });
@@ -185,7 +191,7 @@ globalThis.__bind = bind;
 globalThis.__navCallbacks = [];
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const SVG_TAGS = new Set(["svg","path","circle","polygon","polyline","rect","line","g","text","tspan","defs","use","clipPath","mask","linearGradient","radialGradient","stop","ellipse","image","symbol","marker","pattern","filter","feGaussianBlur","feOffset","feMerge","feMergeNode","title","desc","foreignObject","switch","view"]);
+const SVG_TAGS = new Set("svg path circle polygon polyline rect line g text tspan defs use clipPath mask linearGradient radialGradient stop ellipse image symbol marker pattern filter feGaussianBlur feOffset feMerge feMergeNode title desc foreignObject switch view".split(" "));
 
 function createEl(tag: string): Element {
     return SVG_TAGS.has(tag)
@@ -203,7 +209,7 @@ function applyOptions(el: Element, options: Record<string, unknown>, owner: any,
             if (typeof v === "boolean") el.toggleAttribute(key, v);
             else if (v !== "false") {
                 const s = v && typeof v === "object" ? Object.entries(v).map(([k, sv]) => `${k.replace(/[A-Z]/g, c => "-" + c.toLowerCase())}:${sv}`).join(";") : String(v);
-                if (el.getAttribute(key) !== s) el.setAttribute(key, s);
+                if (ga(el, key) !== s) el.setAttribute(key, s);
             }
         }
     }
@@ -223,9 +229,9 @@ function vnodeToDom(node: any, owner?: any): Node {
     if (node.__type === "element") {
         const el = createEl(node.tag);
         const k = getVKey(node);
-        if (k !== null) (el as any).__vkey = k;
+        if (k !== null) (el as any)._k = k;
         applyOptions(el, node.options ?? {}, owner, false);
-        for (const child of node.children ?? []) el.appendChild(vnodeToDom(child, owner));
+        for (const child of node.children ?? []) ac(el, vnodeToDom(child, owner));
         return el;
     }
     if (node.__type === "live") return mount(node, owner);
@@ -238,7 +244,7 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
     if (hasKeys) {
         const keyedDom = new Map<string, Node>();
         for (const child of Array.from(el.childNodes)) {
-            const k = (child as any).__vkey;
+            const k = (child as any)._k;
             if (k != null) keyedDom.set(k, child);
         }
 
@@ -251,12 +257,12 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
                 newChildren.push(patch(existing, vchild, owner));
             } else {
                 const fresh = vnodeToDom(vchild, owner);
-                if (k !== null) (fresh as any).__vkey = k;
+                if (k !== null) (fresh as any)._k = k;
                 newChildren.push(fresh);
             }
         }
 
-        for (const stale of keyedDom.values()) (stale as any).__instance?._destroy();
+        for (const stale of keyedDom.values()) (stale as any)._i?._d();
 
         for (let i = 0; i < newChildren.length; i++) {
             const desired = newChildren[i]!;
@@ -267,59 +273,57 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
         while (el.childNodes.length > newChildren.length) {
             const last = el.lastChild!;
             el.removeChild(last);
-            (last as any).__instance?._destroy();
+            (last as any)._i?._d();
         }
     } else {
         const dc = Array.from(el.childNodes);
         const common = Math.min(dc.length, vc.length);
         for (let i = 0; i < common; i++) patch(dc[i]!, vc[i], owner);
-        for (let i = common; i < vc.length; i++) el.appendChild(vnodeToDom(vc[i], owner));
+        for (let i = common; i < vc.length; i++) ac(el, vnodeToDom(vc[i], owner));
         for (let i = dc.length - 1; i >= vc.length; i--) {
             el.removeChild(dc[i]!);
-            (dc[i] as any).__instance?._destroy();
+            (dc[i] as any)._i?._d();
         }
     }
 }
 
 function patch(dom: Node, vn: any, owner?: any): Node {
     if (vn === null || vn === false) {
-        if (dom.nodeType === Node.TEXT_NODE && dom.nodeValue === "") return dom;
+        if (dom.nodeType === TE && dom.nodeValue === "") return dom;
         const t = doc.createTextNode("");
-        dom.parentNode?.replaceChild(t, dom);
-        (dom as any).__instance?._destroy();
+        rc(dom, t);
+        (dom as any)._i?._d();
         return t;
     }
     if (typeof vn === "string" || typeof vn === "number") {
         const s = String(vn);
-        if (dom.nodeType === Node.TEXT_NODE) { if (dom.nodeValue !== s) dom.nodeValue = s; return dom; }
+        if (dom.nodeType === TE) { if (dom.nodeValue !== s) dom.nodeValue = s; return dom; }
         const t = doc.createTextNode(s);
-        dom.parentNode?.replaceChild(t, dom);
-        return t;
+        return rc(dom, t);
     }
     if (vn.__rawHTML) return doc.createRange().createContextualFragment(vn.content).firstElementChild!;
     if (vn.__type === "element") {
-        if (dom.nodeType === Node.ELEMENT_NODE && (dom as Element).tagName.toLowerCase() === vn.tag) {
+        if (dom.nodeType === EL && (dom as Element).tagName.toLowerCase() === vn.tag) {
             const el = dom as Element;
             const normOptions: Record<string, unknown> = {};
             for (const [k, v] of Object.entries(vn.options ?? {})) normOptions[k === "className" ? "class" : k] = v;
             const k = getVKey(vn);
-            if (k !== null) (el as any).__vkey = k;
-            for (const name of el.getAttributeNames()) if (!(name in normOptions)) el.removeAttribute(name);
+            if (k !== null) (el as any)._k = k;
+            for (const name of gan(el)) if (!(name in normOptions)) el.removeAttribute(name);
             applyOptions(el, normOptions, owner, false);
             patchChildren(el, vn.children ?? [], owner);
             return el;
         }
         const fresh = vnodeToDom(vn, owner);
-        dom.parentNode?.replaceChild(fresh, dom);
-        return fresh;
+        return rc(dom, fresh);
     }
     if (vn.__type === "live") {
-        const ex = (dom as any).__instance;
-        if (ex?.cid === vn.__componentId) { ex.props = vn.props; ex.children = vn.children ?? []; ex._markDirty(); return dom; }
-        const old = (dom as any).__instance;
+        const ex = (dom as any)._i;
+        if (ex?.cid === vn.__componentId) { ex._p = vn.props; ex._c = vn.children ?? []; ex._md(); return dom; }
+        const old = (dom as any)._i;
         const rendered = mount(vn, owner);
-        dom.parentNode?.replaceChild(rendered, dom);
-        old?._destroy();
+        rc(dom, rendered);
+        old?._d();
         return rendered;
     }
     return dom;
@@ -329,7 +333,7 @@ const flatten = (a: any[]): any[] =>
     (a as any).flat(Infinity).filter((c: any) => c != null && c !== false && c !== "");
 
 function hydrateTree(vn: any, dom: Node, owner?: any): void {
-    if (vn == null || vn === false || dom.nodeType === Node.TEXT_NODE || vn.__rawHTML) return;
+    if (vn == null || vn === false || dom.nodeType === TE || vn.__rawHTML) return;
     if (Array.isArray(vn)) {
         const flat = flatten(vn);
         const dc = significantChildren(dom as Element);
@@ -355,7 +359,7 @@ function execView(inst: any): any {
     for (const a of inst._deps) a._removeListener(inst);
     inst._deps.clear();
     try {
-        return inst.config.view({ self: inst._self, atoms: inst._atoms, children: inst.children, });
+        return inst.config.view({ self: inst._self, atoms: inst._atoms, children: inst._c, });
     } finally {
         currentInst = null;
     }
@@ -363,26 +367,26 @@ function execView(inst: any): any {
 
 function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
     const cid = desc.__componentId;
-    const instanceId = desc.__instanceId;
+    const iid = desc.__instanceId;
     const cfg = componentConfigs.get(cid);
     if (!cfg) {
         console.error(`[elegance] Component "${cid}" was rendered server-side but is not registered client-side. Region skipped.`);
         return existingDom ?? doc.createDocumentFragment();
     }
 
-    const existingOnDom = existingDom ? (existingDom as any).__instance : undefined;
+    const existingOnDom = existingDom ? (existingDom as any)._i : undefined;
     if (existingOnDom && existingOnDom.cid === cid) {
-        existingOnDom.props = desc.props ?? {};
-        existingOnDom.children = desc.children ?? [];
+        existingOnDom._p = desc.props ?? {};
+        existingOnDom._c = desc.children ?? [];
         existingOnDom.config = cfg;
         existingOnDom._failed = null;
-        existingOnDom._markDirty();
+        existingOnDom._md();
         return existingOnDom;
     }
 
     let replaceContent = false;
-    if (existingDom && (existingDom as any).__instance) {
-        (existingDom as any).__instance._destroy(true);
+    if (existingDom && (existingDom as any)._i) {
+        (existingDom as any)._i._d(true);
         replaceContent = true;
     }
 
@@ -390,12 +394,12 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
     if (cfg.atoms) for (const key in cfg.atoms) atomsObj[key] = _getAtom(`${cid}:${key}`, cfg.atoms[key]);
 
     let inst: any;
-    const self: any = { get props() { return inst.props; }, get children() { return inst.children; }, get root() { return inst.root; } };
+    const self: any = { get props() { return inst._p; }, get children() { return inst._c; }, get root() { return inst._r; } };
 
     inst = {
-        cid, instanceId, config: cfg,
-        props: desc.props ?? {},
-        children: desc.children ?? [],
+        cid, iid, config: cfg,
+        _p: desc.props ?? {},
+        _c: desc.children ?? [],
         _deps: new Set<ReturnType<typeof atom>>(),
         _scheduled: false,
         _failed: null,
@@ -404,9 +408,9 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
         _boundary: owner?.config?.fallback ? owner : owner?._boundary ?? null,
         _handlingError: false,
         _destroyed: false,
-        _navigationCallback: null,
-        root: existingDom || null,
-        _markDirty() {
+        _nv: null,
+        _r: existingDom || null,
+        _md() {
             if (this._scheduled || this._failed) return;
             this._scheduled = true;
             queueMicrotask(() => {
@@ -414,7 +418,7 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
                 try {
                     const vn = execView(this);
                     if (vn && typeof vn === "object" && (vn.__type === "element" || vn.__type === "live"))
-                        this.root = patch(this.root, vn, this);
+                        this._r = patch(this._r, vn, this);
                 } catch (e) {
                     this._handleError(e);
                 }
@@ -428,7 +432,7 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
                     inst._failed = e;
                     const vn = execView(inst);
                     if (vn && typeof vn === "object" && (vn.__type === "element" || vn.__type === "live"))
-                        inst.root = patch(inst.root, vn, inst);
+                        inst._r = patch(inst._r, vn, inst);
                 } else if (inst._boundary) {
                     inst._boundary._handleError(e);
                 } else {
@@ -440,31 +444,31 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
                 inst._handlingError = false;
             }
         },
-        _destroy(keepRoot = false) {
+        _d(keepRoot = false) {
             if (inst._destroyed) return;
             inst._destroyed = true;
             try {
-                inst._onMountCleanup?.();
-                inst._onNavigateCleanup?.();
-                if (inst._navigationCallback)
-                    globalThis.__navCallbacks.splice(globalThis.__navCallbacks.indexOf(inst._navigationCallback), 1);
+                inst._om?.();
+                inst._on?.();
+                if (inst._nv)
+                    globalThis.__navCallbacks.splice(globalThis.__navCallbacks.indexOf(inst._nv), 1);
                 cfg.onUnmount?.(self, atomsObj);
-                instanceMap.delete(instanceId);
+                instanceMap.delete(iid);
                 for (const a of inst._deps) a._removeListener(inst);
                 inst._deps.clear();
-                if (inst.root) {
-                    for (const el of inst.root.querySelectorAll("*")) {
-                        (el as any).__instance?._destroy();
+                if (inst._r) {
+                    for (const el of inst._r.querySelectorAll("*")) {
+                        (el as any)._i?._d();
                     }
                 }
-                if (!keepRoot) inst.root?.remove();
+                if (!keepRoot) inst._r?.remove();
             } catch (err) {
                 console.error("Error during component cleanup:", err);
             }
         },
     };
 
-    instanceMap.set(instanceId, inst);
+    instanceMap.set(iid, inst);
 
     try {
         cfg.init?.(self, atomsObj);
@@ -473,25 +477,25 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
         if (existingDom) {
             if (replaceContent) (existingDom as any).replaceChildren(vnodeToDom(vn, inst));
             else hydrateTree(vn, existingDom, inst);
-            inst.root = existingDom;
-            (existingDom as any).__instance = inst;
+            inst._r = existingDom;
+            (existingDom as any)._i = inst;
         } else {
             const dom = vnodeToDom(vn, inst);
-            inst.root = dom instanceof Element ? dom : doc.createElement("div");
-            (inst.root as any).__instance = inst;
+            inst._r = dom instanceof Element ? dom : doc.createElement("div");
+            (inst._r as any)._i = inst;
         }
 
         if (cfg.onMount || cfg.onNavigate) queueMicrotask(() => {
             try {
                 const cleanup = cfg?.onMount?.(self, atomsObj);
-                if (typeof cleanup === "function") inst._onMountCleanup = cleanup;
+                if (typeof cleanup === "function") inst._om = cleanup;
 
                 const navigationCallback = () => {
-                    if (typeof inst._onNavigateCleanup === "function") inst._onNavigateCleanup();
+                    if (typeof inst._on === "function") inst._on();
                     const cleanup = cfg?.onNavigate?.(self, atomsObj);
-                    if (typeof cleanup === "function") inst._onNavigateCleanup = cleanup;
+                    if (typeof cleanup === "function") inst._on = cleanup;
                 };
-                inst._navigationCallback = navigationCallback;
+                inst._nv = navigationCallback;
                 globalThis.__navCallbacks.push(navigationCallback);
                 navigationCallback();
             } catch (err) {
@@ -500,14 +504,14 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
         });
     } catch (err) {
         inst._handleError(err);
-        if (!inst.root) inst.root = doc.createElement("div");
+        if (!inst._r) inst._r = doc.createElement("div");
     }
 
     return inst;
 }
 
 function mount(desc: any, owner?: any): Node {
-    return bootstrapComponent(desc, undefined, owner).root;
+    return bootstrapComponent(desc, undefined, owner)._r;
 }
 
 const elementFactory = (tag: string) => (options: any, ...children: any[]) => {
@@ -546,12 +550,12 @@ const tagFactoryCache = new Map<string, (options: any, ...children: any[]) => an
 });
 
 const importBundle = (tag: HTMLScriptElement): Promise<any> => {
-    const src = tag.getAttribute("src");
-    if (src) return import(new URL(src, location.href).href);
+    const src = ga(tag, "src");
+    if (src) return import(new URL(src, loc.href).href);
 
     const blobCode = tag.textContent!.replace(
         /(['"])\/chunks\//g,
-        `$1${location.origin}/chunks/`,
+        `$1${loc.origin}/chunks/`,
     );
 
     const blob = new Blob([blobCode], { type: "text/javascript" });
@@ -575,8 +579,8 @@ async function hydrateWithRegions(
 ): Promise<void> {
     const queue: Array<{ desc: any; dom: Node }> = [];
 
-    for (const marker of doc.body.querySelectorAll<Element>('template[data-region]')) {
-        const regionIdx = parseInt(marker.getAttribute('data-region')!, 10);
+    for (const marker of qa(doc.body, 'template[data-region]')) {
+        const regionIdx = parseInt(ga(marker, 'data-region')!, 10);
         if (isNaN(regionIdx)) continue;
 
         const entries = regions[regionIdx];
@@ -591,7 +595,7 @@ async function hydrateWithRegions(
             const props: Record<string, any> = entry.props ?? {};
             const children: Array<VirtualNode> = entry.children ?? [];
             for (let i = 0; i < count; i++) {
-                while (sibling?.nodeType === Node.TEXT_NODE && !(sibling.nodeValue ?? "").trim())
+                while (sibling?.nodeType === TE && !(sibling.nodeValue ?? "").trim())
                     sibling = sibling.nextSibling!;
                 const syntheticDesc = { __type: "live", __componentId: cid, __instanceId: `${cid}#${nextInstanceId++}`, props, children };
                 if (sibling !== null) {
@@ -609,7 +613,7 @@ async function hydrateWithRegions(
     if (handlers) {
         for (const { eid, h } of handlers) {
             for (const { event } of h) ensureEventDelegated(event);
-            for (const el of doc.querySelectorAll<HTMLElement>(`[e-id="${eid}"]`)) {
+            for (const el of qa(doc, `[e-id="${eid}"]`)) {
                 let m = delegatedHandlers.get(el);
                 if (!m) delegatedHandlers.set(el, m = { inst: null, handlers: {} });
                 for (const { event, fn } of h) {
@@ -622,27 +626,27 @@ async function hydrateWithRegions(
 
 function significantChildren(el: Element): ChildNode[] {
     return Array.from(el.childNodes).filter(
-        n => !(n.nodeType === Node.TEXT_NODE && !(n.nodeValue ?? "").trim())
+        n => !(n.nodeType === TE && !(n.nodeValue ?? "").trim())
     );
 }
 
 function detachNode(node: ChildNode): void {
-    if (node.nodeType === Node.ELEMENT_NODE)
+    if (node.nodeType === EL)
         for (const child of Array.from((node as Element).childNodes)) detachNode(child);
-    const inst = (node as any).__instance;
+    const inst = (node as any)._i;
     if (inst) {
-        inst._destroy();
+        inst._d();
     } else {
         node.parentNode?.removeChild(node);
     }
 }
 
 function syncOptions(from: Element, to: Element): void {
-    const next = new Set(to.getAttributeNames());
-    for (const a of from.getAttributeNames()) if (!next.has(a)) from.removeAttribute(a);
-    for (const a of to.getAttributeNames()) {
-        const v = to.getAttribute(a)!;
-        if (from.getAttribute(a) !== v) from.setAttribute(a, v);
+    const next = new Set(gan(to));
+    for (const a of gan(from)) if (!next.has(a)) from.removeAttribute(a);
+    for (const a of gan(to)) {
+        const v = ga(to, a)!;
+        if (ga(from, a) !== v) from.setAttribute(a, v);
     }
 }
 
@@ -653,12 +657,12 @@ function morphKids(parent: Element, incoming: Element): void {
     const sameShape = existing.length === wanted.length && existing.every((n, i) => {
         const w = wanted[i]!;
 
-        return n.nodeType === w.nodeType && (n.nodeType !== Node.ELEMENT_NODE || (n as Element).tagName === (w as Element).tagName);
+        return n.nodeType === w.nodeType && (n.nodeType !== EL || (n as Element).tagName === (w as Element).tagName);
     });
 
     if (!sameShape) {
         for (const child of Array.from(parent.childNodes)) detachNode(child);
-        for (const child of Array.from(incoming.childNodes)) parent.appendChild(child.cloneNode(true));
+        for (const child of Array.from(incoming.childNodes)) ac(parent, child.cloneNode(true));
 
         return;
     }
@@ -671,17 +675,17 @@ function morphKids(parent: Element, incoming: Element): void {
         if (!want) {
             detachNode(cur!);
         } else if (!cur) {
-            parent.appendChild(want.cloneNode(true));
-        } else if (cur.nodeType === Node.ELEMENT_NODE && want.nodeType === Node.ELEMENT_NODE && (cur as Element).tagName === (want as Element).tagName) {
-            const inst = (cur as any).__instance;
+            ac(parent, want.cloneNode(true));
+        } else if (cur.nodeType === EL && want.nodeType === EL && (cur as Element).tagName === (want as Element).tagName) {
+            const inst = (cur as any)._i;
             if (!inst) {
                 syncOptions(cur as Element, want as Element);
                 morphKids(cur as Element, want as Element);
             }
         } else {
-            const inst = (cur as any).__instance;
+            const inst = (cur as any)._i;
             if (inst) {
-                inst._destroy();
+                inst._d();
             } else {
                 parent.replaceChild(want.cloneNode(true), cur);
             }
@@ -690,55 +694,55 @@ function morphKids(parent: Element, incoming: Element): void {
 }
 
 globalThis.__hydrate = (regions: Array<any[]>, handlers?: Array<{ eid: number; h: Array<{ event: string; fn: Function }> }>) => {
-    for (const inst of instanceMap.values()) inst._destroy();
+    for (const inst of instanceMap.values()) inst._d();
     return hydrateWithRegions(regions, handlers);
 };
 
 function patchHead(nh: HTMLHeadElement): void {
-    const nt = nh.querySelector("title");
+    const nt = qs(nh, "title");
     if (nt) {
-        let t = doc.head.querySelector("title");
+        let t = qs(doc.head, "title");
         if (!t) { t = doc.createElement("title"); doc.head.appendChild(t); }
         if (t.textContent !== nt.textContent) t.textContent = nt.textContent;
     }
 
-    for (const m of nh.querySelectorAll<HTMLMetaElement>("meta")) {
-        const name = m.getAttribute("name");
-        const property = m.getAttribute("property");
-        const equiv = m.getAttribute("http-equiv");
-        const charset = m.getAttribute("charset");
+    for (const m of qa(nh, "meta")) {
+        const name = ga(m, "name");
+        const property = ga(m, "property");
+        const equiv = ga(m, "http-equiv");
+        const charset = ga(m, "charset");
         const sel = name ? `meta[name="${name}"]`
             : property ? `meta[property="${property}"]`
             : equiv ? `meta[http-equiv="${equiv}"]`
             : charset ? "meta[charset]" : null;
-        const existing = sel && doc.head.querySelector(sel);
+        const existing = sel && qs(doc.head, sel);
         if (existing) {
-            for (const a of m.getAttributeNames()) existing.setAttribute(a, m.getAttribute(a)!);
+            for (const a of gan(m)) existing.setAttribute(a, ga(m, a)!);
         } else {
             doc.head.appendChild(m.cloneNode(true));
         }
     }
 
     const nhHrefs = new Set(
-        [...nh.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")].map(l => l.href)
+        [...qa(nh, "link[rel=stylesheet]")].map((l: any) => l.href)
     );
     const hrefs = new Set(
-        [...doc.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")].map(l => l.href)
+        [...qa(doc.head, "link[rel=stylesheet]")].map((l: any) => l.href)
     );
-    for (const l of doc.head.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")) {
+    for (const l of qa(doc.head, "link[rel=stylesheet]")) {
         l.disabled = !nhHrefs.has(l.href);
     }
-    for (const l of nh.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]")) {
+    for (const l of qa(nh, "link[rel=stylesheet]")) {
         if (!hrefs.has(l.href)) doc.head.appendChild(l.cloneNode(true));
     }
 
     const srcs = new Set(
-        [...doc.head.querySelectorAll<HTMLScriptElement>("script[src]")].map(s => s.src)
+        [...qa(doc.head, "script[src]")].map((s: any) => s.src)
     );
-    for (const s of nh.querySelectorAll<HTMLScriptElement>("script[src]")) {
-        if (s.getAttribute("data-bundle") === "true" || srcs.has(s.src)) continue;
+    for (const s of qa(nh, "script[src]")) {
+        if (ga(s, "data-bundle") === "true" || srcs.has(s.src)) continue;
         const ns = doc.createElement("script");
-        for (const a of s.getAttributeNames()) ns.setAttribute(a, s.getAttribute(a)!);
+        for (const a of gan(s)) ns.setAttribute(a, ga(s, a)!);
         doc.head.appendChild(ns);
     }
 }
@@ -750,13 +754,10 @@ async function loadPage(
     doc?: Document
 ): Promise<void> {
     if (!doc) {
-        doc = new DOMParser().parseFromString(
-            await (await fetch(url, { headers: { Accept: "text/html" } })).text(),
-            "text/html"
-        );
+        doc = await fetchDoc(url);
     }
 
-    const hyd = doc.querySelector('script[data-tag="hydration"]');
+    const hyd = qs(doc, 'script[data-tag="hydration"]');
     if (hyd) try {
         globalThis.__initialAtomValues = JSON.parse(hyd.textContent || "{}").atoms || {};
     } catch {}
@@ -769,9 +770,8 @@ async function loadPage(
 }
 
 function scroll() {
-    if (location.hash) {
-        const el = doc.querySelector(location.hash);
-        el?.scrollIntoView();
+    if (loc.hash) {
+        qs(doc, loc.hash)?.scrollIntoView();
     } else {
         scrollTo(0, 0);
     }
@@ -782,14 +782,11 @@ const normPath = (p: string) => p.length > 1 && p.endsWith("/") ? p.slice(0, -1)
 const prefersReducedMotion = () => ((typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null)?.matches) ?? false;
 
 async function fetchPage(url: string): Promise<{ doc: Document; mod: any } | null> {
-    const target = new URL(url, location.href);
+    const target = new URL(url, loc.href);
     target.pathname = normPath(target.pathname);
 
-    const doc = new DOMParser().parseFromString(
-        await (await fetch(url, { headers: { Accept: "text/html" } })).text(),
-        "text/html",
-    );
-    const tag = doc.querySelector<HTMLScriptElement>(`script[data-bundle="true"][data-pathname="${target.pathname}"]`);
+    const doc = await fetchDoc(url);
+    const tag = qs(doc, bpSel(target.pathname)) as HTMLScriptElement | null;
 
     let mod: any;
     if (tag) {
@@ -806,13 +803,13 @@ async function fetchPage(url: string): Promise<{ doc: Document; mod: any } | nul
     return { doc, mod };
 }
 
-let activePath = normPath(location.pathname);
+let activePath = normPath(loc.pathname);
 
 async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
-    const target = new URL(url, location.href);
+    const target = new URL(url, loc.href);
     target.pathname = normPath(target.pathname);
     if (target.pathname === activePath) {
-        if (push && target.href !== location.href) history.pushState(null, "", url);
+        if (push && target.href !== loc.href) history.pushState(null, "", url);
         scroll();
         return;
     }
@@ -846,9 +843,7 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
 }
 
 async function hydrate() {
-    const bundleTag = doc.querySelector<HTMLScriptElement>(
-        `script[data-bundle="true"][data-pathname="${normPath(location.pathname)}"]`,
-    );
+    const bundleTag = qs(doc, bpSel(normPath(loc.pathname))) as HTMLScriptElement | null;
     if (!bundleTag) return;
 
     const mod = await importBundle(bundleTag);
@@ -862,10 +857,10 @@ async function hydrate() {
     window.addEventListener("beforeunload", () => runPageCleanup());
 }
 
-window.addEventListener("popstate", () => navigate(location.pathname + location.search + location.hash, false));
+window.addEventListener("popstate", () => navigate(loc.pathname + loc.search + loc.hash, false));
 
 async function _action(target: string, params: unknown) {
-    const res = await fetch(`${location.origin}/__action`, {
+    const res = await fetch(`${loc.origin}/__action`, {
         method: "POST",
         body: JSON.stringify(params ?? {}),
         headers: {

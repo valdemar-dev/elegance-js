@@ -466,6 +466,7 @@ export async function buildClientRuntime(minify: boolean, isDev: boolean, hotRel
         entryPoints: [join(import.meta.dirname, "..", "client.js")],
         bundle:      true,
         outfile:     join(DIST_DIR, "client.js"),
+        drop: isDev ? [] : ["console"],
         minify,
         format:      "esm",
         platform:    "browser",
