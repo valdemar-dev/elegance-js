@@ -18,6 +18,10 @@ const ga = (e: any, k: string) => e.getAttribute(k);
 const gan = (e: any) => e.getAttributeNames();
 const ac = (e: any, c: any) => e.appendChild(c);
 const rc = (o: any, n: any) => (o.parentNode?.replaceChild(n, o), n);
+const rawToDom = (s: string): Node => {
+    const f = doc.createRange().createContextualFragment(s);
+    return f.firstElementChild ?? f.firstChild ?? doc.createTextNode("");
+};
 const fetchDoc = async (u: string) =>
     new DOMParser().parseFromString(await (await fetch(u, { headers: { Accept: "text/html" } })).text(), "text/html");
 const bpSel = (p: string) => `script[data-bundle="true"][data-pathname="${p}"]`;
@@ -225,7 +229,7 @@ function getVKey(vn: any): string | null {
 function vnodeToDom(node: any, owner?: any): Node {
     if (typeof node === "string" || typeof node === "number") return doc.createTextNode(String(node));
     if (node === null || node === false || node === undefined) return doc.createTextNode("");
-    if (node.__rawHTML) return doc.createRange().createContextualFragment(node.content).firstElementChild!;
+    if (node.__rawHTML) return rawToDom(node.content);
     if (node.__type === "element") {
         const el = createEl(node.tag);
         const k = getVKey(node);
@@ -301,7 +305,7 @@ function patch(dom: Node, vn: any, owner?: any): Node {
         const t = doc.createTextNode(s);
         return rc(dom, t);
     }
-    if (vn.__rawHTML) return doc.createRange().createContextualFragment(vn.content).firstElementChild!;
+    if (vn.__rawHTML) return rc(dom, rawToDom(vn.content));
     if (vn.__type === "element") {
         if (dom.nodeType === EL && (dom as Element).tagName.toLowerCase() === vn.tag) {
             const el = dom as Element;
@@ -342,6 +346,8 @@ function hydrateTree(vn: any, dom: Node, owner?: any): void {
     }
     if (vn.__type === "element") {
         applyOptions(dom as Element, vn.options ?? {}, owner, true);
+        const k = getVKey(vn);
+        if (k !== null) (dom as any)._k = k;
         const dc = significantChildren(dom as Element);
         const vc = flatten(vn.children ?? []);
         for (let i = 0; i < Math.min(dc.length, vc.length); i++) hydrateTree(vc[i]!, dc[i]!, owner);
