@@ -10,7 +10,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "src/types/css-modules.d.ts"
   ],
   "scripts": {
     "lint": "oxlint ./src --fix -D unused-variable -D unused-import",
@@ -31,6 +32,9 @@
     },
     "./types": {
       "types": "./dist/types/index.d.ts"
+    },
+    "./css-modules": {
+      "types": "./src/types/css-modules.d.ts"
     },
     "./run": {
       "types": "./dist/run.d.ts",

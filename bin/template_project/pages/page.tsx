@@ -9,3 +9,9 @@ export default function Page() {
         </p>
     </div>
 }
+
+export default function metadata() {
+    return [
+        <title>The real fun begins now!</title>
+    ]
+}

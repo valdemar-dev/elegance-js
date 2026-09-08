@@ -1,6 +1,7 @@
 # Elegance
+## [Our Website](https://elegance.js.org/)
 
-Elegance is a TypeScript framework for web applications. It provides file‑system routing, reactive state, server‑side rendering, and client‑side interactivity in a single codebase.
+Elegance is the web-framework of the future. With FS-routing, dynamic SSR, middleware, type-safety, JSX, automatic Image optimization, zero client dependencies, and blazing speed; with Elegance you can create safer, faster and simpler web.
 
 ## Features
 
@@ -15,6 +16,8 @@ Elegance is a TypeScript framework for web applications. It provides file‑syst
 - Middleware: scoped request processing with the ability to pass data to downstream handlers.
 - Built‑in bundling: code splitting and advanced dead‑code elimination (DCE).
 - API routes: define `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS` handlers.
+- Styling: CSS, CSS Modules, and hooks for Sass/PostCSS/Tailwind.
+- Image Optimization: Reference 10Mb images in your code with no worries, Elegance automatically generates resized versions for all necessary sizes.
 
 ## Quick Start
 
@@ -66,6 +69,33 @@ export default function Page() {
     return Counter();
 }
 ```
+
+## Styling
+Extending styling is incredibly easy.
+Import stylesheets from any page, layout, or client component with no hassle.
+
+```tsx
+import "./styles/global.css";          // global stylesheet
+import styles from "./hero.module.css"; // CSS Module
+
+export default function Page() {
+    return div({ className: styles.hero }, "Scoped!");
+}
+```
+
+```ts
+import sass from "sass";
+
+export const config: EleganceConfig = {
+    css: {
+        transformers: [
+            { test: /\.scss$/, transform: (source, file) => sass.compileString(source, { loadPaths: [file] }).css },
+        ],
+    },
+};
+```
+
+`.scss`, `.sass`, `.less`, `.styl`, `.pcss`/`.postcss` and `.css` files are all picked up automatically.
 
 ## Project Structure
 

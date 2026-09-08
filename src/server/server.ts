@@ -88,6 +88,7 @@ export interface MatchedRoute {
     layoutCacheKeys:   CacheKey[];
     cacheKey:          CacheKey;
     sharedChunkPaths:  string[];
+    cssPaths:          string[];
     isDynamic:         boolean;
     patternPathname?:  string | undefined;
     matcher:           (pathname: string) => Record<string, string | string[] | undefined> | null;
@@ -277,7 +278,7 @@ export async function primeStaticCache(): Promise<void> {
             const etag = `"${filestat.size}-${filestat.mtimeMs}"`;
             const compressible = mimeIsCompressible(mime);
 
-            const [gzip, brotli] = compressible
+            const [gzip, brotli] = !IS_DEV && compressible
                 ? await Promise.all([gzipAsync(raw, GZIP_PARAMS), brotliAsync(raw, BROTLI_PARAMS_MAX)])
                 : [raw, raw];
 
@@ -377,6 +378,7 @@ function routeEntryToMatched(entry: RouteEntry): MatchedRoute {
         layoutCacheKeys:   entry.layoutCacheKeys,
         cacheKey:          entry.cacheKey,
         sharedChunkPaths:  entry.sharedChunkPaths,
+        cssPaths:          entry.cssPaths ?? [],
         isDynamic:         entry.kind === "dynamic",
         patternPathname:   entry.kind === "enumerated" ? entry.patternPathname : undefined,
         matcher,
@@ -570,6 +572,9 @@ function extractPathname(rawUrl: string | undefined): string {
 type Encoding = "br" | "gzip" | null;
 
 function acceptEncoding(req: IncomingMessage): Encoding {
+    // don't compress dev since it's a waste of resources.
+    if (IS_DEV) return null;
+
     const raw = req.headers["accept-encoding"] as string | undefined;
     if (!raw) return null;
 
@@ -621,7 +626,7 @@ async function buildRouteHTML(
             preClientPath,
         );
 
-        return generateDynamicPageHTML(rootNode, metaNodes, route, getClientCode, ctx);
+        return generateDynamicPageHTML(rootNode, metaNodes, route, getClientCode, ctx, route.cssPaths);
     });
 
     const chunks = route.sharedChunkPaths.filter(chunkPath => preClientCode.includes(chunkPath));
@@ -703,7 +708,7 @@ async function lazyBuildStaticPage(
 
         t = performance.now();
         const result = await generatePageHTML(
-            rootNode, metaNodes, route, bundleUrl, ctx, route.sharedChunkPaths,
+            rootNode, metaNodes, route, bundleUrl, ctx, route.sharedChunkPaths, route.cssPaths,
         );
         timings["html"] = performance.now() - t;
         return result;
@@ -738,12 +743,14 @@ async function lazyBuildStaticPage(
     t = performance.now();
     const htmlBuf = Buffer.from(fullHtml);
     const jsBuf   = Buffer.from(syntheticCode);
-    const [htmlGzip, htmlBrotli, jsGzip, jsBrotli] = await Promise.all([
-        gzipAsync(htmlBuf,  GZIP_PARAMS),
-        brotliAsync(htmlBuf, BROTLI_PARAMS_MAX),
-        gzipAsync(jsBuf,    GZIP_PARAMS),
-        brotliAsync(jsBuf,   BROTLI_PARAMS_MAX),
-    ]);
+    const [htmlGzip, htmlBrotli, jsGzip, jsBrotli] = !IS_DEV
+        ? await Promise.all([
+              gzipAsync(htmlBuf,  GZIP_PARAMS),
+              brotliAsync(htmlBuf, BROTLI_PARAMS_MAX),
+              gzipAsync(jsBuf,    GZIP_PARAMS),
+              brotliAsync(jsBuf,   BROTLI_PARAMS_MAX),
+          ])
+        : [htmlBuf, htmlBuf, jsBuf, jsBuf];
     timings["compress"] = performance.now() - t;
 
     const htmlMime = "text/html";
@@ -754,12 +761,12 @@ async function lazyBuildStaticPage(
 
     const htmlCached: CachedFile = {
         raw: htmlBuf, gzip: htmlGzip, brotli: htmlBrotli,
-        mime: htmlMime, etag: htmlEtag, compressible: true,
+        mime: htmlMime, etag: htmlEtag, compressible: !IS_DEV,
         headers: buildCachedFileHeaders(htmlMime, htmlEtag, htmlBuf.length, htmlGzip.length, htmlBrotli.length, "no-store"),
     };
     const jsCached: CachedFile = {
         raw: jsBuf, gzip: jsGzip, brotli: jsBrotli,
-        mime: jsMime, etag: jsEtag, compressible: true,
+        mime: jsMime, etag: jsEtag, compressible: !IS_DEV,
         headers: buildCachedFileHeaders(jsMime, jsEtag, jsBuf.length, jsGzip.length, jsBrotli.length, "no-store"),
     };
 
@@ -822,6 +829,7 @@ async function respondWithStatusCode(
                 layoutCacheKeys:  bestEntry.entry.layoutCacheKeys,
                 cacheKey:         bestEntry.entry.cacheKey,
                 sharedChunkPaths: [],
+                cssPaths:         [],
                 isDynamic:        true,
                 matcher:          () => ({}),
             };

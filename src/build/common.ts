@@ -8,6 +8,7 @@ import {
 } from "../page-tools";
 import { transformBundle, transformChunk, generateLayoutBundle } from "../processing/oxc";
 import { eleganceBundlePlugin, computeBannedGlobs } from "./bundling";
+import { eleganceCssPlugin } from "../css/plugin";
 
 import { resolveImagesInSource } from "../image/resolve";
 
@@ -142,6 +143,7 @@ export interface TranspiledRoute {
     serverCode:       string;
     preClientCode:    string;
     sharedChunkPaths: string[];
+    cssPaths:         string[];
 }
 
 export type CacheKey = string & { readonly __brand: unique symbol };
@@ -187,6 +189,7 @@ export interface RouteEntryBase {
     layoutCacheKeys:  CacheKey[];
     cacheKey:         CacheKey;
     sharedChunkPaths: string[];
+    cssPaths:         string[];
 }
 
 export interface StaticRouteEntry extends RouteEntryBase {
@@ -207,7 +210,7 @@ export interface DynamicRouteEntry extends RouteEntryBase {
 
 export type RouteEntry = StaticRouteEntry | EnumeratedRouteEntry | DynamicRouteEntry;
 
-export type ActionOwner = Omit<RouteEntryBase, "sharedChunkPaths">;
+export type ActionOwner = Omit<RouteEntryBase, "sharedChunkPaths" | "cssPaths">;
 
 // we want to bind each server action to a page pathname, so that during the server's lifetime, we don't need to load modules of static paths that don't contain server actions.
 export function collectServerActions(
@@ -483,6 +486,19 @@ export async function buildClientRuntime(minify: boolean, isDev: boolean, hotRel
     await esbuild.build(options);
 }
 
+const CSS_DIR = () => join(DIST_DIR, "css");
+
+/**
+ * Deterministic stylesheet output path (relative to the dist root) for a page or layout cache key.
+ */
+export function cssFilePath(key: CacheKey): string {
+    return join(CSS_DIR(), `${key}.css`);
+}
+
+export function cssUrlPath(key: CacheKey): string {
+    return `/css/${key}.css`;
+}
+
 export const ROUTE_ESBUILD_BASE = {
     bundle:        true,
     write:         false,
@@ -491,7 +507,7 @@ export const ROUTE_ESBUILD_BASE = {
     legalComments: "inline"   as const,
     packages:      "external" as const,
     loader:        { ".ts": "ts", ".tsx": "ts" } as Record<string, "ts">,
-    plugins:       [eleganceTsxPlugin, eleganceBundlePlugin],
+    plugins:       [eleganceTsxPlugin, eleganceBundlePlugin, eleganceCssPlugin],
     minify:        false,
     treeShaking:   false,
 };
@@ -703,6 +719,7 @@ export async function transpileAllRoutes(
     await Promise.all([
         mkdir(clientTmpOut, { recursive: true }),
         mkdir(chunksDir,    { recursive: true }),
+        mkdir(CSS_DIR(),    { recursive: true }),
         mkdir(CACHE_DIR,    { recursive: true }),
         hasServerWork ? mkdir(serverTmpOut, { recursive: true }) : Promise.resolve(),
     ]);
@@ -718,13 +735,14 @@ export async function transpileAllRoutes(
           }).then(() => undefined)
         : Promise.resolve();
 
-    await esbuild.build({
+    const buildResult = await esbuild.build({
         ...ROUTE_ESBUILD_BASE,
         entryPoints: clientEntryPoints,
         write:       true,
         outdir:      clientTmpOut,
         splitting:   true,
         minify:      false,
+        metafile:    true,
     });
 
     const clientOutputs = await readdir(clientTmpOut);
@@ -732,6 +750,30 @@ export async function transpileAllRoutes(
     const chunkFiles    = clientOutputs.filter(
         f => f.endsWith(".js") && !entryStems.has(basename(f, ".js") as CacheKey),
     );
+
+    const metaOutputs = buildResult.metafile?.outputs ?? {};
+
+    // metafile output paths are relative to the cwd
+    const cssBundleByEntry = new Map<string, string>();
+    for (const [outPath, out] of Object.entries(metaOutputs)) {
+        if (!outPath.endsWith(".js") || !out.cssBundle) continue;
+        cssBundleByEntry.set(basename(outPath, ".js"), out.cssBundle);
+    }
+
+    /**
+     * this is a set of every stylesheet associated with a given page / layout
+     */
+    const entryCssFiles = new Map<CacheKey, string[]>();
+    for (const key of entryStems) {
+        const bundle = cssBundleByEntry.get(key);
+        entryCssFiles.set(key, bundle ? [basename(bundle)] : []);
+    }
+
+    await Promise.all([...entryCssFiles.entries()].map(async ([key, files]) => {
+        for (const file of files) {
+            await copyFile(join(clientTmpOut, file), cssFilePath(key));
+        }
+    }));
 
     const chunkUrlMap = new Map<string, string>();
 
@@ -798,6 +840,14 @@ export async function transpileAllRoutes(
             .filter(f  => clientRaw.includes(`./${f}`))
             .map(f => `/chunks/${f}`);
 
+        const cssPaths = [
+            ...route.layouts
+                .map(l => layoutFileCacheKey(l))
+                .filter(lk => (entryCssFiles.get(lk) ?? []).length > 0)
+                .map(lk => cssUrlPath(lk)),
+            ...((entryCssFiles.get(key) ?? []).length > 0 ? [cssUrlPath(key)] : []),
+        ];
+
         await writeFile(preClientMjsPath(key), preClientCode);
 
         results.set(route.pathname, {
@@ -807,6 +857,7 @@ export async function transpileAllRoutes(
             serverCode:       rawServerCode,
             preClientCode,
             sharedChunkPaths,
+            cssPaths,
         } satisfies TranspiledRoute);
     }));
 

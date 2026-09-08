@@ -80,6 +80,13 @@ const defaultConfig: SafeEleganceConfig = {
     bundling: {
         include: [],
         noBundle: [],
+    },
+
+    css: {
+        transformers: [],
+        modules: {
+            enabled: true,
+        },
     }
 };
 

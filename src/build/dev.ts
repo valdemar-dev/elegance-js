@@ -153,6 +153,7 @@ const key            = pageCacheKey(t.pathname);
                 layoutCacheKeys:  layoutKeys,
                 cacheKey:         key,
                 sharedChunkPaths: sharedChunks,
+                cssPaths:         t.cssPaths,
             });
             continue;
         }
@@ -174,6 +175,7 @@ const key            = pageCacheKey(t.pathname);
                 layoutCacheKeys:  layoutKeys,
                 cacheKey:         key,
                 sharedChunkPaths: sharedChunks,
+                cssPaths:         t.cssPaths,
             });
             continue;
         }
@@ -208,6 +210,7 @@ const key            = pageCacheKey(t.pathname);
                 layoutCacheKeys:  layoutKeys,
                 cacheKey:         key,
                 sharedChunkPaths: sharedChunks,
+                cssPaths:         t.cssPaths,
             });
         }
     }

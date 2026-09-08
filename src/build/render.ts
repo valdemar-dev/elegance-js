@@ -66,6 +66,16 @@ export interface GeneratePageHtmlResult {
     fullHtml: string;
 }
 
+function cssLinkTags(cssPaths: string[] | undefined): string {
+    if (!cssPaths || cssPaths.length === 0) {
+        return "";
+    }
+    
+    return cssPaths.map(href => 
+        `<link rel="stylesheet" href="${href}">`
+    ).join("\n  ");
+}
+
 export async function generatePageHTML(
     pageRoot: VirtualNode,
     metaNodes: VirtualNode[],
@@ -73,6 +83,7 @@ export async function generatePageHTML(
     bundleSrc: string,
     ctx: RenderContext,
     extraScripts?: string[],
+    cssPaths?: string[],
 ): Promise<GeneratePageHtmlResult> {
     const bodyBuilder = new HtmlBuilder();
     await renderTopLevel(pageRoot, bodyBuilder, ctx);
@@ -93,6 +104,7 @@ export async function generatePageHTML(
   <meta charset="UTF-8">
   <link rel="modulepreload" href="/client.js">
   <link rel="modulepreload" href="${bundleSrc}">
+  ${cssLinkTags(cssPaths)}
   ${(extraScripts || []).map(src => `<link rel="modulepreload" href="${src}">`).join('')}
   <script type="module" src="/client.js"></script>
   <script data-pathname="${route.pathname}" type="module" data-bundle="true" src="${bundleSrc}"></script>
@@ -112,7 +124,8 @@ export async function generateDynamicPageHTML(
     metaNodes: VirtualNode[],
     route: RouteInfo,
     getClientCode: () => string,
-    ctx: RenderContext
+    ctx: RenderContext,
+    cssPaths?: string[],
 ): Promise<string> {
     const bodyBuilder = new HtmlBuilder();
     const bodyResult = renderTopLevel(pageRoot, bodyBuilder, ctx);
@@ -133,6 +146,7 @@ export async function generateDynamicPageHTML(
 <head>
   <meta charset="UTF-8">
   <link rel="modulepreload" href="/client.js">
+  ${cssLinkTags(cssPaths)}
   ${headBuilder.join()}
   <script type="module" src="/client.js"></script>
 </head>

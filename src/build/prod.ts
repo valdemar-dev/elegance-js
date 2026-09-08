@@ -98,6 +98,7 @@ async function buildStaticTasks(tasks: StaticTask[]): Promise<void> {
                     bundleUrl,
                     ctx,
                     transpiled.sharedChunkPaths,
+                    transpiled.cssPaths,
                 );
 
                 const preClientPath = preClientMjsPath(pageCacheKey(transpiled.pathname));
@@ -201,6 +202,7 @@ async function buildProdAll(): Promise<void> {
                 layoutCacheKeys:  layoutKeys,
                 layouts:          route.layouts,
                 sharedChunkPaths: transpiled.sharedChunkPaths,
+                cssPaths:         transpiled.cssPaths,
                 cacheKey:         cacheKey,
             });
 
@@ -216,6 +218,7 @@ async function buildProdAll(): Promise<void> {
                 layoutCacheKeys:  layoutKeys,
                 cacheKey:         cacheKey,
                 sharedChunkPaths: transpiled.sharedChunkPaths,
+                cssPaths:         transpiled.cssPaths,
             });
             continue;
         }
@@ -241,6 +244,7 @@ async function buildProdAll(): Promise<void> {
                 layoutCacheKeys:  layoutKeys,
                 cacheKey:         cacheKey,
                 sharedChunkPaths: transpiled.sharedChunkPaths,
+                cssPaths:         transpiled.cssPaths,
                 patternPathname: route.pathname,
             });
         }

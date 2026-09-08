@@ -4,6 +4,9 @@ import type { ServerOptions } from "../server/server";
 import type { ConsoleOptions } from "../logger";
 import type { RuntimeOptions } from "../run";
 import type { ImageConfig } from "../image/core";
+import type { CssConfig } from "../css/core";
+
+export type { CssConfig, CssTransformer, CssModulesConfig } from "../css/core";
 
 type ClientOptions = {
     viewTransitions?: boolean,
@@ -32,7 +35,7 @@ declare global {
         image?: ImageConfig,
         client?: ClientOptions,
         bundling?: BundlingOptions,
+        css?: CssConfig,
     };
 }
 
-export {}
