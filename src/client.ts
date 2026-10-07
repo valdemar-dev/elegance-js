@@ -18,10 +18,7 @@ const ga = (e: any, k: string) => e.getAttribute(k);
 const gan = (e: any) => e.getAttributeNames();
 const ac = (e: any, c: any) => e.appendChild(c);
 const rc = (o: any, n: any) => (o.parentNode?.replaceChild(n, o), n);
-const rawToDom = (s: string): Node => {
-    const f = doc.createRange().createContextualFragment(s);
-    return f.firstElementChild ?? f.firstChild ?? doc.createTextNode("");
-};
+const rawToDom = (s: string): Node => doc.createRange().createContextualFragment(s);
 const fetchDoc = async (u: string) =>
     new DOMParser().parseFromString(await (await fetch(u, { headers: { Accept: "text/html" } })).text(), "text/html");
 const bpSel = (p: string) => `script[data-bundle="true"][data-pathname="${p}"]`;
@@ -210,10 +207,21 @@ function applyOptions(el: Element, options: Record<string, unknown>, owner: any,
         if (key.startsWith("on") && typeof v === "function") {
             globalThis.__bind(el, key.slice(2).toLowerCase(), v, owner);
         } else if (!isHydrate) {
-            if (typeof v === "boolean") el.toggleAttribute(key, v);
+            if (v === undefined || v === null) { 
+                if (el.hasAttribute(key)) el.removeAttribute(key); 
+                continue; 
+            }
+            if (typeof v === "boolean") {
+                el.toggleAttribute(key, v);
+            }
             else if (v !== "false") {
                 const s = v && typeof v === "object" ? Object.entries(v).map(([k, sv]) => `${k.replace(/[A-Z]/g, c => "-" + c.toLowerCase())}:${sv}`).join(";") : String(v);
-                if (ga(el, key) !== s) el.setAttribute(key, s);
+            
+                if (key === "value" && (el.tagName === "SELECT" || el.tagName === "INPUT" || el.tagName === "TEXTAREA")) {
+                    (el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value = v as string;
+                } else if (ga(el, key) !== s) {
+                    el.setAttribute(key, s);
+                }
             }
         }
     }
@@ -247,9 +255,11 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
 
     if (hasKeys) {
         const keyedDom = new Map<string, Node>();
+        const unkeyedDom: Node[] = [];
         for (const child of Array.from(el.childNodes)) {
             const k = (child as any)._k;
             if (k != null) keyedDom.set(k, child);
+            else unkeyedDom.push(child);
         }
 
         const newChildren: Node[] = [];
@@ -259,6 +269,9 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
                 const existing = keyedDom.get(k)!;
                 keyedDom.delete(k);
                 newChildren.push(patch(existing, vchild, owner));
+            } else if (k === null && unkeyedDom.length) {
+                const existing = unkeyedDom.shift()!;
+                newChildren.push(patch(existing, vchild, owner));
             } else {
                 const fresh = vnodeToDom(vchild, owner);
                 if (k !== null) (fresh as any)._k = k;
@@ -267,6 +280,7 @@ function patchChildren(el: Element, vc: any[], owner?: any): void {
         }
 
         for (const stale of keyedDom.values()) (stale as any)._i?._d();
+        for (const stale of unkeyedDom) (stale as any)._i?._d();
 
         for (let i = 0; i < newChildren.length; i++) {
             const desired = newChildren[i]!;
@@ -313,7 +327,6 @@ function patch(dom: Node, vn: any, owner?: any): Node {
             for (const [k, v] of Object.entries(vn.options ?? {})) normOptions[k === "className" ? "class" : k] = v;
             const k = getVKey(vn);
             if (k !== null) (el as any)._k = k;
-            for (const name of gan(el)) if (!(name in normOptions)) el.removeAttribute(name);
             applyOptions(el, normOptions, owner, false);
             patchChildren(el, vn.children ?? [], owner);
             return el;
@@ -397,7 +410,10 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
     }
 
     const atomsObj: any = {};
-    if (cfg.atoms) for (const key in cfg.atoms) atomsObj[key] = _getAtom(`${cid}:${key}`, cfg.atoms[key]);
+    if (cfg.atoms) for (const key in cfg.atoms) {
+        const sv = globalThis.__initialAtomValues?.[`${cid}:${key}`];
+        atomsObj[key] = _getAtom(`${iid}:${key}`, sv !== undefined ? sv : cfg.atoms[key]);
+    }
 
     let inst: any;
     const self: any = { get props() { return inst._p; }, get children() { return inst._c; }, get root() { return inst._r; } };
@@ -792,7 +808,7 @@ async function fetchPage(url: string): Promise<{ doc: Document; mod: any } | nul
     target.pathname = normPath(target.pathname);
 
     const doc = await fetchDoc(url);
-    const tag = qs(doc, bpSel(target.pathname)) as HTMLScriptElement | null;
+    const tag = (qs(doc, bpSel(target.pathname)) ?? qs(doc, 'script[data-bundle="true"][id="__dyn_bundle"]')) as HTMLScriptElement | null;
 
     let mod: any;
     if (tag) {
@@ -849,7 +865,7 @@ async function navigate(url: string, push = true, vt?: boolean): Promise<void> {
 }
 
 async function hydrate() {
-    const bundleTag = qs(doc, bpSel(normPath(loc.pathname))) as HTMLScriptElement | null;
+    const bundleTag = (qs(doc, bpSel(normPath(loc.pathname))) ?? qs(doc, 'script[data-bundle="true"][id="__dyn_bundle"]')) as HTMLScriptElement | null;
     if (!bundleTag) return;
 
     const mod = await importBundle(bundleTag);

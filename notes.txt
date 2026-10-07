@@ -1,5 +1,4 @@
 top level non-component elements can never be reactive, as the code containing them is not shipped to the browser. -- this is fine, but needs to be documented
 
-client.ts is just fully slop. -- i want it to be like 2kb in prod.
-
-patching rawhtml doesnt update dom -- feature ? 
+compiler should re-write or get angry for any ALL_TAGS usage that isn't a tag. like set and text are like fine but ARE TAGS so they get rewritten and it's real bad.
+also in JSX mode, do no all_tags -> __tags rewrite, it's wasted energy. we'll just say you can't use div() in jsx. actually, it might be better to write <div> diredtly into __tags.div(). idk if we do, but if we don't, we should. this would fix a crap ton of bugs

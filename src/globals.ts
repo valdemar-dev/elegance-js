@@ -95,10 +95,28 @@ export function hookGlobals() // Assign all globals here.
             if (atoms) {
                 for (const key of Object.keys(atoms)) {
                     let value = atoms[key];
+                    const id = `${cid}:${key}`;
                     atomsObj[key] = {
-                        get value() { return value },
-                        set value(v: any) { value = v; },
-                        id: `${cid}:${key}`,
+                        get value() {
+                            const ctx = renderContextStorage.getStore();
+                            if (!ctx) return value;
+                            if (!ctx.atomValues.has(id)) {
+                                ctx.atomValues.set(id, value);
+                                ctx.atomRegistry.push({ id });
+                            }
+                            return ctx.atomValues.get(id);
+                        },
+                        set value(v: any) {
+                            value = v;
+                            const ctx = renderContextStorage.getStore();
+                            if (!ctx) return;
+                            if (!ctx.atomValues.has(id)) {
+                                ctx.atomValues.set(id, v);
+                                ctx.atomRegistry.push({ id });
+                            }
+                            ctx.atomValues.set(id, v);
+                        },
+                        id,
                     };
                 }
             }

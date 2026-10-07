@@ -260,9 +260,19 @@ function renderElement(
     for (const optionName in options) {
         if (optionName.startsWith("on")) continue;
         if (optionName === "__eid") continue;
+        if (optionName === "key") continue;
 
         const value = options[optionName];
+        if (value === undefined || value === null) continue;
+
         const htmlOptionName = optionName === "className" ? "class" : optionName;
+
+        if (typeof value === "boolean") {
+            if (value) open += ` ${htmlOptionName}=""`;
+            continue;
+        }
+        if (value === "false") continue;
+
         const raw = value && typeof value === "object"
             ? Object.entries(value).map(([k, sv]) => `${k.replace(/[A-Z]/g, c => "-" + c.toLowerCase())}:${sv}`).join(";")
             : String(value);
