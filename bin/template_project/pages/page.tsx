@@ -10,7 +10,7 @@ export default function Page() {
     </div>
 }
 
-export default function metadata() {
+export function metadata() {
     return [
         <title>The real fun begins now!</title>
     ]
