@@ -57,7 +57,7 @@ var Navbar = component({ __id: "8xBIPlt",
       ),
       __tags.div(
         { class: "nav-links" },
-        Link_default({ href: "#examples", onClick: (_, e) => {
+        Link_default({ href: "/#examples", onClick: (_, e) => {
           e.preventDefault();
           navigate("/#examples");
         }, class: "nav-link" }, "Examples"),
@@ -91,6 +91,9 @@ var Navbar = component({ __id: "8xBIPlt",
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+function highlightMod() {
+  return import(new URL("../components/highlight-server.ts", import.meta.url).href);
+}
 var RESULTS_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../for-ai/results/results");
 function parseTestMd(source) {
   const lines = source.split("\n");
@@ -122,6 +125,7 @@ async function loadBench(dir, file) {
 async function loadTest(dir, name, tagline, eleganceFile, nextFile) {
   const md = await readFile(join(RESULTS_DIR, dir, "test.md"), "utf-8");
   const { desc, code: code2 } = parseTestMd(md);
+  const { highlightCode } = await highlightMod();
   const [elegance, next] = await Promise.all([
     loadBench(dir, eleganceFile),
     loadBench(dir, nextFile)
@@ -132,6 +136,7 @@ async function loadTest(dir, name, tagline, eleganceFile, nextFile) {
     tagline,
     desc,
     code: code2,
+    codeHtml: code2 ? await highlightCode(code2, "typescript") : "",
     eleganceFile,
     nextFile,
     elegance,
@@ -199,8 +204,8 @@ function metricsRows(t) {
 }
 function zipTree(tests) {
   const lines = ["testing.zip", "\u251C\u2500\u2500 methodology.md", "\u251C\u2500\u2500 view-results.js", "\u2514\u2500\u2500 results/"];
-  tests.forEach((t, i) => {
-    const lastDir = i === tests.length - 1;
+  tests.forEach((t, i2) => {
+    const lastDir = i2 === tests.length - 1;
     const dirConnector = lastDir ? "    " : "\u2502   ";
     lines.push(`${dirConnector}${lastDir ? "\u2514\u2500\u2500 " : "\u251C\u2500\u2500 "}${t.id}/`);
     const files = ["test.md", t.eleganceFile, t.nextFile];
@@ -214,34 +219,34 @@ function zipTree(tests) {
 function inline(text) {
   const nodes = [];
   let buf = "";
-  let i = 0;
+  let i2 = 0;
   const flush = () => {
     if (buf) {
       nodes.push(buf);
       buf = "";
     }
   };
-  while (i < text.length) {
-    if (text[i] === "`") {
-      const end = text.indexOf("`", i + 1);
+  while (i2 < text.length) {
+    if (text[i2] === "`") {
+      const end = text.indexOf("`", i2 + 1);
       if (end !== -1) {
         flush();
-        nodes.push(__tags.code({ class: "ic" }, text.slice(i + 1, end)));
-        i = end + 1;
+        nodes.push(__tags.code({ class: "ic" }, text.slice(i2 + 1, end)));
+        i2 = end + 1;
         continue;
       }
     }
-    if (text[i] === "*" && text[i + 1] === "*") {
-      const end = text.indexOf("**", i + 2);
+    if (text[i2] === "*" && text[i2 + 1] === "*") {
+      const end = text.indexOf("**", i2 + 2);
       if (end !== -1) {
         flush();
-        nodes.push(__tags.strong({ class: "doc-strong" }, text.slice(i + 2, end)));
-        i = end + 2;
+        nodes.push(__tags.strong({ class: "doc-strong" }, text.slice(i2 + 2, end)));
+        i2 = end + 2;
         continue;
       }
     }
-    buf += text[i];
-    i++;
+    buf += text[i2];
+    i2++;
   }
   flush();
   return nodes;
@@ -285,7 +290,7 @@ var Footer = () => __tags.footer(
   __tags.div(
     { class: "footer-bottom" },
     __tags.span({}, "\xA9 2026 Elegance. Built with Elegance."),
-    __tags.span({ class: "footer-v" }, "v3.0.0")
+    __tags.span({ class: "footer-v" }, "v3.2")
   )
 );
 var SpeedTestCard = (t, idx) => {
@@ -326,7 +331,7 @@ var SpeedTestCard = (t, idx) => {
         )
       )
     ),
-    t.code ? __tags.div(
+    t.codeHtml ? __tags.div(
       { class: "window spd-code" },
       __tags.div(
         { class: "window-bar" },
@@ -341,7 +346,7 @@ var SpeedTestCard = (t, idx) => {
       ),
       __tags.pre(
         { class: "window-pre" },
-        __tags.code({ class: "window-code" }, t.code)
+        __tags.code({ class: "window-code" }, rawHTML(t.codeHtml))
       )
     ) : null
   );
@@ -431,6 +436,20 @@ async function Page() {
         "dynamic page \xB7 rendered per request",
         "elegance-run-5.json",
         "next-run-5.json"
+      ),
+      loadTest(
+        "variance-10k",
+        "Variance 10K",
+        "incompressible dynamic page \xB7 seeded PRNG",
+        "elegance-production-mode.json",
+        "next-production-mode.json"
+      ),
+      loadTest(
+        "middleware-test",
+        "Middleware Overhead",
+        "raw API endpoint \xB7 one no-op middleware",
+        "elegance-production-mode.json",
+        "next-production-mode.json"
       )
     ]),
     loadMethodology()
@@ -449,12 +468,6 @@ async function Page() {
       ),
       __tags.div(
         { class: "hero-content" },
-        __tags.div(
-          { class: "hero-kicker" },
-          __tags.span({ class: "kicker-pill" }, "BENCHMARKS"),
-          __tags.div({ class: "kicker-sep" }),
-          __tags.span({ class: "kicker-label" }, "elegance vs next.js")
-        ),
         __tags.h1(
           { class: "hero-title" },
           __tags.span({ class: "hero-dim" }, "Built for"),
@@ -463,12 +476,14 @@ async function Page() {
         ),
         __tags.p(
           { class: "hero-pitch" },
-          "Every number on this page comes straight from oha JSON output. Same machine every run."
+          "Elegance really ",
+          __tags.i("is"),
+          " as fast as we say it is."
         ),
         __tags.div(
           { class: "hero-actions" },
           Link_default({ href: "#results", class: "btn btn--amber" }, "See the results \u2193"),
-          Link_default({ href: "/testing.zip", class: "btn btn--ghost" }, "Download raw data")
+          __tags.a({ href: "/testing.zip", class: "btn btn--ghost" }, "Download raw data")
         ),
         __tags.div(
           { class: "hero-stats" },
@@ -504,7 +519,6 @@ async function Page() {
         { class: "spd-inner" },
         __tags.header(
           { class: "section-head" },
-          __tags.span({ class: "overline" }, "TEST RESULTS"),
           __tags.h2(
             { class: "section-title" },
             "Proof, not ",
@@ -513,7 +527,7 @@ async function Page() {
         ),
         __tags.div(
           { class: "spd-tests" },
-          ...tests.map((t, i) => SpeedTestCard(t, i))
+          ...tests.map((t, i2) => SpeedTestCard(t, i2))
         )
       )
     ),
@@ -523,7 +537,6 @@ async function Page() {
         { class: "spd-inner" },
         __tags.header(
           { class: "section-head" },
-          __tags.span({ class: "overline" }, "METHODOLOGY"),
           __tags.h2(
             { class: "section-title" },
             "How we ",
@@ -549,7 +562,6 @@ async function Page() {
           { class: "spd-dl" },
           __tags.div(
             { class: "spd-dl-text" },
-            __tags.span({ class: "overline" }, "RAW DATA"),
             __tags.h2(
               { class: "spd-dl-title" },
               "Download the",
@@ -558,11 +570,11 @@ async function Page() {
             ),
             __tags.p(
               { class: "spd-dl-sub" },
-              "Everything: the oha JSON summaries, per-test writeups, the methodology, and a small viewer script so you can browse the numbers yourself. ~37 KB, zero excuses."
+              "Everything: the oha JSON summaries, per-test writeups, the methodology, and a small viewer script so you can browse the numbers yourself!"
             ),
             __tags.div(
               { class: "spd-dl-actions" },
-              Link_default({ href: "/testing.zip", class: "btn btn--amber", download: "testing.zip" }, "testing.zip \u2193"),
+              __tags.a({ href: "/testing.zip", class: "btn btn--amber", download: "testing.zip" }, "testing.zip \u2193"),
               Link_default({ href: "/speed#results", class: "btn btn--ghost" }, "Back to results")
             )
           ),
@@ -594,7 +606,7 @@ var metadata = () => [
   __tags.title({}, "Speed \u2014 Elegance Benchmarks"),
   __tags.meta({ charset: "UTF-8" }),
   __tags.meta({ name: "viewport", content: "width=device-width, initial-scale=1.0" }),
-  __tags.meta({ name: "description", content: "Elegance vs Next.JS: oha stress-test results across four benchmarks \u2014 raw API routes, static pages, SSR, and a 200K-component page." }),
+  __tags.meta({ name: "description", content: "Elegance vs Next.JS: oha stress-test results across six benchmarks \u2014 raw API routes, static pages, SSR, incompressible payloads, middleware overhead, and a 200K-component page." }),
   __tags.meta({ name: "theme-color", content: "#080808" }),
   __tags.link({ rel: "stylesheet", href: "/home.css" }),
   __tags.link({ rel: "stylesheet", href: "/index.css" })

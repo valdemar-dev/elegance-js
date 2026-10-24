@@ -1,5 +1,5 @@
 {
-  "buildTime": 1788635562137,
+  "buildTime": 1792843034340,
   "routes": [
     {
       "pathname": "/",
@@ -13,8 +13,9 @@
       ],
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js",
-        "/chunks/chunk-ZW5PEK2I.js"
+        "/chunks/chunk-GUHGSQYQ.js"
       ],
+      "cssPaths": [],
       "cacheKey": "route_index"
     },
     {
@@ -33,6 +34,7 @@
         "/chunks/chunk-ADESIFDG.js",
         "/chunks/chunk-LE4B2OTF.js"
       ],
+      "cssPaths": [],
       "cacheKey": "route_demo"
     },
     {
@@ -51,10 +53,11 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
-      "pathname": "/docs/start/creating-a-page",
+      "pathname": "/docs/start/creating-pages",
       "kind": "enumerated",
       "pageFile": "pages/docs/[...filename]/page.ts",
       "layouts": [
@@ -69,6 +72,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -87,6 +91,64 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/pages/basics",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/layout.ts",
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
+      "cssPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/pages/components",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/layout.ts",
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
+      "cssPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/pages/styling",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/layout.ts",
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -105,6 +167,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -123,6 +186,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -141,6 +205,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -159,6 +224,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -177,6 +243,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -195,6 +262,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -213,6 +281,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -231,6 +300,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -249,6 +319,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -267,6 +338,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -285,6 +357,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -303,6 +376,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -321,6 +395,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -339,6 +414,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -357,6 +433,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -375,6 +452,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -393,6 +471,7 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -411,6 +490,26 @@
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js"
       ],
+      "cssPaths": [],
+      "patternPathname": "/docs/[...filename]"
+    },
+    {
+      "pathname": "/docs/extra/css-frameworks",
+      "kind": "enumerated",
+      "pageFile": "pages/docs/[...filename]/page.ts",
+      "layouts": [
+        "pages/layout.ts",
+        "pages/docs/[...filename]/layout.ts"
+      ],
+      "layoutCacheKeys": [
+        "layout_layout",
+        "layout_docs_[...filename]"
+      ],
+      "cacheKey": "route_docs_[...filename]",
+      "sharedChunkPaths": [
+        "/chunks/chunk-ADESIFDG.js"
+      ],
+      "cssPaths": [],
       "patternPathname": "/docs/[...filename]"
     },
     {
@@ -425,8 +524,9 @@
       ],
       "sharedChunkPaths": [
         "/chunks/chunk-ADESIFDG.js",
-        "/chunks/chunk-ZW5PEK2I.js"
+        "/chunks/chunk-GUHGSQYQ.js"
       ],
+      "cssPaths": [],
       "cacheKey": "route_speed"
     }
   ],

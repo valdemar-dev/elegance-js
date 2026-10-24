@@ -190,7 +190,7 @@ var DocsNavbar = component({ __id: "3C6OhqO",
           ),
           __tags.span({ class: "nav-slash" }, "/"),
           __tags.span({ class: "nav-context" }, "docs"),
-          __tags.span({ class: "nav-version-badge" }, "v3.0 alpha")
+          __tags.span({ class: "nav-version-badge" }, "v3.2")
         ),
         __tags.div(
           { class: "nav-search-wrap" },

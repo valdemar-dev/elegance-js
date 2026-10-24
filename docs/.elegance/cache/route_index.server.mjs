@@ -57,7 +57,7 @@ var Navbar = component({ __id: "8xBIPlt",
       ),
       __tags.div(
         { class: "nav-links" },
-        Link_default({ href: "#examples", onClick: (_, e) => {
+        Link_default({ href: "/#examples", onClick: (_, e) => {
           e.preventDefault();
           navigate("/#examples");
         }, class: "nav-link" }, "Examples"),
@@ -88,6 +88,794 @@ var Navbar = component({ __id: "8xBIPlt",
 });
 
 // pages/page.ts
+function highlightMod() {
+  return import(new URL("./components/highlight-server.ts", import.meta.url).href);
+}
+var HOW_CODE = [
+  {
+    lang: "text",
+    code: `pages/
+\u251C\u2500\u2500 page.ts            \u2192  /
+\u251C\u2500\u2500 layout.ts          \u2192  wraps all routes below
+\u251C\u2500\u2500 about/
+\u2502   \u2514\u2500\u2500 page.ts        \u2192  /about
+\u251C\u2500\u2500 blog/
+\u2502   \u251C\u2500\u2500 page.ts        \u2192  /blog
+\u2502   \u251C\u2500\u2500 layout.ts      \u2192  wraps /blog/* only
+\u2502   \u2514\u2500\u2500 [slug]/
+\u2502       \u2514\u2500\u2500 page.ts    \u2192  /blog/:slug
+\u2514\u2500\u2500 api/users/
+    \u2514\u2500\u2500 page.ts        \u2192  /api/users  (HTTP handlers)`
+  },
+  {
+    lang: "typescript",
+    code: `// pages/card/page.ts  \u2014 tag-function style
+const UserCard = component<{ name: string; avatarUrl: string }>({
+  atoms: { expanded: false },
+  init: async (self, { expanded }) => {
+    expanded.value = await getExpandPref(self.props.name);
+  },
+  view: (self, { expanded }) => {
+    const { name, avatarUrl } = self.props;
+    return article({ class: \`card \${expanded.value ? "open" : ""}\` },
+      img({ src: avatarUrl, alt: name }),
+      h2({}, name),
+      expanded.value ? section({}, "Full profile...") : null,
+      button({ onclick: () => expanded.value = !expanded.value },
+        expanded.value ? "Collapse \u2191" : "Expand \u2193")
+    );
+  }
+});
+
+// pages/card/page.tsx  \u2014 JSX style, identical output
+const UserCard = component<{ name: string; avatarUrl: string }>({
+  atoms: { expanded: false },
+  init: async (self, { expanded }) => {
+    expanded.value = await getExpandPref(self.props.name);
+  },
+  view: (self, { expanded }) => {
+    const { name, avatarUrl } = self.props;
+    return (
+      <article class={\`card \${expanded.value ? "open" : ""}\`}>
+        <img src={avatarUrl} alt={name} />
+        <h2>{name}</h2>
+        {expanded.value && <section>Full profile...</section>}
+        <button onclick={() => expanded.value = !expanded.value}>
+          {expanded.value ? "Collapse \u2191" : "Expand \u2193"}
+        </button>
+      </article>
+    );
+  }
+});`
+  },
+  {
+    lang: "typescript",
+    code: `// const globalAtom = state("Hello, Sailor!");
+const Search = component({
+  atoms: {
+    query: "",
+    results: [] as Result[],
+    loading: false,
+    timer: null as ReturnType<typeof setTimeout> | null
+  },
+
+  view: (_, { query, results, loading, timer }) => {
+    const handleInput = (e: InputEvent) => {
+      query.value = (e.target as HTMLInputElement).value;
+      loading.value = true;
+      clearTimeout(timer.value!);
+      timer.value = setTimeout(async () => {
+        results.value = await search(query.value);
+        loading.value = false;
+      }, 280);
+    };
+
+    return div({ class: "search" },
+      input({ oninput: handleInput, value: query.value, placeholder: "Search\u2026" }),
+      loading.value
+        ? div({ class: "spinner" })
+        : ul({}, ...results.value.map(r => li({}, r.title)))
+    );
+  }
+});`
+  }
+];
+var EXAMPLES_CODE = [
+  {
+    lang: "typescript",
+    code: `// pages/blog/page.ts
+// The directory name is the route. No config, no registration.
+
+const PostList = component({
+  atoms: {
+    posts: [] as Post[],
+    loading: true,
+  },
+
+  // init runs on the server, ideal for data that should be
+  // present before the first byte of HTML is sent
+  init: async (_, { posts, loading }) => {
+    posts.value = await db.query(
+      "SELECT * FROM posts ORDER BY created_at DESC"
+    );
+    loading.value = false;
+  },
+
+  view: (_, { posts, loading }) =>
+    loading.value
+      ? div({ class: "skeleton" })
+      : ul({ class: "post-list" },
+          ...posts.value.map(post =>
+            li({},
+              Link({ href: \`/blog/\${post.slug}\` }, post.title),
+              time({ datetime: post.date }, formatDate(post.date))
+            )
+          )
+        )
+});
+
+export default function BlogIndex() {
+  return PostList();
+}`
+  },
+  {
+    lang: "tsx",
+    code: `// pages/blog/page.tsx
+// Prefer JSX? Drop a .tsx file in the same spot. Same atoms, same routing.
+
+const PostList = component({
+  atoms: {
+    posts: [] as Post[],
+    loading: true,
+  },
+
+  init: async (_, { posts, loading }) => {
+    posts.value = await db.query(
+      "SELECT * FROM posts ORDER BY created_at DESC"
+    );
+    loading.value = false;
+  },
+
+  view: (_, { posts, loading }) => (
+    loading.value
+      ? <div class="skeleton" />
+      : <ul class="post-list">
+          {posts.value.map(post => (
+            <li>
+              <a href={\`/blog/\${post.slug}\`}>{post.title}</a>
+              <time datetime={post.date}>{formatDate(post.date)}</time>
+            </li>
+          ))}
+        </ul>
+  )
+});
+
+export default function BlogIndex() {
+  return <PostList />;
+}
+
+// .ts and .tsx files can import each other freely.
+// The preprocessor handles both; no tsconfig changes needed.`
+  },
+  {
+    lang: "typescript",
+    code: `// pages/api/posts/page.ts
+// Named exports for HTTP methods turn any page file into a handler.
+// Works alongside a default export.
+
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { db } from "~/lib/db";
+
+export async function GET(req: IncomingMessage, res: ServerResponse) {
+  const posts = await db.posts.findMany({
+    where: { published: true },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(posts));
+}
+
+export async function POST(req: IncomingMessage, res: ServerResponse) {
+  let body = "";
+  for await (const chunk of req) body += chunk;
+
+  const post = await db.posts.create({ data: JSON.parse(body) });
+  res.writeHead(201, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(post));
+}
+
+// GET, POST, PUT, DELETE, PATCH are all supported`
+  },
+  {
+    lang: "typescript",
+    code: `// pages/dashboard/page.ts
+// Pages are static by default. Pre-rendered once at build time.
+// One export is all it takes to switch to SSR per-request.
+
+export const isDynamic = true;
+
+// Layouts can export isDynamic independently.
+// Granularity is per file, not per project.
+
+const Dashboard = component({
+  atoms: { data: null as DashboardData | null },
+
+  // With isDynamic = true, init runs on every request
+  init: async (self, { data }) => {
+    data.value = (await fetchDashboardData(self.props.req as Request));
+  },
+
+  view: (_, { data }) =>
+    data.value
+      ? div({ class: "dashboard" }, renderDashboard(data.value))
+      : div({ class: "skeleton" })
+});
+
+export default function DashboardPage() {
+  return Dashboard();
+}`
+  }
+];
+var BEST_CODE = [
+  {
+    title: "File-system routing",
+    from: "Next.js",
+    desc: "A page.ts is served at the path of the folder it sits in. Moving or renaming files changes the routes, and [slug] folders are folder names too.",
+    color: "var(--amber)",
+    snippets: [
+      {
+        label: "tree",
+        path: "pages/",
+        lang: "text",
+        code: `pages/
+\u251C\u2500\u2500 page.ts               \u2192  /
+\u251C\u2500\u2500 about/page.ts         \u2192  /about
+\u251C\u2500\u2500 blog/
+\u2502   \u251C\u2500\u2500 page.ts           \u2192  /blog
+\u2502   \u2514\u2500\u2500 [slug]/page.ts    \u2192  /blog/:slug
+\u2514\u2500\u2500 api/users/page.ts     \u2192  /api/users
+
+The build scans pages/ and generates the route
+table from the tree above. Renaming a folder
+renames the route; deleting a file removes it.
+[slug] folders match any single segment \u2014
+feature 07 covers them.`
+      },
+      {
+        label: "page.ts",
+        path: "pages/blog/page.ts",
+        lang: "typescript",
+        code: `// A page exports a default function that returns
+// elements. The framework calls it during SSR and
+// serializes the result to HTML.
+
+export default function BlogIndex() {
+  return section({ class: "blog" },
+    h1({}, "The Blog"),
+    ul({},
+      ...posts.map(p =>
+        li({},
+          Link({ href: \`/blog/\${p.slug}\` }, p.title)
+        )
+      )
+    )
+  );
+}`
+      }
+    ]
+  },
+  {
+    title: "Fine-grained atoms",
+    from: "Solid.js",
+    desc: "An atom is a value with a .value. When it changes, the components whose view() read it re-render, and everything else keeps its DOM.",
+    color: "var(--lilac)",
+    snippets: [
+      {
+        label: "component",
+        path: "pages/counter/page.ts",
+        lang: "typescript",
+        code: `const Cart = component({
+  atoms: {
+    items: [] as Item[],
+    coupon: null as string | null,
+  },
+
+  view: (self, { items, coupon }) =>
+    // Reading an atom inside view() subscribes this
+    // component to it. Writing items.value re-renders
+    // this component; the rest of the page keeps its
+    // DOM.
+    div({ class: "cart" },
+      span({ class: "count" }, \`\${items.value.length} items\`),
+      coupon.value
+        ? span({ class: "save" }, \`-\${coupon.value}%\`)
+        : null,
+      button({
+        onclick: () => items.value = [...items.value, NEW_ITEM]
+      }, "Add to cart")
+    )
+});`
+      },
+      {
+        label: "compare",
+        path: "the same thing elsewhere",
+        lang: "typescript",
+        code: `// React: useState per component. Sharing state
+// between components means lifting it into a
+// parent or context, and an update re-renders the
+// owning subtree and reconciles the old vdom.
+
+// Solid: signals are fine-grained, with an
+// accessor API and compiler directives.
+
+// Elegance: an atom is a value with a .value. The
+// subscription is created by view() reading it,
+// so the component code contains nothing else.`
+      }
+    ]
+  },
+  {
+    title: "Server code anywhere",
+    from: "React RSC",
+    desc: "init() runs on the server and can import your database directly. If server-only code could ever reach the browser bundle, the build fails and names the import.",
+    color: "var(--green)",
+    snippets: [
+      {
+        label: "page.ts",
+        path: "pages/posts/page.ts",
+        lang: "typescript",
+        code: `import { db } from "~/lib/db";  // a regular npm package
+
+const Posts = component({
+  atoms: { posts: [] as Post[] },
+
+  // init() runs during SSR, before the HTML is sent.
+  init: async (_, { posts }) => {
+    posts.value = await db.posts.findAll();
+  },
+
+  view: (_, { posts }) =>
+    ul({ class: "post-list" },
+      ...posts.value.map(p => li({}, p.title))
+    )
+});
+
+// view() is compiled into the browser bundle; init()
+// is not. If db could be reached from client code,
+// the build fails and names the import.`
+      },
+      {
+        label: "directive",
+        path: "pages/lib/db.ts",
+        lang: "typescript",
+        code: `//!no-bundle-file
+import { Pool } from "pg";
+
+export const db = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// The directive above marks this file server-only.
+// If any client-reachable code imports it, the
+// build fails with the import path.
+
+// Related directives:
+//   //!no-bundle        server-only declaration
+//   //!allow-bundling   exempt a specific import
+//   //!force-bundling   keep a side-effect import`
+      }
+    ]
+  },
+  {
+    title: "Static by default",
+    from: "Astro",
+    desc: "Pages are rendered to HTML files at build time and served as-is. A page that needs the request exports isDynamic = true and is rendered per request; neighboring pages are unaffected.",
+    color: "var(--blue)",
+    snippets: [
+      {
+        label: "page.ts",
+        path: "pages/pricing/page.ts",
+        lang: "typescript",
+        code: `// Rendered once at build time to
+// dist/pricing/index.html. At runtime the server
+// returns the file.
+
+export default function Pricing() {
+  return section({},
+    h1({}, "Pricing"),
+    Plan({ name: "Free", price: 0 }),
+    Plan({ name: "Pro", price: 20 }),
+  );
+}
+
+// This page needs the request (session, headers,
+// query)? One export renders it per request:
+
+export const isDynamic = true;`
+      },
+      {
+        label: "output",
+        path: ".elegance/dist/",
+        lang: "text",
+        code: `dist/
+\u251C\u2500\u2500 index.html          \u2190 rendered at build
+\u251C\u2500\u2500 pricing/index.html  \u2190 rendered at build
+\u251C\u2500\u2500 dashboard/          \u2190 isDynamic: rendered per request
+\u2514\u2500\u2500 blog/
+    \u2514\u2500\u2500 hello-world/index.html
+
+Static pages are files, so any web server or CDN
+serves them. On this site, the static homepage
+measured 0.72ms average latency and 68,877 req/s.
+
+isDynamic is per file, so a project can serve a
+static marketing site and a live dashboard from
+the same pages/ tree.`
+      }
+    ]
+  },
+  {
+    title: "Nested layouts",
+    from: "Next.js",
+    desc: "A layout.ts in any folder wraps every route beneath it, rendered outermost first. A layout marked isDynamic renders its whole subtree per request while sibling routes stay static.",
+    color: "var(--orange)",
+    snippets: [
+      {
+        label: "layout.ts",
+        path: "pages/admin/layout.ts",
+        lang: "typescript",
+        code: `// pages/admin/layout.ts
+// Wraps every route under /admin. child() renders
+// the next layout down, or the page.
+export const isDynamic = true;  // whole subtree renders per request
+
+export default function AdminLayout({ child }) {
+  return div({ class: "admin" },
+    AdminSidebar({}),
+    Main({},
+      SessionBanner({}),   // reads request cookies
+      child()
+    )
+  );
+}
+
+// pages/admin/users/page.ts renders inside this
+// layout. isDynamic on a layout applies to its
+// whole subtree, so the page itself stays
+// unchanged.`
+      },
+      {
+        label: "stack",
+        path: "how they compose",
+        lang: "text",
+        code: `pages/
+\u251C\u2500\u2500 layout.ts            \u2460 wraps everything
+\u2514\u2500\u2500 admin/
+    \u251C\u2500\u2500 layout.ts        \u2461 dynamic, guards /admin/*
+    \u2514\u2500\u2500 users/
+        \u2514\u2500\u2500 page.ts      \u2462 the page
+
+Render order: \u2460 \u2192 \u2461 \u2192 \u2462, outer to inner.
+
+Next.js stacks layouts the same way. Here every
+layout declares isDynamic separately, so marking
+\u2461 dynamic puts /admin/* on SSR while routes
+outside pages/admin/ remain static files.`
+      }
+    ]
+  },
+  {
+    title: "API routes",
+    from: "Next.js",
+    desc: "A named export \u2014 GET, POST, PUT, DELETE, PATCH \u2014 makes a page file answer requests. The arguments are Node's IncomingMessage and ServerResponse.",
+    color: "var(--pink)",
+    snippets: [
+      {
+        label: "page.ts",
+        path: "pages/api/subscribe/page.ts",
+        lang: "typescript",
+        code: `import { db } from "~/lib/db";
+
+// GET /api/subscribe?id=42
+export async function GET(req, res) {
+  const id = new URL(req.url, "http://x").searchParams.get("id");
+  const sub = await db.subs.findById(Number(id));
+  if (!sub) { res.writeHead(404); return res.end("{}"); }
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(sub));
+}
+
+// POST /api/subscribe
+export async function POST(req, res) {
+  let body = "";
+  for await (const chunk of req) body += chunk;
+  const sub = await db.subs.create(JSON.parse(body));
+  res.writeHead(201);
+  res.end(JSON.stringify(sub));
+}
+
+// req is Node's IncomingMessage and res is
+// ServerResponse \u2014 the same objects an
+// http.createServer handler receives.`
+      },
+      {
+        label: "usage",
+        path: "the wire",
+        lang: "text",
+        code: ` curl -X POST localhost:3000/api/subscribe \\
+      -d '{"email":"hi@example.com"}'
+ \u2192  201 Created  {"id":42,"email":"hi@example.com"}
+
+The file pages/api/subscribe/page.ts is the
+endpoint /api/subscribe, routed by the same
+filesystem rule as every other page, so the API
+and the UI live in one tree.
+
+GET, POST, PUT, DELETE and PATCH are the
+supported method exports.`
+      }
+    ]
+  },
+  {
+    title: "Typed dynamic routes",
+    from: "SvelteKit",
+    desc: "A [slug] folder matches any single segment and passes it to the page as a typed prop. getEnumeratedRoutes renders one static HTML file per known value at build time.",
+    color: "var(--amber)",
+    snippets: [
+      {
+        label: "page.ts",
+        path: "pages/blog/[slug]/page.ts",
+        lang: "typescript",
+        code: `// The folder [slug] matches one path segment, and
+// its value arrives as a prop:
+
+export default async function Post({ slug }: { slug: string }) {
+  const post = await db.posts.findBySlug(slug);
+
+  return article({ class: "post" },
+    h1({}, post.title),
+    rawHTML(post.body)
+  );
+}
+
+// GET /blog/hello-world calls this with
+// slug === "hello-world". [...rest] folders work
+// the same way and capture the remaining segments.`
+      },
+      {
+        label: "enumerated",
+        path: "pages/blog/[slug]/page.ts",
+        lang: "typescript",
+        code: `// If the set of valid slugs is known at build
+// time, this export renders one HTML file per
+// value:
+
+export async function getEnumeratedRoutes(): Promise<string[]> {
+  const posts = await db.posts.findAll();
+  return posts.map(p => p.slug);
+}
+
+// build output:
+//   dist/blog/hello-world/index.html
+//   dist/blog/second-post/index.html
+
+// Requests then hit those files. Pages that don't
+// export getEnumeratedRoutes render per request.`
+      }
+    ]
+  },
+  {
+    title: "Middleware",
+    from: "Express",
+    desc: "A middleware.ts in a folder runs before every route beneath it, receiving (req, res, next). Responding instead of calling next() stops the page from rendering.",
+    color: "var(--lilac)",
+    snippets: [
+      {
+        label: "middleware.ts",
+        path: "pages/admin/middleware.ts",
+        lang: "typescript",
+        code: `import { verifySession } from "~/lib/auth";
+
+// Runs before each /admin/* route renders.
+export default async function auth(req, res, next) {
+  const session = await verifySession(req.headers.cookie);
+
+  if (!session) {
+    // Returning without next() ends the request:
+    // the page component never runs.
+    res.writeHead(302, { Location: "/login" });
+    res.end();
+    return;
+  }
+
+  res.setHeader("x-user-id", session.userId);
+  await next();
+}`
+      },
+      {
+        label: "flow",
+        path: "GET /admin/settings",
+        lang: "text",
+        code: `GET /admin/settings
+  \u2502
+  \u251C\u2500 middleware (pages/admin/) runs first
+  \u2502    verifySession(cookie)
+  \u2502      \u251C\u2500 invalid \u2192 302 /login; the page
+  \u2502      \u2502            component never runs
+  \u2502      \u2514\u2500 valid   \u2192 setHeader, await next()
+  \u2502                     \u2502
+  \u251C\u2500 page: pages/admin/settings/page.ts renders
+  \u2502
+  \u2514\u2500 response
+
+Middleware is discovered per directory, like
+pages, and multiple middleware files compose
+from the outermost directory inward.`
+      }
+    ]
+  },
+  {
+    title: "Image optimization",
+    from: "Next.js",
+    desc: "<Image> compiles into a <picture> element with sized WebP and JPEG variants generated at build time. The variants are static files; there is no image server at runtime.",
+    color: "var(--green)",
+    snippets: [
+      {
+        label: "Image",
+        path: "pages/gallery/page.tsx",
+        lang: "tsx",
+        code: `import { Image } from "elegance-js";
+
+export default function Gallery() {
+  return (
+    <Image
+      src="/photos/aurora.jpg"
+      width={1200}
+      height={800}
+      sizes="(max-width: 900px) 100vw, 640px"
+      priority                 // preload link for LCP images
+      alt="Northern lights over a lake"
+    />
+  );
+}
+
+// src, width, height, sizes and alt are the inputs.
+// The build generates the variant files, the srcset
+// attributes and the preload link from them.`
+      },
+      {
+        label: "vs <img>",
+        path: "with a plain <img>",
+        lang: "tsx",
+        code: `// A raw <img> ships one file:
+
+const img = (
+  <img
+    src="/photos/aurora.jpg"   // the full 2.4MB for every viewport
+    width={1200}
+    height={800}
+  />
+);
+
+// The browser gets no smaller variant for a 320px
+// phone, no WebP, and no preload hint, so the
+// largest image arrives last and layout shifts
+// until it does. Producing variants, srcset and
+// preload by hand is the work <Image> does at
+// build time.`
+      },
+      {
+        label: "output",
+        path: "generated at build time",
+        lang: "html",
+        code: `<!-- dist output for the <Image> above -->
+<picture>
+  <source
+    type="image/webp"
+    sizes="(max-width: 900px) 100vw, 640px"
+    srcset="/images/aurora_320.webp 320w,
+            /images/aurora_640.webp 640w,
+            /images/aurora_1280.webp 1280w">
+  <img
+    src="/images/aurora_640.jpg"
+    srcset="/images/aurora_320.jpg 320w,
+            /images/aurora_640.jpg 640w,
+            /images/aurora_1280.jpg 1280w"
+    sizes="(max-width: 900px) 100vw, 640px"
+    width="1200" height="800"
+    fetchpriority="high" loading="eager">
+</picture>
+
+<!-- The pipeline compresses each variant during
+     the build. They are served as static files
+     from /images/ \u2014 the running server never
+     touches an image. -->`
+      }
+    ]
+  },
+  {
+    title: "JSX or tag functions",
+    from: "React",
+    desc: "Components can be written with JSX in .tsx files or with element calls in .ts files. Both compile to the same nodes, and files in either syntax can import each other.",
+    color: "var(--blue)",
+    snippets: [
+      {
+        label: "page.tsx",
+        path: "pages/card/page.tsx",
+        lang: "tsx",
+        code: `const Card = component<{ title: string; done: boolean }>({
+  atoms: { open: false },
+
+  view: (self, { open }) => (
+    <article class="card">
+      <h2>{self.props.title}</h2>
+      {open.value && <p>Details\u2026</p>}
+      <button onclick={() => open.value = !open.value}>
+        {open.value ? "Close \u2191" : "Open \u2193"}
+      </button>
+    </article>
+  )
+});
+
+// Atoms hold the state instead of useState, and
+// reading open.value inside view() subscribes the
+// component to it (feature 02).`
+      },
+      {
+        label: "page.ts",
+        path: "pages/card/page.ts",
+        lang: "typescript",
+        code: `// The same component with element calls:
+
+const Card = component<{ title: string; done: boolean }>({
+  atoms: { open: false },
+
+  view: (self, { open }) =>
+    article({ class: "card" },
+      h2({}, self.props.title),
+      open.value && p({}, "Details\u2026"),
+      button(
+        { onclick: () => open.value = !open.value },
+        open.value ? "Close \u2191" : "Open \u2193"
+      )
+    )
+});
+
+// Both files compile to the same nodes with the
+// same prop and atom types. A .tsx page can
+// import a component from a .ts file and the
+// other way around.`
+      }
+    ]
+  }
+];
+var STRIP_TS_CODE = `const Card = component<{ name: string }>({
+  atoms: { open: false },
+  view: (self, { open }) =>
+    article({ class: "card" },
+      h2({}, self.props.name),
+      open.value && p({}, "Details\u2026"),
+      button({
+        onclick: () =>
+          open.value = !open.value
+      }, open.value ? "Close \u2191" : "Open \u2193")
+    )
+});`;
+var STRIP_TSX_CODE = `const Card = component<{ name: string }>({
+  atoms: { open: false },
+  view: (self, { open }) => (
+    <article class="card">
+      <h2>{self.props.name}</h2>
+      {open.value && <p>Details\u2026</p>}
+      <button
+        onclick={() =>
+          open.value = !open.value}
+      >
+        {open.value ? "Close \u2191" : "Open \u2193"}
+      </button>
+    </article>
+  )
+});`;
 var isDynamic = false;
 onPageLoad(() => {
   const io = new IntersectionObserver((entries) => {
@@ -281,13 +1069,7 @@ var Hero = component({ __id: "dZPMS1u",
       __tags.div({ class: "hero-glow" })
     ),
     __tags.div(
-      { class: "hero-content" },
-      __tags.div(
-        { class: "hero-kicker" },
-        __tags.span({ class: "kicker-pill" }, "v3.0 alpha"),
-        __tags.div({ class: "kicker-sep" }),
-        __tags.span({ class: "kicker-label" }, "don't use in production")
-      ),
+      { style: "margin-top: 2rem;", class: "hero-content" },
       __tags.h1(
         { class: "hero-title" },
         __tags.span({ class: "hero-dim" }, "Framework"),
@@ -304,15 +1086,18 @@ var Hero = component({ __id: "dZPMS1u",
       ),
       __tags.p(
         { class: "hero-pitch" },
-        "FS routing, reactivity, SSR, and more.",
+        "Create sites that are the target of envy.",
         __tags.br({}),
-        "With Elegance you ship a runtime smaller than a JPEG."
+        "Fast, reactive, feature-rich and most importantly, safe.",
+        __tags.br({}),
+        "All with a runtime smaller than a ",
+        __tags.b("JPEG.")
       ),
       __tags.div(
         { class: "hero-actions" },
         Link_default({ href: "#how", class: "btn btn--amber" }, "How it works \u2192"),
         Link_default(
-          { href: "#examples", class: "btn btn--ghost" },
+          { href: "/#examples", class: "btn btn--ghost" },
           __tags.svg(
             { width: 13, height: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "aria-hidden": "true" },
             __tags.polyline({ points: "16 18 22 12 16 6" }),
@@ -325,29 +1110,29 @@ var Hero = component({ __id: "dZPMS1u",
         { class: "hero-stats" },
         __tags.div(
           { class: "stat" },
-          __tags.span({ class: "stat-n" }, "~24x"),
-          __tags.span({ class: "stat-l" }, "faster than Next.JS")
+          __tags.span({ class: "stat-n" }, "25.8x"),
+          __tags.span({ class: "stat-n stat-l" }, "faster than Next.JS")
         ),
         __tags.div({ class: "stat-sep" }),
         __tags.div(
           { class: "stat" },
-          __tags.span({ class: "stat-n" }, "4"),
-          __tags.span({ class: "stat-l" }, "KB runtime")
+          __tags.span({ class: "stat-n" }, "5"),
+          __tags.span({ class: "stat-n stat-l" }, "KB runtime")
         ),
         __tags.div({ class: "stat-sep" }),
         __tags.div(
           { class: "stat" },
           __tags.span({ class: "stat-n" }, "0"),
-          __tags.span({ class: "stat-l" }, "browser deps")
+          __tags.span({ class: "stat-n stat-l" }, "browser deps")
         ),
         __tags.div({ class: "stat-sep" }),
         __tags.div(
           { class: "stat" },
           __tags.span({ class: "stat-n" }, "MIT"),
-          __tags.span({ class: "stat-l" }, "license")
+          __tags.span({ class: "stat-n stat-l" }, "license")
         )
       ),
-      __tags.p({ class: "hero-fine" }, "on pages with 200K+ mounted components*")
+      __tags.p({ class: "hero-fine" }, "raw API route \xB7 identical payloads \xB7 oha, 50 connections*")
     )
   )
 });
@@ -373,111 +1158,34 @@ var HowItWorks = component({ __id: "2rY4KOi",
     const section2 = document.querySelector(".how-section");
     if (!section2) return;
     const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        bodyVisible.value = true;
-        headVisible.value = true;
-        obs.disconnect();
-      }
+      bodyVisible.value = entry.isIntersecting;
+      headVisible.value = entry.isIntersecting;
     }, { threshold: 0.1, rootMargin: "0px 0px -56px 0px" });
     obs.observe(section2);
   },
-  view: ({ atoms: { slide, bodyVisible, headVisible } }) => {
+  onNavigate: (_, { bodyVisible, headVisible }) => {
+    bodyVisible.value = false;
+    headVisible.value = false;
+  },
+  view: ({ self, atoms: { slide, bodyVisible, headVisible } }) => {
     const concepts = [
       {
         n: "01",
         label: "Routes",
         body: "Drop a directory into pages/ with a page.ts inside. That's a route! No config, no imports, no registration step. The filesystem is the router.",
-        aside: "Layouts stack from layout.ts files walking up the directory tree, outermost-first. Each one can independently opt into server rendering. You never touch a router config.",
-        code: `pages/
-\u251C\u2500\u2500 page.ts            \u2192  /
-\u251C\u2500\u2500 layout.ts          \u2192  wraps all routes below
-\u251C\u2500\u2500 about/
-\u2502   \u2514\u2500\u2500 page.ts        \u2192  /about
-\u251C\u2500\u2500 blog/
-\u2502   \u251C\u2500\u2500 page.ts        \u2192  /blog
-\u2502   \u251C\u2500\u2500 layout.ts      \u2192  wraps /blog/* only
-\u2502   \u2514\u2500\u2500 [slug]/
-\u2502       \u2514\u2500\u2500 page.ts    \u2192  /blog/:slug
-\u2514\u2500\u2500 api/users/
-    \u2514\u2500\u2500 page.ts        \u2192  /api/users  (HTTP handlers)`
+        aside: "Layouts stack from layout.ts files walking up the directory tree, outermost-first. Each one can independently opt into server rendering. You never touch a router config."
       },
       {
         n: "02",
         label: "Components",
         body: "Write components with tag functions or JSX. Elegance compiles both the same way.",
-        aside: "Props flow through the component<Props> generic. Atoms infer their type from the initial value, no config required.",
-        code: `// pages/card/page.ts  \u2014 tag-function style
-const UserCard = component<{ name: string; avatarUrl: string }>({
-  atoms: { expanded: false },
-  init: async (self, { expanded }) => {
-    expanded.value = await getExpandPref(self.props.name);
-  },
-  view: (self, { expanded }) => {
-    const { name, avatarUrl } = self.props;
-    return article({ class: \`card \${expanded.value ? "open" : ""}\` },
-      img({ src: avatarUrl, alt: name }),
-      h2({}, name),
-      expanded.value ? section({}, "Full profile...") : null,
-      button({ onclick: () => expanded.value = !expanded.value },
-        expanded.value ? "Collapse \u2191" : "Expand \u2193")
-    );
-  }
-});
-
-// pages/card/page.tsx  \u2014 JSX style, identical output
-const UserCard = component<{ name: string; avatarUrl: string }>({
-  atoms: { expanded: false },
-  init: async (self, { expanded }) => {
-    expanded.value = await getExpandPref(self.props.name);
-  },
-  view: (self, { expanded }) => {
-    const { name, avatarUrl } = self.props;
-    return (
-      <article class={\`card \${expanded.value ? "open" : ""}\`}>
-        <img src={avatarUrl} alt={name} />
-        <h2>{name}</h2>
-        {expanded.value && <section>Full profile...</section>}
-        <button onclick={() => expanded.value = !expanded.value}>
-          {expanded.value ? "Collapse \u2191" : "Expand \u2193"}
-        </button>
-      </article>
-    );
-  }
-});`
+        aside: "Props flow through the component<Props> generic. Atoms infer their type from the initial value, no config required."
       },
       {
         n: "03",
         label: "State",
         body: "Atoms live inside a component, or the page. When the value changes, only the components that read it re-render, nothing more.",
-        aside: "DOM events use a single delegated listener per event type, so the listener count stays flat no matter how many components are mounted.",
-        code: `// const globalAtom = state("Hello, Sailor!");
-const Search = component({
-  atoms: {
-    query: "",
-    results: [] as Result[],
-    loading: false,
-    timer: null as ReturnType<typeof setTimeout> | null
-  },
-
-  view: (_, { query, results, loading, timer }) => {
-    const handleInput = (e: InputEvent) => {
-      query.value = (e.target as HTMLInputElement).value;
-      loading.value = true;
-      clearTimeout(timer.value!);
-      timer.value = setTimeout(async () => {
-        results.value = await search(query.value);
-        loading.value = false;
-      }, 280);
-    };
-
-    return div({ class: "search" },
-      input({ oninput: handleInput, value: query.value, placeholder: "Search\u2026" }),
-      loading.value
-        ? div({ class: "spinner" })
-        : ul({}, ...results.value.map(r => li({}, r.title)))
-    );
-  }
-});`
+        aside: "DOM events use a single delegated listener per event type, so the listener count stays flat no matter how many components are mounted."
       }
     ];
     const current = concepts[slide.value];
@@ -487,7 +1195,6 @@ const Search = component({
         { class: "how-inner" },
         __tags.header(
           { class: `section-head${headVisible.value ? " sr-in" : ""}` },
-          __tags.span({ class: "overline" }, "HOW IT FITS TOGETHER"),
           __tags.h2(
             { class: "section-title" },
             "Three ideas.",
@@ -533,7 +1240,7 @@ const Search = component({
               ),
               __tags.pre(
                 { class: "window-pre" },
-                __tags.code({ class: "window-code" }, current.code)
+                __tags.code({ class: "window-code", key: `how-code-${slide.value}` }, rawHTML(self.props.codeHtml[slide.value] ?? ""))
               )
             )
           )
@@ -549,165 +1256,39 @@ var Examples = component({ __id: "Krs5Sly",
     const win = document.querySelector(".examples-section .window--wide");
     if (win) {
       const obsWin = new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting) {
-          windowVisible.value = true;
-          obsWin.disconnect();
-        }
+        windowVisible.value = entry.isIntersecting;
       }, ioOpts);
       obsWin.observe(win);
     }
     const head = document.querySelector(".examples-section .section-head");
     if (head) {
       const obsHead = new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting) {
-          headVisible.value = true;
-          obsHead.disconnect();
-        }
+        headVisible.value = entry.isIntersecting;
       }, ioOpts);
       obsHead.observe(head);
     }
   },
-  view: ({ atoms: { tab, windowVisible, headVisible } }) => {
+  onNavigate: (_, { windowVisible, headVisible }) => {
+    windowVisible.value = false;
+    headVisible.value = false;
+  },
+  view: ({ self, atoms: { tab, windowVisible, headVisible } }) => {
     const files = [
       {
         label: "Routing",
-        path: "pages/blog/page.ts",
-        code: `// pages/blog/page.ts
-// The directory name is the route. No config, no registration.
-
-const PostList = component({
-  atoms: {
-    posts: [] as Post[],
-    loading: true,
-  },
-
-  // init runs on the server, ideal for data that should be
-  // present before the first byte of HTML is sent
-  init: async (_, { posts, loading }) => {
-    posts.value = await db.query(
-      "SELECT * FROM posts ORDER BY created_at DESC"
-    );
-    loading.value = false;
-  },
-
-  view: (_, { posts, loading }) =>
-    loading.value
-      ? div({ class: "skeleton" })
-      : ul({ class: "post-list" },
-          ...posts.value.map(post =>
-            li({},
-              Link({ href: \`/blog/\${post.slug}\` }, post.title),
-              time({ datetime: post.date }, formatDate(post.date))
-            )
-          )
-        )
-});
-
-export default function BlogIndex() {
-  return PostList();
-}`
+        path: "pages/blog/page.ts"
       },
       {
         label: "JSX / TSX",
-        path: "pages/blog/page.tsx",
-        code: `// pages/blog/page.tsx
-// Prefer JSX? Drop a .tsx file in the same spot. Same atoms, same routing.
-
-const PostList = component({
-  atoms: {
-    posts: [] as Post[],
-    loading: true,
-  },
-
-  init: async (_, { posts, loading }) => {
-    posts.value = await db.query(
-      "SELECT * FROM posts ORDER BY created_at DESC"
-    );
-    loading.value = false;
-  },
-
-  view: (_, { posts, loading }) => (
-    loading.value
-      ? <div class="skeleton" />
-      : <ul class="post-list">
-          {posts.value.map(post => (
-            <li>
-              <a href={\`/blog/\${post.slug}\`}>{post.title}</a>
-              <time datetime={post.date}>{formatDate(post.date)}</time>
-            </li>
-          ))}
-        </ul>
-  )
-});
-
-export default function BlogIndex() {
-  return <PostList />;
-}
-
-// .ts and .tsx files can import each other freely.
-// The preprocessor handles both; no tsconfig changes needed.`
+        path: "pages/blog/page.tsx"
       },
       {
         label: "API Routes",
-        path: "pages/api/posts/page.ts",
-        code: `// pages/api/posts/page.ts
-// Named exports for HTTP methods turn any page file into a handler.
-// Works alongside a default export.
-
-import type { IncomingMessage, ServerResponse } from "node:http";
-import { db } from "~/lib/db";
-
-export async function GET(req: IncomingMessage, res: ServerResponse) {
-  const posts = await db.posts.findMany({
-    where: { published: true },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
-
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(posts));
-}
-
-export async function POST(req: IncomingMessage, res: ServerResponse) {
-  let body = "";
-  for await (const chunk of req) body += chunk;
-
-  const post = await db.posts.create({ data: JSON.parse(body) });
-  res.writeHead(201, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(post));
-}
-
-// GET, POST, PUT, DELETE, PATCH are all supported`
+        path: "pages/api/posts/page.ts"
       },
       {
         label: "isDynamic",
-        path: "pages/dashboard/page.ts",
-        code: `// pages/dashboard/page.ts
-// Pages are static by default. Pre-rendered once at build time.
-// One export is all it takes to switch to SSR per-request.
-
-export const isDynamic = true;
-
-// Layouts can export isDynamic independently.
-// Granularity is per file, not per project.
-
-const Dashboard = component({
-  atoms: { data: null as DashboardData | null },
-
-  // With isDynamic = true, init runs on every request
-  init: async (self, { data }) => {
-    data.value = (await fetchDashboardData(self.props.req as Request));
-  },
-
-  view: (_, { data }) =>
-    data.value
-      ? div({ class: "dashboard" }, renderDashboard(data.value))
-      : div({ class: "skeleton" })
-});
-
-export default function DashboardPage() {
-  return Dashboard();
-}`
+        path: "pages/dashboard/page.ts"
       }
     ];
     const active = files[tab.value];
@@ -715,7 +1296,6 @@ export default function DashboardPage() {
       { class: "examples-section", id: "examples" },
       __tags.header(
         { class: `section-head${headVisible.value ? " sr-in" : ""}` },
-        __tags.span({ class: "overline" }, "REAL CODE"),
         __tags.h2(
           { class: "section-title" },
           "Small surface.",
@@ -748,7 +1328,7 @@ export default function DashboardPage() {
         ),
         __tags.pre(
           { class: "window-pre" },
-          __tags.code({ class: "window-code" }, active.code)
+          __tags.code({ class: "window-code", key: `ex-code-${tab.value}` }, rawHTML(self.props.codeHtml[tab.value] ?? ""))
         )
       ),
       __tags.div(
@@ -784,30 +1364,150 @@ export default function DashboardPage() {
     );
   }
 });
-function Page() {
+var BestOf = component({ __id: "bBcXqmo",
+  atoms: { tab: 0, sub: 0, headVisible: false, bodyVisible: false },
+  onMount: (_, { headVisible, bodyVisible }) => {
+    const ioOpts = { threshold: 0.1, rootMargin: "0px 0px -56px 0px" };
+    const head = document.querySelector(".best-section .section-head");
+    if (head) {
+      const obsHead = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+          headVisible.value = true;
+          obsHead.disconnect();
+        }
+      }, ioOpts);
+      obsHead.observe(head);
+    }
+    const body = document.querySelector(".best-section .best-body");
+    if (body) {
+      const obsBody = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+          bodyVisible.value = true;
+          obsBody.disconnect();
+        }
+      }, ioOpts);
+      obsBody.observe(body);
+    }
+  },
+  view: ({ self, atoms: { tab, sub, headVisible, bodyVisible } }) => {
+    const active = BEST_CODE[tab.value];
+    const snip = active.snippets[sub.value] ?? active.snippets[0];
+    return __tags.section(
+      { class: "best-section", id: "best" },
+      __tags.header(
+        { class: `section-head${headVisible.value ? " sr-in" : ""}` },
+        __tags.h2(
+          { class: "section-title" },
+          "The best of",
+          __tags.br({}),
+          __tags.em({ class: "serif-accent" }, "every framework.")
+        ),
+        __tags.p(
+          { class: "section-sub" },
+          "Routing, state, server code, rendering, images \u2014 the ideas behind React, Solid, Astro and SvelteKit, as they work in Elegance."
+        )
+      ),
+      __tags.div(
+        { class: `best-body${bodyVisible.value ? " sr-in" : ""}` },
+        __tags.div(
+          { class: "best-win" },
+          __tags.div(
+            { class: "window best-window", style: `--fc: ${active.color}` },
+            __tags.div({ class: "window-glow" }),
+            __tags.div(
+              { class: "window-bar" },
+              __tags.div(
+                { class: "dots" },
+                __tags.div({ class: "dot dot--r" }),
+                __tags.div({ class: "dot dot--y" }),
+                __tags.div({ class: "dot dot--g" })
+              ),
+              __tags.span({ class: "window-label" }, active.title),
+              ...active.snippets.length > 1 ? [
+                __tags.div(
+                  { class: "tab-row best-tabs" },
+                  ...active.snippets.map(
+                    (s, i) => __tags.button({
+                      class: `file-tab${sub.value === i ? " file-tab--on" : ""}`,
+                      onclick: () => sub.value = i
+                    }, s.label)
+                  )
+                )
+              ] : [],
+              __tags.span({ class: "window-path" }, snip.path)
+            ),
+            __tags.pre(
+              { class: "window-pre" },
+              __tags.code({ class: "window-code best-code-anim", key: `best-code-${tab.value}-${sub.value}` }, rawHTML(self.props.codeHtml[tab.value]?.[sub.value] ?? ""))
+            )
+          )
+        ),
+        __tags.div(
+          { class: "best-list" },
+          ...BEST_CODE.map(
+            (f, i) => __tags.button(
+              {
+                class: `best-item${tab.value === i ? " best-item--on" : ""}`,
+                style: `--fc: ${f.color}`,
+                onclick: () => {
+                  tab.value = i;
+                  sub.value = 0;
+                }
+              },
+              __tags.span({ class: "best-item-n" }, String(i + 1).padStart(2, "0")),
+              __tags.div(
+                { class: "best-item-main" },
+                __tags.div(
+                  { class: "best-item-head" },
+                  __tags.span({ class: "best-item-title" }, f.title),
+                  __tags.span({ class: "best-item-from" }, f.from)
+                ),
+                __tags.p({ class: "best-item-desc" }, f.desc)
+              )
+            )
+          )
+        )
+      )
+    );
+  }
+});
+async function Page() {
+  const { highlightCode } = await highlightMod();
+  const [howCodeHtml, exCodeHtml, tsHtml, tsxHtml, bestCodeHtml] = await Promise.all([
+    Promise.all(HOW_CODE.map((c) => highlightCode(c.code, c.lang))),
+    Promise.all(EXAMPLES_CODE.map((c) => highlightCode(c.code, c.lang))),
+    highlightCode(STRIP_TS_CODE, "typescript"),
+    highlightCode(STRIP_TSX_CODE, "tsx"),
+    Promise.all(BEST_CODE.map((e) => Promise.all(e.snippets.map((s) => highlightCode(s.code, s.lang)))))
+  ]);
   return __tags.div(
     { class: "root" },
     Navbar(),
     Hero(),
+    BestOf({ codeHtml: bestCodeHtml }),
     __tags.section(
       { class: "feats-section" },
       __tags.header(
         { class: "section-head" },
-        __tags.span({ class: "overline" }, "THE FEATURES"),
         __tags.h2(
           { class: "section-title" },
-          "What it actually",
-          __tags.br({}),
+          "What it actually ",
           __tags.em({ class: "serif-accent" }, "does.")
         ),
-        __tags.p({ class: "section-sub" }, "Not marketing. The real mechanics, from the filesystem to the client runtime.")
+        __tags.p(
+          {
+            class: "section-sub"
+          },
+          "A small footprint and no dependencies doesn't mean a small feature set. ",
+          "With Elegance, the opposite is true. Here are just a fraction."
+        )
       ),
       __tags.div(
         { class: "feats-grid" },
         Feat({
           num: "01",
-          title: "Filesystem routing",
-          body: "pages/ is your router. A directory with a page.ts inside is a route, full stop. Just export a default function that resolves into some element calls.",
+          title: "FS Routing",
+          body: "Your page folder IS your router. A directory with a page.ts inside is a route, full stop. Just export a default function that resolves into some element calls.",
           detail: "/[slug] \xB7 /[...rest] \xB7 layouts \xB7 API routes",
           color: "var(--amber)"
         }),
@@ -820,8 +1520,8 @@ function Page() {
         }),
         Feat({
           num: "03",
-          title: "Server-first components",
-          body: "Pages are always server-rendered, so you can run server-side code in your page, no API required. Server code is removed from the client bundle.",
+          title: "Write Server Code Anywhere",
+          body: "Our state-of-the-art compiler let's you write server-side code worry-free in the same file as your client-facing code. Import Chart in the same place you make your DB calls, with no worries.",
           detail: "SSR by default \xB7 !no-bundle \xB7 dead code elimination",
           color: "var(--green)"
         }),
@@ -869,14 +1569,13 @@ function Page() {
         })
       )
     ),
-    HowItWorks(),
+    HowItWorks({ codeHtml: howCodeHtml }),
     __tags.section(
       { class: "jsx-strip" },
       __tags.div(
         { class: "jsx-inner" },
         __tags.div(
           { class: "jsx-text" },
-          __tags.span({ class: "overline" }, "TYPESCRIPT-FIRST"),
           __tags.h2(
             { class: "jsx-title" },
             "Prefer JSX syntax?",
@@ -918,18 +1617,7 @@ function Page() {
             ),
             __tags.pre(
               { class: "jsx-pre" },
-              __tags.code({ class: "window-code" }, `const Card = component<{ name: string }>({
-  atoms: { open: false },
-  view: (self, { open }) =>
-    article({ class: "card" },
-      h2({}, self.props.name),
-      open.value && p({}, "Details\u2026"),
-      button({
-        onclick: () =>
-          open.value = !open.value
-      }, open.value ? "Close \u2191" : "Open \u2193")
-    )
-});`)
+              __tags.code({ class: "window-code" }, rawHTML(tsHtml))
             )
           ),
           __tags.div(
@@ -951,21 +1639,7 @@ function Page() {
             ),
             __tags.pre(
               { class: "jsx-pre" },
-              __tags.code({ class: "window-code" }, `const Card = component<{ name: string }>({
-  atoms: { open: false },
-  view: (self, { open }) => (
-    <article class="card">
-      <h2>{self.props.name}</h2>
-      {open.value && <p>Details\u2026</p>}
-      <button
-        onclick={() =>
-          open.value = !open.value}
-      >
-        {open.value ? "Close \u2191" : "Open \u2193"}
-      </button>
-    </article>
-  )
-});`)
+              __tags.code({ class: "window-code" }, rawHTML(tsxHtml))
             )
           )
         )
@@ -977,7 +1651,6 @@ function Page() {
         { class: "speed-inner" },
         __tags.header(
           { class: "section-head" },
-          __tags.span({ class: "overline" }, "BENCHMARKS"),
           __tags.h2(
             { class: "section-title" },
             "Built for",
@@ -999,25 +1672,25 @@ function Page() {
               { class: "speed-metrics" },
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n" }, "28,037"),
+                __tags.span({ class: "speed-n" }, "68,877"),
                 __tags.span({ class: "speed-u" }, "req/s"),
                 __tags.span({ class: "speed-l" }, "requests per second")
               ),
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n" }, "1.78"),
+                __tags.span({ class: "speed-n" }, "0.72"),
                 __tags.span({ class: "speed-u" }, "ms"),
                 __tags.span({ class: "speed-l" }, "average latency")
               ),
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n" }, "3.48"),
+                __tags.span({ class: "speed-n" }, "1.49"),
                 __tags.span({ class: "speed-u" }, "ms"),
                 __tags.span({ class: "speed-l" }, "p99 latency")
               ),
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n" }, "171"),
+                __tags.span({ class: "speed-n" }, "198"),
                 __tags.span({ class: "speed-u" }, "B"),
                 __tags.span({ class: "speed-l" }, "transferred \xB7 Brotli")
               )
@@ -1034,25 +1707,25 @@ function Page() {
               { class: "speed-metrics" },
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n speed-n--dim" }, "9.99"),
+                __tags.span({ class: "speed-n speed-n--dim" }, "15"),
                 __tags.span({ class: "speed-u speed-u--dim" }, "req/s"),
                 __tags.span({ class: "speed-l" }, "requests per second")
               ),
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n speed-n--dim" }, "5.38"),
+                __tags.span({ class: "speed-n speed-n--dim" }, "3.45"),
                 __tags.span({ class: "speed-u speed-u--dim" }, "s"),
                 __tags.span({ class: "speed-l" }, "average latency")
               ),
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n speed-n--dim" }, "8.13"),
+                __tags.span({ class: "speed-n speed-n--dim" }, "3.85"),
                 __tags.span({ class: "speed-u speed-u--dim" }, "s"),
                 __tags.span({ class: "speed-l" }, "p99 latency")
               ),
               __tags.div(
                 { class: "speed-metric" },
-                __tags.span({ class: "speed-n speed-n--dim" }, "1.03"),
+                __tags.span({ class: "speed-n speed-n--dim" }, "1.07"),
                 __tags.span({ class: "speed-u speed-u--dim" }, "MB"),
                 __tags.span({ class: "speed-l" }, "transferred \xB7 GZip")
               )
@@ -1064,7 +1737,7 @@ function Page() {
           { class: "speed-footnote" },
           __tags.div(
             { class: "speed-fn-text" },
-            __tags.span({ class: "speed-ratio" }, "2803x"),
+            __tags.span({ class: "speed-ratio" }, "4,592x"),
             __tags.span({ class: "speed-fn-label" }, " more requests/sec  \xB7  200K ", __tags.code({}, "<p>"), " elements")
           ),
           Link_default(
@@ -1075,17 +1748,16 @@ function Page() {
         )
       )
     ),
-    Examples(),
+    Examples({ codeHtml: exCodeHtml }),
     __tags.section(
       { class: "cta-section" },
       __tags.div(
         { class: "cta-inner" },
-        __tags.span({ class: "overline" }, "GET STARTED"),
         __tags.h2(
           { class: "cta-title" },
           "Two commands,",
           __tags.br({}),
-          __tags.em({ class: "cta-accent" }, "and Voil\xE0.")
+          __tags.em({ class: "cta-accent" }, "et Voil\xE0.")
         ),
         __tags.p({ class: "cta-sub" }, "Write a page.ts. Export a default function. Elegance handles the rest."),
         __tags.div(
@@ -1095,15 +1767,11 @@ function Page() {
             __tags.code(
               {},
               __tags.span({ class: "dim" }, "$ "),
-              __tags.span({ class: "hi" }, "npx create-elegance-app\n\n"),
+              __tags.span({ class: "hi" }, "npx create-elegance-app\n"),
               __tags.span({ class: "dim" }, "$ "),
               __tags.span({ class: "hi" }, "npx elegance"),
               "          ",
-              __tags.span({ class: "dim" }, "# dev server, hot-reload\n"),
-              __tags.span({ class: "dim" }, "$ "),
-              __tags.span({ class: "hi" }, "npx elegance-export"),
-              "         ",
-              __tags.span({ class: "dim" }, "# static export")
+              __tags.span({ class: "dim" }, "# dev server, hot-reload\n")
             )
           )
         ),
@@ -1142,25 +1810,19 @@ function Page() {
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Framework"),
-            Link_default({ href: "#", class: "col-link" }, "Documentation")
-          ),
-          __tags.div(
-            { class: "footer-col" },
-            __tags.h5({ class: "col-head" }, "Resources"),
-            Link_default({ href: "#", class: "col-link" }, "Examples")
+            Link_default({ href: "/docs/start/setup", class: "col-link" }, "Documentation")
           ),
           __tags.div(
             { class: "footer-col" },
             __tags.h5({ class: "col-head" }, "Community"),
-            Link_default({ href: "#", class: "col-link" }, "GitHub"),
-            Link_default({ href: "#", class: "col-link" }, "Twitter / X")
+            Link_default({ href: "https://github.com/valdemar-dev/elegance-js", class: "col-link" }, "GitHub")
           )
         )
       ),
       __tags.div(
         { class: "footer-bottom" },
         __tags.span({}, "\xA9 2026 Elegance. Built with Elegance."),
-        __tags.span({ class: "footer-v" }, "v3.0.0")
+        __tags.span({ class: "footer-v" }, "v3.2")
       )
     )
   );

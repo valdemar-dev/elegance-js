@@ -28,7 +28,7 @@ var Navbar = component({ __id: "8xBIPlt",
       ),
       __tags.div(
         { class: "nav-links" },
-        Link_default({ href: "#examples", onClick: (_, e) => {
+        Link_default({ href: "/#examples", onClick: (_, e) => {
           e.preventDefault();
           navigate("/#examples");
         }, class: "nav-link" }, "Examples"),

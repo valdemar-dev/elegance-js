@@ -36,6 +36,9 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildCallback, getOutputDirectory } from "elegance-js";
+function highlightMod() {
+  return import(new URL("../../components/highlight-server.ts", import.meta.url).href);
+}
 var DOCS_DIR = join(dirname(fileURLToPath(import.meta.url)), "docs/");
 function slugify(text) {
   return text.toLowerCase().replace(/[`*[\]]/g, "").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
@@ -84,7 +87,9 @@ function wrapConcepts(nodes, concepts) {
 function ic(text) {
   return __tags.code({ class: "ic" }, text);
 }
-function CodeBlock(filename, lang, codeText) {
+async function CodeBlock(filename, lang, codeText) {
+  const { highlightCode } = await highlightMod();
+  const highlighted = await highlightCode(codeText, lang);
   return __tags.div(
     { class: "window doc-window" },
     __tags.div(
@@ -100,7 +105,7 @@ function CodeBlock(filename, lang, codeText) {
     ),
     __tags.pre(
       { class: "window-pre doc-pre" },
-      __tags.code({ class: "window-code" }, codeText)
+      __tags.code({ class: "window-code" }, rawHTML(highlighted))
     )
   );
 }
@@ -196,7 +201,7 @@ function parseTable(lines, start, concepts = {}) {
     consumed: i - start
   };
 }
-function parseMd(source, concepts = {}) {
+async function parseMd(source, concepts = {}) {
   const lines = source.split("\n");
   const nodes = [];
   const toc = [];
@@ -213,7 +218,7 @@ function parseMd(source, concepts = {}) {
         i++;
       }
       i++;
-      nodes.push(CodeBlock("", lang, codeLines.join("\n")));
+      nodes.push(await CodeBlock("", lang, codeLines.join("\n")));
       continue;
     }
     if (line.startsWith("# ")) {
@@ -360,7 +365,7 @@ async function DocsContent(slug) {
     };
   }
   const source = await readFile(filePath, "utf-8");
-  const { title, nodes, toc } = parseMd(source, concepts);
+  const { title, nodes, toc } = await parseMd(source, concepts);
   const lastSegment = slug.split("/").at(-1) ?? slug;
   const sectionLabel = lastSegment.split("-").map((w) => w.toUpperCase()).join(" ");
   return {
@@ -504,7 +509,7 @@ buildCallback(async () => {
         const slug = prefix ? `${prefix}/${fileSlug}` : fileSlug;
         try {
           const source = await readFile(fullPath, "utf-8");
-          const { title, toc } = parseMd(source);
+          const { title, toc } = await parseMd(source);
           const headings = toc.map((item) => ({ text: item.label, id: item.id }));
           const excerpt = source.split("\n").filter(
             (l) => l.trim() && !l.startsWith("#") && !l.startsWith("```") && !l.startsWith("|") && !/^(\s*[-*+] )/.test(l) && !/^\d+\. /.test(l) && !/^---+$/.test(l.trim())
