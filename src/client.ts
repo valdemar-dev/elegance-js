@@ -366,7 +366,11 @@ function hydrateTree(vn: any, dom: Node, owner?: any): void {
         for (let i = 0; i < Math.min(dc.length, vc.length); i++) hydrateTree(vc[i]!, dc[i]!, owner);
         return;
     }
-    if (vn.__type === "live") bootstrapComponent(vn, dom, owner);
+    if (vn.__type === "live") {
+        const k = getVKey(vn);
+        if (k !== null) (dom as any)._k = k;
+        bootstrapComponent(vn, dom, owner);
+    }
 }
 
 function execView(inst: any): any {
@@ -533,7 +537,10 @@ function bootstrapComponent(desc: any, existingDom?: Node, owner?: any): any {
 }
 
 function mount(desc: any, owner?: any): Node {
-    return bootstrapComponent(desc, undefined, owner)._r;
+    const el = bootstrapComponent(desc, undefined, owner)._r;
+    const k = getVKey(desc);
+    if (k !== null) (el as any)._k = k;
+    return el;
 }
 
 const elementFactory = (tag: string) => (options: any, ...children: any[]) => {
@@ -601,12 +608,18 @@ async function hydrateWithRegions(
 ): Promise<void> {
     const queue: Array<{ desc: any; dom: Node }> = [];
 
+    // The markers are only hydration anchors. Remove each one as it is
+    // consumed so hydrateTree() never counts them as real children.
     for (const marker of qa(doc.body, 'template[data-region]')) {
         const regionIdx = parseInt(ga(marker, 'data-region')!, 10);
-        if (isNaN(regionIdx)) continue;
+        if (isNaN(regionIdx)) {
+            marker.remove();
+            continue;
+        }
 
         const entries = regions[regionIdx];
         if (!entries?.length) {
+            marker.remove();
             continue;
         }
 
@@ -628,6 +641,8 @@ async function hydrateWithRegions(
                 }
             }
         }
+
+        marker.remove();
     }
 
     await drainBootstrapQueue(queue);
